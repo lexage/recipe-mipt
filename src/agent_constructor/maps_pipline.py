@@ -15,7 +15,6 @@ from core import Text
 from db import IDB
 
 
-
 class Agent(ABC):
     """Base class for all agents in the system."""
 
@@ -50,7 +49,7 @@ class Aligner(Agent):
 
     def run(self, task_description: Text, caption: Text, context: Text, feedback: Text) -> Text:
         return f"Aligned task description '{task_description}' based on '{feedback}' feedback."
-    
+
 
 class Scholar(Agent):
     """Researches the professional knowledge required by problems and exploring various hypotheses"""
@@ -81,6 +80,7 @@ class Critic(Agent):
     def run(self, solution: Text, research: Text, aligned_info: Text, caption: Text) -> Tuple[List[int], List[str]]:
         return [random.randint(1, 5) for _ in range(4)], ["random feedback" for _ in range(4)]
 
+
 class Manager(Agent):
     """Creates the experimental plan and schedule, ensuring each step is executed according to the predefined plan."""
 
@@ -99,8 +99,9 @@ class UserProxy(Agent):
 
     def run(self, task: Text, context: Text) -> Text:
         return f"Describtion of task '{task}'"
-    
+
 # ---------- Orchestration: Pipeline & Workflows ----------
+
 
 @dataclass
 class MAPSPipelineConfig:
@@ -115,12 +116,12 @@ class MAPSPipelineConfig:
     max_iterations: int = 3
     loop_until_accepted: bool = True
 
+
 @dataclass
 class MAPSPiplineState:
     diagram: str
     context: str
     question: str
-
 
     caption: Optional[str] = None
     aligned_info: Optional[str] = None
@@ -131,7 +132,6 @@ class MAPSPiplineState:
     feedback: Optional[List[str]] = field(default_factory=lambda: [""] * 4)
 
 
-
 class MAPSPipeline:
     """Orchestrates planner -> student -> critic cycles according to config."""
 
@@ -139,36 +139,48 @@ class MAPSPipeline:
         self.cfg = cfg
 
     def run(self, task: Text) -> Text:
-        
+
         context = ""
         itteration = 0
 
         state = MAPSPiplineState(
-            diagram=task, 
-            context=context, 
+            diagram=task,
+            context=context,
             question=task
         )
 
-        task_description = self.cfg.user_proxy.run(state.question, state.context)
+        task_description = self.cfg.user_proxy.run(
+            state.question, state.context)
 
         for itteration in range(self.cfg.max_iterations):
 
             plan = self.cfg.manager.run(state)
             for step in plan:
-                
-                if step == 'interpreter':
-                    state.caption = self.cfg.interpreter.run(state.diagram, state.feedback[0])
-                
-                if step == 'aligner':
-                    state.aligned_info = self.cfg.aligner.run(task_description, state.caption, state.context, state.feedback[1])
-                
-                if step == 'scholar':
-                    state.research = self.cfg.scholar.run(task_description, state.caption, state.aligned_info, state.context, state.feedback[2])
-                
-                if step == 'solver':
-                    state.solution = self.cfg.solver.run(task_description, state.caption, state.aligned_info, state.research, state.feedback[3])
 
-            scores, feedback = self.cfg.critic.run(state.solution, state.research, state.aligned_info, state.caption)
+                if step == 'interpreter':
+                    state.caption = self.cfg.interpreter.run(
+                        state.diagram,
+                        state.feedback[0]
+                    )
+
+                if step == 'aligner':
+                    state.aligned_info = self.cfg.aligner.run(
+                        task_description,
+                        state.caption,
+                        state.context,
+                        state.feedback[1]
+                    )
+
+                if step == 'scholar':
+                    state.research = self.cfg.scholar.run(
+                        task_description, state.caption, state.aligned_info, state.context, state.feedback[2])
+
+                if step == 'solver':
+                    state.solution = self.cfg.solver.run(
+                        task_description, state.caption, state.aligned_info, state.research, state.feedback[3])
+
+            scores, feedback = self.cfg.critic.run(
+                state.solution, state.research, state.aligned_info, state.caption)
 
             if min(scores) >= 5:
                 break
@@ -198,5 +210,3 @@ config = MAPSPipelineConfig(
 
 pipline = MAPSPipeline(cfg=config)
 print(pipline.run("test task"))
-
-
