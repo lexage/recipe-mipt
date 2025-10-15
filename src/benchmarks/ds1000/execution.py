@@ -17,17 +17,13 @@ import tempfile
 def unsafe_execute(program: str, result, timeout: float):
     with create_tempdir():
 
-        # Эти системные вызовы нужны при очистке tempdir.
         import os
         import shutil
         rmtree = shutil.rmtree
         rmdir = os.rmdir
         chdir = os.chdir
 
-        # Отключаем функциональность, которая может вносить деструктивные изменения.
-        # reliability_guard()
 
-        # Конструируем проверочную программу и запускаем её.
         check_program = program
 
         try:
@@ -41,7 +37,6 @@ def unsafe_execute(program: str, result, timeout: float):
         except BaseException as e:
             result.append(f"failed: {e}")
 
-        # Необходимо для очистки.
         shutil.rmtree = rmtree
         os.rmdir = rmdir
         os.chdir = chdir
