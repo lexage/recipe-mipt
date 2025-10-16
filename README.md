@@ -3,6 +3,11 @@
 ```
 recipe-mipt/
 ├── data/ # for small data and tests
+│ ├── ...
+├── docs/ # project documentation
+│ ├── benchmarks/
+│ ├── services/
+│ ├── ...
 ├── dtools/
 │ ├── Dockerfile
 │ ├── docker_compose.yaml
@@ -10,9 +15,14 @@ recipe-mipt/
 │ ├── run.sh # run agents and services
 │ └── README.md # description
 ├── services/... # vLLM, DB, ..., etc.
+│ ├── vllm/
+│ ├── ...
 ├── src/
-│ ├── agents/
-│ │ ├── pipelines
+│ ├── agents/ # agents and agent pipelines
+│ │ ├── agent_constructor/
+│ │ │ ├── ...
+│ │ │ ...
+│ │ ├── pipelines # agent pipelines
 │ │ │ ├── maps.py
 │ │ │ ├── mars.py
 │ │ │ ├── custom.py
@@ -21,7 +31,7 @@ recipe-mipt/
 │ │ ├── plan_and_execute.py
 │ │ ├── ...
 │ │ ...
-│ ├── agent_constructor/
+│ ├── benchmarks/ # benchmarks
 │ │ ├── ...
 │ │ ...
 │ ├── icl/ # iCL modules
@@ -32,10 +42,9 @@ recipe-mipt/
 │ │ ...
 │ ├── mcp/ # MCP servers
 │ │ ├── server.py
-│ │ ├── server_v2.py
 │ │ ├── ...
 │ │ ...
-│ ├── tools/
+│ ├── tools/ # tools implementation for MCP
 │ │ ├── search_tool.py
 │ │ ...
 │ ├── utils/ # dataclasses, helper functions

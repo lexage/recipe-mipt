@@ -11,10 +11,11 @@ load_dotenv()
 server = FastMCP("agent_tools")
 
 
-@server.tool(description="""Простой калькулятор для выполнения
+@server.tool(name='calculator',
+             description="""Простой калькулятор для выполнения
              математических вычислений. Принимает строку с выражением
              (например, '5 * (10 + 2)') и возвращает результат.
-             Поддерживаемые операции: +, -, *, /, //, math.sqrt""")
+             Поддерживаемые операции: +, -, *, /, //, math.sqrt""",)
 def calculator(
     expression: Annotated[str, Field(description="Математическое выражение для вычисления")]
 ) -> str:
@@ -29,7 +30,8 @@ def calculator(
         return f"Error: {e}"
 
 
-@server.tool(description="""Данный инструмент позволяет узнать
+@server.tool(name='weather',
+             description="""Данный инструмент позволяет узнать
              актуальную погоду в Москве.""")
 def weather(
     expression: Annotated[str, Field(description="время суток")]

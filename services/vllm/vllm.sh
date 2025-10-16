@@ -12,7 +12,7 @@ fi
 
 python3 -m vllm.entrypoints.openai.api_server \
     --model $LLM \
-    --download-dir $LLM_PATH \
+    --download-dir $MODEL_DIR \
     --max-model-len 40000 \
     --host $VLLM_HOST \
     --port $VLLM_PORT \
