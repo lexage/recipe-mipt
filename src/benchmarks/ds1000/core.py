@@ -1,14 +1,12 @@
 import os
 import concurrent.futures as cfuts
-import pandas as pd
 
 from typing import Callable, Optional
 from tqdm import tqdm
 
 from . import execution
 from .dataset import DatasetDS1000
-
-
+from .data_types import ResultsDS1000
 
 
 class DS1000:
@@ -29,7 +27,7 @@ class DS1000:
         ...     return generated_code
         >>> 
         >>> results = benchmark.eval(run_method=my_model_inference)
-        >>> print(results)
+        >>> results.save("/results")
     """
     def __init__(self, path: str):
         # disable tensorflow logging and no GPU
@@ -38,7 +36,7 @@ class DS1000:
         self.dataset = DatasetDS1000(path)
 
 
-    def eval(self, run_method: Callable, preprocess_method: Optional[Callable] = None):
+    def eval(self, run_method: Callable, preprocess_method: Optional[Callable] = None) -> ResultsDS1000:
         """Evaluates a code generation model on the DS1000 benchmark.
         
         Args:
@@ -49,10 +47,12 @@ class DS1000:
                              DataItemDS1000 is passed to run_method.
         
         Returns:
-            str: A formatted summary string containing:
-                - Overall accuracy and count
-                - Accuracy per library (NumPy, Pandas, etc.)
-                - Accuracy per perturbation type
+            ResultsDS1000: Object containing detailed evaluation results with methods
+                        for analysis and saving. The results include:
+                        - Overall accuracy statistics
+                        - Per-library performance breakdown
+                        - Per-perturbation type performance
+                        - Raw data for custom analysis
             
         Note:
             Evaluation uses ProcessPoolExecutor with 16 workers for parallel
@@ -66,7 +66,7 @@ class DS1000:
             >>> def run_model(prompt):
             ...     return "np.ones(5)"  # Mock model output
             >>> 
-            >>> summary = benchmark.eval(
+            >>> results = benchmark.eval(
             ...     run_method=run_model,
             ...     preprocess_method=preprocess
             ... )
@@ -98,17 +98,10 @@ class DS1000:
 
             for f in tqdm(cfuts.as_completed(futs), total=len(futs)):
                 eval_result, metadata = f.result()
-                eval_result['score'] = 1 if eval_result['passed'] else 0
-                eval_result['library'] = metadata['library']
-                eval_result['perturbation_type'] = metadata['perturbation_type']
+                eval_result.update(metadata)
                 ds1000_results.append(eval_result)
             
-        df_res = pd.DataFrame.from_records(ds1000_results)
-        pd.set_option('display.precision', 3)
-        summary = df_res.agg({'score': ['count', 'mean']}).to_string()
-        summary += '\n' + df_res[['library', 'score']].groupby('library').agg({'score': ['count', 'mean']}).to_string()
-        summary += '\n' + df_res[['perturbation_type', 'score']].groupby('perturbation_type').agg({'score': ['count', 'mean']}).to_string()
-        return summary
+        return ResultsDS1000.from_records(data=ds1000_results)
 
 
 if __name__ == "__main__":
@@ -117,14 +110,14 @@ if __name__ == "__main__":
         return task.reference_code
 
     def dummy_run(task):
-        return task
+        return ''
     
     benchmark = DS1000("./data/ds1000.jsonl.gz")
     
     summary = benchmark.eval(
         run_method=dummy_run, 
         preprocess_method=dummy_preprocess
-    )
+    ).summary()
 
     with open(f'results/test-result.txt', 'w') as f:
         f.write(summary)
