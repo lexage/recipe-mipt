@@ -1,21 +1,59 @@
 ## Структура проекта
+
 ```
-agent-constructor/
-├── README.md # overview + usage
-├── pyproject.toml # project config
+recipe-mipt/
+├── data/ # for small data and tests
+│ ├── ...
+├── docs/ # project documentation
+│ ├── benchmarks/
+│ ├── services/
+│ ├── ...
+├── dtools/
+│ ├── Dockerfile
+│ ├── docker_compose.yaml
+│ ├── build.sh # build agents and services
+│ ├── run.sh # run agents and services
+│ └── README.md # description
+├── services/... # vLLM, DB, ..., etc.
+│ ├── vllm/
+│ ├── ...
 ├── src/
-│ ├── agent_constructor/
-│ │ ├── __init__.py
-│ │ ├── core.py # base classes, interfaces (this file)
-│ │ ├── db.py # Database implementations + storage adapters
-│ │ ├── chunkers.py # chunking strategies
-│ │ ├── filters.py # filters (source-specific and generic)
-│ │ ├── augmenters.py # augmentation strategies
-│ │ ├── context_engine.py # RAG / iCL / reasoning context building
-│ │ ├── pipeline.py # Planner / Critic / Student and orchestration
-│ │ └── examples.py # small usage examples and recipes
-├── tests/
-│ └── test_core.py
-└── docs/
-└── design.md
+│ ├── agents/ # agents and agent pipelines
+│ │ ├── agent_constructor/
+│ │ │ ├── ...
+│ │ │ ...
+│ │ ├── pipelines # agent pipelines
+│ │ │ ├── maps.py
+│ │ │ ├── mars.py
+│ │ │ ├── custom.py
+│ │ │ ├── ...
+│ │ ├── react.py
+│ │ ├── plan_and_execute.py
+│ │ ├── ...
+│ │ ...
+│ ├── benchmarks/ # benchmarks
+│ │ ├── ...
+│ │ ...
+│ ├── icl/ # iCL modules
+│ │ ├── ...
+│ │ ...
+│ ├── rag/ # RAG modules
+│ │ ├── ...
+│ │ ...
+│ ├── mcp/ # MCP servers
+│ │ ├── server.py
+│ │ ├── ...
+│ │ ...
+│ ├── tools/ # tools implementation for MCP
+│ │ ├── search_tool.py
+│ │ ...
+│ ├── utils/ # dataclasses, helper functions
+│ │ ├── ...
+│ │ ...
+│ ├── client.py # MCP client
+├── .env
+├── .gitignore
+├── pyproject.toml
+├── README.md
+├── requirements.txt
 ```
