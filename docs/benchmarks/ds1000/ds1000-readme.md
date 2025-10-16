@@ -29,14 +29,14 @@ def main():
         return generated_code
     
     # Запуск оценки
-    summary = benchmark.eval(
+    results = benchmark.eval(
         run_method=my_run_model,
         preprocess_method=my_preprocess
     )
     
-    print(summary)
-    with open('results/benchmark_results.txt', 'w') as f:
-        f.write(summary)
+    print(results.summary())
+    results.save('./results')
+
 
 # ВАЖНО: оборачивайте вызов в if __name__ == "__main__"
 if __name__ == "__main__":
@@ -145,7 +145,7 @@ Return only the code without any explanations.
     )
     
     print("Benchmark results:")
-    print(results)
+    print(results.summary())
 
 if __name__ == "__main__":
     main()

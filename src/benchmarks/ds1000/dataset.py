@@ -2,6 +2,7 @@ import gzip
 import json
 from .data_types import DataItemDS1000
 
+
 class DatasetDS1000:
     """Dataset loader for the DS1000 benchmark.
     

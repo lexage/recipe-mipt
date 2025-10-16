@@ -68,7 +68,7 @@ def check_correctness(program: str, timeout: float,
 
     return (
         dict(
-            passed=result[0] == "passed",
+            score=1 if result[0] == "passed" else 0,
             result=result[0],
             ),
         metadata
