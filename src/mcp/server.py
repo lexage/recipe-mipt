@@ -1,3 +1,4 @@
+import os
 import argparse
 from typing import Annotated
 
@@ -7,7 +8,7 @@ from fastmcp import FastMCP
 
 
 load_dotenv()
-server = FastMCP("document_tools")
+server = FastMCP("agent_tools")
 
 
 @server.tool(description="""Простой калькулятор для выполнения
@@ -52,8 +53,8 @@ if __name__ == "__main__":
     else:
         server.run(
             transport="sse",
-            host="127.0.0.1",
-            port=8002,
-            path="/mcp",
+            host=os.getenv("MCP_HOST"),
+            port=int(os.getenv("MCP_PORT")),
+            path=os.getenv("MCP_PATH"),
             log_level="debug",
         )
