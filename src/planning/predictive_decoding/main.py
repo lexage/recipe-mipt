@@ -1,15 +1,29 @@
-import pdb
-
 import json
 import torch
 import io
 import argparse
 import numpy as np
 
+from abc import ABC, abstractmethod
 
-class MPC_Sample:  # the algorithm should be stateless, and generates a whole plan / code / chain of actions at once.
+class Agent(ABC):
+    """Base class for all agents in the system."""
+
+    def __init__(self, name: str):
+        self.name = name
+    
+    @abstractmethod
+    def run(self, *args, **kwargs):
+        raise NotImplementedError
+    
+    def __str__(self):
+        return f"{self.__class__.__name__}({self.name})"
+
+
+class MPCSampleAgent(Agent):  # the algorithm should be stateless, and generates a whole plan / code / chain of actions at once.
     def __init__(self,
                  llm_model,
+                 name="MPCSampleAgent",
                  prompt_path=None,
                  lookahead_thought_length=3,
                  lookahead_token_length=None,    # the length of the lookahead token sequence, default use thought length as evaluation chunk
@@ -23,13 +37,17 @@ class MPC_Sample:  # the algorithm should be stateless, and generates a whole pl
                  use_memory=True,
                  max_problem_size=50
                  ):
+        super().__init__(name)
         
         self.llm_model = llm_model
         
         if prompt_path is not None:
             self.prompts = json.load(open(prompt_path, 'r'))
         else:
-            self.prompts = {}
+            self.prompts = {
+                "prompt": "default_prompt_template",
+                "system_msg": "default_system_message" 
+            }
         
         self.problem_size = max_problem_size
         self.n_gram = self.problem_size
@@ -127,6 +145,8 @@ class MPC_Sample:  # the algorithm should be stateless, and generates a whole pl
                 memory = self.memory[id] if id is not None else self.memory
             
             all_prefix = [prefix] + [a for a in memory if a is not None]
+            
+            action = action_output
             
             if "mistral" not in self.llm_model.engine.lower(): # mistral don't know when to stop and easily generate more than one prefix...
                 # actually this code is not quite useful for llama3 anyway, perhaps could remove it.
@@ -378,7 +398,7 @@ class MPC_Sample:  # the algorithm should be stateless, and generates a whole pl
                             "logprobs": args.logprobs}
         
         iter = 0
-        self.memory = [None]*self.problem_size
+        self.memory = [None] * self.problem_size
         reflection_tips = ""
 
         while iter < args.max_iters:
@@ -411,7 +431,7 @@ class MPC_Sample:  # the algorithm should be stateless, and generates a whole pl
             
             if action is not None:
                 self.memory[iter] = action
-                iter += 1
+                # iter += 1
                 reflection_tips = self.reflection_tips()
                 
                 if iter > args.max_iters:
@@ -424,6 +444,7 @@ class MPC_Sample:  # the algorithm should be stateless, and generates a whole pl
                 if reflection_tips[0]:
                     self.memory[iter] = reflection_tips[1]
                     break
+            iter += 1
                       
         if success:
             with io.StringIO() as f:
@@ -437,20 +458,3 @@ class MPC_Sample:  # the algorithm should be stateless, and generates a whole pl
             return True, full_output
             
         return False, None
-    
-    
-    @classmethod
-    def from_config(cls, llm_model, config):
-        return cls(llm_model, 
-                   prompt_path=config.get("prompt_path", None),
-                   lookahead_thought_length=config.get("lookahead_thought_length", 3),
-                   lookahead_token_length=config.get("lookahead_token_length", None),
-                   reward_threshold=config.get("reward_threshold", 1.0),
-                   beam_size=config.get("beam_size", 8),
-                   beam_temperature=config.get("beam_temperature", 0.7),
-                   select_temperature=config.get("select_temperature", 0.1),
-                   n_generate_sample=config.get("n_generate_sample", 8),
-                   value_type=config.get("value_type", "logp"),
-                   do_sample=config.get("do_sample", True),
-                   use_memory=config.get("use_memory", True)
-                   )
