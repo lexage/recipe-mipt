@@ -1,6 +1,7 @@
-from sklearn.feature_extraction.text import TfidfVectorizer
 import pickle
 import os
+
+from sklearn.feature_extraction.text import TfidfVectorizer
 
 
 class DummyPlanner:
@@ -40,5 +41,4 @@ class TFIDFEmbeddingFunction:
         return self.__call__(input)
     
     def name(self):
-        return "dummy"
-
+        return "tf-idf"
