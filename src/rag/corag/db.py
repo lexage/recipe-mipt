@@ -2,13 +2,12 @@ import sqlite3
 import chromadb
 
 from typing import List
+from tqdm import tqdm
 
 from src.agents.agent_constructor.chunkers import Chunker
 from src.agents.agent_constructor.core import Document, Chunk, Text
-from src.rag.corag.models import TFIDFEmbeddingFunction
 from src.agents.agent_constructor.db import IDB
-
-from tqdm import tqdm
+from src.rag.corag.models import TFIDFEmbeddingFunction
 
 
 BATCH_SIZE = 10
@@ -82,9 +81,9 @@ class LocalCoragDB(IDB):
     def __init__(
             self, 
             chunker: Chunker, 
-            path_to_db: str = 'docs_database.db', 
-            path_to_vector_db: str = 'vector_docs_database', 
-            embedding_model: str = 'tfidf_vectorizer.pkl',
+            path_to_db: str = 'data/docs_database.db', 
+            path_to_vector_db: str = 'data/docs_vector_database', 
+            embedding_model: str = 'data/tfidf_vectorizer.pkl',
             collection_name: str = 'docs',
             ):
 

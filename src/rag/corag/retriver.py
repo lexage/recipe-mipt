@@ -1,6 +1,7 @@
+from typing import List, Tuple
+
 from src.agents.agent_constructor.context_engine import Retriever, Chunk
 from src.agents.agent_constructor.db import IDB
-from typing import List, Tuple
 
 
 class CORAG_Retriver(Retriever):
@@ -12,4 +13,6 @@ class CORAG_Retriver(Retriever):
     def retrieve(self, query: str, k:int = 5) -> List[Tuple]:
         sub_queries = self.planner_agent.run(query)
         results = [self.data_base.query(sub_query, k) for sub_query in sub_queries]
-        return results
+        return [(sub_query, chunks) for sub_query, chunks in zip(sub_queries, results)]
+
+
