@@ -11,7 +11,7 @@ class DummyPlanner:
         return [f"#{i} Subquery of query '{query}'" for i in range(self.max_num_queries)]
 
 
-class DummyEmbeddingFunction:
+class TFIDFEmbeddingFunction:
     def __init__(self, vectorizer_path='tfidf_vectorizer.pkl'):
         self.vectorizer_path = vectorizer_path
         self.vectorizer = None
