@@ -89,7 +89,7 @@ class DS1000:
 
                 test_program = (
                     task.code_context + '\n'
-                    + f'code = {result}\n'
+                    + f'code = {repr(result)}\n'
                     + 'test_execution(code)\n'
                     + ('test_string(code)\n'  if 'test_string(' in task.code_context  else '\n')
                 )
