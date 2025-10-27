@@ -79,10 +79,13 @@ Proposed Answer: {answer}
 
     def llm_critique(self, question: str, response: str) -> str:
         prompt = self.make_prompt(question, response, self.examples)
+        # print(prompt)
         res = self.llm(prompt)
         return res
 
     def run(self, question: str, response: str) -> str:
+        # TODO: verify then correct
+
         if self.use_tools:
             return self.tool_critique(question, response)
         else:
