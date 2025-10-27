@@ -1,21 +1,15 @@
 import pickle
 import os
 
+from src.agents.agent_constructor.pipeline import Agent
 from sklearn.feature_extraction.text import TfidfVectorizer
 
 
-class DummyPlanner:
-    def __init__(self, max_subqueries: int):
-        self.max_num_queries = max_subqueries
-    
-    def run(self, query: str):
-        return [f"#{i} Subquery of query '{query}'" for i in range(self.max_num_queries)]
-
-
-class TFIDFEmbeddingFunction:
-    def __init__(self, vectorizer_path='tfidf_vectorizer.pkl'):
+class TFIDFEmbedding(Agent):
+    def __init__(self, name: str, vectorizer_path:str ='data/tfidf_vectorizer.pkl'):
+        super().__init__(name)        
         self.vectorizer_path = vectorizer_path
-        self.vectorizer = None
+        self.vectorizer = None 
         self._load_or_init_vectorizer()
     
     def _load_or_init_vectorizer(self):
@@ -34,11 +28,6 @@ class TFIDFEmbeddingFunction:
             self.vectorizer.fit(texts)
             self.save_vectorizer()
     
-    def __call__(self, input):
+    def run(self, input):
         return self.vectorizer.transform(input).toarray()
-    
-    def embed_query(self, input):
-        return self.__call__(input)
-    
-    def name(self):
-        return "tf-idf"
+

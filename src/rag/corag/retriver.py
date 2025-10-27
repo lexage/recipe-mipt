@@ -1,11 +1,12 @@
 from typing import List, Tuple
 
-from src.agents.agent_constructor.context_engine import Retriever, Chunk
+from src.agents.agent_constructor.context_engine import Retriever
+from src.agents.agent_constructor.pipeline import Agent
 from src.agents.agent_constructor.db import IDB
 
 
 class CORAG_Retriver(Retriever):
-    def __init__(self, name: str, data_base: IDB, planner_agent):
+    def __init__(self, name: str, data_base: IDB, planner_agent: Agent):
         super().__init__(name)
         self.data_base = data_base
         self.planner_agent = planner_agent
@@ -14,5 +15,4 @@ class CORAG_Retriver(Retriever):
         sub_queries = self.planner_agent.run(query)
         results = [self.data_base.query(sub_query, k) for sub_query in sub_queries]
         return [(sub_query, chunks) for sub_query, chunks in zip(sub_queries, results)]
-
 

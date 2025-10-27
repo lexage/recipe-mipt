@@ -33,3 +33,13 @@ class SimpleChunker(Chunker):
             chunks.append(chunk)
             i += self.max_chars
         return chunks
+
+    
+class DummyChunker(Chunker):
+    def __init__(self):
+        pass
+
+    def chunk(self, doc: Document) -> List[Chunk]:
+        text = doc.text
+        chunk = Chunk(id=str(doc.id), doc_id=doc.id, text=text, tokens=None)
+        return [chunk]
