@@ -29,5 +29,4 @@ class TFIDFEmbedding(Agent):
             self.save_vectorizer()
     
     def run(self, input):
-        return self.vectorizer.transform(input).toarray()
-
+        return self.vectorizer.transform([input]).toarray()
