@@ -1,16 +1,18 @@
 from src.agents.agent_constructor.context_engine import Retriever, Text
 from src.agents.agent_constructor.db import IDB
 from src.rag.raptor.core import RetrievalAugmentation, RetrievalAugmentationConfig
-from typing import List
+from src.agents.agent_constructor.pipeline import Agent
+from src.rag.raptor.wrappers import QAModelWrapper, SummarizationWrapper, EmbeddingWrapper
+
 
 class RaptorRetriver(Retriever):
-    def __init__(self, name: str, data_base: IDB, path_to_raptor_db: str, embeddig_model = None, qa_model = None, summarization_model = None):
+    def __init__(self, name: str, data_base: IDB, path_to_raptor_db: str, embeddig_model: Agent, qa_model: Agent, summarization_model: Agent):
         super().__init__(name)
 
         rac = RetrievalAugmentationConfig(
-            embedding_model=embeddig_model,
-            qa_model=qa_model,
-            summarization_model=summarization_model,
+            embedding_model=EmbeddingWrapper(embeddig_model),
+            qa_model=QAModelWrapper(qa_model),
+            summarization_model=SummarizationWrapper(summarization_model),
         )
 
         try:
@@ -27,7 +29,6 @@ class RaptorRetriver(Retriever):
             )
 
             chunks = data_base.all_chunks()
-
 
             chunks_text = [chunk.text for chunk in chunks]
             giant_ass_text = '\n'.join(chunks_text)

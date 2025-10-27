@@ -4,7 +4,11 @@ import chromadb
 from typing import List
 from tqdm import tqdm
 
+<<<<<<< HEAD
 from src.agent_constructor.core import Document, Text, Chunk
+=======
+from src.agents.agent_constructor.core import Document, Text, Chunk
+>>>>>>> 97a5bf3 (RAG Piplines refactor)
 
 
 class SQLiteDocsDBAdapter:
@@ -24,7 +28,10 @@ class SQLiteDocsDBAdapter:
                 FROM documents d
                 JOIN sections s ON d.section_id = s.id
                 JOIN libraries l ON s.library_id = l.id
+<<<<<<< HEAD
                 WHERE section == "user_guide" 
+=======
+>>>>>>> 97a5bf3 (RAG Piplines refactor)
             ''')
             
             for row in cursor.fetchall():
@@ -64,6 +71,7 @@ class ChromaDocsAdapter:
 
             batch_docs = [chunk.text for chunk in chunks[i:i+self.batch_size]]
             batch_ids = [chunk.id for chunk in chunks[i:i+self.batch_size]]
+<<<<<<< HEAD
             batch_metadatas = [chunk.metadata for chunk in chunks[i:i+self.batch_size]]
             self.collection.add(documents=batch_docs, ids=batch_ids, metadatas=batch_metadatas)
 
@@ -94,3 +102,10 @@ class ChromaDocsAdapter:
             all_query_results.append(query_chunks)
         
         return all_query_results
+=======
+            self.collection.add(documents=batch_docs, ids=batch_ids)
+
+    def search(self, queries: List[Text], top_k: int):
+        results = self.collection.query(query_texts=queries, n_results=top_k)
+        return results.get("ids", [[]])[0]
+>>>>>>> 97a5bf3 (RAG Piplines refactor)
