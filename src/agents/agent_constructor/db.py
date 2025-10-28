@@ -82,6 +82,8 @@ class LocalDB(IDB):
             }
 
         if not self.vector_data_base.populated:
+            text_data = [chunk.text for chunk in self.all_chunks()]
+            embedding_model.fit(text_data)
             self.vector_data_base.populate(self.all_chunks())
 
     def _get_chunks(self, chunker: Chunker, documents: List[Document]):
@@ -91,11 +93,11 @@ class LocalDB(IDB):
             chunks.extend(doc_chunks)
         return chunks
     
-    def query(self, queries: Text, top_k: int):
+    def query(self, queries: Text, top_k: int) -> List[Chunk]:
         chunk_ids = self.vector_data_base.search(queries=[queries], top_k=top_k)          
         return [self.chunks[chunk_id] for chunk_id in chunk_ids]
     
-    def all_chunks(self):
+    def all_chunks(self) -> List[Chunk]:
         return list(self.chunks.values())
     
     def add_chunks(self, chunks):
