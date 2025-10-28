@@ -8,11 +8,12 @@ from typing import (
     Tuple,
 )
 
-from context_engine import ContextAssembler
-from core import Text
-from db import IDB
+from src.agents.agent_constructor.context_engine import ContextAssembler
+from src.agents.agent_constructor.core import Text
+from src.agents.agent_constructor.db import IDB
 
 # ---------- Agent primitives: Planner, Critic, Student ----------
+
 class Planner(ABC):
     """Generate a plan (list of steps) given a task and context."""
 
