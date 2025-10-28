@@ -1,7 +1,9 @@
 import pickle
 import os
+from typing import List
 
-from src.agents.agent_constructor.pipeline import Agent
+from src.agents.agent_constructor.agent import Agent
+from src.agents.agent_constructor.core import Text
 from sklearn.feature_extraction.text import TfidfVectorizer
 
 
@@ -23,10 +25,12 @@ class TFIDFEmbedding(Agent):
         with open(self.vectorizer_path, 'wb') as f:
             pickle.dump(self.vectorizer, f)
     
-    def fit(self, texts):
+    def fit(self, texts: List[Text]):
         if not hasattr(self.vectorizer, 'vocabulary_'):
             self.vectorizer.fit(texts)
             self.save_vectorizer()
     
-    def run(self, input):
-        return self.vectorizer.transform([input]).toarray()
+    def run(self, data: Text | List[Text]):
+        if isinstance(data, Text):
+            data = [data]
+        return self.vectorizer.transform(data).toarray()

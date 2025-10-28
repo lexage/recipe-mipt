@@ -1,7 +1,7 @@
 from typing import List, Tuple
 
 from src.agents.agent_constructor.context_engine import Retriever
-from src.agents.agent_constructor.pipeline import Agent
+from src.agents.agent_constructor.agent import Agent
 from src.agents.agent_constructor.db import IDB
 
 
