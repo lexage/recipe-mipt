@@ -1,4 +1,4 @@
-from src.agents.agent_constructor.pipeline import Agent
+from src.agents.agent_constructor.agent import Agent
 
 
 class EmbeddingFunctionWrapper:
@@ -12,4 +12,4 @@ class EmbeddingFunctionWrapper:
         return self.__call__(input)
     
     def name(self):
-        return "custom-embedding"
+        return self.agent.name

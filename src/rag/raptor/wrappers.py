@@ -1,5 +1,5 @@
 from src.rag.raptor.core import BaseEmbeddingModel, BaseSummarizationModel, BaseQAModel
-from src.agents.agent_constructor.pipeline import Agent
+from src.agents.agent_constructor.agent import Agent
 
 class QAModelWrapper(BaseQAModel):
     def __init__(self, agent: Agent):

@@ -1,4 +1,4 @@
-from src.agents.agent_constructor.pipeline import Agent
+from src.agents.agent_constructor.agent import Agent
 
 
 class DummyCORAGPlanner(Agent):
