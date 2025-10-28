@@ -11,10 +11,8 @@ from typing import (
     Tuple,
 )
 
-from context_engine import ContextAssembler
-from core import Text
-from db import IDB
-
+from agent_constructor.core import Text
+from agent_constructor.agent import Agent
 
 class MAPSAgentNames(Enum):
     ALIGNER = 'aligner'
@@ -23,20 +21,6 @@ class MAPSAgentNames(Enum):
     USER_PROXY = 'user_proxy'
     CRITIC = 'critic'
     MANAGER = 'manager'
-
-
-class Agent(ABC):
-    """Base class for all agents in the system."""
-
-    def __init__(self, name: str):
-        self.name = name
-
-    @abstractmethod
-    def run(self, *args, **kwargs):
-        raise NotImplementedError
-
-    def __str__(self):
-        return f"{self.__class__.__name__}({self.name})"
 
 
 # ---------- Agent primitives: Planner, Critic, Student ----------
@@ -180,22 +164,23 @@ class MAPSPipeline:
 
         return state.solution
 
+if __name__ == "__main__":
+    
+    aligner = Aligner()
+    scholar = Scholar()
+    solver = Solver()
+    critic = Critic()
+    manager = Manager()
+    user_proxy = UserProxy()
 
-aligner = Aligner()
-scholar = Scholar()
-solver = Solver()
-critic = Critic()
-manager = Manager()
-user_proxy = UserProxy()
+    config = MAPSPipelineConfig(
+        aligner=aligner,
+        scholar=scholar,
+        solver=solver,
+        critic=critic,
+        manager=manager,
+        user_proxy=user_proxy,
+    )
 
-config = MAPSPipelineConfig(
-    aligner=aligner,
-    scholar=scholar,
-    solver=solver,
-    critic=critic,
-    manager=manager,
-    user_proxy=user_proxy,
-)
-
-pipline = MAPSPipeline(cfg=config)
-print(pipline.run("test task"))
+    pipline = MAPSPipeline(cfg=config)
+    print(pipline.run("test task"))
