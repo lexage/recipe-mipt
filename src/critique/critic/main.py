@@ -1,5 +1,4 @@
 from abc import ABC, abstractmethod
-from langchain.tools import StructuredTool
 
 
 class Agent(ABC):
@@ -34,7 +33,7 @@ class Critic(Agent):
         self,
         name: str = "CRITIC",
         use_tools: bool = False,
-        tools: list[StructuredTool] = [],
+        tools: list = [],
         examples: list[Example] = [],
     ):
         super().__init__(name)
