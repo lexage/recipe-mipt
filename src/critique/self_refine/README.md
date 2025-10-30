@@ -2,4 +2,4 @@
 
 [Paper](https://arxiv.org/pdf/2303.17651)
 
-[Code](https://github.com/madaan/self-refine)
+Based on [code](https://github.com/madaan/self-refine)
