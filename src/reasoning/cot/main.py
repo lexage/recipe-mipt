@@ -1,0 +1,97 @@
+from abc import ABC, abstractmethod
+from typing import Optional, List, Union
+
+class Reasoning(ABC):
+    """Base class for reasoning."""
+
+    def __init__(self, name: str):
+        self.name = name
+    
+    @abstractmethod
+    def reason(self, *args, **kwargs):
+        raise NotImplementedError
+    
+    def __str__(self):
+        return f"{self.__class__.__name__}({self.name})"
+
+
+class CoT(Reasoning):
+    def __init__(
+        self, 
+        name: str = "CoT", 
+        mode: str = "zero-shot", 
+        few_shot_examples: Optional[Union[str, List[str]]] = None
+    ):
+        """
+        Args:
+            name: method name
+            mode: "zero-shot" or "few-shot"
+            few_shot_examples: Either path to file with examples or list of examples
+        """
+        super().__init__(name)
+        self.mode = mode
+        self.examples = self.load_examples(few_shot_examples)
+    
+    def load_examples(
+        self, 
+        few_shot_examples: Optional[Union[str, List[str]]]
+    ) -> List[str]:
+        """Load few-shot examples from file or use provided examples."""
+        if self.mode != "few-shot" or few_shot_examples is None:
+            return []
+        
+        if isinstance(few_shot_examples, str):
+            try:
+                with open(few_shot_examples, 'r', encoding='utf-8') as f:
+                    examples = f.read().split('---')  # Assuming examples separated by '---'
+                return [ex.strip() for ex in examples if ex.strip()]
+            except FileNotFoundError:
+                print(f"Warning: Examples file {few_shot_examples} not found. Using zero-shot mode.")
+                return []
+        elif isinstance(few_shot_examples, list):
+            return few_shot_examples
+        else:
+            print(f"Warning: Invalid examples type. Using zero-shot mode.")
+            return []
+    
+    def build_prompt(self, task: str) -> str:
+        """Build the prompt based on the mode."""
+        prompt_parts = []
+        
+        if self.mode == "few-shot" and self.examples:
+            # Add few-shot examples
+            prompt_parts.append("Here are some examples of solving programming problems step by step:")
+            for i, example in enumerate(self.examples, 1):
+                prompt_parts.append(f"Example {i}:")
+                prompt_parts.append(example)
+            prompt_parts.append("\nNow solve the following problem:")
+        else:
+            # Zero-shot mode
+            prompt_parts.append("Let's think step by step to solve the programming problem.")
+        
+        # Add the task
+        prompt_parts.append(f"Problem: {task}")
+        prompt_parts.append("\nStep-by-step reasoning:")
+        
+        return "\n".join(prompt_parts)
+    
+    def llm(self, prompt: str) -> str:
+        # TODO: Replace with actual LLM call
+        return ""
+    
+    def extract_code(self, reasoning: str) -> str:
+        """
+        Extract code from the reasoning text.
+        """
+        # TODO: Add implementation
+        return ""
+        
+    def reason(self, task: str) -> str:
+        """
+        Run the Chain-of-Thought process for the given task.
+        """
+        prompt = self.build_prompt(task)
+        reasoning = self.llm(prompt)
+        code = self.extract_code(reasoning)
+        
+        return code
