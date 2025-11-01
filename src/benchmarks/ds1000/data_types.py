@@ -1,7 +1,6 @@
 import pandas as pd
 import os
 from dataclasses import dataclass
-from datetime import datetime
 
 
 @dataclass
@@ -26,6 +25,7 @@ class DataItemDS1000:
         'Create a numpy array of ones'
     """
 
+    p_id: str
     prompt: str
     reference_code: str
     metadata: dict
@@ -47,6 +47,7 @@ class DataItemDS1000:
         """
 
         return cls(
+            p_id=data['metadata']['problem_id'],
             prompt=data['prompt'],
             reference_code=data['reference_code'],
             metadata=data['metadata'],
@@ -104,7 +105,7 @@ class ResultsDS1000:
         summary += '\n' + self.df[['perturbation_type', 'score']].groupby('perturbation_type').agg({'score': ['count', 'mean']}).to_string()
         return summary
     
-    def save(self, base_path) -> str:
+    def save(self, path) -> str:
         """Saves results to timestamped directory.
         
         Args:
@@ -118,9 +119,7 @@ class ResultsDS1000:
             >>> results.save("./experiments/")
             './experiments/20231201_143022'
         """
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        path = os.path.join(base_path, timestamp)
-
+        
         try:
             os.makedirs(path, exist_ok=True)
             

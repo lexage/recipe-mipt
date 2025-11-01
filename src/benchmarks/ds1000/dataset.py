@@ -17,11 +17,24 @@ class DatasetDS1000:
         >>> for item in dataset:
         ...     print(item.prompt)
         ...     break  # Process first item only
+        
+        >>> item = dataset[0]
     """
     def __init__(self, path):
         self.path = path
+        self._items = []
+        self._pid_to_item = {}
+        
+        self._load_data()
     
-    def preprocess(self, line: str) -> DataItemDS1000:
+    def _load_data(self):
+        with gzip.open(self.path, "rt") as f:
+            for line in f:
+                item = self._preprocess(line)
+                self._items.append(item)
+                self._pid_to_item[item.p_id] = item
+    
+    def _preprocess(self, line: str) -> DataItemDS1000:
         """Converts a JSON line from the dataset into a DataItemDS1000.
         
         Args:
@@ -37,11 +50,17 @@ class DatasetDS1000:
         
         Yields:
             DataItemDS1000: The next data item from the dataset.
-            
-        Note:
-            The dataset file is opened and read line by line during iteration.
-            File is automatically closed when iteration completes.
         """
-        with gzip.open(self.path, "rt") as f:
-            for line in f:
-                yield self.preprocess(line)
+        yield from self._items
+    
+    def __getitem__(self, index) -> DataItemDS1000:
+        """Get item by index.
+        
+        Args:
+            index: p_id of DataItemDS1000.
+            
+        Returns:
+            DataItemDS1000: The data item with the specified p_id.
+        """
+
+        return self._pid_to_item.get(index, None)

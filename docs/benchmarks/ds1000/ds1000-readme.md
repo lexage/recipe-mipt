@@ -15,7 +15,7 @@ from benchmarks.ds1000 import DS1000
 
 def main():
     # Инициализация бенчмарка
-    benchmark = DS1000("./data/ds1000.jsonl.gz")
+    benchmark = DS1000("data/ds1000.jsonl.gz")
     
     # Определение методов для обработки
     def my_preprocess(task):
@@ -31,11 +31,9 @@ def main():
     # Запуск оценки
     results = benchmark.eval(
         run_method=my_run_model,
-        preprocess_method=my_preprocess
+        preprocess_method=my_preprocess,
+        save_path="results"
     )
-    
-    print(results.summary())
-    results.save('./results')
 
 
 # ВАЖНО: оборачивайте вызов в if __name__ == "__main__"
@@ -51,6 +49,8 @@ if __name__ == "__main__":
 
 - **`run_method`** (обязательный): функция, которая принимает обработанную задачу и возвращает сгенерированный код как строку
 - **`preprocess_method`** (опциональный): функция для предобработки `DataItemDS1000` перед передачей в `run_method`
+- **`save_path`** (опциональный): путь, по которому будут сохраняться результаты. По умолчанию `results/`. Каждый отдельный прогон будет сохраняться по этому пути в подпапке с таймстемпом. Напр. `results\20251101_115040`
+- **`continue_exp`** (опциональный): Таймстэмп эксперимента, по которому уже есть результаты прогона и их надо просто оценить. Например если `20251101_115040`, то скрипт загрузит результаты из `results\20251101_115040` и оценит их
 
 #### Примеры использования:
 
@@ -84,6 +84,7 @@ benchmark.eval(
 ```python
 @dataclass
 class DataItemDS1000:
+    p_id: int             # ID проблеммы
     prompt: str           # Текст задачи на естественном языке
     reference_code: str   # Эталонное решение
     metadata: dict        # Метаданные (библиотека, тип пертурбации)
@@ -101,7 +102,6 @@ from benchmarks.ds1000 import DS1000
 def main():
     benchmark = DS1000("./data/ds1000.jsonl.gz")
     summary = benchmark.eval(run_method=my_model)
-    print(summary)
 
 if __name__ == "__main__":
     main()
@@ -141,11 +141,10 @@ Return only the code without any explanations.
     # Запуск оценки
     results = benchmark.eval(
         run_method=run_llm,
-        preprocess_method=preprocess_for_llm
+        preprocess_method=preprocess_for_llm,
+        save_path='results/test_model'
     )
-    
-    print("Benchmark results:")
-    print(results.summary())
+ 
 
 if __name__ == "__main__":
     main()
