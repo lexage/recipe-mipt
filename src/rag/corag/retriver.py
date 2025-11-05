@@ -5,7 +5,7 @@ from src.agents.agent_constructor.agent import Agent
 from src.agents.agent_constructor.db import IDB
 
 
-class CORAG_Retriver(Retriever):
+class CoRAGRetriver(Retriever):
     def __init__(self, name: str, data_base: IDB, planner_agent: Agent):
         super().__init__(name)
         self.data_base = data_base

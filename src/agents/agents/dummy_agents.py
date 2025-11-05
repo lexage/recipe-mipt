@@ -1,7 +1,7 @@
 from src.agents.agent_constructor.agent import Agent
 
 
-class DummyCORAGPlanner(Agent):
+class DummyPlanner(Agent):
     def __init__(self, name: str, max_subqueries: int):
         super().__init__(name)
         self.max_num_queries = max_subqueries
@@ -24,4 +24,3 @@ class DummySummarization(Agent):
 
     def run(self, context, max_tokens=150):
         return "Summarization"
-    
