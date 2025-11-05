@@ -1,10 +1,11 @@
 from typing import Dict, Any
-from pydantic import BaseModel
 
-from src.agent_constructor.configs import AgentConfig, DBConfig, FilterConfig, RetrieverConfig, ChunkerConfig, AnyConfig
+from src.pipelines.configs import AgentConfig, DBConfig, FilterConfig, RetrieverConfig, ChunkerConfig, AnyConfig
 
 from src.agents.tfidf_agent import TFIDFEmbedding
 from src.agents.dummy_agents import DummyPlanner, DummyQAAgent, DummySummarization
+from src.agents.rewoo_agents import SolverREWOO, WorkerREWOO, PlannerREWOO
+from src.agents.maps_agents import ScholarMAPS, SolverMAPS, UserProxyMAPS, ManagerMAPS, AlignerMAPS, CriticMAPS
 from src.agent_constructor.db import LocalDB
 from src.rag.corag.retriver import CoRAGRetriver
 from src.agent_constructor.chunkers import SimpleChunker, DummyChunker
@@ -62,6 +63,42 @@ class ComponentFactory:
             return TFIDFEmbedding(
                 name=config.params.get("name", "tfidf_embedding"),
                 vectorizer_path=config.params.get("vectorizer_path", 'data/tfidf_vectorizer.pkl')
+            )
+        elif config.type == "rewoo_solver":
+            return SolverREWOO(
+                name=config.params.get("name", "rewoo_solver")
+            )
+        elif config.type == "rewoo_worker":
+            return WorkerREWOO(
+                name=config.params.get("name", "rewoo_worker")
+            )
+        elif config.type == "rewoo_planner":
+            return PlannerREWOO(
+                name=config.params.get("name", "rewoo_planner")
+            )
+        elif config.type == "maps_solver":
+            return SolverMAPS(
+                name=config.params.get("name", "maps_solver")
+            )
+        elif config.type == "maps_scholar":
+            return ScholarMAPS(
+                name=config.params.get("name", "maps_scholar")
+            )
+        elif config.type == "maps_manager":
+            return ManagerMAPS(
+                name=config.params.get("name", "maps_manager")
+            )
+        elif config.type == "maps_aligner":
+            return AlignerMAPS(
+                name=config.params.get("name", "maps_aligner")
+            )
+        elif config.type == "maps_critic":
+            return CriticMAPS(
+                name=config.params.get("name", "maps_critic")
+            )
+        elif config.type == "maps_user_proxy":
+            return UserProxyMAPS(
+                name=config.params.get("name", "maps_user_proxy")
             )
         else:
             raise ValueError(f"Unknown agent type: {config.type}")
