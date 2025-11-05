@@ -11,4 +11,5 @@ class InstructRAGRetriver(Retriever):
 
     def retrieve(self, query, k = 5):
         chunks = self.data_base.query(query, k)
-        return [(self.rationality_agent.run(query, chunk.text), chunk) for chunk in chunks]
+        # Тут костыль, убрать, когда будут ContextAssemblers
+        return [(self.rationality_agent.run(query, chunk.text), [chunk]) for chunk in chunks]
