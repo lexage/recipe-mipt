@@ -24,6 +24,7 @@ class SQLiteDocsDBAdapter:
                 FROM documents d
                 JOIN sections s ON d.section_id = s.id
                 JOIN libraries l ON s.library_id = l.id
+                WHERE section == "user_guide" 
             ''')
             
             for row in cursor.fetchall():

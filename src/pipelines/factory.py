@@ -6,8 +6,10 @@ from src.agents.tfidf_agent import TFIDFEmbedding
 from src.agents.dummy_agents import DummyPlanner, DummyQAAgent, DummySummarization
 from src.agents.rewoo_agents import SolverREWOO, WorkerREWOO, PlannerREWOO
 from src.agents.maps_agents import ScholarMAPS, SolverMAPS, UserProxyMAPS, ManagerMAPS, AlignerMAPS, CriticMAPS
-from src.agent_constructor.db import LocalDB
+from src.agent_constructor.db import LocalDB, LocalRaptorDB
 from src.rag.corag.retriver import CoRAGRetriver
+from src.rag.instructrag.retriver import InstructRAGRetriver
+from src.rag.raptor.retriver import RaptorRetriver
 from src.agent_constructor.chunkers import SimpleChunker, DummyChunker
 
 
@@ -41,6 +43,12 @@ class ComponentFactory:
                 path_to_db=config.params.get("path_to_db", 'data/docs_database.db'),
                 path_to_vector_db=config.params.get("path_to_vector_db", 'data/docs_vector_database'),
                 collection_name=config.params.get("collection_name", 'docs'),
+            )
+        elif config.type == "local_raptor":
+            chunker = dependencies.get("chunker")
+            return LocalRaptorDB(
+                chunker=chunker,
+                path_to_db=config.params.get("path_to_db", "data/docs_database.db")
             )
         else:
             raise ValueError(f"Unknown DB type: {config.type}")
@@ -111,6 +119,27 @@ class ComponentFactory:
                 name=config.params.get("name", "corag_retriever"),
                 data_base=db,
                 planner_agent=planner_agent,
+            )
+        elif config.type == "raptor":
+            db = dependencies.get("db")
+            embedding_agent = dependencies.get("embedding_agent")
+            qa_agent = dependencies.get("qa_agent")
+            summarization_agent = dependencies.get("summarization_agent")
+            return RaptorRetriver(
+                name=config.params.get("name", "raptor_retriver"),
+                data_base=db,
+                path_to_raptor_db=config.params.get("path_to_raptor_db", "data/docs_raptor_database"),
+                qa_model=qa_agent,
+                summarization_model=summarization_agent,
+                embeddig_model=embedding_agent
+            )
+        elif config.type == "instruct":
+            db = dependencies.get("db")
+            rationality_agent = dependencies.get("rationality_agent")
+            return InstructRAGRetriver(
+                name=config.params.get("name", "instruct_rag_retriver"),
+                data_base=db,
+                rationality_agent=rationality_agent,
             )
         else:
             raise ValueError(f"Unknown retriever type: {config.type}")

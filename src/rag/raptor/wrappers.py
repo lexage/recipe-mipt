@@ -24,4 +24,4 @@ class EmbeddingWrapper(BaseEmbeddingModel):
         self.agent = agent
 
     def create_embedding(self, text):
-        return self.agent.run(text)
+        return self.agent.run(text)[0]

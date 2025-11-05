@@ -83,7 +83,7 @@ class ManagerMAPS(Agent):
 class UserProxyMAPS(Agent):
     """Ensures smooth information flow and coordinating the allocation of tasks within the experiment"""
 
-    def __init__(self, name: str = "User Proxy"):
+    def __init__(self, name: str = "user_proxy"):
         super().__init__(name)
 
     def run(self, task: Text, context: Text) -> Text:
