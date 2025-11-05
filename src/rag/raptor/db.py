@@ -1,8 +1,8 @@
 from typing import List
 
-from src.agents.agent_constructor.chunkers import Chunker
-from src.agents.agent_constructor.core import Document, Text
-from src.agents.agent_constructor.db import IDB
+from src.agent_constructor.chunkers import Chunker
+from src.agent_constructor.core import Document, Text
+from src.agent_constructor.db import IDB
 from src.utils.adapters import SQLiteDocsDBAdapter
 
 

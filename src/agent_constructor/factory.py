@@ -1,13 +1,13 @@
 from typing import Dict, Any
 from pydantic import BaseModel
 
-from src.agents.agent_constructor.configs import AgentConfig, DBConfig, FilterConfig, RetrieverConfig, ChunkerConfig, AnyConfig
+from src.agent_constructor.configs import AgentConfig, DBConfig, FilterConfig, RetrieverConfig, ChunkerConfig, AnyConfig
 
-from src.agents.agents.tfidf_agent import TFIDFEmbedding
-from src.agents.agents.dummy_agents import DummyPlanner, DummyQAAgent, DummySummarization
-from src.agents.agent_constructor.db import LocalDB
+from src.agents.tfidf_agent import TFIDFEmbedding
+from src.agents.dummy_agents import DummyPlanner, DummyQAAgent, DummySummarization
+from src.agent_constructor.db import LocalDB
 from src.rag.corag.retriver import CoRAGRetriver
-from src.agents.agent_constructor.chunkers import SimpleChunker, DummyChunker
+from src.agent_constructor.chunkers import SimpleChunker, DummyChunker
 
 
 class ComponentFactory:

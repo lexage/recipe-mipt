@@ -2,8 +2,8 @@ import pickle
 import os
 from typing import List
 
-from src.agents.agent_constructor.agent import Agent
-from src.agents.agent_constructor.core import Text
+from src.agent_constructor.agent import Agent
+from src.agent_constructor.core import Text
 from sklearn.feature_extraction.text import TfidfVectorizer
 
 
