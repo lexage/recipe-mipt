@@ -1,7 +1,7 @@
-from src.agents.agent_constructor.context_engine import Retriever, Text
-from src.agents.agent_constructor.db import IDB
+from src.agent_constructor.context_engine import Retriever, Text
+from src.agent_constructor.db import IDB
 from src.rag.raptor.core import RetrievalAugmentation, RetrievalAugmentationConfig
-from src.agents.agent_constructor.agent import Agent
+from src.agent_constructor.agent import Agent
 from src.rag.raptor.wrappers import QAModelWrapper, SummarizationWrapper, EmbeddingWrapper
 
 

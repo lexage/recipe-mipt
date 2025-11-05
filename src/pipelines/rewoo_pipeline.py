@@ -2,8 +2,8 @@ from dataclasses import dataclass
 from typing import List
 import asyncio
 
-from src.agents.agent_constructor.agent import Agent
-from src.agents.agent_constructor.core import Text
+from src.agent_constructor.agent import Agent
+from src.agent_constructor.core import Text
 
 
 class PlannerREWOO(Agent):

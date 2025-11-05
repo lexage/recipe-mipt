@@ -6,7 +6,7 @@ from typing import (
     Sequence,
 )
 
-from core import Block, Chunk, Text
+from src.agent_constructor.core import Block, Chunk, Text
 
 class Retriever(Block):
     """Retrieve relevant chunks for a query/context."""

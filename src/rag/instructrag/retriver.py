@@ -1,6 +1,6 @@
-from src.agents.agent_constructor.context_engine import Retriever
-from src.agents.agent_constructor.agent import Agent
-from src.agents.agent_constructor.db import IDB
+from src.agent_constructor.context_engine import Retriever
+from src.agent_constructor.agent import Agent
+from src.agent_constructor.db import IDB
 
 
 class InstructRAGRetriver(Retriever):

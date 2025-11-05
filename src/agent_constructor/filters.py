@@ -5,7 +5,7 @@ from typing import (
     Optional,
 )
 
-from core import Block, Chunk
+from src.agent_constructor.core import Block, Chunk
 
 class Filter(Block):
     """Decide whether a chunk/document should be kept, or transform it.

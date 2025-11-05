@@ -4,7 +4,7 @@ import chromadb
 from typing import List
 from tqdm import tqdm
 
-from src.agents.agent_constructor.core import Document, Text, Chunk
+from src.agent_constructor.core import Document, Text, Chunk
 
 
 class SQLiteDocsDBAdapter:

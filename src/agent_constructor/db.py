@@ -8,9 +8,9 @@ from typing import (
     Tuple,
 )
 
-from src.agents.agent_constructor.core import Chunk, Document, Text
-from src.agents.agent_constructor.chunkers import Chunker
-from src.agents.agent_constructor.agent import Agent
+from src.agent_constructor.core import Chunk, Document, Text
+from src.agent_constructor.chunkers import Chunker
+from src.agent_constructor.agent import Agent
 from src.utils.adapters import SQLiteDocsDBAdapter, ChromaDocsAdapter
 from src.utils.wrappers import EmbeddingFunctionWrapper
 
