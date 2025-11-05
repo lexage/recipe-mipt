@@ -1,21 +1,7 @@
-from src.agent_constructor.agent import Agent
-from src.agent_constructor.db import IDB
-from src.agent_constructor.chunkers import Chunker
-from src.agent_constructor.context_engine import Retriever
-from src.agent_constructor.filters import Filter
-from src.agent_constructor.configs import PipelineConfig
-from src.agent_constructor.factory import ComponentFactory
-
-
-class SimplePipeline:
-    def __init__(self, retriever: Retriever, agent: Agent):
-        self.retriever = retriever
-        self.agent = agent
-            
-    def run(self, task: str) -> str:
-        context = self.retriever.retrieve(query=task)[0][1][0].text
-
-        return self.agent.run(context, task)
+from src.pipelines.configs import PipelineConfig
+from src.pipelines.factory import ComponentFactory
+from src.pipelines.templates import SimplePipeline, REWOOPipeline, MAPSPipeline
+from src.agent_constructor.pipeline import Pipeline
 
 class PipelineBuilder:
     def __init__(self, config: PipelineConfig):
@@ -23,7 +9,7 @@ class PipelineBuilder:
         self.factory = ComponentFactory()
         self._components = {}
     
-    def build(self) -> SimplePipeline:
+    def build(self) -> Pipeline:
         # Создаём компоненты в правильном порядке
         for component_name in self.config.execution_order:
             component_config = self.config.components[component_name]
@@ -43,8 +29,26 @@ class PipelineBuilder:
             )
 
             self._components[component_name] = component
-        
-        return SimplePipeline(
-            retriever=self._components["retriever"],
-            agent=self._components["agent"],
-        )
+        if self.config.pipeline_type == "simple":
+            return SimplePipeline(
+                retriever=self._components["retriever"],
+                agent=self._components["agent"],
+            )
+        elif self.config.pipeline_type == "rewoo":
+            return REWOOPipeline(
+                planner=self._components["planner"],
+                worker=self._components["worker"],
+                solver=self._components["solver"],
+            )
+        elif self.config.pipeline_type == "maps":
+            return MAPSPipeline(
+                manager=self._components["manager"],
+                solver=self._components["solver"],
+                scholar=self._components["scholar"],
+                critic=self._components["critic"],
+                user_proxy=self._components["user_proxy"],
+                aligner=self._components["aligner"],
+                max_iterations=self.config.params.get("max_iterations", 1)
+            )
+        else:
+            raise ValueError(f"Unkonown pipline type: {self.config.pipeline_type}")
