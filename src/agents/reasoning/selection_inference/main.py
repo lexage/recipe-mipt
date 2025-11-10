@@ -1,20 +1,7 @@
-from abc import ABC, abstractmethod
 from typing import List, Dict, Any
 import json
 import re
-
-class Reasoning(ABC):
-    """Base class for reasoning."""
-
-    def __init__(self, name: str):
-        self.name = name
-    
-    @abstractmethod
-    def reason(self, *args, **kwargs):
-        raise NotImplementedError
-    
-    def __str__(self):
-        return f"{self.__class__.__name__}({self.name})"
+from src.agents.agent_constructor.agent import Agent
 
 
 class Selection:
@@ -144,7 +131,7 @@ class Inference:
         return ""
 
 
-class SelectionInference(Reasoning):
+class SelectionInference(Agent):
     def __init__(
         self, 
         selection_examples: str,
@@ -206,7 +193,7 @@ class SelectionInference(Reasoning):
             formatted += f"{example['selection']}. Therefore, {example['inference']}\n\n"
         return formatted
     
-    def reason(self, context: str, question: str) -> str:
+    def run(self, context: str, question: str) -> str:
         """
         Execute Selection-Inference reasoning.
         

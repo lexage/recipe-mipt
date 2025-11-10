@@ -1,27 +1,13 @@
 import json
 import numpy as np
-from abc import ABC, abstractmethod
 from typing import List, Dict, Union, Optional
 from sentence_transformers import SentenceTransformer
 from sklearn.cluster import KMeans
 from sklearn.metrics.pairwise import cosine_similarity
+from src.agents.agent_constructor.agent import Agent
 
 
-class Reasoning(ABC):
-    """Base class for reasoning."""
-
-    def __init__(self, name: str):
-        self.name = name
-    
-    @abstractmethod
-    def reason(self, *args, **kwargs):
-        raise NotImplementedError
-    
-    def __str__(self):
-        return f"{self.__class__.__name__}({self.name})"
-
-
-class AutoCoT(Reasoning):    
+class AutoCoT(Agent):    
     def __init__(
         self,
         problems: Union[str, List[Dict[str, str]]],
@@ -178,7 +164,7 @@ Explain the reasoning behind this code implementation:\n{self.cot_trigger}
         demo_text = self.create_demo_text(demos)
         return demo_text
     
-    def reason(self, task: str, num_demos: int = 4) -> str:
+    def run(self, task: str, num_demos: int = 4) -> str:
         """
         Args:
             task: The programming problem to solve

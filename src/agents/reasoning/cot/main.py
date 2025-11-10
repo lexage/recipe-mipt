@@ -1,21 +1,8 @@
-from abc import ABC, abstractmethod
 from typing import Optional, List, Union
-
-class Reasoning(ABC):
-    """Base class for reasoning."""
-
-    def __init__(self, name: str):
-        self.name = name
-    
-    @abstractmethod
-    def reason(self, *args, **kwargs):
-        raise NotImplementedError
-    
-    def __str__(self):
-        return f"{self.__class__.__name__}({self.name})"
+from src.agents.agent_constructor.agent import Agent
 
 
-class CoT(Reasoning):
+class CoT(Agent):
     def __init__(
         self, 
         name: str = "CoT", 
@@ -86,7 +73,7 @@ class CoT(Reasoning):
         # TODO: Add implementation
         return ""
         
-    def reason(self, task: str) -> str:
+    def run(self, task: str) -> str:
         """
         Run the Chain-of-Thought process for the given task.
         """

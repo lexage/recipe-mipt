@@ -1,24 +1,9 @@
 import random
-from abc import ABC, abstractmethod
 from typing import List
-
-class Agent(ABC):
-    """Base class for all agents in the system."""
-
-    def __init__(self, name: str):
-        self.name = name
-    
-    @abstractmethod
-    def run(self, *args, **kwargs):
-        raise NotImplementedError
-    
-    def __str__(self):
-        return f"{self.__class__.__name__}({self.name})"
+from src.agents.agent_constructor.agent import Agent
 
 
 class Panel(Agent):
-    """PANEL agent implementing stepwise natural language self-critique for programming tasks."""
-    
     def __init__(self, name: str = "Panel"):
         super().__init__(name)
         self.temperature = 0.6

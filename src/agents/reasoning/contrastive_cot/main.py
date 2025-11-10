@@ -1,24 +1,11 @@
 import random
 # import spacy
-from abc import ABC, abstractmethod
 from typing import List, Dict, Union, Optional
 import json
-
-class Reasoning(ABC):
-    """Base class for reasoning."""
-
-    def __init__(self, name: str):
-        self.name = name
-    
-    @abstractmethod
-    def reason(self, *args, **kwargs):
-        raise NotImplementedError
-    
-    def __str__(self):
-        return f"{self.__class__.__name__}({self.name})"
+from src.agents.agent_constructor.agent import Agent
 
 
-class ContrastiveCoT(Reasoning):
+class ContrastiveCoT(Agent):
     def __init__(
         self,
         demonstrations: Union[str, List[Dict[str, str]]],
@@ -155,7 +142,7 @@ Reasoning:"""
         # TODO: Replace with actual LLM call
         return ""
     
-    def reason(self, task: str) -> str:
+    def run(self, task: str) -> str:
         """
         Args:
             task: Description of the programming task to solve
