@@ -4,6 +4,7 @@ from abc import ABC, abstractmethod
 from typing import (
     List,
     Sequence,
+    Tuple,
 )
 
 from src.agent_constructor.core import Block, Chunk, Text
@@ -41,3 +42,16 @@ class SimpleContextAssembler(ContextAssembler):
         # naive concatenation with headers
         parts = [f"[CHUNK {c.id} | doc={c.doc_id}]\n{c.text}" for c in chunks]
         return "\n\n".join(parts)
+    
+class CoRAGContextAssembler(ContextAssembler):
+    def assemble(self, data: Tuple):
+        prev_qna, retrived_chunks = data
+        context = ""
+        for chunk in retrived_chunks:
+            context += chunk.text + "\n"
+
+        prev_qna_data = ""
+        for i, (q,a) in enumerate(prev_qna):
+            prev_qna_data += f"Sub-query {i+1}: {q}\nSub-answer {i+1}: {a}\n"
+
+        return f"##Documents\n{context}\n\n## Intermediate queries and answers\n{prev_qna_data}"

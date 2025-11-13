@@ -64,8 +64,33 @@ class ChromaDocsAdapter:
 
             batch_docs = [chunk.text for chunk in chunks[i:i+self.batch_size]]
             batch_ids = [chunk.id for chunk in chunks[i:i+self.batch_size]]
-            self.collection.add(documents=batch_docs, ids=batch_ids)
+            batch_metadatas = [chunk.metadata for chunk in chunks[i:i+self.batch_size]]
+            self.collection.add(documents=batch_docs, ids=batch_ids, metadatas=batch_metadatas)
 
-    def search(self, queries: List[Text], top_k: int):
+    def search(self, queries: List[Text], top_k: int) -> List[List[Chunk]]:
         results = self.collection.query(query_texts=queries, n_results=top_k)
-        return results.get("ids", [[]])[0]
+    
+        all_query_results = []
+        
+        for query_idx in range(len(results['ids'])):
+            query_chunks = []
+            ids = results['ids'][query_idx]
+            documents = results['documents'][query_idx]
+            metadatas = results['metadatas'][query_idx] if results['metadatas'] else [{}] * len(ids)
+            
+            for i, chunk_id in enumerate(ids):
+                doc_id = metadatas[i].get('doc_id', '') if i < len(metadatas) else ''
+                
+                query_chunks.append(
+                    Chunk(
+                        id=chunk_id,
+                        doc_id=doc_id,
+                        text=documents[i] if i < len(documents) else '',
+                        tokens=None,
+                        metadata=metadatas[i] if i < len(metadatas) else {}
+                    )
+                )
+            
+            all_query_results.append(query_chunks)
+        
+        return all_query_results

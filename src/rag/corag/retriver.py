@@ -6,13 +6,20 @@ from src.agent_constructor.db import IDB
 
 
 class CoRAGRetriver(Retriever):
-    def __init__(self, name: str, data_base: IDB, planner_agent: Agent):
+    def __init__(self, name: str, data_base: IDB, generator: Agent, sub_solver: Agent, max_sub_queries: int):
         super().__init__(name)
         self.data_base = data_base
-        self.planner_agent = planner_agent
+        self.generator = generator
+        self.sub_solver = sub_solver
+        self.max_sub_queries = max_sub_queries
 
-    def retrieve(self, query: str, k:int = 5) -> List[Tuple]:
-        sub_queries = self.planner_agent.run(query)
-        results = [self.data_base.query(sub_query, k) for sub_query in sub_queries]
-        return [(sub_query, chunks) for sub_query, chunks in zip(sub_queries, results)]
-
+    def retrieve(self, query: str, k: int = 1) -> List[Tuple]:
+        prev_qna = []
+        retrived_chunks = []
+        for i in range(self.max_sub_queries):
+            sub_query = self.generator.run(query, prev_qna)
+            context = self.data_base.query(sub_query, k)
+            sub_answer = self.sub_solver.run(sub_query, context)
+            prev_qna.append((sub_query, sub_answer))
+            retrived_chunks.extend(context)
+        return prev_qna, retrived_chunks

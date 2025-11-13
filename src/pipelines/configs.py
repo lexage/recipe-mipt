@@ -26,10 +26,12 @@ class FilterConfig(ComponentConfig):
 class ChunkerConfig(ComponentConfig):
     pass
 
-# Тип для аннотаций
-AnyConfig = Union[DBConfig, AgentConfig, RetrieverConfig, FilterConfig, ChunkerConfig]
+class ContextAssemblerConfig(ComponentConfig):
+    pass
 
-# Основная конфигурация пайплайна
+AnyConfig = Union[DBConfig, AgentConfig, RetrieverConfig, FilterConfig, ChunkerConfig, ContextAssemblerConfig]
+
+
 class PipelineConfig(BaseModel):
     pipeline_type: str
     execution_order: List[str] = Field(..., description="Порядок инициализации компонентов")

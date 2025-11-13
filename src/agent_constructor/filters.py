@@ -21,7 +21,7 @@ class Filter(Block):
         raise NotImplementedError
 
 
-class RegexFilter(Filter):
+class LengthFilter(Filter):
     def __init__(self, required: bool = False, min_len: int = 20):
         self.required = required
         self.min_len = min_len

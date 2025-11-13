@@ -13,6 +13,7 @@ from src.agent_constructor.chunkers import Chunker
 from src.agent_constructor.agent import Agent
 from src.utils.adapters import SQLiteDocsDBAdapter, ChromaDocsAdapter
 from src.utils.wrappers import EmbeddingFunctionWrapper
+from src.agent_constructor.filters import Filter
 
 
 class IDB(ABC):
@@ -57,6 +58,7 @@ class LocalDB(IDB):
             self, 
             chunker: Chunker, 
             embedding_model: Agent,
+            filter: Filter,
             path_to_db: str = 'data/docs_database.db', 
             path_to_vector_db: str = 'data/docs_vector_database', 
             collection_name: str = 'docs',
@@ -73,32 +75,30 @@ class LocalDB(IDB):
             )
         
         documents = self.doc_data_base.get_docs()
-        
-        self.chunks = {
-            chunk.id: chunk for chunk in self._get_chunks(
-                chunker=chunker, 
-                documents=documents
-                )
-            }
 
         if not self.vector_data_base.populated:
-            text_data = [chunk.text for chunk in self.all_chunks()]
-            embedding_model.fit(text_data)
-            self.vector_data_base.populate(self.all_chunks())
+            self.vector_data_base.populate(
+                self._get_chunks(
+                    chunker=chunker,
+                    filter=filter, 
+                    documents=documents,
+                )
+            )
 
-    def _get_chunks(self, chunker: Chunker, documents: List[Document]):
+    def _get_chunks(self, chunker: Chunker, filter: Filter, documents: List[Document]):
         chunks = []
         for document in documents:
             doc_chunks = chunker.chunk(document)
             chunks.extend(doc_chunks)
-        return chunks
+            
+        return [c for c in chunks if filter.apply(c)]
     
     def query(self, queries: Text, top_k: int) -> List[Chunk]:
-        chunk_ids = self.vector_data_base.search(queries=[queries], top_k=top_k)          
-        return [self.chunks[chunk_id] for chunk_id in chunk_ids]
+        chunks = self.vector_data_base.search(queries=[queries], top_k=top_k)[0]      
+        return chunks
     
     def all_chunks(self) -> List[Chunk]:
-        return list(self.chunks.values())
+        return []
     
     def add_chunks(self, chunks):
         return super().add_chunks(chunks)

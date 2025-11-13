@@ -1,16 +1,21 @@
 from typing import Dict, Any
 
-from src.pipelines.configs import AgentConfig, DBConfig, FilterConfig, RetrieverConfig, ChunkerConfig, AnyConfig
+from src.pipelines.configs import AgentConfig, DBConfig, FilterConfig, RetrieverConfig, ChunkerConfig, ContextAssemblerConfig, AnyConfig
 
 from src.agents.tfidf_agent import TFIDFEmbedding
 from src.agents.dummy_agents import DummyPlanner, DummyQAAgent, DummySummarization
+from src.agents.corag_agents import CoRAGSubQueryGeneratorAgent, CoRAGSubSolver, CoRAGFinalSolver
+from src.agents.simple_agent import SimpleAgent
 from src.agents.rewoo_agents import SolverREWOO, WorkerREWOO, PlannerREWOO
 from src.agents.maps_agents import ScholarMAPS, SolverMAPS, UserProxyMAPS, ManagerMAPS, AlignerMAPS, CriticMAPS
+from src.agents.embedding_agent import EmbeddigAgent
 from src.agent_constructor.db import LocalDB, LocalRaptorDB
 from src.rag.corag.retriver import CoRAGRetriver
 from src.rag.instructrag.retriver import InstructRAGRetriver
 from src.rag.raptor.retriver import RaptorRetriver
 from src.agent_constructor.chunkers import SimpleChunker, DummyChunker
+from src.agent_constructor.filters import LengthFilter
+from src.agent_constructor.context_engine import CoRAGContextAssembler
 
 
 class ComponentFactory:
@@ -30,6 +35,8 @@ class ComponentFactory:
             return self._create_filter(config, dependencies)
         elif isinstance(config, ChunkerConfig):
             return self._create_chunker(config, dependencies)
+        elif isinstance(config, ContextAssemblerConfig):
+            return self._create_assembler(config, dependencies)
         else:
             raise ValueError(f"Unknown component type: {type(config)}")
     
@@ -37,9 +44,11 @@ class ComponentFactory:
         if config.type == "local":
             embedding_agent = dependencies.get("embedding_agent")
             chunker = dependencies.get("chunker")
+            filter = dependencies.get("filter")
             return LocalDB(
                 chunker=chunker,
                 embedding_model=embedding_agent,
+                filter=filter,
                 path_to_db=config.params.get("path_to_db", 'data/docs_database.db'),
                 path_to_vector_db=config.params.get("path_to_vector_db", 'data/docs_vector_database'),
                 collection_name=config.params.get("collection_name", 'docs'),
@@ -108,17 +117,50 @@ class ComponentFactory:
             return UserProxyMAPS(
                 name=config.params.get("name", "maps_user_proxy")
             )
+        elif config.type == "embedding":
+            return EmbeddigAgent(
+                url=config.params.get("url"),
+                model_name=config.params.get("model_name"),
+            )
+        elif config.type == "corag_sub_generator":
+            return CoRAGSubQueryGeneratorAgent(
+                url=config.params.get("url"),
+                model_name=config.params.get("model_name"),
+            )
+        elif config.type == "corag_sub_solver":
+            return CoRAGSubSolver(
+                url=config.params.get("url"),
+                model_name=config.params.get("model_name"),
+            )
+        elif config.type == "corag_final_solver":
+            return CoRAGFinalSolver(
+                url=config.params.get("url"),
+                model_name=config.params.get("model_name"),
+            )
+        elif config.type == "corag_subq_generator":
+            return CoRAGSubQueryGeneratorAgent(
+                url=config.params.get("url"),
+                model_name=config.params.get("model_name"),
+            )
+        elif config.type == "simple":
+            return SimpleAgent(
+                url=config.params.get("url"),
+                model_name=config.params.get("model_name"), 
+            )
         else:
             raise ValueError(f"Unknown agent type: {config.type}")
     
     def _create_retriever(self, config: RetrieverConfig, dependencies: Dict):
         if config.type == "corag":
             db = dependencies.get("db")
-            planner_agent = dependencies.get("planner_agent")
+            generator = dependencies.get("generator")
+            sub_solver = dependencies.get("sub_solver")
             return CoRAGRetriver(
                 name=config.params.get("name", "corag_retriever"),
                 data_base=db,
-                planner_agent=planner_agent,
+                generator=generator,
+                sub_solver=sub_solver,
+                max_sub_queries=config.params.get("max_sub_queries")
             )
         elif config.type == "raptor":
             db = dependencies.get("db")
@@ -145,6 +187,11 @@ class ComponentFactory:
             raise ValueError(f"Unknown retriever type: {config.type}")
     
     def _create_filter(self, config: FilterConfig, dependencies: Dict):
+        if config.type == "length":
+            return LengthFilter(
+                min_len=config.params.get("min_len", 20)
+            )
+
         raise ValueError(f"Unknown filter type: {config.type}")
     
     def _create_chunker(self, config: ChunkerConfig, dependencies: Dict):
@@ -156,3 +203,11 @@ class ComponentFactory:
             )
         else:
             raise ValueError(f"Unknown filter type: {config.type}")
+        
+    def _create_assembler(self, config: ContextAssemblerConfig, dependencies: Dict):
+        if config.type == "corag":
+            return CoRAGContextAssembler(
+                name=config.params.get("name", "corag_context_assembler"),
+            )
+        else:
+            raise ValueError(f"Unknown context assembler type: {config.type}")

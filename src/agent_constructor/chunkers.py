@@ -29,7 +29,7 @@ class SimpleChunker(Chunker):
         i = 0
         while i < len(text):
             piece = text[i : i + self.max_chars]
-            chunk = Chunk(id=str(uuid.uuid4()), doc_id=doc.id, text=piece, tokens=None)
+            chunk = Chunk(id=str(uuid.uuid4()), doc_id=doc.id, text=piece, tokens=None, metadata={'doc_id': doc.id})
             chunks.append(chunk)
             i += self.max_chars
         return chunks
