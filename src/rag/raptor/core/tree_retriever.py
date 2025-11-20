@@ -1,14 +1,12 @@
 import logging
-import os
-from typing import Dict, List, Set
+from typing import List
 
 import tiktoken
-from tenacity import retry, stop_after_attempt, wait_random_exponential
 
-from .EmbeddingModels import BaseEmbeddingModel, OpenAIEmbeddingModel
+from .EmbeddingModels import BaseEmbeddingModel
 from .Retrievers import BaseRetriever
 from .tree_structures import Node, Tree
-from .utils import (distances_from_embeddings, get_children, get_embeddings,
+from .utils import (distances_from_embeddings, get_embeddings,
                     get_node_list, get_text,
                     indices_of_nearest_neighbors_from_distances,
                     reverse_mapping)
@@ -62,7 +60,7 @@ class TreeRetrieverConfig:
         self.context_embedding_model = context_embedding_model
 
         if embedding_model is None:
-            embedding_model = OpenAIEmbeddingModel()
+            embedding_model = BaseEmbeddingModel()
         if not isinstance(embedding_model, BaseEmbeddingModel):
             raise ValueError(
                 "embedding_model must be an instance of BaseEmbeddingModel"

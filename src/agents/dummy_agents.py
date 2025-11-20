@@ -1,26 +1,9 @@
 from src.agent_constructor.agent import Agent
+from src.agent_constructor.core import Text
 
-
-class DummyPlanner(Agent):
-    def __init__(self, name: str, max_subqueries: int):
+class DummyAgent(Agent):
+    def __init__(self, name: str):
         super().__init__(name)
-        self.max_num_queries = max_subqueries
     
-    def run(self, query: str):
-        return [f"#{i} Subquery of query '{query}'" for i in range(self.max_num_queries)]
-
-
-class DummyQAAgent(Agent):
-    def __init__(self, name):
-        super().__init__(name)
-
-    def run(self, context, question):
-        return f"Answer on {question} using context:\n\n{context}"
-
-
-class DummySummarization(Agent):
-    def __init__(self, name):
-        super().__init__(name)
-
-    def run(self, context, max_tokens=150):
-        return "Summarization"
+    def run(self, task: Text, *args, **kwargs):
+        return f"Dummy answer on query:\n'''{task}'''\n"
