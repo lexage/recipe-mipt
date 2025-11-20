@@ -2,20 +2,22 @@ from typing import Dict, Any
 
 from src.pipelines.configs import AgentConfig, DBConfig, FilterConfig, RetrieverConfig, ChunkerConfig, ContextAssemblerConfig, AnyConfig
 
+from src.agent_constructor.db import LocalDB, LocalRaptorDB
+from src.agent_constructor.chunkers import SimpleChunker, DummyChunker
+from src.agent_constructor.filters import LengthFilter
+from src.agent_constructor.context_engine import CoRAGContextAssembler
+
 from src.agents.tfidf_agent import TFIDFEmbedding
-from src.agents.dummy_agents import DummyPlanner, DummyQAAgent, DummySummarization
+from src.agents.dummy_agents import DummyAgent
 from src.agents.corag_agents import CoRAGSubQueryGeneratorAgent, CoRAGSubSolver, CoRAGFinalSolver
 from src.agents.simple_agent import SimpleAgent
 from src.agents.rewoo_agents import SolverREWOO, WorkerREWOO, PlannerREWOO
 from src.agents.maps_agents import ScholarMAPS, SolverMAPS, UserProxyMAPS, ManagerMAPS, AlignerMAPS, CriticMAPS
 from src.agents.embedding_agent import EmbeddigAgent
-from src.agent_constructor.db import LocalDB, LocalRaptorDB
+
 from src.rag.corag.retriver import CoRAGRetriver
 from src.rag.instructrag.retriver import InstructRAGRetriver
 from src.rag.raptor.retriver import RaptorRetriver
-from src.agent_constructor.chunkers import SimpleChunker, DummyChunker
-from src.agent_constructor.filters import LengthFilter
-from src.agent_constructor.context_engine import CoRAGContextAssembler
 
 
 class ComponentFactory:
@@ -63,19 +65,10 @@ class ComponentFactory:
             raise ValueError(f"Unknown DB type: {config.type}")
     
     def _create_agent(self, config: AgentConfig, dependencies: Dict):
-        if config.type == "dummy_planner":
-            return DummyPlanner(
+        if config.type == "dummy":
+            return DummyAgent(
                 name=config.params.get("name", "dummy_planner"),
-                max_subqueries=config.params.get("max_subqueries", 5)
                 )
-        elif config.type == "dummy_qa":
-            return DummyQAAgent(
-                name=config.params.get("name", "dummy_qa")
-            )
-        elif config.type == "dummy_summarization":
-            return DummySummarization(
-                name=config.params.get("name", "dummy_summarization")
-            )
         elif config.type == "tfidf_embedding":
             return TFIDFEmbedding(
                 name=config.params.get("name", "tfidf_embedding"),

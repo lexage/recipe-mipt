@@ -1,8 +1,9 @@
+from src.rag.raptor.core import RetrievalAugmentation, RetrievalAugmentationConfig
+from src.rag.raptor.wrappers import QAModelWrapper, SummarizationWrapper, EmbeddingWrapper
+
 from src.agent_constructor.context_engine import Retriever, Text
 from src.agent_constructor.db import IDB
-from src.rag.raptor.core import RetrievalAugmentation, RetrievalAugmentationConfig
 from src.agent_constructor.agent import Agent
-from src.rag.raptor.wrappers import QAModelWrapper, SummarizationWrapper, EmbeddingWrapper
 
 
 class RaptorRetriver(Retriever):
