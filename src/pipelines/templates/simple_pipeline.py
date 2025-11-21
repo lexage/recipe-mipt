@@ -2,7 +2,6 @@ from src.agent_constructor.context_engine import Retriever
 from src.agent_constructor.agent import Agent
 from src.agent_constructor.pipeline import Pipeline
 from src.agent_constructor.context_engine import ContextAssembler
-from src.agent_constructor.context_engine import CoRAGContextAssembler
 
 class SimplePipeline(Pipeline):
     def __init__(self, retriever: Retriever, agent: Agent, context_assembler: ContextAssembler):

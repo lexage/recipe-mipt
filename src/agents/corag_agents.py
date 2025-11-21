@@ -99,7 +99,7 @@ Respond with a concise answer only, do not explain yourself or output anything e
 
 class CoRAGFinalSolver(Agent):
     def __init__(self, url: str = None, model_name: str = None, max_num_queries: int = 5):
-        super().__init__("corag_sub_solver")
+        super().__init__("corag_final_solver")
         self.dummy_mode = not (url and model_name)
         
         if not self.dummy_mode:
