@@ -1,6 +1,6 @@
 from __future__ import annotations
 from src.agent_constructor.core import Text
-from src.agents.maps_agents import MAPSAgentNames, MAPSPiplineState
+from src.agents.maps_agents import MAPSAgentNames, MAPSPipelineState
 from src.agent_constructor.agent import Agent
 from src.agent_constructor.pipeline import Pipeline
 
@@ -13,7 +13,6 @@ class MAPSPipeline(Pipeline):
         self.scholar = scholar 
         self.solver = solver 
         self.critic = critic 
-        self.solver = solver 
         self.manager = manager 
         self.max_iterations = max_iterations
 
@@ -21,7 +20,7 @@ class MAPSPipeline(Pipeline):
 
         context = ""
 
-        state = MAPSPiplineState(
+        state = MAPSPipelineState(
             diagram=task,
             context=context,
             question=task

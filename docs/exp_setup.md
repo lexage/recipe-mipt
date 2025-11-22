@@ -44,7 +44,7 @@ def main():
     cfg = PipelineConfig(
         pipeline_type="simple",
         params = {...}
-        execution_order=["context_assembler", "retriver", "agent"],
+        execution_order=["context_assembler", "retriever", "agent"],
         components={
             "context_assembler": ContextAssemblerConfig(
                 type="...",
@@ -81,7 +81,7 @@ if __name__ == "__main__":
 
 - #### `components` - Основные компоненты из которых состоит пайплайн. 
 
-    Компоненты - это сущности, которые также необходимо собирать, и у которых могут быть зависимости от других компонент (ретривер, агент, сборщик контекста и т.д.). Для каждого типа пайплайна нужен свой набор компонент. К примеру для [`SimplePipline`](../src/pipelines/templates/simple_pipeline.py#L7) нужен следующий набор компонент: `retriever: Retriever`, `agent: Agent`, `context_assembler: ContextAssembler`. 
+    Компоненты - это сущности, которые также необходимо собирать, и у которых могут быть зависимости от других компонент (ретривер, агент, сборщик контекста и т.д.). Для каждого типа пайплайна нужен свой набор компонент. К примеру для [`SimplePipeline`](../src/pipelines/templates/simple_pipeline.py#L7) нужен следующий набор компонент: `retriever: Retriever`, `agent: Agent`, `context_assembler: ContextAssembler`. 
 
 - #### `execution_order` - Порядок, в котором должны собираться компоненты. 
 
@@ -89,11 +89,11 @@ if __name__ == "__main__":
 
 - #### `params` - Другие параметры пайлпайна. 
 
-    Например для [`MAPSPipline`](../src/pipelines/templates/maps_pipeline.py#L9) помимо комонентнов агентов нужно указать параметр `max_iterations`.
+    Например для [`MAPSPipeline`](../src/pipelines/templates/maps_pipeline.py#L9) помимо комонентнов агентов нужно указать параметр `max_iterations`.
 
 ### Конфигурация компонент пайплайна
 
-Конфигурация компоненты указывается в `PiplineConfig` в поле `components`:
+Конфигурация компоненты указывается в `PipelineConfig` в поле `components`:
 
 ```python
 cfg = PipelineConfig(
@@ -176,7 +176,7 @@ cfg = PipelineConfig(
 
 Как уже говорилось ранее, для `SimplePipeline` нужны только следующие компоненты: `retriever: Retriever`, `agent: Agent`, `context_assembler: ContextAssembler`. 
 
-В качестве ретривера мы хотим использовать [`CoRAGRetriver`](../src/rag/corag/retriver.py). Для сборки [`CoRAGRetriver`] нужны компоненты:
+В качестве ретривера мы хотим использовать [`CoRAGRetriever`](../src/rag/corag/retriever.py). Для сборки [`CoRAGRetriever`] нужны компоненты:
 `data_base: IDB`, `generator: Agent`, `sub_solver: Agent`. 
 
 В качестве `generator: Agent` будем использовать [`CoRAGSubQueryGeneratorAgent`](../src/agents/corag_agents.py#L7). 
@@ -209,7 +209,7 @@ corag_config = PipelineConfig(
     pipeline_type="simple",
     execution_order=[
         "embedding_agent", 
-        "contex_assembler", 
+        "context_assembler", 
         "chunker", 
         "filter", 
         "db", 
@@ -267,7 +267,7 @@ def bench():
     builder = PipelineBuilder(corag_config)
     pipeline = builder.build()
 
-    def run_pipline(task: DataItemDS1000):
+    def run_pipeline(task: DataItemDS1000):
         return pipeline.run(task.prompt)
     
     benchmark = DS1000(
@@ -275,7 +275,7 @@ def bench():
     )
 
     benchmark.eval(
-        run_method=run_pipline,
+        run_method=run_pipeline,
         save_path="results/first_exp",
         num_workers=16,
     )

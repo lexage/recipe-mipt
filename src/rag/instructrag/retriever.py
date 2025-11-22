@@ -3,7 +3,7 @@ from src.agent_constructor.agent import Agent
 from src.agent_constructor.db import IDB
 
 
-class InstructRAGRetriver(Retriever):
+class InstructRAGRetriever(Retriever):
     def __init__(self, name, data_base: IDB, rationality_agent: Agent):
         super().__init__(name)
         self.data_base = data_base

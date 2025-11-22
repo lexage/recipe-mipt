@@ -15,9 +15,9 @@ from src.agents.rewoo_agents import SolverREWOO, WorkerREWOO, PlannerREWOO
 from src.agents.maps_agents import ScholarMAPS, SolverMAPS, UserProxyMAPS, ManagerMAPS, AlignerMAPS, CriticMAPS
 from src.agents.embedding_agent import EmbeddigAgent
 
-from src.rag.corag.retriver import CoRAGRetriver
-from src.rag.instructrag.retriver import InstructRAGRetriver
-from src.rag.raptor.retriver import RaptorRetriver
+from src.rag.corag.retriever import CoRAGRetriever
+from src.rag.instructrag.retriever import InstructRAGRetriever
+from src.rag.raptor.retriever import RaptorRetriever
 
 
 class ComponentFactory:
@@ -130,11 +130,6 @@ class ComponentFactory:
                 url=config.params.get("url"),
                 model_name=config.params.get("model_name"),
             )
-        elif config.type == "corag_subq_generator":
-            return CoRAGSubQueryGeneratorAgent(
-                url=config.params.get("url"),
-                model_name=config.params.get("model_name"),
-            )
         elif config.type == "simple":
             return SimpleAgent(
                 url=config.params.get("url"),
@@ -148,7 +143,7 @@ class ComponentFactory:
             db = dependencies.get("db")
             generator = dependencies.get("generator")
             sub_solver = dependencies.get("sub_solver")
-            return CoRAGRetriver(
+            return CoRAGRetriever(
                 name=config.params.get("name", "corag_retriever"),
                 data_base=db,
                 generator=generator,
@@ -160,8 +155,8 @@ class ComponentFactory:
             embedding_agent = dependencies.get("embedding_agent")
             qa_agent = dependencies.get("qa_agent")
             summarization_agent = dependencies.get("summarization_agent")
-            return RaptorRetriver(
-                name=config.params.get("name", "raptor_retriver"),
+            return RaptorRetriever(
+                name=config.params.get("name", "raptor_retriever"),
                 data_base=db,
                 path_to_raptor_db=config.params.get("path_to_raptor_db", "data/docs_raptor_database"),
                 qa_model=qa_agent,
@@ -171,8 +166,8 @@ class ComponentFactory:
         elif config.type == "instruct":
             db = dependencies.get("db")
             rationality_agent = dependencies.get("rationality_agent")
-            return InstructRAGRetriver(
-                name=config.params.get("name", "instruct_rag_retriver"),
+            return InstructRAGRetriever(
+                name=config.params.get("name", "instruct_rag_retriever"),
                 data_base=db,
                 rationality_agent=rationality_agent,
             )

@@ -33,7 +33,7 @@ class PipelineBuilder:
             return SimplePipeline(
                 retriever=self._components["retriever"],
                 agent=self._components["agent"],
-                context_assembler=self._components["contex_assembler"]
+                context_assembler=self._components["context_assembler"]
             )
         elif self.config.pipeline_type == "rewoo":
             return REWOOPipeline(
@@ -52,4 +52,4 @@ class PipelineBuilder:
                 max_iterations=self.config.params.get("max_iterations", 1)
             )
         else:
-            raise ValueError(f"Unkonown pipline type: {self.config.pipeline_type}")
+            raise ValueError(f"Unknown pipeline type: {self.config.pipeline_type}")
