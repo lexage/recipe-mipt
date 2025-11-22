@@ -17,7 +17,7 @@ class MAPSAgentNames(Enum):
 
 
 @dataclass
-class MAPSPiplineState:
+class MAPSPipelineState:
     diagram: str
     context: str
     question: str
@@ -77,7 +77,7 @@ class ManagerMAPS(Agent):
     def __init__(self, name: str = "maps_manager"):
         super().__init__(name)
 
-    def run(self, state: MAPSPiplineState) -> List[MAPSAgentNames]:
+    def run(self, state: MAPSPipelineState) -> List[MAPSAgentNames]:
         return [MAPSAgentNames.ALIGNER, MAPSAgentNames.SCHOLAR, MAPSAgentNames.SOLVER]
 
 

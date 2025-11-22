@@ -6,7 +6,7 @@ from src.agent_constructor.db import IDB
 from src.agent_constructor.agent import Agent
 
 
-class RaptorRetriver(Retriever):
+class RaptorRetriever(Retriever):
     def __init__(self, name: str, data_base: IDB, path_to_raptor_db: str, embeddig_model: Agent, qa_model: Agent, summarization_model: Agent):
         super().__init__(name)
 
