@@ -12,11 +12,8 @@ from src.agent_constructor.agent import Agent
 from src.utils.adapters import SQLiteDocsDBAdapter, ChromaDocsAdapter
 from src.utils.wrappers import EmbeddingFunctionWrapper
 from src.agent_constructor.filters import Filter
-<<<<<<< HEAD
 from src.pipelines.registry import ComponentRegistry
 from src.pipelines.constants import ComponentNames
-=======
->>>>>>> 406810c (Setup for first exp)
 
 
 class IDB(Block):
@@ -79,7 +76,6 @@ class LocalDB(IDB):
             )
         
         documents = self.doc_data_base.get_docs()
-<<<<<<< HEAD
 
         if not self.vector_data_base.populated:
             self.vector_data_base.populate(
@@ -129,8 +125,6 @@ class LocalRaptorDB(IDB):
                 documents=documents
                 )
             }
-=======
->>>>>>> 406810c (Setup for first exp)
 
         if not self.vector_data_base.populated:
             self.vector_data_base.populate(
@@ -160,6 +154,7 @@ class LocalRaptorDB(IDB):
         return super().add_chunks(chunks)
 
 
+@register_component(DBConfig, ComponentNames.LOCAL_RAPTOR_DB)
 class LocalRaptorDB(IDB):
     def __init__(
             self, 

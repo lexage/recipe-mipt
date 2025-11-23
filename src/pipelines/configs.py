@@ -1,12 +1,13 @@
-from typing import Optional, List, Union, Dict, Any
+from typing import List, Union, Dict, Any
 from pydantic import BaseModel, Field
 
-from typing import Union, Type
+from typing import Union
 from pydantic import BaseModel
+from src.pipelines.constants import ComponentNames
 
 # Базовый класс для всех конфигов
 class ComponentConfig(BaseModel):
-    type: str
+    type: ComponentNames
     params: Dict[str, Any] = {}
     dependencies: List[str] = []
 

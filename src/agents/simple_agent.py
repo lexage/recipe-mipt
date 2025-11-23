@@ -1,8 +1,12 @@
 from src.agent_constructor.agent import Agent
 from openai import OpenAI
 from src.agent_constructor.core import Text
+from src.pipelines.registry import register_component
+from src.pipelines.configs import AgentConfig
+from src.pipelines.constants import ComponentNames
 
 
+@register_component(AgentConfig, ComponentNames.SIMPLE_AGENT)
 class SimpleAgent(Agent):
     def __init__(self, url: str = None, model_name: str = None):
         super().__init__("simple_agent")
