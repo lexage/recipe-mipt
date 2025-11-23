@@ -13,7 +13,6 @@ from src.utils.adapters import SQLiteDocsDBAdapter, ChromaDocsAdapter
 from src.utils.wrappers import EmbeddingFunctionWrapper
 from src.agent_constructor.filters import Filter
 from src.pipelines.registry import register_component
-from src.pipelines.configs import DBConfig
 from src.pipelines.constants import ComponentNames
 
 
@@ -54,7 +53,7 @@ class InMemoryDB(IDB):
         return list(self._chunks.values())
 
 
-@register_component(DBConfig, ComponentNames.LOCAL_DB)
+@register_component(ComponentNames.LOCAL_DB)
 class LocalDB(IDB):
     def __init__(
             self, 
@@ -106,7 +105,7 @@ class LocalDB(IDB):
         return super().add_chunks(chunks)
 
 
-@register_component(DBConfig, ComponentNames.LOCAL_RAPTOR_DB)
+@register_component(ComponentNames.LOCAL_RAPTOR_DB)
 class LocalRaptorDB(IDB):
     def __init__(
             self, 

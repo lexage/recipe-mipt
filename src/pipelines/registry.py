@@ -1,49 +1,30 @@
 from typing import Dict, Type, Optional, Any, List
 import inspect
-from src.pipelines.configs import (
-    ComponentConfig, DBConfig, AgentConfig, RetrieverConfig,
-    FilterConfig, ChunkerConfig, ContextAssemblerConfig, AnyConfig
-)
+from src.pipelines.configs import ComponentConfig
 from src.pipelines.constants import ComponentNames
 from src.agent_constructor.core import Block
 
-# Реестр всех компонентов
-COMPONENT_REGISTRY: Dict[Type[ComponentConfig], Dict[str, Type]] = {
-    DBConfig: {},
-    AgentConfig: {},
-    RetrieverConfig: {},
-    FilterConfig: {},
-    ChunkerConfig: {},
-    ContextAssemblerConfig: {},
-}
+COMPONENT_REGISTRY: Dict[ComponentNames, Dict] = {}
 
 
 def register_component(
-    config_type: Type[ComponentConfig],
     component_type: ComponentNames,
-    dependencies_mapping: Optional[Dict[str, str]] = None
 ):
     """
     Декоратор для автоматической регистрации компонента.
     
     Args:
-        config_type: Тип конфига (DBConfig, AgentConfig, etc.)
         component_type: Строковый идентификатор типа компонента
-        dependency_names: Маппинг имен параметров конструктора на имена зависимостей
-                         Например: {"embedding_model": "embedding_agent"}
     
     Usage:
-        @register_component(AgentConfig, "my_new_agent")
+        @register_component(ComponentNames.MY_NEW_AGENT)
         class MyNewAgent(Agent):
             def __init__(self, name: str, url: str, model_name: str):
                 ...
     """
     
     def wrapper(component_class: Type):
-        # Регистрируем компонент
-        if config_type not in COMPONENT_REGISTRY:
-            COMPONENT_REGISTRY[config_type] = {}
-        
+
         sig = inspect.signature(component_class.__init__)
         
         dependencies = [
@@ -55,21 +36,17 @@ def register_component(
             and issubclass(param.annotation, Block)
         ]
     
-        COMPONENT_REGISTRY[config_type][component_type] = {
+        COMPONENT_REGISTRY[component_type] = {
             'class': component_class,
             'dependencies': dependencies
         }
-        
-        # Добавляем метаданные в класс для отладки
-        component_class._pipeline_config_type = config_type
-        component_class._pipeline_component_type = component_type
-        
+                
         return component_class
     
     return wrapper
 
-def get_component_dependencies(component_config: AnyConfig):
-    component_info = COMPONENT_REGISTRY[type(component_config)].get(component_config.type, {})
+def get_component_dependencies(component_config: ComponentConfig):
+    component_info = COMPONENT_REGISTRY.get(component_config.type, {})
     if component_info:
         return component_info.get('dependencies')
     else:

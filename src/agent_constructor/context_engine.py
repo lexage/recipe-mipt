@@ -7,7 +7,6 @@ from typing import (
 
 from src.agent_constructor.core import Block, Chunk, Text
 from src.pipelines.registry import register_component
-from src.pipelines.configs import ContextAssemblerConfig
 from src.pipelines.constants import ComponentNames
 
 
@@ -46,7 +45,7 @@ class SimpleContextAssembler(ContextAssembler):
         return "\n\n".join(parts)
 
 
-@register_component(ContextAssemblerConfig, ComponentNames.CORAG_CONTEXT_ASSEMBLER)
+@register_component(ComponentNames.CORAG_CONTEXT_ASSEMBLER)
 class CoRAGContextAssembler(ContextAssembler):
     def assemble(self, data: Tuple):
         prev_qna, retrived_chunks = data

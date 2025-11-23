@@ -5,7 +5,6 @@ from typing import (
 
 from src.agent_constructor.core import Block, Chunk
 from src.pipelines.registry import register_component
-from src.pipelines.configs import FilterConfig
 from src.pipelines.constants import ComponentNames
 
 class Filter(Block):
@@ -22,7 +21,7 @@ class Filter(Block):
         raise NotImplementedError
 
 
-@register_component(FilterConfig, ComponentNames.LENGTH_FILTER)
+@register_component(ComponentNames.LENGTH_FILTER)
 class LengthFilter(Filter):
     def __init__(self, required: bool = False, min_len: int = 20):
         self.required = required

@@ -6,11 +6,10 @@ from src.agent_constructor.agent import Agent
 from src.agent_constructor.core import Text
 from sklearn.feature_extraction.text import TfidfVectorizer
 from src.pipelines.registry import register_component
-from src.pipelines.configs import AgentConfig
 from src.pipelines.constants import ComponentNames
 
 
-@register_component(AgentConfig, ComponentNames.TFIDF_EMBEDDING)
+@register_component(ComponentNames.TFIDF_EMBEDDING)
 class TFIDFEmbedding(Agent):
     def __init__(self, name: str, vectorizer_path:str ='data/tfidf_vectorizer.pkl'):
         super().__init__(name)        
