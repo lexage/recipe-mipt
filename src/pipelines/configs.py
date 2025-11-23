@@ -35,7 +35,6 @@ AnyConfig = Union[DBConfig, AgentConfig, RetrieverConfig, FilterConfig, ChunkerC
 
 class PipelineConfig(BaseModel):
     pipeline_type: str
-    execution_order: List[str] = Field(..., description="Порядок инициализации компонентов")
     components: Dict[str, AnyConfig]
     params: Dict[str, Any] = {}
 

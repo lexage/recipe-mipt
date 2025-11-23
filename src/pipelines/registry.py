@@ -2,7 +2,7 @@ from typing import Dict, Type, Optional, Any, List
 import inspect
 from src.pipelines.configs import (
     ComponentConfig, DBConfig, AgentConfig, RetrieverConfig,
-    FilterConfig, ChunkerConfig, ContextAssemblerConfig
+    FilterConfig, ChunkerConfig, ContextAssemblerConfig, AnyConfig
 )
 from src.pipelines.constants import ComponentNames
 from src.agent_constructor.core import Block
@@ -67,6 +67,13 @@ def register_component(
         return component_class
     
     return wrapper
+
+def get_component_dependencies(component_config: AnyConfig):
+    component_info = COMPONENT_REGISTRY[type(component_config)].get(component_config.type, {})
+    if component_info:
+        return component_info.get('dependencies')
+    else:
+        raise ValueError(f"Unregistred component: {component_config.type}")
 
 def create_component_automatically(
     config: ComponentConfig,
