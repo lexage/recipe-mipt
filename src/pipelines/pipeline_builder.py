@@ -2,6 +2,10 @@ from src.pipelines.configs import PipelineConfig
 from src.pipelines.factory import ComponentFactory
 from src.pipelines.templates import SimplePipeline, REWOOPipeline, MAPSPipeline
 from src.agent_constructor.pipeline import Pipeline
+from src.pipelines.registry import get_component_dependencies
+from typing import List
+import networkx as nx
+
 
 class PipelineBuilder:
     def __init__(self, config: PipelineConfig):
@@ -9,9 +13,33 @@ class PipelineBuilder:
         self.factory = ComponentFactory()
         self._components = {}
     
+
+    @staticmethod
+    def _build_order(config: PipelineConfig) -> List[str]:
+        
+        graph = nx.DiGraph()
+        for component_name in config.components:
+            graph.add_node(component_name)
+
+        for component_name, component_config in config.components.items():
+            for dep_name in get_component_dependencies(component_config):
+                if dep_name in config.components:
+                    graph.add_edge(dep_name, component_name)
+                else:
+                    raise ValueError(f"Missing '{dep_name}' for '{component_name}'")
+        
+        if not nx.is_directed_acyclic_graph(graph):
+            raise ValueError("Cyclic dependencies have been discovered")
+        
+        return list(nx.topological_sort(graph))
+
     def build(self) -> Pipeline:
+
+        build_order = self._build_order(self.config)
+
+
         # Создаём компоненты в правильном порядке
-        for component_name in self.config.execution_order:
+        for component_name in build_order:
             component_config = self.config.components[component_name]
             
             # Создаём компонент
