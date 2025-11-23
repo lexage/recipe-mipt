@@ -14,18 +14,10 @@ class PipelineBuilder:
         for component_name in self.config.execution_order:
             component_config = self.config.components[component_name]
             
-            # Собираем зависимости для текущего компонента
-            dependencies = {}
-            if hasattr(component_config, 'dependencies'):
-                for dep_name in component_config.dependencies:
-                    if dep_name not in self._components:
-                        raise ValueError(f"Dependency {dep_name} not found for {component_name}")
-                    dependencies[dep_name] = self._components[dep_name]
-            
             # Создаём компонент
             component = self.factory.create_component(
                 component_config, 
-                dependencies
+                dependencies=self._components
             )
 
             self._components[component_name] = component

@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 from abc import ABC, abstractmethod
 from typing import (
     Dict,
@@ -8,15 +6,18 @@ from typing import (
     Tuple,
 )
 
-from src.agent_constructor.core import Chunk, Document, Text
+from src.agent_constructor.core import Chunk, Document, Text, Block
 from src.agent_constructor.chunkers import Chunker
 from src.agent_constructor.agent import Agent
 from src.utils.adapters import SQLiteDocsDBAdapter, ChromaDocsAdapter
 from src.utils.wrappers import EmbeddingFunctionWrapper
 from src.agent_constructor.filters import Filter
+from src.pipelines.registry import register_component
+from src.pipelines.configs import DBConfig
+from src.pipelines.constants import ComponentNames
 
 
-class IDB(ABC):
+class IDB(Block):
     """Minimal DB abstraction for storing and querying chunks."""
 
     @abstractmethod
@@ -53,6 +54,7 @@ class InMemoryDB(IDB):
         return list(self._chunks.values())
 
 
+@register_component(DBConfig, ComponentNames.LOCAL_DB)
 class LocalDB(IDB):
     def __init__(
             self, 
@@ -104,6 +106,7 @@ class LocalDB(IDB):
         return super().add_chunks(chunks)
 
 
+@register_component(DBConfig, ComponentNames.LOCAL_RAPTOR_DB)
 class LocalRaptorDB(IDB):
     def __init__(
             self, 

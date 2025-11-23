@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 from abc import ABC, abstractmethod
 from typing import (
     List,
@@ -8,6 +6,10 @@ from typing import (
 )
 
 from src.agent_constructor.core import Block, Chunk, Text
+from src.pipelines.registry import register_component
+from src.pipelines.configs import ContextAssemblerConfig
+from src.pipelines.constants import ComponentNames
+
 
 class Retriever(Block):
     """Retrieve relevant chunks for a query/context."""
@@ -42,7 +44,9 @@ class SimpleContextAssembler(ContextAssembler):
         # naive concatenation with headers
         parts = [f"[CHUNK {c.id} | doc={c.doc_id}]\n{c.text}" for c in chunks]
         return "\n\n".join(parts)
-    
+
+
+@register_component(ContextAssemblerConfig, ComponentNames.CORAG_CONTEXT_ASSEMBLER)
 class CoRAGContextAssembler(ContextAssembler):
     def assemble(self, data: Tuple):
         prev_qna, retrived_chunks = data

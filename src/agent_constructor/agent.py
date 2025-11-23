@@ -1,7 +1,8 @@
-from abc import ABC, abstractmethod
+from abc import abstractmethod
+from src.agent_constructor.core import Block
 
 
-class Agent(ABC):
+class Agent(Block):
     """Base class for all agents in the system."""
 
     def __init__(self, name: str):

@@ -3,7 +3,11 @@ from openai import OpenAI
 from typing import List
 from src.agent_constructor.chunkers import Chunk
 from src.agent_constructor.core import Text
+from src.pipelines.registry import register_component
+from src.pipelines.configs import AgentConfig
+from src.pipelines.constants import ComponentNames
 
+@register_component(AgentConfig, ComponentNames.CORAG_SUB_GENERATOR)
 class CoRAGSubQueryGeneratorAgent(Agent):
     def __init__(self, url: str = None, model_name: str = None):
         super().__init__("corag_subquery_generator")
@@ -52,6 +56,7 @@ output anything else. Remeber, that follow-up question should not be adressed to
         return response.choices[0].message.content
     
 
+@register_component(AgentConfig, ComponentNames.CORAG_SUB_SOLVER)
 class CoRAGSubSolver(Agent):
     def __init__(self, url: str = None, model_name: str = None, max_num_queries: int = 5):
         super().__init__("corag_sub_solver")
@@ -97,6 +102,7 @@ Respond with a concise answer only, do not explain yourself or output anything e
 
         return response.choices[0].message.content
 
+@register_component(AgentConfig, ComponentNames.CORAG_FINAL_SOLVER)
 class CoRAGFinalSolver(Agent):
     def __init__(self, url: str = None, model_name: str = None, max_num_queries: int = 5):
         super().__init__("corag_final_solver")

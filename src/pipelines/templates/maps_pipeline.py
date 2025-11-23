@@ -1,4 +1,3 @@
-from __future__ import annotations
 from src.agent_constructor.core import Text
 from src.agents.maps_agents import MAPSAgentNames, MAPSPipelineState
 from src.agent_constructor.agent import Agent

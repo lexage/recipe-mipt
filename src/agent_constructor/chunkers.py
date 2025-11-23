@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 from abc import ABC, abstractmethod
 from typing import (
     List,
@@ -7,6 +5,10 @@ from typing import (
 import uuid
 
 from src.agent_constructor.core import Block, Document, Chunk
+from src.pipelines.registry import register_component
+from src.pipelines.configs import ChunkerConfig
+from src.pipelines.constants import ComponentNames
+
 
 class Chunker(Block):
     """Break a Document into a sequence of Chunks.
@@ -19,6 +21,8 @@ class Chunker(Block):
     def chunk(self, doc: Document) -> List[Chunk]:
         raise NotImplementedError
 
+
+@register_component(ChunkerConfig, ComponentNames.SIMPLE_CHUNKER)
 class SimpleChunker(Chunker):
     def __init__(self, max_chars: int = 1000):
         self.max_chars = max_chars
@@ -34,7 +38,8 @@ class SimpleChunker(Chunker):
             i += self.max_chars
         return chunks
 
-    
+
+@register_component(ChunkerConfig, ComponentNames.DUMMY_CHUNKER)
 class DummyChunker(Chunker):
     def __init__(self):
         pass
