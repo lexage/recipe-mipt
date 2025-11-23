@@ -1,6 +1,6 @@
 from typing import Dict, Any
 
-from src.pipelines.configs import AgentConfig, DBConfig, FilterConfig, RetrieverConfig, ChunkerConfig, ContextAssemblerConfig, AnyConfig
+from src.pipelines.configs import ComponentConfig
 from src.pipelines.registry import COMPONENT_REGISTRY, create_component_automatically
 
 from src.agent_constructor.db import LocalDB, LocalRaptorDB
@@ -23,21 +23,17 @@ from src.rag.raptor.retriever import RaptorRetriever
 
 class ComponentFactory:
     
-    def create_component(self, config: AnyConfig, dependencies: Dict[str, Any] = None):
-        config_type = type(config)
+    def create_component(self, config: ComponentConfig, dependencies: Dict[str, Any] = None):
+        
+        component_info = COMPONENT_REGISTRY.get(config.type, {})
 
-        if config_type in COMPONENT_REGISTRY:
-            registry = COMPONENT_REGISTRY[config_type]
-            if config.type in registry:
-                component_info = registry[config.type]
-                component_class = component_info['class']
-                dependencies_names = component_info['dependencies']
-                
-                return create_component_automatically(
-                    config, 
-                    dependencies, 
-                    component_class, 
-                    dependencies_names
-                )
-        raise ValueError(f"Unknown component type: {config.type}")
-    
+        if component_info:
+
+            return create_component_automatically(
+                config, 
+                dependencies, 
+                component_info['class'], 
+                component_info['dependencies']
+            )
+        
+        raise ValueError(f"Unregistied component: '{config.type}'")
