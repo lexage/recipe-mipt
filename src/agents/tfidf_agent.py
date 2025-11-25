@@ -5,11 +5,11 @@ from typing import List
 from src.agent_constructor.agent import Agent
 from src.agent_constructor.core import Text
 from sklearn.feature_extraction.text import TfidfVectorizer
-from src.pipelines.registry import register_component
+from src.pipelines.registry import ComponentRegistry
 from src.pipelines.constants import ComponentNames
 
 
-@register_component(ComponentNames.TFIDF_EMBEDDING)
+@ComponentRegistry.register_component(ComponentNames.TFIDF_EMBEDDING)
 class TFIDFEmbedding(Agent):
     def __init__(self, name: str, vectorizer_path:str ='data/tfidf_vectorizer.pkl'):
         super().__init__(name)        

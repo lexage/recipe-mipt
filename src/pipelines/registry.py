@@ -78,4 +78,3 @@ class ComponentRegistry:
 
     def component_exist(self, component_type: ComponentNames):
         return component_type in self._registry
-    

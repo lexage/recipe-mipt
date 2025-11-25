@@ -1,28 +1,32 @@
+import networkx as nx
+
+from typing import List
+
 from src.pipelines.configs import PipelineConfig
 from src.pipelines.factory import ComponentFactory
+from src.pipelines.registry import ComponentRegistry
 from src.pipelines.templates import SimplePipeline, REWOOPipeline, MAPSPipeline
 from src.agent_constructor.pipeline import Pipeline
-from src.pipelines.registry import get_component_dependencies
-from typing import List
-import networkx as nx
 
 
 class PipelineBuilder:
     def __init__(self, config: PipelineConfig):
         self.config = config
+        self.registry = ComponentRegistry()
         self.factory = ComponentFactory()
         self._components = {}
     
 
-    @staticmethod
-    def _build_order(config: PipelineConfig) -> List[str]:
+    def _build_order(self, config: PipelineConfig) -> List[str]:
         
         graph = nx.DiGraph()
-        for component_name in config.components:
+        for component_name, component_config in config.components.items():
+            if not self.registry.component_exist(component_config.type):
+                raise ValueError(f"Unregistied component: '{component_config.type}'")
+            
             graph.add_node(component_name)
 
-        for component_name, component_config in config.components.items():
-            for dep_name in get_component_dependencies(component_config):
+            for dep_name in self.registry.get_component_deps(component_config.type):
                 if dep_name in config.components:
                     graph.add_edge(dep_name, component_name)
                 else:
@@ -40,12 +44,15 @@ class PipelineBuilder:
 
         # Создаём компоненты в правильном порядке
         for component_name in build_order:
-            component_config = self.config.components[component_name]
             
-            # Создаём компонент
+            component_type = self.config.components[component_name].type
+            
+            component_info = self.registry.get_component_info(component_type)
+
             component = self.factory.create_component(
-                component_config, 
-                dependencies=self._components
+                component_info=component_info, 
+                available_dependencies=self._components,
+                config_params=self.config.components[component_name].params
             )
 
             self._components[component_name] = component

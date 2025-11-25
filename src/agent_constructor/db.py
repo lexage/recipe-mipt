@@ -126,55 +126,6 @@ class LocalRaptorDB(IDB):
                 )
             }
 
-        if not self.vector_data_base.populated:
-            self.vector_data_base.populate(
-                self._get_chunks(
-                    chunker=chunker,
-                    filter=filter, 
-                    documents=documents,
-                )
-            )
-
-    def _get_chunks(self, chunker: Chunker, filter: Filter, documents: List[Document]):
-        chunks = []
-        for document in documents:
-            doc_chunks = chunker.chunk(document)
-            chunks.extend(doc_chunks)
-            
-        return [c for c in chunks if filter.apply(c)]
-    
-    def query(self, queries: Text, top_k: int) -> List[Chunk]:
-        chunks = self.vector_data_base.search(queries=[queries], top_k=top_k)[0]      
-        return chunks
-    
-    def all_chunks(self) -> List[Chunk]:
-        return []
-    
-    def add_chunks(self, chunks):
-        return super().add_chunks(chunks)
-
-
-@register_component(DBConfig, ComponentNames.LOCAL_RAPTOR_DB)
-class LocalRaptorDB(IDB):
-    def __init__(
-            self, 
-            chunker: Chunker, 
-            path_to_db: str = 'data/docs_database.db', 
-            ):
-
-        self.doc_data_base = SQLiteDocsDBAdapter(
-            path_to_db=path_to_db
-            )
-        
-        documents = self.doc_data_base.get_docs()
-        
-        self.chunks = {
-            chunk.id: chunk for chunk in self._get_chunks(
-                chunker=chunker, 
-                documents=documents
-                )
-            }
-
     def _get_chunks(self, chunker: Chunker, documents: List[Document]):
         chunks = []
         for document in documents:
