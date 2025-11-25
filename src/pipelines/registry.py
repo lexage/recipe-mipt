@@ -1,93 +1,80 @@
-from typing import Dict, Type, Optional, Any, List
 import inspect
-from src.pipelines.configs import ComponentConfig
+
+from dataclasses import dataclass
+from typing import Dict, Type, List
+
 from src.pipelines.constants import ComponentNames
 from src.agent_constructor.core import Block
 
-COMPONENT_REGISTRY: Dict[ComponentNames, Dict] = {}
+
+@dataclass
+class ParamInfo:
+    is_dependency: bool
+    has_default: bool
+    
+
+@dataclass
+class ComponentInfo:
+    class_: Type
+    params: Dict[str, ParamInfo]
 
 
-def register_component(
-    component_type: ComponentNames,
-):
-    """
-    Декоратор для автоматической регистрации компонента.
-    
-    Args:
-        component_type: Строковый идентификатор типа компонента
-    
-    Usage:
-        @register_component(ComponentNames.MY_NEW_AGENT)
-        class MyNewAgent(Agent):
-            def __init__(self, name: str, url: str, model_name: str):
-                ...
-    """
-    
-    def wrapper(component_class: Type):
+class ComponentRegistry:
+    _registry: Dict[ComponentNames, ComponentInfo] = {}
 
+    def __init__(self) -> None:
+        self._registry = type(self)._registry
+
+    @classmethod
+    def register_component(cls, component_type: ComponentNames):
+        
+        def wrapper(component_class: Type):
+            params = cls._extract_params(component_class)
+            cls._registry[component_type] = ComponentInfo(
+                class_=component_class,
+                params=params,
+            )
+            return component_class
+        
+        return wrapper
+    
+    @staticmethod
+    def _extract_params(component_class: Type) -> List[str]:
         sig = inspect.signature(component_class.__init__)
         
-        dependencies = [
-            param.name 
-            for param in sig.parameters.values()
-            if param.name != 'self'
-            and param.annotation != inspect.Parameter.empty
-            and inspect.isclass(param.annotation)
-            and issubclass(param.annotation, Block)
-        ]
-    
-        COMPONENT_REGISTRY[component_type] = {
-            'class': component_class,
-            'dependencies': dependencies
-        }
-                
-        return component_class
-    
-    return wrapper
-
-def get_component_dependencies(component_config: ComponentConfig):
-    component_info = COMPONENT_REGISTRY.get(component_config.type, {})
-    if component_info:
-        return component_info.get('dependencies')
-    else:
-        raise ValueError(f"Unregistred component: {component_config.type}")
-
-def create_component_automatically(
-    config: ComponentConfig,
-    dependencies: Dict[str, Any],
-    component_class: Type,
-    dependencies_names: List[str]
-) -> Any:
-    """
-    Автоматически создает компонент, анализируя сигнатуру конструктора.
-    
-    Параметры берутся из:
-    1. config.params - для обычных параметров
-    2. dependencies - для зависимостей (с учетом dependency_mapping)
-    """
-    # Получаем сигнатуру конструктора
-    sig = inspect.signature(component_class.__init__)
-    params = {}
-    
-    # Пропускаем 'self'
-    for param_name, param in sig.parameters.items():
-        if param_name == 'self':
-            continue
+        params = {}
+        for param in sig.parameters.values():
             
-        if param_name in dependencies_names:
-            params[param_name] = dependencies[param_name]
-
-        elif param_name in config.params:
-            # Берем из конфига
-            params[param_name] = config.params[param_name]
-        elif param.default != inspect.Parameter.empty:
-            # Используем значение по умолчанию
-            continue
-        else:
-            raise ValueError(
-                f"Required parameter '{param_name}' not found for {component_class.__name__}. "
-                f"Available: params={list(config.params.keys())}, "
-                f"dependencies={list(dependencies.keys())}"
+            if param.name == 'self':
+                continue
+            
+            param_is_dep = (
+                param.annotation != inspect.Parameter.empty 
+                and inspect.isclass(param.annotation) 
+                and issubclass(param.annotation, Block)
             )
-    
-    return component_class(**params)
+            
+            param_has_default = param.default != inspect.Parameter.empty
+
+            params[param.name] = ParamInfo(
+                is_dependency=param_is_dep, 
+                has_default=param_has_default, 
+            )
+
+        return params
+
+    def get_component_info(self, component_type: ComponentNames) -> ComponentInfo:
+        return self._registry.get(component_type, None)
+
+    def get_component_deps(self, component_type: ComponentNames) -> List[str]:
+        component_info = self._registry.get(component_type, None)
+        if component_info is None or not hasattr(component_info, "params"):
+            return []
+        return [
+            param_name
+            for param_name, param_info in component_info.params.items()
+            if getattr(param_info, "is_dependency", True)
+        ]
+
+    def component_exist(self, component_type: ComponentNames):
+        return component_type in self._registry

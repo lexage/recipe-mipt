@@ -3,11 +3,11 @@ from typing import List
 
 from src.agent_constructor.core import Text
 from src.agent_constructor.agent import Agent
-from src.pipelines.registry import register_component
+from src.pipelines.registry import ComponentRegistry
 from src.pipelines.constants import ComponentNames
 
 
-@register_component(ComponentNames.EMBEDDING)
+@ComponentRegistry.register_component(ComponentNames.EMBEDDING)
 class EmbeddigAgent(Agent):
     def __init__(self, url: str = None, model_name: str = None):
         super().__init__("embedding_agent")

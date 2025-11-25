@@ -1,9 +1,9 @@
 from src.agent_constructor.agent import Agent
 from src.agent_constructor.core import Text
-from src.pipelines.registry import register_component
+from src.pipelines.registry import ComponentRegistry
 from src.pipelines.constants import ComponentNames
 
-@register_component(ComponentNames.DUMMY_AGENT)
+@ComponentRegistry.register_component(ComponentNames.DUMMY_AGENT)
 class DummyAgent(Agent):
     def __init__(self, name: str):
         super().__init__(name)

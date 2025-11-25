@@ -5,7 +5,7 @@ import random
 
 from src.agent_constructor.agent import Agent
 from src.agent_constructor.core import Text
-from src.pipelines.registry import register_component
+from src.pipelines.registry import ComponentRegistry
 from src.pipelines.constants import ComponentNames
 
 
@@ -33,7 +33,7 @@ class MAPSPipelineState:
 
 # Суда я хочу встроить такю херню, что если мы указываем имя модели и есть 
 # подключение к хочут вллм, то испуользуем вызов LLM, если нет, то юзаем дамми
-@register_component(ComponentNames.MAPS_ALIGNER)
+@ComponentRegistry.register_component(ComponentNames.MAPS_ALIGNER)
 class AlignerMAPS(Agent):
     """Alignes the caption, context, and question to ensure the safe integration of these elements."""
 
@@ -44,7 +44,7 @@ class AlignerMAPS(Agent):
         return f"Aligned task description '{task_description}' based on '{feedback}' feedback."
 
 
-@register_component(ComponentNames.MAPS_SCHOLAR)
+@ComponentRegistry.register_component(ComponentNames.MAPS_SCHOLAR)
 class ScholarMAPS(Agent):
     """Researches the professional knowledge required by problems and exploring various hypotheses"""
 
@@ -55,7 +55,7 @@ class ScholarMAPS(Agent):
         return f"Research results for task description '{task_description}' based on '{feedback}' feedback."
 
  
-@register_component(ComponentNames.MAPS_SOLVER)
+@ComponentRegistry.register_component(ComponentNames.MAPS_SOLVER)
 class SolverMAPS(Agent):
     """Gatheres all necessary information and resolving MSPs by selecting the most appropriate experimental approach"""
 
@@ -66,7 +66,7 @@ class SolverMAPS(Agent):
         return f"Solution for task description '{task_description}' based on '{feedback}' feedback."
 
 
-@register_component(ComponentNames.MAPS_CRITIC)
+@ComponentRegistry.register_component(ComponentNames.MAPS_CRITIC)
 class CriticMAPS(Agent):
     """Provides feedback and continuous correction throughout the solving process"""
 
@@ -77,7 +77,7 @@ class CriticMAPS(Agent):
         return [random.randint(1, 5) for _ in range(4)], ["random feedback" for _ in range(4)]
 
 
-@register_component(ComponentNames.MAPS_MANAGER)
+@ComponentRegistry.register_component(ComponentNames.MAPS_MANAGER)
 class ManagerMAPS(Agent):
     """Creates the experimental plan and schedule, ensuring each step is executed according to the predefined plan."""
 
@@ -88,7 +88,7 @@ class ManagerMAPS(Agent):
         return [MAPSAgentNames.ALIGNER, MAPSAgentNames.SCHOLAR, MAPSAgentNames.SOLVER]
 
 
-@register_component(ComponentNames.MAPS_USER_PROXY)
+@ComponentRegistry.register_component(ComponentNames.MAPS_USER_PROXY)
 class UserProxyMAPS(Agent):
     """Ensures smooth information flow and coordinating the allocation of tasks within the experiment"""
 

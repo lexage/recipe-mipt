@@ -5,7 +5,7 @@ from typing import (
 import uuid
 
 from src.agent_constructor.core import Block, Document, Chunk
-from src.pipelines.registry import register_component
+from src.pipelines.registry import ComponentRegistry
 from src.pipelines.constants import ComponentNames
 
 
@@ -21,7 +21,7 @@ class Chunker(Block):
         raise NotImplementedError
 
 
-@register_component(ComponentNames.SIMPLE_CHUNKER)
+@ComponentRegistry.register_component(ComponentNames.SIMPLE_CHUNKER)
 class SimpleChunker(Chunker):
     def __init__(self, max_chars: int = 1000):
         self.max_chars = max_chars
@@ -38,7 +38,7 @@ class SimpleChunker(Chunker):
         return chunks
 
 
-@register_component(ComponentNames.DUMMY_CHUNKER)
+@ComponentRegistry.register_component(ComponentNames.DUMMY_CHUNKER)
 class DummyChunker(Chunker):
     def __init__(self):
         pass
