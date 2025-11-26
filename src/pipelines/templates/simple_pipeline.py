@@ -4,7 +4,7 @@ from src.agent_constructor.pipeline import Pipeline
 from src.agent_constructor.context_engine import ContextAssembler
 
 class SimplePipeline(Pipeline):
-    def __init__(self, retriever: Retriever, agent: Agent, context_assembler: ContextAssembler):
+    def __init__(self, retriever: Retriever, agent: Agent, context_assembler: ContextAssembler = None):
         super().__init__("simple_pipeline")
         self.retriever = retriever
         self.agent = agent
@@ -12,5 +12,6 @@ class SimplePipeline(Pipeline):
             
     def run(self, task: str) -> str:
         context = self.retriever.retrieve(query=task)
-        assembeld_context = self.context_assembler.assemble(context)
-        return self.agent.run(task, assembeld_context)
+        if self.context_assembler:
+            context = self.context_assembler.assemble(context)
+        return self.agent.run(task, context)

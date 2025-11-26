@@ -10,13 +10,13 @@ from src.pipelines.constants import ComponentNames
 
 @ComponentRegistry.register_component(ComponentNames.RAPTOR_RETRIEVER)
 class RaptorRetriever(Retriever):
-    def __init__(self, name: str, data_base: IDB, path_to_raptor_db: str, embeddig_model: Agent, qa_model: Agent, summarization_model: Agent):
-        super().__init__(name)
+    def __init__(self, data_base: IDB, path_to_raptor_db: str, embedding_agent: Agent, qa_agent: Agent, summarization_agent: Agent):
+        super().__init__("raptor_retirever")
 
         rac = RetrievalAugmentationConfig(
-            embedding_model=EmbeddingWrapper(embeddig_model),
-            qa_model=QAModelWrapper(qa_model),
-            summarization_model=SummarizationWrapper(summarization_model),
+            embedding_model=EmbeddingWrapper(embedding_agent),
+            qa_model=QAModelWrapper(qa_agent),
+            summarization_model=SummarizationWrapper(summarization_agent),
         )
 
         try:

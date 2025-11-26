@@ -16,6 +16,10 @@ from .maps_agents import (
     CriticMAPS,
 )
 from .embedding_agent import EmbeddingAgent
+from .raptor_agents import (
+    RaptorQAAgent,
+    RaptorSummarizationAgent,
+)
 
 __all__ = [
     "DummyAgent",
@@ -34,4 +38,6 @@ __all__ = [
     "AlignerMAPS",
     "CriticMAPS",
     "EmbeddingAgent",
+    "RaptorQAAgent",
+    "RaptorSummarizationAgent",
 ]

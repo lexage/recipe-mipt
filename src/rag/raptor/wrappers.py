@@ -7,7 +7,7 @@ class QAModelWrapper(BaseQAModel):
         self.agent = agent
     
     def answer_question(self, context, question):
-        return self.agent.run(context, question)
+        return self.agent.run(question, context)
 
 
 class SummarizationWrapper(BaseSummarizationModel):
@@ -16,7 +16,7 @@ class SummarizationWrapper(BaseSummarizationModel):
         self.agent = agent
 
     def summarize(self, context, max_tokens=150):
-        return self.agent.run(context)
+        return self.agent.run(context, max_tokens)
 
 
 class EmbeddingWrapper(BaseEmbeddingModel):

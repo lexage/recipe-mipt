@@ -19,6 +19,8 @@ class ComponentNames(Enum):
     CORAG_SUB_SOLVER = "corag_sub_solver"
     CORAG_FINAL_SOLVER = "corag_final_solver"
     SIMPLE_AGENT = "simple_agent"
+    RAPTOR_QA_AGENT = "raptor_qa_agent"
+    RAPTOR_SUMM_AGENT = "raptor_summ_agent"
 
     # DBs
     LOCAL_DB = "local_db"
