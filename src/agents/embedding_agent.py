@@ -7,8 +7,8 @@ from src.pipelines.registry import ComponentRegistry
 from src.pipelines.constants import ComponentNames
 
 
-@ComponentRegistry.register_component(ComponentNames.EMBEDDING)
-class EmbeddigAgent(Agent):
+@ComponentRegistry.register_component(ComponentNames.EMBEDDING_AGENT)
+class EmbeddingAgent(Agent):
     def __init__(self, url: str = None, model_name: str = None):
         super().__init__("embedding_agent")
         

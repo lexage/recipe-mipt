@@ -14,7 +14,7 @@ class ComponentNames(Enum):
     MAPS_ALIGNER = "maps_aligner"
     MAPS_CRITIC = "maps_critic"
     MAPS_USER_PROXY = "maps_user_proxy"
-    EMBEDDING = "embedding_agent"
+    EMBEDDING_AGENT = "embedding_agent"
     CORAG_SUB_GENERATOR = "corag_sub_generator"
     CORAG_SUB_SOLVER = "corag_sub_solver"
     CORAG_FINAL_SOLVER = "corag_final_solver"
