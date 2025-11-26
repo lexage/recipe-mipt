@@ -2,7 +2,7 @@
 
 ## Простой вариант
 
-В самом простом варианте для прогона на бенчмарке DS1000 нужно будет подготовить `run` метод, который будет принимать `DataItemDS1000` и возвращать ответ. (см. [DS100](./benchmarks/ds1000/ds1000-readme.md))
+В самом простом варианте для прогона на бенчмарке DS1000 нужно будет подготовить `run` метод, который будет принимать `DataItemDS1000` и возвращать ответ (см. [DS100](./benchmarks/ds1000/ds1000-readme.md)).
 
 ```python
 from benchmarks.ds1000 import DS1000, DataItemDS1000
@@ -26,41 +26,25 @@ if __name__ == "__main__":
 
 ## Вариант с использованием сборщика
 
-Сборщик пайплайна собирает экземпляр Pipeline по указанному конфигу.
+`PipelineBuilder` получает `PipelineConfig`, автоматически вычисляет порядок сборки на основе зависимостей и возвращает готовый `Pipeline`.
 
 ```python
-from src.pipelines.configs import (
-    PipelineConfig, 
-    AgentConfig, 
-    DBConfig, 
-    RetrieverConfig, 
-    ChunkerConfig, 
-    FilterConfig, 
-    ContextAssemblerConfig
-)
+from src.pipelines.configs import PipelineConfig, ComponentConfig
 from src.pipelines.pipeline_builder import PipelineBuilder
 
 def main():
     cfg = PipelineConfig(
         pipeline_type="simple",
-        params = {...}
-        execution_order=["context_assembler", "retriever", "agent"],
+        params={"max_context_tokens": 8_000},
         components={
-            "context_assembler": ContextAssemblerConfig(
-                type="...",
-                params = {...},
-                dependencies = [...]
+            "retriever": ComponentConfig(
+                type="corag_retriever",
+                params={"max_sub_queries": 3}
             ),
-            "retriever": RetrieverConfig(
-                type="...",
-                params = {...},
-                dependencies = [...]
+            "agent": ComponentConfig(
+                type="corag_final_solver",
+                params={"url": "http://localhost:7215/v1"}
             ),
-            "agent": AgentConfig(
-                type="...",
-                params = {...},
-                dependencies = [...]
-            )
         }
     )
 
@@ -72,193 +56,127 @@ def main():
 if __name__ == "__main__":
     main()
 ```
-### Конфигурация пайплайна
-В `PipelineConfig` нужно указать три основных параметра:
 
-- #### `pipeline_type` - Тип пайплайна из [шаблонов](../src/pipelines/templates/). 
+### Регистрация компонент
 
-    Важно, что бы указанный шаблон пайплайна был зарегистрирован в [сборщике](../src/pipelines/pipeline_builder.py#L32)
-
-- #### `components` - Основные компоненты из которых состоит пайплайн. 
-
-    Компоненты - это сущности, которые также необходимо собирать, и у которых могут быть зависимости от других компонент (ретривер, агент, сборщик контекста и т.д.). Для каждого типа пайплайна нужен свой набор компонент. К примеру для [`SimplePipeline`](../src/pipelines/templates/simple_pipeline.py#L7) нужен следующий набор компонент: `retriever: Retriever`, `agent: Agent`, `context_assembler: ContextAssembler`. 
-
-- #### `execution_order` - Порядок, в котором должны собираться компоненты. 
-
-    Нужен в тех случаях, когда у компонент есть свои зависимости, которые нужно собрать заранее. 
-
-- #### `params` - Другие параметры пайлпайна. 
-
-    Например для [`MAPSPipeline`](../src/pipelines/templates/maps_pipeline.py#L9) помимо комонентнов агентов нужно указать параметр `max_iterations`.
-
-### Конфигурация компонент пайплайна
-
-Конфигурация компоненты указывается в `PipelineConfig` в поле `components`:
+Любая сборочная единица регистрируется в `ComponentRegistry` с помощью декоратора:
 
 ```python
-cfg = PipelineConfig(
-        ...
-        components={
-            ...
-            "component_name": AgentConfig(
-                type="...",
-                params = {...},
-                dependencies = [...]
-            ),
-            ...
-        }
-    )
+from src.pipelines.registry import ComponentRegistry
+from src.pipelines.constants import ComponentNames
+
+@ComponentRegistry.register_component(ComponentNames.SIMPLE_CHUNKER)
+class SimpleChunker(Chunker):
+    ...
 ```
 
-Для сбора разного типа компонент реализованно несколько типов конфига:
+Список всех доступных `ComponentNames` находится в `src/pipelines/constants.py`.
 
-- `AgentConfig` - конфигурация агента
-- `DBConfig` - конфигурация БД
-- `RetrieverConfig` - конфигурация ретривера
-- `ChunkerConfig` - конфигурация чанкера
-- `FilterConfig` - конфигурация блока фильтрации
-- `ContextAssemblerConfig` - конфигурация сборщика контекста
+### Конфигурация пайплайна
 
-Во всех типах конфигурации компонент нужно указать три параметра (_некторые из них могут быть необязательными - зависит от компоненты_):
+`PipelineConfig` теперь содержит только три поля:
 
-- #### `type` - Тип компоненты. 
+- #### `pipeline_type`
 
-    По сути это указание на конкретую реализацию компоненты.
-    Например для `RetrieverConfig` доступные типы компонент: `corag`, `raptor`, `instruct`. 
+  Имя шаблона из `src/pipelines/templates` (`simple`, `rewoo`, `maps`). Шаблон должен поддерживаться внутри `PipelineBuilder`.
 
-    Для того, что бы добавить новый тип компоненты, нужно добавить соответствующий блок в [сборщик компонент](../src/pipelines/factory.py), в соответствующую функцию. 
+- #### `components`
 
-    Например если мы хотим добавить новую реализацию ретривера, то надо добавить блок сборки в [`_create_retriever`](../src/pipelines/factory.py#L146). 
+  Словарь `{"component_name": ComponentConfig(...)}`. Название компонента **совпадает** с именем аргумента конструктора (`__init__`) тех блоков, которые на него зависят. Например, если `LocalDB.__init__` принимает аргументы `chunker`, `filter`, `embedding_agent`, то в конфиге должны присутствовать компоненты с такими ключами.
 
-- #### `dependencies` - Зависимости компоненты от других компонент. 
+- #### `params`
 
-    К примеру у компоненты БД [`LocalDB`](../src/agent_constructor/db.py#L56) есть зависимости от компонент `chunker: Chunker`, `embedding_model: Agent` `filter: Filter`. 
+  Дополнительные параметры шаблона, например `max_iterations` для `MAPSPipeline`.
 
-    Сборка этой компоненты будет выглядеть следующим образом:
+### Конфигурация компонент
 
-    ```python
-    cfg = PipelineConfig(
-            ...
-            components={
-                ...
-                "chunker": ChunkerConfig(
-                    type="...",
-                    params = {...},
-                    dependencies = [...]
-                ),
-                "embedding_model": AgentConfig(
-                    type="...",
-                    params = {...},
-                    dependencies = [...]
-                ),
-                "filter": FilterConfig(
-                    type="...",
-                    params = {...},
-                    dependencies = [...]
-                ),
-                "db": DBConfig(
-                    type="local",
-                    params = {...},
-                    dependencies = ["chunker", "embedding_model", "filter"]
-                ),
-                ...
-            }
-        )
-    ```
-
-    Вот в таких случаях в `execution_order` нужно указать корректный сбор компонент. Сначала `chunker`, `embedding_model` и `filter`, а потом `db`. 
-
-- #### `params` - Другие параметры компоненты. 
-
-    К примеру для все той же компоненты БД [`LocalDB`](../src/agent_constructor/db.py#L56) нужно указать параметры: `path_to_db: str`, `path_to_vector_db: str`, `collection_name: str`.
-
-### Пример сборки простого пайплайна с CoRAG ретривером. 
-
-Как уже говорилось ранее, для `SimplePipeline` нужны только следующие компоненты: `retriever: Retriever`, `agent: Agent`, `context_assembler: ContextAssembler`. 
-
-В качестве ретривера мы хотим использовать [`CoRAGRetriever`](../src/rag/corag/retriever.py). Для сборки [`CoRAGRetriever`] нужны компоненты:
-`data_base: IDB`, `generator: Agent`, `sub_solver: Agent`. 
-
-В качестве `generator: Agent` будем использовать [`CoRAGSubQueryGeneratorAgent`](../src/agents/corag_agents.py#L7). 
-
-В качестве `sub_solver: Agent` будем использовать [`CoRAGSubSolver`](../src/agents/corag_agents.py#L55). 
-
-В качестве `data_base: IDB` будем использовать [`LocalDB`](../src/agent_constructor/db.py#L56). Как описывалось выше, у этого компонента также есть свои зависимости и параметры. 
-
-В качестве сборщика контекста `context_assembler: ContextAssembler` будем использовать [`CoRAGContextAssembler`](../src/agent_constructor/context_engine.py#L46)
-
-В качестве основного агента пайплайна `agent: Agent` будем использовать [`CoRAGFinalSolver`](../src/agents/corag_agents.py#L100)
-
-В итоге для такого пайплана код сборки с конфигурацией будут выглядеть следующим образом:
-
+`ComponentConfig` класс конфигурации компонент:
 
 ```python
-from src.pipelines.configs import (
-    PipelineConfig, 
-    AgentConfig, 
-    DBConfig, 
-    RetrieverConfig, 
-    ChunkerConfig, 
-    FilterConfig, 
-    ContextAssemblerConfig
+ComponentConfig(
+    type=ComponentNames.LOCAL_DB,
+    params={
+        "path_to_db": "data/docs_database.db",
+        "path_to_vector_db": "data/docs_vector_database",
+        "collection_name": "docs"
+    }
 )
+```
+
+- `type` — одно из значений `ComponentNames`, зарегистрированное в `ComponentRegistry`.
+- `params` — дополнительные аргументы конструктора (кроме зависимостей).
+- зависимости указывать не требуется: они выводятся автоматически.
+
+### Автоматическое определение зависимостей
+
+1. При регистрации класс анализируется через `inspect.signature`.
+2. Любой параметр, аннотированный типом, унаследованным от `agent_constructor.core.Block`, считается зависимостью.
+3. `PipelineBuilder` строит граф зависимостей и делает `topological_sort`, и автоматически формирует порядок сборки.
+4. Если зависимость отсутствует в конфиге или компонент не зарегистрирован, сборщик упадёт с понятной ошибкой.
+
+### Пример сборки простого пайплайна с CoRAG ретривером
+
+```python
+from src.pipelines.configs import PipelineConfig, ComponentConfig
+from src.pipelines.constants import ComponentNames
 from src.pipelines.pipeline_builder import PipelineBuilder
 from src.benchmarks import DataItemDS1000, DS1000
 
 corag_config = PipelineConfig(
     pipeline_type="simple",
-    execution_order=[
-        "embedding_agent", 
-        "context_assembler", 
-        "chunker", 
-        "filter", 
-        "db", 
-        "generator", 
-        "sub_solver", 
-        "retriever", 
-        "agent"
-    ],
     components={
-        "embedding_agent": AgentConfig(
-            type="embedding",
-            params={"url": "http://localhost:7216/v1", "model_name": "Qwen/Qwen3-Embedding-0.6B"}
+        "embedding_agent": ComponentConfig(
+            type=ComponentNames.EMBEDDING_AGENT,
+            params={
+                "url": "http://localhost:7216/v1",
+                "model_name": "Qwen/Qwen3-Embedding-0.6B"
+            }
         ),
-        "context_assembler": ContextAssemblerConfig(
-            type="corag"
+        "context_assembler": ComponentConfig(
+            type=ComponentNames.CORAG_CONTEXT_ASSEMBLER
         ),
-        "chunker": ChunkerConfig(
-            type="simple",
+        "chunker": ComponentConfig(
+            type=ComponentNames.SIMPLE_CHUNKER,
             params={"max_chars": 1000}
         ),
-        "filter": FilterConfig(
-            type="length",
+        "filter": ComponentConfig(
+            type=ComponentNames.LENGTH_FILTER,
             params={"min_len": 200}
         ),
-        "db": DBConfig(
-            type="local",
+        "db": ComponentConfig(
+            type=ComponentNames.LOCAL_DB,
             params={
                 "path_to_db": "data/docs_database.db",
                 "path_to_vector_db": "data/docs_vector_database",
                 "collection_name": "docs"
-                },
-            dependencies=["chunker", "filter", "embedding_agent"]
+            }
         ),
-        "generator": AgentConfig(
-            type="corag_sub_generator",
-            params={"url": "http://localhost:7215/v1", "model_name": "Qwen/Qwen1.5-32B-Chat", "max_num_queries": 3}
+        "generator": ComponentConfig(
+            type=ComponentNames.CORAG_SUB_GENERATOR,
+            params={
+                "url": "http://localhost:7215/v1",
+                "model_name": "Qwen/Qwen1.5-32B-Chat",
+                "max_num_queries": 3
+            }
         ),
-        "sub_solver": AgentConfig(
-            type="corag_sub_solver",
-            params={"url": "http://localhost:7215/v1", "model_name": "Qwen/Qwen1.5-32B-Chat", "max_num_queries": 3}
+        "sub_solver": ComponentConfig(
+            type=ComponentNames.CORAG_SUB_SOLVER,
+            params={
+                "url": "http://localhost:7215/v1",
+                "model_name": "Qwen/Qwen1.5-32B-Chat",
+                "max_num_queries": 3
+            }
         ),
-        "retriever": RetrieverConfig(
-            type="corag",
-            params={"max_sub_queries": 5},
-            dependencies=["db", "generator", "sub_solver"]
+        "retriever": ComponentConfig(
+            type=ComponentNames.CORAG_RETRIEVER,
+            params={"max_sub_queries": 5}
         ),
-        "agent": AgentConfig(
-            type="corag_final_solver",
-            params={"url": "http://localhost:7215/v1", "model_name": "Qwen/Qwen1.5-32B-Chat"}
+        "agent": ComponentConfig(
+            type=ComponentNames.CORAG_FINAL_SOLVER,
+            params={
+                "url": "http://localhost:7215/v1",
+                "model_name": "Qwen/Qwen1.5-32B-Chat"
+            }
         )
     }
 )
@@ -282,5 +200,4 @@ def bench():
 
 if __name__ == "__main__":
     bench()
-
 ```
