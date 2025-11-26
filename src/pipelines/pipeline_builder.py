@@ -60,7 +60,7 @@ class PipelineBuilder:
             return SimplePipeline(
                 retriever=self._components["retriever"],
                 agent=self._components["agent"],
-                context_assembler=self._components["context_assembler"]
+                context_assembler=self._components.get("context_assembler", None)
             )
         elif self.config.pipeline_type == "rewoo":
             return REWOOPipeline(

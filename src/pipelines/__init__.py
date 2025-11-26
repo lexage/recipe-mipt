@@ -26,6 +26,8 @@ from src.agents import (
     AlignerMAPS,
     CriticMAPS,
     EmbeddingAgent,
+    RaptorQAAgent,
+    RaptorSummarizationAgent,
 )
 
 from src.rag import (
