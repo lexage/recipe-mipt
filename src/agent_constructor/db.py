@@ -59,7 +59,8 @@ class LocalDB(IDB):
             self, 
             chunker: Chunker, 
             embedding_model: Agent,
-            filter: Filter,
+            filter: Filter = None,
+            db_generator: Agent = None,
             path_to_db: str = 'data/docs_database.db', 
             path_to_vector_db: str = 'data/docs_vector_database', 
             collection_name: str = 'docs',
@@ -76,6 +77,11 @@ class LocalDB(IDB):
             )
         
         documents = self.doc_data_base.get_docs()
+        
+        if db_generator:
+            id_bias = len(documents)
+            synth_documents = [Document(id=id_bias+i, text=db_generator.run(d.text), source=db_generator.name) for i, d in enumerate(documents)]
+            documents.extend(synth_documents)
 
         if not self.vector_data_base.populated:
             self.vector_data_base.populate(
@@ -91,8 +97,10 @@ class LocalDB(IDB):
         for document in documents:
             doc_chunks = chunker.chunk(document)
             chunks.extend(doc_chunks)
-            
-        return [c for c in chunks if filter.apply(c)]
+        if filter:
+            return [c for c in chunks if filter.apply(c)]
+        else:
+            return chunks
     
     def query(self, queries: Text, top_k: int) -> List[Chunk]:
         chunks = self.vector_data_base.search(queries=[queries], top_k=top_k)[0]      

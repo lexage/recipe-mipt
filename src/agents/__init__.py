@@ -20,6 +20,10 @@ from .raptor_agents import (
     RaptorQAAgent,
     RaptorSummarizationAgent,
 )
+from .generation_agents import (
+    CodeEvalGenerator,
+    IncorrectExampleGenerator,
+)
 
 __all__ = [
     "DummyAgent",
@@ -40,4 +44,6 @@ __all__ = [
     "EmbeddingAgent",
     "RaptorQAAgent",
     "RaptorSummarizationAgent",
+    "CodeEvalGenerator",
+    "IncorrectExampleGenerator",
 ]
