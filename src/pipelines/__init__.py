@@ -28,6 +28,8 @@ from src.agents import (
     EmbeddingAgent,
     RaptorQAAgent,
     RaptorSummarizationAgent,
+    CodeEvalGenerator,
+    IncorrectExampleGenerator,
 )
 
 from src.rag import (
