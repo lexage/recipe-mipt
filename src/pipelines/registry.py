@@ -66,15 +66,15 @@ class ComponentRegistry:
     def get_component_info(self, component_type: ComponentNames) -> ComponentInfo:
         return self._registry.get(component_type, None)
 
-    def get_component_deps(self, component_type: ComponentNames) -> List[str]:
+    def get_component_deps(self, component_type: ComponentNames) -> Dict[str: ParamInfo]:
         component_info = self._registry.get(component_type, None)
         if component_info is None or not hasattr(component_info, "params"):
             return []
-        return [
-            param_name
+        return {
+            param_name: param_info
             for param_name, param_info in component_info.params.items()
             if getattr(param_info, "is_dependency", True)
-        ]
+        }
 
     def component_exist(self, component_type: ComponentNames):
         return component_type in self._registry

@@ -27,7 +27,7 @@ follow-up questions only as the search engine may not understand complex questio
     def run(self, task: Text, prev_qna: List = []) -> Text:
 
         if self.dummy_mode:
-            return [f"#{i} Subquery of query '{task}'" for i in range(self.max_num_queries)]
+            return f"#{len(prev_qna)} Subquery of query '{task}'"
 
         prev_qna_prompt = ""
         for i, (q,a) in enumerate(prev_qna):
@@ -57,7 +57,7 @@ output anything else. Remeber, that follow-up question should not be adressed to
 
 @ComponentRegistry.register_component(ComponentNames.CORAG_SUB_SOLVER)
 class CoRAGSubSolver(Agent):
-    def __init__(self, url: str = None, model_name: str = None, max_num_queries: int = 5):
+    def __init__(self, url: str = None, model_name: str = None):
         super().__init__("corag_sub_solver")
         self.dummy_mode = not (url and model_name)
         
@@ -68,7 +68,6 @@ class CoRAGSubSolver(Agent):
             )
 
         self.model_name = model_name
-        self.max_num_queries = max_num_queries
         self.system_prompt = """Given the following documents, generate an appropriate answer for the query. DO NOT hallucinate any
 information, only use the provided documents to generate the answer. Respond “No relevant information
 found” if the documents do not contain useful information."""
@@ -76,7 +75,7 @@ found” if the documents do not contain useful information."""
     def run(self, task: Text, context: List[Chunk]) -> Text:
 
         if self.dummy_mode:
-            return [f"#{i} Subquery of query '{task}'" for i in range(self.max_num_queries)]
+            return f"Answer on query: '{task}'"
 
         context_prompt = ""
         for chunk in context:
@@ -122,7 +121,8 @@ always be accurate."""
     def run(self, task: Text, context: Text) -> Text:
 
         if self.dummy_mode:
-            return [f"#{i} Subquery of query '{task}'" for i in range(self.max_num_queries)]
+            return f"Answer on query: '{task}'"
+
 
         user_prompt = f"""{context}
 ## Task description
