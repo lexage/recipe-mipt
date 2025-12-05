@@ -66,7 +66,7 @@ class ComponentRegistry:
     def get_component_info(self, component_type: ComponentNames) -> ComponentInfo:
         return self._registry.get(component_type, None)
 
-    def get_component_deps(self, component_type: ComponentNames) -> Dict[str: ParamInfo]:
+    def get_component_deps(self, component_type: ComponentNames) -> Dict:
         component_info = self._registry.get(component_type, None)
         if component_info is None or not hasattr(component_info, "params"):
             return []
