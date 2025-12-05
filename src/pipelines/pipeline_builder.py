@@ -10,13 +10,13 @@ from src.agent_constructor.pipeline import Pipeline
 
 
 class PipelineBuilder:
+    
     def __init__(self, config: PipelineConfig):
         self.config = config
         self.registry = ComponentRegistry()
         self.factory = ComponentFactory()
         self._components = {}
     
-
     def _build_order(self, config: PipelineConfig) -> List[str]:
         
         graph = nx.DiGraph()
@@ -26,10 +26,12 @@ class PipelineBuilder:
             
             graph.add_node(component_name)
 
-            for dep_name in self.registry.get_component_deps(component_config.type):
+            deps = self.registry.get_component_deps(component_config.type)
+
+            for dep_name in deps:
                 if dep_name in config.components:
                     graph.add_edge(dep_name, component_name)
-                else:
+                elif not deps[dep_name].has_default:
                     raise ValueError(f"Missing '{dep_name}' for '{component_name}'")
         
         if not nx.is_directed_acyclic_graph(graph):
@@ -41,8 +43,6 @@ class PipelineBuilder:
 
         build_order = self._build_order(self.config)
 
-
-        # Создаём компоненты в правильном порядке
         for component_name in build_order:
             
             component_type = self.config.components[component_name].type

@@ -15,7 +15,7 @@ class ComponentFactory:
         
         for param_name, param_info in component_info.params.items():
                 
-            if param_info.is_dependency:
+            if param_info.is_dependency and param_name in available_dependencies:
                 params[param_name] = available_dependencies[param_name]
 
             elif param_name in config_params:
