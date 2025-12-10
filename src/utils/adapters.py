@@ -3,6 +3,7 @@ import chromadb
 
 from typing import List
 from tqdm import tqdm
+from chromadb.config import Settings
 
 from src.agent_constructor.core import Document, Text, Chunk
 
@@ -40,7 +41,7 @@ class ChromaDocsAdapter:
         self.embedding_function = embedding_function
         self.batch_size = bacth_size
 
-        client = chromadb.PersistentClient(path=path_to_db)
+        client = chromadb.PersistentClient(path=path_to_db, settings=Settings(anonymized_telemetry=False))
         
         collections = client.list_collections()
         collection_names = [c.name for c in collections]
