@@ -29,6 +29,7 @@ class PipelineBuilder:
             deps = self.registry.get_component_deps(component_config.type)
 
             for dep_name in deps:
+                dep_name = component_config.deps_mapping.get(dep_name, dep_name)
                 if dep_name in config.components:
                     graph.add_edge(dep_name, component_name)
                 elif not deps[dep_name].has_default:
@@ -45,14 +46,15 @@ class PipelineBuilder:
 
         for component_name in build_order:
             
-            component_type = self.config.components[component_name].type
+            component_config = self.config.components.get(component_name)
             
-            component_info = self.registry.get_component_info(component_type)
+            component_info = self.registry.get_component_info(component_config.type)
 
             component = self.factory.create_component(
                 component_info=component_info, 
                 available_dependencies=self._components,
-                config_params=self.config.components[component_name].params
+                deps_mapping=component_config.deps_mapping,
+                config_params=component_config.params,
             )
 
             self._components[component_name] = component

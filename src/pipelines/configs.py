@@ -8,6 +8,7 @@ from src.pipelines.constants import ComponentNames
 class ComponentConfig(BaseModel):
     type: ComponentNames
     params: Dict[str, Any] = {}
+    deps_mapping: Dict[str, str] = {}
 
 
 class PipelineConfig(BaseModel):
