@@ -70,3 +70,31 @@ class IncorrectExampleGenerator(Agent):
         )
 
         return response.choices[0].text
+
+
+class QueryGenerator(Agent):
+    def __init__(self, url: str, model_name: str, options: int = 3):
+        super().__init__("query_generator")
+        self.dummy_mode = not (url and model_name)
+        self.options = options
+
+        if not self.dummy_mode:
+            self.client = OpenAI(base_url=url, api_key="vllm")
+
+        self.model_name = model_name
+
+    def run(self, task: Text) -> Text:
+        if self.dummy_mode:
+            return task
+
+        response = self.client.completions.create(
+            model=self.model_name,
+            prompt=(
+                "You have been given a search query."
+                f"Write down {self.options} options for rephrasing this query: "
+                )
+                + task,
+            temperature=0.7,
+        )
+
+        return response.choices[0].text.split('\n')
