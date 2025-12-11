@@ -23,6 +23,7 @@ from .raptor_agents import (
 from .generation_agents import (
     CodeEvalGenerator,
     IncorrectExampleGenerator,
+    QueryGenerator,
 )
 
 __all__ = [
@@ -46,4 +47,5 @@ __all__ = [
     "RaptorSummarizationAgent",
     "CodeEvalGenerator",
     "IncorrectExampleGenerator",
+    "QueryGenerator",
 ]
