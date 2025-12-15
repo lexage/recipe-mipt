@@ -47,3 +47,27 @@ class DummyChunker(Chunker):
         text = doc.text
         chunk = Chunk(id=str(doc.id), doc_id=doc.id, text=text, tokens=None)
         return [chunk]
+    
+    
+class DSIRChunker(Chunker):
+    def __init__(self, chunk_length: int = 128):
+        self.chunk_length = chunk_length
+    
+    def chunk(self, doc: Document) -> List[Chunk]:
+        chunks = []
+        words = doc.text.split(' ')
+        
+        text_chunks = [' '.join(words[i:i + self.chunk_length]) 
+                       for i in range(0, len(words), self.chunk_length)]
+        
+        for i, chunk_text in enumerate(text_chunks):
+            chunk = Chunk(
+                id=f"{doc.id}_chunk_{i}",
+                doc_id=doc.id,
+                text=chunk_text,
+                tokens=None,
+                metadata=doc.metadata.copy()
+            )
+            chunks.append(chunk)
+        
+        return chunks
