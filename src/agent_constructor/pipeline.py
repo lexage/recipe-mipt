@@ -8,9 +8,9 @@ from typing import (
     Tuple,
 )
 
-from context_engine import ContextAssembler
-from core import Text
-from db import IDB
+from src.agent_constructor.context_engine import ContextAssembler
+from src.agent_constructor.core import Text
+from src.agent_constructor.db import IDB
 
 class Pipeline(ABC):
     """Base class for all agents in the system."""
