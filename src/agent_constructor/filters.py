@@ -1,11 +1,11 @@
-from __future__ import annotations
-
 from abc import ABC, abstractmethod
 from typing import (
     Optional,
 )
 
-from core import Block, Chunk
+from src.agent_constructor.core import Block, Chunk
+from src.pipelines.registry import ComponentRegistry
+from src.pipelines.constants import ComponentNames
 
 class Filter(Block):
     """Decide whether a chunk/document should be kept, or transform it.
@@ -21,7 +21,8 @@ class Filter(Block):
         raise NotImplementedError
 
 
-class RegexFilter(Filter):
+@ComponentRegistry.register_component(ComponentNames.LENGTH_FILTER)
+class LengthFilter(Filter):
     def __init__(self, required: bool = False, min_len: int = 20):
         self.required = required
         self.min_len = min_len

@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 from db import InMemoryDB
 from pipeline import AgentPipeline
 from context_engine import SimpleContextAssembler

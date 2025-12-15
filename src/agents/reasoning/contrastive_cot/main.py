@@ -32,13 +32,9 @@ class ContrastiveCoT(Agent):
                             - incorrect_code: str (optional)
         """
         if isinstance(demonstrations, str):
-            try:
-                with open(demonstrations, 'r', encoding='utf-8') as f:
-                    data = json.load(f)
-                    return data
-            except FileNotFoundError:
-                print(f"Demonstrations file {demonstrations} not found.")
-                return []
+            with open(demonstrations, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+                return data
         elif isinstance(demonstrations, list):
             return demonstrations
         else:

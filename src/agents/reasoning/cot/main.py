@@ -28,13 +28,9 @@ class CoT(Agent):
             return []
         
         if isinstance(few_shot_examples, str):
-            try:
-                with open(few_shot_examples, 'r', encoding='utf-8') as f:
-                    examples = f.read().split('---')  # Assuming examples separated by '---'
-                return [ex.strip() for ex in examples if ex.strip()]
-            except FileNotFoundError:
-                print(f"Warning: Examples file {few_shot_examples} not found. Using zero-shot mode.")
-                return []
+            with open(few_shot_examples, 'r', encoding='utf-8') as f:
+                examples = f.read().split('---')  # Assuming examples separated by '---'
+            return [ex.strip() for ex in examples if ex.strip()]
         elif isinstance(few_shot_examples, list):
             return few_shot_examples
         else:

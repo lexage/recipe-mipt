@@ -30,13 +30,9 @@ class AutoCoT(Agent):
         - Questions with reference code: [{"question": "...", "code": "..."}]
         """
         if isinstance(problems, str):
-            try:
-                with open(problems, 'r', encoding='utf-8') as f:
-                    data = json.load(f)
-                    return data
-            except FileNotFoundError:
-                print(f"Problems file {problems} not found.")
-                return []
+            with open(problems, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+                return data
         elif isinstance(problems, list):
             return problems
         else:
