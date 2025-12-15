@@ -1,5 +1,5 @@
 from typing import List, Dict
-from src.agents.agent_constructor.agent import Agent
+from src.agent_constructor.agent import Agent
 
 
 class LeastToMostPlanner(Agent):

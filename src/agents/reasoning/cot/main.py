@@ -1,5 +1,5 @@
 from typing import Optional, List, Union
-from src.agents.agent_constructor.agent import Agent
+from src.agent_constructor.agent import Agent
 
 
 class CoT(Agent):

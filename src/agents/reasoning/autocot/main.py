@@ -4,7 +4,7 @@ from typing import List, Dict, Union, Optional
 from sentence_transformers import SentenceTransformer
 from sklearn.cluster import KMeans
 from sklearn.metrics.pairwise import cosine_similarity
-from src.agents.agent_constructor.agent import Agent
+from src.agent_constructor.agent import Agent
 
 
 class AutoCoT(Agent):    
