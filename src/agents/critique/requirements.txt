@@ -1,0 +1,4 @@
+black[jupyter]
+pyclean
+ipykernel
+pydantic
