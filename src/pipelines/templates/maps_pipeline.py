@@ -1,5 +1,5 @@
 from src.agent_constructor.core import Text
-from src.agents.maps_agents import MAPSAgentNames, MAPSPipelineState
+from src.agents.pipelines.maps import MAPSAgentNames, MAPSPipelineState
 from src.agent_constructor.agent import Agent
 from src.agent_constructor.pipeline import Pipeline
 
