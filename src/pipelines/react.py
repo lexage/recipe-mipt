@@ -2,19 +2,7 @@ import re
 from abc import ABC, abstractmethod
 from src.agent_constructor.context_engine import ContextAssembler
 from src.agent_constructor.db import IDB
-
-class Agent(ABC):
-    """Base class for all agents in the system."""
-
-    def __init__(self, name: str):
-        self.name = name
-    
-    @abstractmethod
-    def run(self, *args, **kwargs):
-        raise NotImplementedError
-    
-    def __str__(self):
-        return f"{self.__class__.__name__}({self.name})"
+from src.agent_constructor.agent import Agent
 
 
 class ReActAgent(Agent):
