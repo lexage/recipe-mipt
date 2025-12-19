@@ -1,7 +1,7 @@
 import re
 from abc import ABC, abstractmethod
-from context_engine import ContextAssembler
-from db import IDB
+from src.agent_constructor.context_engine import ContextAssembler
+from src.agent_constructor.db import IDB
 
 class Agent(ABC):
     """Base class for all agents in the system."""
