@@ -1,5 +1,4 @@
 from openai import OpenAI
-
 from src.agent_constructor.agent import Agent
 from src.agent_constructor.core import Text, Document
 
@@ -94,3 +93,135 @@ class QueryGenerator(Agent):
         )
 
         return response.choices[0].text.split('\n')
+
+
+@ComponentRegistry.register_component(ComponentNames.RANDOM_WORD_GENERATOR)
+class RandomWordGenerator(Agent):
+    def __init__(self, url: str = None, model_name: str = None):
+        super().__init__("code_eval_generator")
+        self.dummy_mode = not (url and model_name)
+        self.words = words
+        if not self.dummy_mode:
+            self.client = OpenAI(base_url=url, api_key="vllm")
+
+        self.model_name = model_name
+
+    def get_random_items(self,
+                         items: List,
+                         min_count: int = 3,
+                         max_count: int = 5,
+                         ) -> List[str]:
+
+        max_possible = min(max_count, len(items))
+        min_possible = min(min_count, len(items))
+
+        count = random.randint(min_possible, max_possible)
+        return random.sample(items, count)
+
+    def run(self, query: Text, context: Text) -> Text:
+        if self.dummy_mode:
+            return query  # , context
+
+        random_words = self.get_random_items(self.words)
+
+        response = self.client.completions.create(
+            model=self.model_name,
+            prompt=(f"""
+                    You are given a task: {query}.
+                    Rephrase it using the given set of words: {random_words}.
+                    VERY IMPORTANT: Your problem statement should be achievable using this information: {context}
+            """
+                    ),
+            temperature=0.7,
+        )
+        rephrased_promt: str = response.choices[0].text
+
+        new_response = self.client.completions.create(
+            model=self.model_name,
+            prompt=(rephrased_promt + f"""
+                    To solve the problem, be sure to use the context, pay attention to the examples in it: {context}
+            """
+                    ),
+            temperature=0.3,
+        )
+        return new_response.choices[0].text
+
+
+@ComponentRegistry.register_component(ComponentNames.SHOTS_GENERATOR)
+class ZeroFewShotGenerator(Agent):
+    def __init__(self, url: str = None, model_name: str = None):
+        super().__init__("code_eval_generator")
+        self.dummy_mode = not (url and model_name)
+        # self.topics = topics
+        if not self.dummy_mode:
+            self.client = OpenAI(base_url=url, api_key="vllm")
+
+        self.model_name = model_name
+
+    def run(self, query: Text, context: Text, topic: Text) -> Text:
+        if self.dummy_mode:
+            return query  # , context
+
+        zero_response = self.client.completions.create(
+            model=self.model_name,
+            prompt=(f"""
+                    You are given a task: {query}.
+                    Solve this task like an expert with 10 years of experience
+            """
+                    ),
+            temperature=0.1,
+        )
+        zero_example: str = zero_response.choices[0].text
+
+        topic_response = self.client.completions.create(
+            model=self.model_name,
+            prompt=(f"""
+                    You are given a task: {query}.
+                    Write a code example on this topic: {topic}
+            """
+                    ),
+            temperature=0.1,
+        )
+        topic_example: str = topic_response.choices[0].text
+
+        few_response = self.client.completions.create(
+            model=self.model_name,
+            prompt=(f"""
+                    You are given a task: {query}.
+                    Take some code examples from: {context}
+                    Write another code example that is similar in structure or content to the ones provided to you.
+            """
+                    ),
+            temperature=0.1,
+        )
+        few_example: str = few_response.choices[0].text
+
+        return zero_example, topic_example, few_example
+
+
+@ComponentRegistry.register_component(ComponentNames.INSTRUCT_GENERATOR)
+class InstuctGenerator(Agent):
+    def __init__(self, url: str = None, model_name: str = None):
+        super().__init__("code_eval_generator")
+        self.dummy_mode = not (url and model_name)
+        if not self.dummy_mode:
+            self.client = OpenAI(base_url=url, api_key="vllm")
+
+        self.model_name = model_name
+
+    def run(self, query: Text, context: Text) -> Text:
+        if self.dummy_mode:
+            return query  # , context
+
+        response = self.client.completions.create(
+            model=self.model_name,
+            prompt=(f"""
+                    Find one example of code in {context}.
+                    For this example create an instruction for LLM
+            """
+                    ),
+            temperature=0.1,
+        )
+        instruction: str = response.choices[0].text
+
+        return instruction
