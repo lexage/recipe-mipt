@@ -23,6 +23,9 @@ class ComponentNames(Enum):
     RAPTOR_SUMM_AGENT = "raptor_summ_agent"
     EVAL_GENERATOR = "eval_generator"
     INCORRECT_GENERATOR = "incorrect_generator"
+    RANDOM_WORD_GENERATOR = "random_word_generator"
+    SHOTS_GENERATOR = "shots_generator"
+    INSTRUCT_GENERATOR = "instruct_generator"
 
     # DBs
     LOCAL_DB = "local_db"
