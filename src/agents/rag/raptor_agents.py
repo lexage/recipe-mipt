@@ -2,11 +2,8 @@ from openai import OpenAI
 
 from src.agent_constructor.agent import Agent
 from src.agent_constructor.core import Text
-from src.pipelines.constants import ComponentNames
-from src.pipelines.registry import ComponentRegistry
 
 
-@ComponentRegistry.register_component(ComponentNames.RAPTOR_QA_AGENT)
 class RaptorQAAgent(Agent):
     def __init__(self, url: str = None, model_name: str = None):
         super().__init__("raptor_qa_agent")
@@ -35,7 +32,6 @@ class RaptorQAAgent(Agent):
         return response.choices[0].message.content
 
 
-@ComponentRegistry.register_component(ComponentNames.RAPTOR_SUMM_AGENT)
 class RaptorSummarizationAgent(Agent):
     def __init__(self, url: str = None, model_name: str = None):
         super().__init__("raptor_summ_agent")

@@ -4,11 +4,8 @@ from src.rag.raptor.wrappers import QAModelWrapper, SummarizationWrapper, Embedd
 from src.agent_constructor.context_engine import Retriever, Text
 from src.agent_constructor.db import IDB
 from src.agent_constructor.agent import Agent
-from src.pipelines.registry import ComponentRegistry
-from src.pipelines.constants import ComponentNames
 
 
-@ComponentRegistry.register_component(ComponentNames.RAPTOR_RETRIEVER)
 class RaptorRetriever(Retriever):
     def __init__(self, data_base: IDB, path_to_raptor_db: str, embedding_agent: Agent, qa_agent: Agent, summarization_agent: Agent):
         super().__init__("raptor_retirever")

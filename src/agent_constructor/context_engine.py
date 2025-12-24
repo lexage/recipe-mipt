@@ -6,8 +6,6 @@ from typing import (
 )
 
 from src.agent_constructor.core import Block, Chunk, Text
-from src.pipelines.registry import ComponentRegistry
-from src.pipelines.constants import ComponentNames
 
 
 class Retriever(Block):
@@ -45,7 +43,6 @@ class SimpleContextAssembler(ContextAssembler):
         return "\n\n".join(parts)
 
 
-@ComponentRegistry.register_component(ComponentNames.CORAG_CONTEXT_ASSEMBLER)
 class CoRAGContextAssembler(ContextAssembler):
     def assemble(self, data: Tuple):
         prev_qna, retrived_chunks = data

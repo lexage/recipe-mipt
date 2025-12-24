@@ -2,11 +2,8 @@ from typing import List
 
 from src.agent_constructor.agent import Agent
 from src.agent_constructor.core import Text
-from src.pipelines.registry import ComponentRegistry
-from src.pipelines.constants import ComponentNames
 
 
-@ComponentRegistry.register_component(ComponentNames.REWOO_PLANNER)
 class PlannerREWOO(Agent):
     def __init__(self, name: str = "rewoo_planner_agent", maximum_steps: int = 5):
         super().__init__(name)
@@ -16,7 +13,6 @@ class PlannerREWOO(Agent):
         return [f"#{i} Sub-Task for Task '{task}'" for i in range(self.maximum_steps)]
 
 
-@ComponentRegistry.register_component(ComponentNames.REWOO_WORKER)
 class WorkerREWOO(Agent):
     def __init__(self, name: str = "rewoo_worker_agent"):
         super().__init__(name)
@@ -25,7 +21,6 @@ class WorkerREWOO(Agent):
         return f"Evidence for '{task}'"
 
 
-@ComponentRegistry.register_component(ComponentNames.REWOO_SOLVER)
 class SolverREWOO(Agent):
     def __init__(self, name: str = "rewoo_solver_agent"):
         super().__init__(name)

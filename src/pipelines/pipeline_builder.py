@@ -11,9 +11,14 @@ from src.agent_constructor.pipeline import Pipeline
 
 class PipelineBuilder:
     
-    def __init__(self, config: PipelineConfig):
+    def __init__(self, config: PipelineConfig, registry_cfg_path: str):
         self.config = config
-        self.registry = ComponentRegistry()
+        self.registry = ComponentRegistry(
+            registry_cfg_path=registry_cfg_path
+        )
+        components_name = [component.type for component in config.components.values()]
+        self.registry.load_modules(components_name)
+
         self.factory = ComponentFactory()
         self._components = {}
     
