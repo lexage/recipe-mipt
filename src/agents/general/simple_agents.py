@@ -1,11 +1,8 @@
 from src.agent_constructor.agent import Agent
 from openai import OpenAI
 from src.agent_constructor.core import Text
-from src.pipelines.registry import ComponentRegistry
-from src.pipelines.constants import ComponentNames
 
 
-@ComponentRegistry.register_component(ComponentNames.DUMMY_AGENT)
 class DummyAgent(Agent):
     def __init__(self, name: str):
         super().__init__(name)
@@ -14,7 +11,6 @@ class DummyAgent(Agent):
         return f"Dummy answer on query:\n'''{task}'''\n"
 
 
-@ComponentRegistry.register_component(ComponentNames.SIMPLE_AGENT)
 class SimpleAgent(Agent):
     def __init__(self, url: str = None, model_name: str = None):
         super().__init__("simple_agent")

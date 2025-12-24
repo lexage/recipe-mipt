@@ -2,11 +2,8 @@ from openai import OpenAI
 
 from src.agent_constructor.agent import Agent
 from src.agent_constructor.core import Text, Document
-from src.pipelines.registry import ComponentRegistry
-from src.pipelines.constants import ComponentNames
 
 
-@ComponentRegistry.register_component(ComponentNames.EVAL_GENERATOR)
 class CodeEvalGenerator(Agent):
     def __init__(self, url: str = None, model_name: str = None):
         super().__init__("code_eval_generator")
@@ -41,7 +38,6 @@ class CodeEvalGenerator(Agent):
         return response.choices[0].text
 
 
-@ComponentRegistry.register_component(ComponentNames.INCORRECT_GENERATOR)
 class IncorrectExampleGenerator(Agent):
     def __init__(self, url: str, model_name: str):
         super().__init__("incorrect_example_generator")

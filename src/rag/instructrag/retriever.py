@@ -1,11 +1,8 @@
 from src.agent_constructor.context_engine import Retriever
 from src.agent_constructor.agent import Agent
 from src.agent_constructor.db import IDB
-from src.pipelines.registry import ComponentRegistry
-from src.pipelines.constants import ComponentNames
 
 
-@ComponentRegistry.register_component(ComponentNames.INSTRUCT_RETRIEVER)
 class InstructRAGRetriever(Retriever):
     def __init__(self, name, data_base: IDB, rationality_agent: Agent):
         super().__init__(name)

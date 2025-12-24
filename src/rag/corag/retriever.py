@@ -3,11 +3,8 @@ from typing import List, Tuple
 from src.agent_constructor.context_engine import Retriever
 from src.agent_constructor.agent import Agent
 from src.agent_constructor.db import IDB
-from src.pipelines.registry import ComponentRegistry
-from src.pipelines.constants import ComponentNames
 
 
-@ComponentRegistry.register_component(ComponentNames.CORAG_RETRIEVER)
 class CoRAGRetriever(Retriever):
     def __init__(self, name: str, data_base: IDB, generator: Agent, sub_solver: Agent, max_sub_queries: int):
         super().__init__(name)

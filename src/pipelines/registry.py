@@ -1,7 +1,10 @@
 import inspect
+import yaml
+import importlib
 
 from dataclasses import dataclass
 from typing import Dict, Type, List
+from pathlib import Path
 
 from src.pipelines.constants import ComponentNames
 from src.agent_constructor.core import Block
@@ -20,23 +23,30 @@ class ComponentInfo:
 
 
 class ComponentRegistry:
+    _registry_config: Dict
     _registry: Dict[ComponentNames, ComponentInfo] = {}
 
-    def __init__(self) -> None:
-        self._registry = type(self)._registry
-
-    @classmethod
-    def register_component(cls, component_type: ComponentNames):
+    def __init__(self, registry_cfg_path: Path) -> None:
+        with open(registry_cfg_path, 'r') as f:
+            self._registry_config = yaml.safe_load(f)['components']
         
-        def wrapper(component_class: Type):
-            params = cls._extract_params(component_class)
-            cls._registry[component_type] = ComponentInfo(
+        return
+
+    def load_modules(self, components_names: List[ComponentNames]) -> None:
+        for component_name in components_names:
+
+            import_path = self._registry_config.get(component_name.name)["import"]
+            module_path, class_name = import_path.rsplit(".", 1)
+
+            module = importlib.import_module(module_path)
+            component_class = getattr(module, class_name)
+
+            params = self._extract_params(component_class)
+
+            self._registry[component_name] = ComponentInfo(
                 class_=component_class,
                 params=params,
             )
-            return component_class
-        
-        return wrapper
     
     @staticmethod
     def _extract_params(component_class: Type) -> List[str]:

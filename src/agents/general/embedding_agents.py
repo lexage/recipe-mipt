@@ -7,11 +7,8 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 
 from src.agent_constructor.core import Text
 from src.agent_constructor.agent import Agent
-from src.pipelines.registry import ComponentRegistry
-from src.pipelines.constants import ComponentNames
 
 
-@ComponentRegistry.register_component(ComponentNames.EMBEDDING_AGENT)
 class EmbeddingAgent(Agent):
     def __init__(self, url: str = None, model_name: str = None):
         super().__init__("embedding_agent")
@@ -33,7 +30,6 @@ class EmbeddingAgent(Agent):
         return [item.embedding for item in results.data]
 
 
-@ComponentRegistry.register_component(ComponentNames.TFIDF_EMBEDDING)
 class TFIDFEmbedding(Agent):
     def __init__(self, name: str, vectorizer_path:str ='data/tfidf_vectorizer.pkl'):
         super().__init__(name)        

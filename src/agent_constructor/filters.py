@@ -4,8 +4,6 @@ from typing import (
 )
 
 from src.agent_constructor.core import Block, Chunk
-from src.pipelines.registry import ComponentRegistry
-from src.pipelines.constants import ComponentNames
 
 class Filter(Block):
     """Decide whether a chunk/document should be kept, or transform it.
@@ -21,7 +19,6 @@ class Filter(Block):
         raise NotImplementedError
 
 
-@ComponentRegistry.register_component(ComponentNames.LENGTH_FILTER)
 class LengthFilter(Filter):
     def __init__(self, required: bool = False, min_len: int = 20):
         self.required = required
