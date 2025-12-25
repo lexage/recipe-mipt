@@ -23,19 +23,12 @@ class ComponentInfo:
 
 
 class ComponentRegistry:
-    _registry_config: Dict
     _registry: Dict[ComponentNames, ComponentInfo] = {}
-
-    def __init__(self, registry_cfg_path: Path) -> None:
-        with open(registry_cfg_path, 'r') as f:
-            self._registry_config = yaml.safe_load(f)['components']
-        
-        return
 
     def load_modules(self, components_names: List[ComponentNames]) -> None:
         for component_name in components_names:
 
-            import_path = self._registry_config.get(component_name.name)["import"]
+            import_path = component_name.value
             module_path, class_name = import_path.rsplit(".", 1)
 
             module = importlib.import_module(module_path)
