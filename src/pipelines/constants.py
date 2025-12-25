@@ -2,13 +2,29 @@ from enum import Enum
 
 
 class ComponentNames(Enum):
+
+    # ===== Agents: Critique =====
+    COMPLEX_CRITIC_AGENT = "src.agents.critique.ComplexCritic"
+    CRITIC_AGENT = "src.agents.critique.Critic"
+    PANEL_AGENT = "src.agents.critique.Panel"
+    DECRIM_AGENT = "src.agents.critique.Decrim"
+    REFLEXION_AGENT = "src.agents.critique.Reflexion"
+    SELFREFINE_AGENT = "src.agents.critique.SelfRefine"
+
     # ===== Agents: General =====
     DUMMY_AGENT = "src.agents.general.DummyAgent"
     TFIDF_EMBEDDING = "src.agents.general.TFIDFEmbedding"
     EMBEDDING_AGENT = "src.agents.general.EmbeddingAgent"
     SIMPLE_AGENT = "src.agents.general.SimpleAgent"
 
-    # ===== Agents: Pipelines (MAPS / REWOO) =====
+    # ===== Agents: Generation =====
+    EVAL_GENERATOR = "src.agents.generation.CodeEvalGenerator"
+    INCORRECT_GENERATOR = "src.agents.generation.IncorrectExampleGenerator"
+    RANDOM_WORD_GENERATOR = "src.agents.generation.RandomWordGenerator"
+    SHOTS_GENERATOR = "src.agents.generation.ZeroFewShotGenerator"
+    INSTRUCT_GENERATOR = "src.agents.generation.InstuctGenerator"
+
+    # ===== Agents: Pipelines =====
     REWOO_SOLVER = "src.agents.pipelines.SolverREWOO"
     REWOO_WORKER = "src.agents.pipelines.WorkerREWOO"
     REWOO_PLANNER = "src.agents.pipelines.PlannerREWOO"
@@ -18,21 +34,26 @@ class ComponentNames(Enum):
     MAPS_ALIGNER = "src.agents.pipelines.AlignerMAPS"
     MAPS_CRITIC = "src.agents.pipelines.CriticMAPS"
     MAPS_USER_PROXY = "src.agents.pipelines.UserProxyMAPS"
+    REACT_AGENT = "src.agents.pipelines.ReActAgent"
 
     # ===== Agents: Planning =====
+    LEAST_TO_MOST_PLANNER = "src.agents.planning.LeastToMostPlanner"
+    PLAN_AND_SOLVE_AGENT = "src.agents.planning.PlanAndSolveAgent"
+    MPC_SAMPLE_AGENT = "src.agents.planning.MPCSampleAgent"
+
+    # ===== Agents: RAG =====
     CORAG_SUB_GENERATOR = "src.agents.rag.CoRAGSubQueryGeneratorAgent"
     CORAG_SUB_SOLVER = "src.agents.rag.CoRAGSubSolver"
     CORAG_FINAL_SOLVER = "src.agents.rag.CoRAGFinalSolver"
     RAPTOR_QA_AGENT = "src.agents.rag.RaptorQAAgent"
     RAPTOR_SUMM_AGENT = "src.agents.rag.RaptorSummarizationAgent"
 
-    # ===== Agents: Generation =====
-    EVAL_GENERATOR = "src.agents.generation.CodeEvalGenerator"
-    INCORRECT_GENERATOR = "src.agents.generation.IncorrectExampleGenerator"
-    RANDOM_WORD_GENERATOR = "src.agents.generation.RandomWordGenerator"
-    SHOTS_GENERATOR = "src.agents.generation.ZeroFewShotGenerator"
-    INSTRUCT_GENERATOR = "src.agents.generation.InstuctGenerator"
-
+    # ===== Agents: Reasoning =====
+    AUTO_COT_REASONING = "src.agents.reasoning.AutoCoT"
+    CONTRASTIVE_COT_REASONING = "src.agents.reasoning.ContrastiveCoT"
+    COT_REASONING = "src.agents.reasoning.CoT"
+    SELECTION_INFERENCE_REASONING = "src.agents.reasoning.SelectionInference"
+    
     # ===== DBs =====
     LOCAL_DB = "src.agent_constructor.db.LocalDB"
     LOCAL_RAPTOR_DB = "src.agent_constructor.db.LocalRaptorDB"
