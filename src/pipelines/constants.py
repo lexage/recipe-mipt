@@ -2,46 +2,52 @@ from enum import Enum
 
 
 class ComponentNames(Enum):
-    # Agents
-    DUMMY_AGENT = "dummy_agent"
-    TFIDF_EMBEDDING = "tfidf_embedding"
-    REWOO_SOLVER = "rewoo_solver"
-    REWOO_WORKER = "rewoo_worker"
-    REWOO_PLANNER = "rewoo_planner"
-    MAPS_SOLVER = "maps_solver"
-    MAPS_SCHOLAR = "maps_scholar"
-    MAPS_MANAGER = "maps_manager"
-    MAPS_ALIGNER = "maps_aligner"
-    MAPS_CRITIC = "maps_critic"
-    MAPS_USER_PROXY = "maps_user_proxy"
-    EMBEDDING_AGENT = "embedding_agent"
-    CORAG_SUB_GENERATOR = "corag_sub_generator"
-    CORAG_SUB_SOLVER = "corag_sub_solver"
-    CORAG_FINAL_SOLVER = "corag_final_solver"
-    SIMPLE_AGENT = "simple_agent"
-    RAPTOR_QA_AGENT = "raptor_qa_agent"
-    RAPTOR_SUMM_AGENT = "raptor_summ_agent"
-    EVAL_GENERATOR = "eval_generator"
-    INCORRECT_GENERATOR = "incorrect_generator"
-    RANDOM_WORD_GENERATOR = "random_word_generator"
-    SHOTS_GENERATOR = "shots_generator"
-    INSTRUCT_GENERATOR = "instruct_generator"
+    # ===== Agents: General =====
+    DUMMY_AGENT = "src.agents.general.DummyAgent"
+    TFIDF_EMBEDDING = "src.agents.general.TFIDFEmbedding"
+    EMBEDDING_AGENT = "src.agents.general.EmbeddingAgent"
+    SIMPLE_AGENT = "src.agents.general.SimpleAgent"
 
-    # DBs
-    LOCAL_DB = "local_db"
-    LOCAL_RAPTOR_DB = "local_raptor_db"
+    # ===== Agents: Pipelines (MAPS / REWOO) =====
+    REWOO_SOLVER = "src.agents.pipelines.SolverREWOO"
+    REWOO_WORKER = "src.agents.pipelines.WorkerREWOO"
+    REWOO_PLANNER = "src.agents.pipelines.PlannerREWOO"
+    MAPS_SOLVER = "src.agents.pipelines.SolverMAPS"
+    MAPS_SCHOLAR = "src.agents.pipelines.ScholarMAPS"
+    MAPS_MANAGER = "src.agents.pipelines.ManagerMAPS"
+    MAPS_ALIGNER = "src.agents.pipelines.AlignerMAPS"
+    MAPS_CRITIC = "src.agents.pipelines.CriticMAPS"
+    MAPS_USER_PROXY = "src.agents.pipelines.UserProxyMAPS"
 
-    # Retrievers
-    CORAG_RETRIEVER = "corag_retriever"
-    RAPTOR_RETRIEVER = "raptor_retriever"
-    INSTRUCT_RETRIEVER = "instruct_retriever"
+    # ===== Agents: Planning =====
+    CORAG_SUB_GENERATOR = "src.agents.rag.CoRAGSubQueryGeneratorAgent"
+    CORAG_SUB_SOLVER = "src.agents.rag.CoRAGSubSolver"
+    CORAG_FINAL_SOLVER = "src.agents.rag.CoRAGFinalSolver"
+    RAPTOR_QA_AGENT = "src.agents.rag.RaptorQAAgent"
+    RAPTOR_SUMM_AGENT = "src.agents.rag.RaptorSummarizationAgent"
 
-    # Filters
-    LENGTH_FILTER = "length_filter"
+    # ===== Agents: Generation =====
+    EVAL_GENERATOR = "src.agents.generation.CodeEvalGenerator"
+    INCORRECT_GENERATOR = "src.agents.generation.IncorrectExampleGenerator"
+    RANDOM_WORD_GENERATOR = "src.agents.generation.RandomWordGenerator"
+    SHOTS_GENERATOR = "src.agents.generation.ZeroFewShotGenerator"
+    INSTRUCT_GENERATOR = "src.agents.generation.InstuctGenerator"
 
-    # Chunkers
-    DUMMY_CHUNKER = "dummy_chunker"
-    SIMPLE_CHUNKER = "simple_chunker"
+    # ===== DBs =====
+    LOCAL_DB = "src.agent_constructor.db.LocalDB"
+    LOCAL_RAPTOR_DB = "src.agent_constructor.db.LocalRaptorDB"
 
-    # Assemblers
-    CORAG_CONTEXT_ASSEMBLER = "corag_assembler"
+    # ===== Retrievers =====
+    CORAG_RETRIEVER = "src.rag.CoRAGRetriever"
+    RAPTOR_RETRIEVER = "src.rag.RaptorRetriever"
+    INSTRUCT_RETRIEVER = "src.rag.InstructRAGRetriever"
+
+    # ===== Filters =====
+    LENGTH_FILTER = "src.agent_constructor.filters.LengthFilter"
+
+    # ===== Chunkers =====
+    DUMMY_CHUNKER = "src.agent_constructor.chunkers.DummyChunker"
+    SIMPLE_CHUNKER = "src.agent_constructor.chunkers.SimpleChunker"
+
+    # ===== Context Assemblers =====
+    CORAG_CONTEXT_ASSEMBLER = "src.agent_constructor.context_engine.CoRAGContextAssembler"
