@@ -172,3 +172,8 @@ cython_debug/
 data/repos/copies
 notebooks/
 *logs/
+
+.venv/
+venv
+venv/
+data/docs_database.db

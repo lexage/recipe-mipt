@@ -29,8 +29,7 @@ class MAPSPipelineState:
     scores: Optional[List[int]] = field(default_factory=lambda: [-1] * 3)
     feedback: Optional[List[str]] = field(default_factory=lambda: [""] * 3)
 
-# Суда я хочу встроить такю херню, что если мы указываем имя модели и есть 
-# подключение к хочут вллм, то испуользуем вызов LLM, если нет, то юзаем дамми
+
 class AlignerMAPS(Agent):
     """Alignes the caption, context, and question to ensure the safe integration of these elements."""
 

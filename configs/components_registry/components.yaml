@@ -41,6 +41,15 @@ components:
   INCORRECT_GENERATOR:
     import: src.agents.generation.IncorrectExampleGenerator
 
+  INSTRUCT_GENERATOR:
+    import: src.agents.generation.InstuctGenerator
+  
+  RANDOM_WORD_GENERATOR:
+    import: src.agents.generation.RandomWordGenerator
+  
+  SHOTS_GENERATOR:
+    import: src.agents.generation.ZeroFewShotGenerator
+
   # ===== Agents: Pipelines (MAPS / REWOO) =====
   MAPS_ALIGNER:
     import: src.agents.pipelines.AlignerMAPS
