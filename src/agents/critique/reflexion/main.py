@@ -28,71 +28,62 @@ class Reflexion(Agent):
         self,
         name: str = "Reflexion",
         do_eval: bool = False,
-        is_chat: bool = False,
-        chat_few_shot: bool = False,
     ):
         super().__init__(name)
         self.do_eval = do_eval
-        self.is_chat = is_chat
-        self.chat_few_shot = chat_few_shot
 
     def llm(self, prompt: str | list[dict]) -> str:
         # TODO: implement actual LLM call
         return ""
 
-    def make_prompt(
+    def make_evaluate_prompt(
+        self, question: str, answer: str,
+    ) -> str | list[dict]:
+        prompt = (
+            f"{PY_EVALUATE_INSTRUCTION}\n{PY_EVALUATE_FEW_SHOT}\n"
+            f"Problem: {question}\n\n Answer: {answer}\n\n\Evaluation: "
+        )
+        return prompt
+
+    def make_reflect_prompt(
         self, question: str, answer: str, evaluation: str
     ) -> str | list[dict]:
+        prompt = (
+            f"{PY_SELF_REFLECTION_INSTRUCTION}\n{PY_SELF_REFLECTION_FEW_SHOT}\n"
+            f" Problem: {question}\n\n Answer: {answer}\n\n Evaluation: {evaluation}\n\Reflection:"
+        )
+        return prompt
 
-        if self.is_chat:
-            if self.chat_few_shot is not None:
-                messages = [
-                    dict(
-                        role="system",
-                        content=PY_SELF_REFLECTION_CHAT_INSTRUCTION,
-                    ),
-                    dict(
-                        role="user",
-                        content=f"{PY_SELF_REFLECTION_FEW_SHOT}\n\n"
-                        f"[task]:\n{question}\n\n[function impl]:\n{answer}\n\n"
-                        f"[unit test results]:\n{evaluation}\n\n[self-reflection]:",
-                    ),
-                ]
-                return messages
-            else:
-                messages = [
-                    dict(
-                        role="system",
-                        content=PY_SELF_REFLECTION_CHAT_INSTRUCTION,
-                    ),
-                    dict(
-                        role="user",
-                        content=f"[task]:\n{question}\n\n[function impl]:\n{answer}\n\n"
-                        f"[unit test results]:\n{evaluation}\n\n[self-reflection]:",
-                    ),
-                ]
-                return messages
-        else:
-            prompt = (
-                f"{PY_SELF_REFLECTION_COMPLETION_INSTRUCTION}\n"
-                f"{question}\n\n{answer}\n\n{evaluation}\n\nExplanation:"
-            )
-            return prompt  # type: ignore
+    def make_actor_prompt(
+        self, question: str, answer: str, reflection: str
+    ) -> str | list[dict]:
+        prompt = (
+            f"{PY_ACTOR_FEW_SHOT}\n{PY_ACTOR_INSTRUCTION}\n""
+            f"Problem: {question}\n\n Answer: {answer}\n\n Reflection: {reflection}\n\Fine Answer:"
+        )
+        return prompt
 
     def reflect(self, question: str, answer: str, evaluation: str) -> str:
-        prompt = self.make_prompt(question, answer, evaluation)
+        prompt = self.make_reflect_prompt(question, answer, evaluation)
         result = self.llm(prompt)
         return result
 
     def evaluate(self, question: str, answer: str) -> str:
         # TODO: implement tests/judge/etc.
 
-        if self.do_eval:
-            pass
+        prompt = self.make_evaluate_prompt(question, answer)
+        result = self.llm(prompt)
+        return result
 
-        return ""
+    def actor(self, question: str, answer: str, evaluation: str, reflect: str) -> str:
+        # TODO: implement tests/judge/etc.
+        prompt = self.make_actor_prompt(question, answer, reflect)
+        result = self.llm(prompt)
+        return result
 
     def run(self, question: str, answer: str):
-        evaluation = self.evaluate(question, answer)
-        feedback = self.reflect(question, answer, evaluation)
-        return feedback
+        if self.do_eval:
+            feedback = self.evaluate(question, answer)
+            reflect_text = self.reflect(question, answer, feedback)
+            return self.actor(question, answer, reflect_text)
+        return answer
