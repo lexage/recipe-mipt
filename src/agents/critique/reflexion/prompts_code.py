@@ -1,103 +1,274 @@
-PY_SELF_REFLECTION_CHAT_INSTRUCTION = (
+PY_SELF_REFLECTION_INSTRUCTION = (
     "You are a Python programming assistant. "
-    "You will be given a function implementation and a series of unit tests. "
-    "Your goal is to write a few sentences to explain why your implementation "
-    "is wrong as indicated by the tests. You will need this as a hint when you "
+    "You will be given a problem and implementation in Python and evaluation of implementation. "
+    "Your goal is to critique implementation based on the evaluation step for: "
+    "1. Logical errors in reasoning "
+    "2. Syntax and semantic correctness "
+    "3. Conceptual misunderstandings "
+    "4. Potential bugs or edge cases "
+    "5. Alignment with problem requirements You will need this as a hint when you "
     "try again later. Only provide the few sentence description in your answer, "
     "not the implementation."
 )
-PY_SELF_REFLECTION_COMPLETION_INSTRUCTION = (
-    PY_SELF_REFLECTION_CHAT_INSTRUCTION + "\n\n-----"
+
+PY_EVALUATE_INSTRUCTION = (
+    "You are a Python programming assistant. "
+    "You will be given a problem and implementation in Python. "
+    "Your goal is to give numerical rating of this implementation from 1 to 5. Return only the number"
 )
+
+PY_ACTOR_INSTRUCTION = (
+    "You are a Python programming assistant. "
+    "You will be given a problem and implementation in Python and reflection of it. "
+    "Your goal is fix the implementation of problem using reflection. 
+    "Return refined implementation"
+)
+
+
+FINE_ANSWER_1 = """
+    import pandas as pd
+
+    data = {
+        'Category': ['Electronics', 'Electronics', 'Books', 'Books', 'Books', 'Clothing', 'Clothing'],
+        'Product': ['Laptop', 'Mouse', 'Novel', 'Textbook', 'Magazine', 'Shirt', 'Jeans'],
+        'Sales': [1200, 50, 30, 80, 10, 40, 60]
+    }
+    df = pd.DataFrame(data)
+    df['Category_Total_Sales_Correct'] = df.groupby('Category')['Sales'].transform('sum')
+    df['Percentage_of_Category_Sales_Correct'] = (df['Sales'] / df['Category_Total_Sales_Correct']) * 100
+
+    print("\nDataFrame after CORRECT implementation:")
+    print(df)
+"""
+FINE_ANSWER_2 = """
+    import pandas as pd
+
+    data = {
+        'Product': ['A', 'B', 'C'],
+        'Sales_qty': [10, 5, 20],
+        'Price_per_unit': [100, 200, 50]
+    }
+
+    df = pd.DataFrame(data)
+
+    df['Revenue'] = df['Revenue'] = df['Sales_qty'] * df['Price_per_unit']
+
+
+    print(df)
+"""
 
 SELF_REFLECTION_1 = (
-    "The implementation failed the where no subarray fulfills the condition. "
-    "The issue in the implementation is due to the use of >= instead of > in "
-    "the condition to update the result. Because of this, it returns a subarray "
-    "even when the sum is greater than the target, as it still updates the result "
-    "when the current subarray length is equal to the previous longest subarray length. "
-    "To overcome this error, we should change the condition to only update the result "
-    "when the current subarray length is strictly greater than the previous "
-    "longest subarray length. This can be done by replacing >= with > in the condition."
+    """The line category_total_sales = df.groupby('Category')['Sales'].sum() correctly calculates the sum of sales for each category.
+       The result is a Series where the index consists of category names ('Electronics', 'Books', 'Clothing') and the values are the corresponding sales sums.
+       When you perform arithmetic operations between two Series (or a Series and a DataFrame), Pandas, by default, attempts to align the operands by their indexes.
+       The index of df['Sales'] is a numerical range (0, 1, 2, 3, 4, 5, 6), which is the standard DataFrame index.
+       The index of category_total_sales consists of string category names ('Books', 'Clothing', 'Electronics').
+       Since the indexes of df['Sales'] (numbers) and category_total_sales (strings) are completely different and have no common values, Pandas cannot find matches for most elements:
+       For df['Sales'].iloc[0] (value 1200, index 0), Pandas looks for index 0 in category_total_sales. No such index exists there.
+       For category_total_sales.loc['Electronics'] (value 1250), Pandas looks for the index 'Electronics' in df['Sales']. No such index exists there.
+       As a result of this alignment operation, Pandas fills values for which no match is found with NaN (Not a Number). In our case, since the indexes do not match at all in type and value, almost all (or all) elements in the new Percentage_of_Category_Sales column will become NaN."
+    """
 )
 SELF_REFLECTION_2 = (
-    "The implementation failed 4 out of the 7 test cases due to an IndexError. "
-    "The issue stems from the while loop while current_sum + nums[right] <= target:, "
-    "which directly accesses nums[right] without checking if right is within "
-    "the bounds of the list. This results in a runtime error when right goes "
-    "beyond the list length. To overcome this error, we need to add a bounds check "
-    "for the right variable in the mentioned while loop. We can modify the loop "
-    "condition to while right < len(nums) and current_sum + nums[right] <= target:. "
-    "This change will ensure that we only access elements within the bounds "
-    "of the list, thus avoiding the IndexError."
-)
-PY_SELF_REFLECTION_FEW_SHOT = f"""Example 1:
-[function impl]:
-```python
-def longest_subarray_with_sum_limit(nums: List[int], target: int) -> List[int]:
-    n = len(nums)
-    left, right = 0, 0
-    max_length = 0
-    current_sum = 0
-    result = []
-    while right < n:
-        current_sum += nums[right]
-        while current_sum > target:
-            current_sum -= nums[left]
-            left += 1
-        if right - left + 1 >= max_length:
-            max_length = right - left + 1
-            result = nums[left:right+1]
-        right += 1
-    return result
-```
-[unit test results]:
-Tests passing:
-assert longest_subarray_with_sum_limit([1, 2, 3, 4, 5], 8) == [1, 2, 3]
-assert longest_subarray_with_sum_limit([1, 2, 3, 4, 5], 15) == [1, 2, 3, 4, 5]
-assert longest_subarray_with_sum_limit([1, -1, 2, -2, 3, -3], 2) == [1, -1, 2, -2, 3]
-assert longest_subarray_with_sum_limit([], 10) == []
-assert longest_subarray_with_sum_limit([], 0) == []
-assert longest_subarray_with_sum_limit([], -5) == []
-Tests failing:
-assert longest_subarray_with_sum_limit([5, 6, 7, 8, 9], 4) == [] # output: [5]
-[self-reflection]:
-{SELF_REFLECTION_1}
+    """Instead of multiplication ( * ), addition ( + ) is used, so "Revenue" contains the sum of sales quantity and price, not their product.
+       This fundamentally changes the meaning:
 
-Example 2:
-[function impl]:
-```python
-def longest_subarray_with_sum_limit(nums: List[int], target: int) -> List[int]:
-    n = len(nums)
-    left, right = 0, 0
-    max_length = 0
-    current_sum = 0
-    result = []
-    while current_sum + nums[right] <= target:
-        current_sum += nums[right]
-        right += 1
-    while right < n:
-        current_sum += nums[right]
-        while current_sum > target:
-            current_sum -= nums[left]
-            left += 1
-        if right - left + 1 > max_length:
-            max_length = right - left + 1
-            result = nums[left:right+1]
-        right += 1
-    return result
-```
-[unit test results]:
-Tests passing:
-assert longest_subarray_with_sum_limit([], 10) == []
-assert longest_subarray_with_sum_limit([], 0) == []
-assert longest_subarray_with_sum_limit([], -5) == []
-Tests failing:
-assert longest_subarray_with_sum_limit([1, 2, 3, 4, 5], 8) == [1, 2, 3] # output: list index out of range
-assert longest_subarray_with_sum_limit([1, 2, 3, 4, 5], 15) == [1, 2, 3, 4, 5] # output: list index out of range
-assert longest_subarray_with_sum_limit([5, 6, 7, 8, 9], 4) == [] # output: list index out of range
-assert longest_subarray_with_sum_limit([1, -1, 2, -2, 3, -3], 2) == [1, -1, 2, -2, 3] # output: list index out of range
-[self-reflection]:
-{SELF_REFLECTION_2}
-END OF EXAMPLES
+       For product A, instead of 10 * 100 = 1000, it shows 10 + 100 = 110.
+
+       This leads to incorrect data analysis because revenue is wrongly calculated"""
+)
+
+PY_SELF_REFLECTION_FEW_SHOT = f"""
+    Example 1:
+    You are given a DataFrame containing sales information for various products across different categories. 
+    Your task is to add a new column, Percentage_of_Category_Sales, which for each product will show what percentage of its category's total sales that specific product represents.
+
+    Implementation: 
+
+    import pandas as pd
+
+    data = {
+        'Category': ['Electronics', 'Electronics', 'Books', 'Books', 'Books', 'Clothing', 'Clothing'],
+        'Product': ['Laptop', 'Mouse', 'Novel', 'Textbook', 'Magazine', 'Shirt', 'Jeans'],
+        'Sales': [1200, 50, 30, 80, 10, 40, 60]
+    }
+    df = pd.DataFrame(data)
+
+    print(df)
+
+    category_total_sales = df.groupby('Category')['Sales'].sum()
+
+    print(category_total_sales)
+
+    df['Percentage_of_Category_Sales'] = (df['Sales'] / category_total_sales) * 100
+
+    print(df)
+
+    Reflection:
+    {SELF_REFLECTION_1}
+
+    Example 2:
+    Problem:
+    Given a sales table:
+
+    Product,Sales_qty,Price_per_unit
+    A,10,100
+    B,5,200
+    C,20,50
+
+    You need to add a column "Revenue" equal to the product of "Sales_qty" and "Price_per_unit" using Pandas.
+
+    Implementation: 
+
+    import pandas as pd
+
+    data = {
+        'Product': ['A', 'B', 'C'],
+        'Sales_qty': [10, 5, 20],
+        'Price_per_unit': [100, 200, 50]
+    }
+
+    df = pd.DataFrame(data)
+
+    # Mistake: addition used instead of multiplication
+    df['Revenue'] = df['Sales_qty'] + df['Price_per_unit']
+
+    print(df)
+
+    Reflection:
+    {SELF_REFLECTION_2}
+    END OF EXAMPLES
+"""
+
+PY_ACTOR_FEW_SHOT = f"""
+    Example 1:
+    You are given a DataFrame containing sales information for various products across different categories. 
+    Your task is to add a new column, Percentage_of_Category_Sales, which for each product will show what percentage of its category's total sales that specific product represents.
+
+    Implementation: 
+
+    import pandas as pd
+
+    data = {
+        'Category': ['Electronics', 'Electronics', 'Books', 'Books', 'Books', 'Clothing', 'Clothing'],
+        'Product': ['Laptop', 'Mouse', 'Novel', 'Textbook', 'Magazine', 'Shirt', 'Jeans'],
+        'Sales': [1200, 50, 30, 80, 10, 40, 60]
+    }
+    df = pd.DataFrame(data)
+
+    print(df)
+
+    category_total_sales = df.groupby('Category')['Sales'].sum()
+
+    print(category_total_sales)
+
+    df['Percentage_of_Category_Sales'] = (df['Sales'] / category_total_sales) * 100
+
+    print(df)
+
+    Reflection:
+    {SELF_REFLECTION_1}
+
+    Fine Answer:
+    {FINE_ANSWER_1}
+
+    Example 2:
+    Given a sales table:
+
+    Product,Sales_qty,Price_per_unit
+    A,10,100
+    B,5,200
+    C,20,50
+
+    You need to add a column "Revenue" equal to the product of "Sales_qty" and "Price_per_unit" using Pandas.
+
+    Implementation: 
+
+    import pandas as pd
+
+    data = {
+        'Product': ['A', 'B', 'C'],
+        'Sales_qty': [10, 5, 20],
+        'Price_per_unit': [100, 200, 50]
+    }
+
+    df = pd.DataFrame(data)
+
+    df['Revenue'] = df['Sales_qty'] + df['Price_per_unit']
+
+    print(df)
+
+    Reflection:
+    {SELF_REFLECTION_2}
+
+    Fine Answer:
+    {FINE_ANSWER_2}
+
+    END OF EXAMPLES
+"""
+
+PY_EVALUATE_FEW_SHOT = f"""
+    Example 1:
+    Problem:
+    You are given a DataFrame containing sales information for various products across different categories. 
+    Your task is to add a new column, Percentage_of_Category_Sales, which for each product will show what percentage of its category's total sales that specific product represents.
+
+    Implementation: 
+
+    import pandas as pd
+
+    data = {
+        'Category': ['Electronics', 'Electronics', 'Books', 'Books', 'Books', 'Clothing', 'Clothing'],
+        'Product': ['Laptop', 'Mouse', 'Novel', 'Textbook', 'Magazine', 'Shirt', 'Jeans'],
+        'Sales': [1200, 50, 30, 80, 10, 40, 60]
+    }
+    df = pd.DataFrame(data)
+
+    print(df)
+
+    category_total_sales = df.groupby('Category')['Sales'].sum()
+
+    print(category_total_sales)
+
+    df['Percentage_of_Category_Sales'] = (df['Sales'] / category_total_sales) * 100
+
+    print(df)
+
+    Evaluation:
+    3
+
+
+    Example 2:
+
+    Problem:
+    Given a sales table:
+
+    Product,Sales_qty,Price_per_unit
+    A,10,100
+    B,5,200
+    C,20,50
+
+    You need to add a column "Revenue" equal to the product of "Sales_qty" and "Price_per_unit" using Pandas.
+
+    Implementation: 
+
+    import pandas as pd
+
+    data = {
+        'Product': ['A', 'B', 'C'],
+        'Sales_qty': [10, 5, 20],
+        'Price_per_unit': [100, 200, 50]
+    }
+
+    df = pd.DataFrame(data)
+
+    # Mistake: addition used instead of multiplication
+    df['Revenue'] = df['Sales_qty'] + df['Price_per_unit']
+
+    print(df)
+
+    Evaluation:
+    3
+
+    END OF EXAMPLES
 """
