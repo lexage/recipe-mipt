@@ -59,15 +59,21 @@ if __name__ == "__main__":
 
 ### Регистрация компонент
 
-Любая сборочная единица регистрируется в `ComponentRegistry` с помощью декоратора:
+Компоненты регистрируются через ленивую загрузку:
+
+- В `src/pipelines/constants.py` добавляется значение енума `ComponentNames`, где в качестве значения указан полный путь до класса (модуль + имя класса).
+- При сборке по конфигу `PipelineBuilder` берет только нужные компоненты, импортирует их по указанному пути и проверяет зависимости/параметры (логика валидации не менялась).
+
+> **_NOTE:_**  Декоратор `ComponentRegistry.register_component` больше не используется: чтобы компонент собирался из конфига, достаточно добавить элемент в `ComponentNames`.
+
+Пример добавления новой компоненты:
 
 ```python
-from src.pipelines.registry import ComponentRegistry
-from src.pipelines.constants import ComponentNames
-
-@ComponentRegistry.register_component(ComponentNames.SIMPLE_CHUNKER)
-class SimpleChunker(Chunker):
-    ...
+# src/pipelines/constants.py
+class ComponentNames(Enum):
+    SIMPLE_CHUNKER = "src.agent_constructor.chunkers.SimpleChunker"
+    # добавьте свою компоненту
+    MY_COMPONENT = "src.my_package.MyComponent"
 ```
 
 Список всех доступных `ComponentNames` находится в `src/pipelines/constants.py`.
