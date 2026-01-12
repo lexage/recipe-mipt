@@ -16,15 +16,16 @@ class ICCL:
     def _eval_example(self, example: Text):
         response = self.client.completions.create(
             model=self.model_name,
+            temperature=0,
             prompt=example,
             max_tokens=100,
             logprobs=True,
         )
-        all_probs = [item for item in response.choices[0].logprobs]
+        all_probs = [item for item in response.choices[0].logprobs.token_logprobs]
         entropy = -np.mean(all_probs)
         return np.exp(entropy)
 
     def run(self, examples: List[Text]):
         complexity = [self._eval_example(e) for e in examples]
-        sorted_examples = [ex for ex, comp in zip(examples, complexity) if comp is not None and comp > 0]
+        sorted_examples = [(ex, comp) for ex, comp in zip(examples, complexity) if comp is not None and comp > 0]
         return sorted_examples

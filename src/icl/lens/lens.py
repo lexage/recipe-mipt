@@ -1,6 +1,7 @@
 import random
 import heapq
 import numpy as np
+import hashlib
 
 from openai import OpenAI
 from typing import List, Set
@@ -9,6 +10,8 @@ from src.agent_constructor.core import Text
 
 
 class Lens:
+
+    _ppl_cache = {}
 
     def __init__(self, 
                  model_name: str = None, 
@@ -33,27 +36,42 @@ class Lens:
         self.score_set = []
 
     def run(self, examples: List[Text]) -> List[Text]:
+        print("=" * 60)
+        print("starting lens")
+        print("=" * 60)
+        print(f"total input examples: {len(examples)}")
 
         if not examples:
+            print("warning: empty examples list, returning empty list")
             return []
 
+        print("\n" + "-" * 60)
+        print("stage 1: filtering")
+        print("-" * 60)
         informative_examples = self.filter(
             examples=examples,
             prog_factor=self.prog_factor,
             init_score_size=self.init_score_set_size,
             candidate_size=self.candidates_num,
         )
+        print(f"filtering completed. selected examples: {len(informative_examples)}")
 
         # Не используется далее: validation_set возможно не нужен, если дальше не используется
         validation_set = set(examples) - set(informative_examples)
+        print(f"validation set size: {len(validation_set)}")
 
+        print("\n" + "-" * 60)
+        print("stage 2: searching for best permutation")
+        print("-" * 60)
         best_permutation = self.search(
             examples=informative_examples,
-            validation_set=examples,
+            validation_set=validation_set,
             iter_num=self.iter_num,
             beam_size=self.beam_size,
             subs_size=self.subs_size,
         )
+        print(f"search completed. best permutation size: {len(best_permutation)}")
+        print("=" * 60)
 
         return best_permutation
 
@@ -63,31 +81,60 @@ class Lens:
                init_score_size: int, 
                candidate_size: int):
         
+        print(f"filtering parameters:")
+        print(f"   - prog_factor: {prog_factor}")
+        print(f"   - init_score_size: {init_score_size}")
+        print(f"   - candidate_size: {candidate_size}")
+        print(f"   - initial examples size: {len(examples)}")
+        
         informative_examples = examples.copy()
+        print(f"\ninitial informative_examples size: {len(informative_examples)}")
+        
         score_set = set(random.sample(examples, init_score_size))
+        print(f"initialized score_set with size: {len(score_set)}")
 
+        iteration = 0
         while len(informative_examples) > candidate_size:
+            iteration += 1
+            print(f"\nfiltration iteration #{iteration}")
+            print(f"   current informative_examples size: {len(informative_examples)}")
+            print(f"   target size: {candidate_size}")
+            
+            print(f"   computing information scores for {len(informative_examples)} examples...")
             scores = []
-            for example in informative_examples:
+            for idx, example in enumerate(informative_examples):
                 score = self._info_score(example, relative_set=score_set)
                 heapq.heappush(scores, (-score, example))
-                # heapq можно заменить на list + sort для простоты, так как количество элементов обычно не очень большое
+                if (idx + 1) % 10 == 0 or idx == len(informative_examples) - 1:
+                    print(f"      processed examples: {idx + 1}/{len(informative_examples)}")
 
             if len(informative_examples)/prog_factor < candidate_size:
+                print(f"   final selection: selecting top {candidate_size} examples")
                 top_m = heapq.nsmallest(candidate_size, scores)
                 informative_examples = [item[1] for item in top_m]
+                print(f"   final size: {len(informative_examples)}")
                 break
 
             else:
-                top_p = heapq.nsmallest(int(len(informative_examples)/prog_factor), scores)
+                new_size = int(len(informative_examples)/prog_factor)
+                print(f"   intermediate selection: selecting top {new_size} examples")
+                top_p = heapq.nsmallest(new_size, scores)
                 informative_examples = [item[1] for item in top_p]
+                print(f"   new informative_examples size: {len(informative_examples)}")
 
-            random_sample = random.sample(examples, init_score_size*(prog_factor-1))
+            random_sample_size = init_score_size*(prog_factor-1)
+            print(f"   adding {random_sample_size} random examples to score_set")
+            random_sample = random.sample(examples, random_sample_size)
 
             # check for unique
+            old_score_set_size = len(score_set)
             score_set.update(random_sample)
+            print(f"   score_set size: {old_score_set_size} -> {len(score_set)}")
 
         self.score_set = score_set
+        print(f"\nfiltering completed in {iteration} iterations")
+        print(f"   final informative_examples size: {len(informative_examples)}")
+        print(f"   final score_set size: {len(self.score_set)}")
         return informative_examples
 
     # TO-DO: Problem with dublecates (when getting e_new)
@@ -98,16 +145,32 @@ class Lens:
                beam_size: int, 
                subs_size: int):
 
+        print(f"search parameters:")
+        print(f"   - iter_num: {iter_num}")
+        print(f"   - beam_size: {beam_size}")
+        print(f"   - subs_size: {subs_size}")
+        print(f"   - examples size: {len(examples)}")
+        print(f"   - validation_set size: {len(validation_set)}")
+
+        print(f"\ngenerating initial permutations (beam_size={beam_size})...")
         permutations = self._get_permutations(examples, beam_size)
+        print(f"generated {len(permutations)} initial permutations")
 
-        for _ in range(iter_num):
+        for iter_idx in range(iter_num):
+            print(f"\nsearch iteration #{iter_idx + 1}/{iter_num}")
             new_perm = []
-            for examples_set in permutations:
-                for _ in range(subs_size):
+            
+            print(f"   processing {len(permutations)} permutations from beam...")
+            for perm_idx, examples_set in enumerate(permutations):
+                print(f"      permutation {perm_idx + 1}/{len(permutations)}: size {len(examples_set)}")
+                
+                # Замена примеров на основе diversity
+                print(f"         generating {subs_size} new variants via diversity...")
+                for sub_idx in range(subs_size):
                     random_example = random.choice(examples_set)
-
                     set_wo_random = [item for item in examples_set if item != random_example]
 
+                    print(f"            computing diversity for example replacement {sub_idx + 1}/{subs_size}...")
                     diversities = [(self._diversity(e_, example_set=set_wo_random), e_) for e_ in examples]
                     new_example = max(diversities, key=lambda x: x[0])[1]
 
@@ -117,13 +180,21 @@ class Lens:
 
                     new_perm.append(new_set)
 
-                for _ in range(beam_size - subs_size):
-                    permutated_set = self._get_permutations(examples_set, 1)[0]
-                    new_perm.append(permutated_set)
+                # Генерация случайных перестановок
+                random_perm_count = beam_size - subs_size
+                if random_perm_count > 0:
+                    print(f"         generating {random_perm_count} random permutations...")
+                    for _ in range(random_perm_count):
+                        permutated_set = self._get_permutations(examples_set, 1)[0]
+                        new_perm.append(permutated_set)
             
+            print(f"   total new permutations generated: {len(new_perm)}")
+            print(f"   evaluating and selecting top {beam_size} permutations...")
             permutations = self._eval(new_perm, validation_set, beam_size)
+            print(f"   selected {len(permutations)} best permutations")
             # _eval ничего не делает кроме среза, но должна ранжировать new_perm по целевой метрике
 
+        print(f"\nsearch completed. returning best permutation (size: {len(permutations[0])})")
         return permutations[0]
     
     def _diversity(self, example: Text, example_set: List[Text]):
@@ -131,7 +202,6 @@ class Lens:
 
         # THIS IS PLUG
         similarities = [random.uniform(0,1) for _ in example_set]
-        # Использовать случайные значения вместо реальной метрики схожести — лучше заменить на вычисление эмбеддингов или расстояния
 
         return score - self.diversity_weight * (sum(similarities))
 
@@ -140,46 +210,54 @@ class Lens:
         # Не используется. Можно реализовать через модель эмбеддингов или удалить
 
     def _eval(self, eval_set, validation_set, beam_size):
+        print(f"      warning: _eval using stub (returning first {beam_size} without ranking)")
         return eval_set[:beam_size]
         # Это заглушка. Хорошо бы реализовать ранжирование permutation наборов по проверочной метрике
 
     def _get_permutations(self, examples, beam_size):
         return [random.sample(examples, len(examples)) for _ in range(beam_size)]
-        # random.sample требует, чтобы len(examples) >= len(examples); если это не так, упадёт с ошибкой
+
+    def _hash_string(self, st: str):
+        return int(hashlib.md5(st.encode('utf-8')).hexdigest(), 16)
 
     def _info_score(self, example: Text, relative_set: Set[Text]):
         if self.model_name == None:
             return random.uniform(0,1)
-            # Лучше бросить ошибку или предупреждение, если model_name не задан, чтобы выявить ошибку конфигурации
 
         score = 0
-        for re in relative_set:
+        total_relative = len(relative_set)
+        for idx, re in enumerate(relative_set):
+            
             # 1) CALCULATE PPL FOR RELATIVE EXAMPLE 
             # WITHOUT TARGET EXAMPLE AS CONTEXT
+            prompt_hash = self._hash_string(re)
 
-            # this operation can be cached
-            # for every re we can save it perplexity
-            # also i need to devide example task and example results
-            response = self.client.completions.create(
-                model=self.model_name,
-                prompt=re,
-                max_tokens=100,
-                logprobs=True,
-            )
-            all_probs = [item for item in response.choices[0].logprobs]
-            entropy = -np.mean(all_probs)
-            ppl = np.exp(entropy)
+            if prompt_hash in self._ppl_cache:
+                ppl = self._ppl_cache[prompt_hash]
+            else:
+                response = self.client.completions.create(
+                    model=self.model_name,
+                    temperature=0,
+                    prompt=re,
+                    max_tokens=100,
+                    logprobs=True,
+                )
+                all_probs = [item for item in response.choices[0].logprobs.token_logprobs]
+                entropy = -np.mean(all_probs)
+                ppl = np.exp(entropy)
+                self._ppl_cache[prompt_hash] = ppl
 
             # 2) CALCULATE PPL FOR RELATIVE EXAMPLE
             # WITH TARGET EXAMPLE AS CONTEXT
             response = self.client.completions.create(
                 model=self.model_name,
+                temperature=0,
                 prompt=re+example,
                 max_tokens=100,
                 logprobs=True,
             )
 
-            all_probs = [item for item in response.choices[0].logprobs]
+            all_probs = [item for item in response.choices[0].logprobs.token_logprobs]
             entropy = -np.mean(all_probs)
 
             # DIFFERNCE BETWEEN TWO PPLs AS SCORE
@@ -189,5 +267,3 @@ class Lens:
             score += ppl
 
         return score
-        # Функция очень медленная: для каждого примера вызывает два запроса к модели. Нужно сделать кэширование PPL и батчинг запросов
-        # Возможно стоит явно отделить контекст (task) и ожидаемый результат (label) при формировании prompt
