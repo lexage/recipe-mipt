@@ -5,39 +5,53 @@ import hashlib
 
 from openai import OpenAI
 from typing import List, Set
+from sklearn.metrics.pairwise import cosine_similarity
 
 from src.agent_constructor.core import Text
+from src.agent_constructor.agent import Agent
 
 
 class Lens:
 
     _ppl_cache = {}
+    _examples_features_cache = {}
 
     def __init__(self, 
                  model_name: str = None, 
                  url: str = None,
-                 prog_factor: int = 2,
-                 init_score_set_size: int = 20,
-                 candidates_num: int = 50,
+                 embedding_model: Agent = None,
+                 filtered_set_size: int = 10,
+                 search_set_size: int = 10,
+                 search_iterations: int = 1,
                  diversity_weight: float = 0.5,
-                 iter_num: int = 1,
+                 progressive_factor: int = 2,
+                 init_score_set_size: int = 20,
                  beam_size: int = 10,
-                 subs_size: int = 5) -> None:
+                 substitution_size: int = 5) -> None:
         
         self.client = OpenAI(base_url=url, api_key='vllm')
         self.model_name = model_name
-        self.prog_factor = prog_factor
+        self.embedding_model = embedding_model
+        
+        self.filtered_set_size = filtered_set_size
+        if search_set_size > filtered_set_size:
+            print(f"search_set_size > filtered_set_size : using search_set_size = {filtered_set_size}")
+            self.search_set_size = filtered_set_size
+        else: 
+            self.search_set_size = search_set_size
+        
+        self.progressive_factor = progressive_factor
         self.init_score_set_size = init_score_set_size
-        self.candidates_num = candidates_num
         self.diversity_weight = diversity_weight
-        self.iter_num = iter_num
+        self.search_iterations = search_iterations
         self.beam_size = beam_size
-        self.subs_size = subs_size
+        self.substitution_size = substitution_size
+
         self.score_set = []
 
     def run(self, examples: List[Text]) -> List[Text]:
         print("=" * 60)
-        print("starting lens")
+        print("running lens")
         print("=" * 60)
         print(f"total input examples: {len(examples)}")
 
@@ -50,9 +64,9 @@ class Lens:
         print("-" * 60)
         informative_examples = self.filter(
             examples=examples,
-            prog_factor=self.prog_factor,
+            progressive_factor=self.progressive_factor,
             init_score_size=self.init_score_set_size,
-            candidate_size=self.candidates_num,
+            candidate_size=self.filtered_set_size,
         )
         print(f"filtering completed. selected examples: {len(informative_examples)}")
 
@@ -66,9 +80,10 @@ class Lens:
         best_permutation = self.search(
             examples=informative_examples,
             validation_set=validation_set,
-            iter_num=self.iter_num,
+            search_set_size=self.search_set_size,
+            search_iterations=self.search_iterations,
             beam_size=self.beam_size,
-            subs_size=self.subs_size,
+            substitution_size=self.substitution_size,
         )
         print(f"search completed. best permutation size: {len(best_permutation)}")
         print("=" * 60)
@@ -77,12 +92,12 @@ class Lens:
 
     def filter(self, 
                examples: List[Text], 
-               prog_factor: int, 
+               progressive_factor: int, 
                init_score_size: int, 
                candidate_size: int):
         
         print(f"filtering parameters:")
-        print(f"   - prog_factor: {prog_factor}")
+        print(f"   - progressive_factor: {progressive_factor}")
         print(f"   - init_score_size: {init_score_size}")
         print(f"   - candidate_size: {candidate_size}")
         print(f"   - initial examples size: {len(examples)}")
@@ -108,7 +123,7 @@ class Lens:
                 if (idx + 1) % 10 == 0 or idx == len(informative_examples) - 1:
                     print(f"      processed examples: {idx + 1}/{len(informative_examples)}")
 
-            if len(informative_examples)/prog_factor < candidate_size:
+            if len(informative_examples)/progressive_factor < candidate_size:
                 print(f"   final selection: selecting top {candidate_size} examples")
                 top_m = heapq.nsmallest(candidate_size, scores)
                 informative_examples = [item[1] for item in top_m]
@@ -116,13 +131,13 @@ class Lens:
                 break
 
             else:
-                new_size = int(len(informative_examples)/prog_factor)
+                new_size = int(len(informative_examples)/progressive_factor)
                 print(f"   intermediate selection: selecting top {new_size} examples")
                 top_p = heapq.nsmallest(new_size, scores)
                 informative_examples = [item[1] for item in top_p]
                 print(f"   new informative_examples size: {len(informative_examples)}")
 
-            random_sample_size = init_score_size*(prog_factor-1)
+            random_sample_size = init_score_size*(progressive_factor-1)
             print(f"   adding {random_sample_size} random examples to score_set")
             random_sample = random.sample(examples, random_sample_size)
 
@@ -140,24 +155,25 @@ class Lens:
     # TO-DO: Problem with dublecates (when getting e_new)
     def search(self, 
                examples: List[Text], 
-               validation_set: List[Text], 
-               iter_num: int, 
+               validation_set: List[Text],
+               search_set_size: int, 
+               search_iterations: int, 
                beam_size: int, 
-               subs_size: int):
+               substitution_size: int):
 
         print(f"search parameters:")
-        print(f"   - iter_num: {iter_num}")
+        print(f"   - search_iterations: {search_iterations}")
         print(f"   - beam_size: {beam_size}")
-        print(f"   - subs_size: {subs_size}")
+        print(f"   - substitution_size: {substitution_size}")
         print(f"   - examples size: {len(examples)}")
         print(f"   - validation_set size: {len(validation_set)}")
 
         print(f"\ngenerating initial permutations (beam_size={beam_size})...")
-        permutations = self._get_permutations(examples, beam_size)
+        permutations = self._get_permutations(examples, search_set_size, beam_size)
         print(f"generated {len(permutations)} initial permutations")
 
-        for iter_idx in range(iter_num):
-            print(f"\nsearch iteration #{iter_idx + 1}/{iter_num}")
+        for iter_idx in range(search_iterations):
+            print(f"\nsearch iteration #{iter_idx + 1}/{search_iterations}")
             new_perm = []
             
             print(f"   processing {len(permutations)} permutations from beam...")
@@ -165,13 +181,13 @@ class Lens:
                 print(f"      permutation {perm_idx + 1}/{len(permutations)}: size {len(examples_set)}")
                 
                 # Замена примеров на основе diversity
-                print(f"         generating {subs_size} new variants via diversity...")
-                for sub_idx in range(subs_size):
+                print(f"         generating {substitution_size} new variants via diversity...")
+                for sub_idx in range(substitution_size):
                     random_example = random.choice(examples_set)
                     set_wo_random = [item for item in examples_set if item != random_example]
 
-                    print(f"            computing diversity for example replacement {sub_idx + 1}/{subs_size}...")
-                    diversities = [(self._diversity(e_, example_set=set_wo_random), e_) for e_ in examples]
+                    print(f"            computing diversity for example replacement {sub_idx + 1}/{substitution_size}...")
+                    diversities = [(self._diversity(e_, example_set=set_wo_random), e_) for e_ in examples if e_ not in set_wo_random]
                     new_example = max(diversities, key=lambda x: x[0])[1]
 
                     new_set = examples_set.copy()
@@ -181,12 +197,11 @@ class Lens:
                     new_perm.append(new_set)
 
                 # Генерация случайных перестановок
-                random_perm_count = beam_size - subs_size
+                random_perm_count = beam_size - substitution_size
                 if random_perm_count > 0:
                     print(f"         generating {random_perm_count} random permutations...")
-                    for _ in range(random_perm_count):
-                        permutated_set = self._get_permutations(examples_set, 1)[0]
-                        new_perm.append(permutated_set)
+                    ranom_permutations = self._get_permutations(examples_set, search_set_size, random_perm_count)
+                    new_perm.extend(ranom_permutations)
             
             print(f"   total new permutations generated: {len(new_perm)}")
             print(f"   evaluating and selecting top {beam_size} permutations...")
@@ -199,23 +214,38 @@ class Lens:
     
     def _diversity(self, example: Text, example_set: List[Text]):
         score = self._info_score(example, relative_set=self.score_set)
+        
+        if len(example_set) == 0:
+            return score
+        elif self.embedding_model == None:
+            similarities = [random.uniform(0,1) for _ in example_set]
+        else:
+            example_features = self._vectorize(example)
+            set_features = [self._vectorize(set_item)[0] for set_item in example_set]
+            similarities = cosine_similarity(example_features, set_features)[0]
 
-        # THIS IS PLUG
-        similarities = [random.uniform(0,1) for _ in example_set]
+        return score - self.diversity_weight * (np.sum(similarities))
 
-        return score - self.diversity_weight * (sum(similarities))
+    def _vectorize(self, example: Text):
+        if self.embedding_model == None:
+            return []
+        
+        example_hash = self._hash_string(example)
+        if example_hash in self._examples_features_cache:
+            return self._examples_features_cache[example_hash]
+        
+        features = self.embedding_model.run(example)
+        self._examples_features_cache[example_hash] = features
 
-    def _vectorize(exmple: Text):
-        return []
-        # Не используется. Можно реализовать через модель эмбеддингов или удалить
+        return features
 
     def _eval(self, eval_set, validation_set, beam_size):
         print(f"      warning: _eval using stub (returning first {beam_size} without ranking)")
         return eval_set[:beam_size]
         # Это заглушка. Хорошо бы реализовать ранжирование permutation наборов по проверочной метрике
 
-    def _get_permutations(self, examples, beam_size):
-        return [random.sample(examples, len(examples)) for _ in range(beam_size)]
+    def _get_permutations(self, examples, search_set_size, beam_size):
+        return [random.sample(examples, search_set_size) for _ in range(beam_size)]
 
     def _hash_string(self, st: str):
         return int(hashlib.md5(st.encode('utf-8')).hexdigest(), 16)
@@ -249,19 +279,26 @@ class Lens:
 
             # 2) CALCULATE PPL FOR RELATIVE EXAMPLE
             # WITH TARGET EXAMPLE AS CONTEXT
-            response = self.client.completions.create(
-                model=self.model_name,
-                temperature=0,
-                prompt=re+example,
-                max_tokens=100,
-                logprobs=True,
-            )
 
-            all_probs = [item for item in response.choices[0].logprobs.token_logprobs]
-            entropy = -np.mean(all_probs)
+            pair_prompt_hash = self._hash_string(re+example)
+            if pair_prompt_hash in self._ppl_cache:
+                pair_ppl = self._ppl_cache[pair_prompt_hash]
+            else:
+                response = self.client.completions.create(
+                    model=self.model_name,
+                    temperature=0,
+                    prompt=re+example,
+                    max_tokens=100,
+                    logprobs=True,
+                )
+
+                all_probs = [item for item in response.choices[0].logprobs.token_logprobs]
+                entropy = -np.mean(all_probs)
+                pair_ppl = np.exp(entropy)
+                self._ppl_cache[pair_prompt_hash] = pair_ppl
 
             # DIFFERNCE BETWEEN TWO PPLs AS SCORE
-            ppl = ppl - np.exp(entropy)
+            ppl = ppl - pair_ppl
 
             # SUM ON ALL REALTIVE EXAMPLES
             score += ppl
