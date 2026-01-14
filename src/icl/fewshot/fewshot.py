@@ -20,7 +20,7 @@ class FewShot:
             max_tokens=100,
             logprobs=True,
         )
-        all_probs = [p for p in response.choices[0].logprobs]
+        all_probs = [p for p in response.choices[0].logprobs.token_logprobs]
         entropy = -np.mean(all_probs)
         return np.exp(entropy)
 
