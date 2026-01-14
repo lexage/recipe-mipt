@@ -62,24 +62,31 @@ class CodeEvalGenerator(Agent):
         if self.dummy_mode:
             return task
 
-        response = self.client.completions.create(
+        response = self.client.chat.completions.create(
             model=self.model_name,
-            prompt=(
-                "You have been given an excerpt from the documentation for the Python library with code example."
-                "Please increase the difficulty of the given programming example a bit.\n\n"
-                "You can increase the difficulty using, but not limited to, the following methods:\n"
-                "   - Add new constraints and requirements to the original problem, adding approximately 10 additional words.\n"
-                "   - Replace a commonly used requirement in the programming task with a less common and more specific one.\n"
-                "   - If the original problem can be solved with only a few logical steps, please add more reasoning steps.\n"
-                "   - Provide a piece of erroneous code as a reference to increase misdirection.\n"
-                "   - Propose higher time or space complexity requirements, but please refrain from doing so frequently.\n\n"
-                "Example:\n\n"
-                )
-                + task,
-            temperature=0.5,
+            messages=[
+                {"role": "system", "content": "You are a programming example complexity enhancer."},
+                {"role": "user", "content": f"""Increase complexity of this example: 
+                {task}
+                
+                You have been given an excerpt from the documentation for the Python library with code example."
+                Please increase the complexity of the given programming example a bit.
+                You can increase the complexity using, but not limited to, the following methods:
+                   - Add new constraints and requirements to the original problem, adding approximately 10 additional words.
+                   - Replace a commonly used requirement in the programming task with a less common and more specific one.
+                   - If the original problem can be solved with only a few logical steps, please add more reasoning steps.
+                   - Provide a piece of erroneous code as a reference to increase misdirection.
+                   - Propose higher time or space complexity requirements, but please refrain from doing so frequently
+                 
+                The result should only contain new example and it`s breif description.
+                """}
+            ],
+            temperature=0.1,
+            max_tokens=500
         )
 
-        return response.choices[0].text
+        return response.choices[0].message.content
+
 
 
 class IncorrectExampleGenerator(Agent):
@@ -96,20 +103,24 @@ class IncorrectExampleGenerator(Agent):
         if self.dummy_mode:
             return task
 
-        response = self.client.completions.create(
+        response = self.client.chat.completions.create(
             model=self.model_name,
-            prompt=(
-                "You have been given an excerpt from the documentation for the Python library with code example.\n"
-                "Please generate incorrect version of this programming example that include one or more semantic bugs." 
-                "Place the delimiter ```python before every solution example you’ll generate and ``` at the end of the solution code to help me extract just the generated code." 
-                "Importantly, it should be possible to compile the incorrect solutions and it should be possible to run unit tests for the code. \n\n"
-                "Example:\n\n"
-                )
-                + task,
-            temperature=0.7,
+            messages=[
+                {"role": "system", "content": "You are incorret programming examples generator"},
+                {"role": "user", "content": f"""You have been given an excerpt from the documentation for the Python library with code example:
+                {task}
+
+                Please generate incorrect version of this programming example that include one or more semantic bugs." 
+                Place the delimiter ```python before every solution example you’ll generate and ``` at the end of the solution code to help me extract just the generated code." 
+                Importantly, it should be possible to compile the incorrect solutions and it should be possible to run unit tests for the code.
+
+                As a result return just new example. 
+                """}
+            ],
+            temperature=0.1
         )
 
-        return response.choices[0].text
+        return response.choices[0].message.content
 
 
 class QueryGenerator(Agent):
@@ -127,17 +138,25 @@ class QueryGenerator(Agent):
         if self.dummy_mode:
             return task
 
-        response = self.client.completions.create(
+        response = self.client.chat.completions.create(
             model=self.model_name,
-            prompt=(
-                "You have been given a search query."
-                f"Write down {self.options} options for rephrasing this query: "
-                )
-                + task,
-            temperature=0.7,
+            messages=[
+                {"role": "system", "content": "You are search query generator"},
+                {"role": "user", "content": f"""Given original query: `{task}`, generate {self.options} variations of rewriting original query
+                
+                Yours output template (only options, nothing else!!!):
+                - "option 1"
+                - "option 2"
+                .
+                .
+                .
+                - "option {self.options}"
+                """}
+            ],
+            temperature=0.2,
         )
 
-        return response.choices[0].text.split('\n')
+        return response.choices[0].message.content.split('\n')
 
 
 class RandomWordGenerator(Agent):
