@@ -1,15 +1,17 @@
 import os
 import sys
+from pathlib import Path
 
-sys.path.insert(0, os.getcwd())
+project_root = Path(__file__).resolve().parents[3]
+sys.path.insert(0, str(project_root))
 
 from typing import List
 import numpy as np
 import joblib
 
 from src.agent_constructor.core import Document
-from src.embeddings import Embedder
-from src.label import EducationalEvaluator
+from src.filtering.textbooks_are_all_you_need.src.embeddings import Embedder
+from src.filtering.textbooks_are_all_you_need.src.label import EducationalEvaluator
 
 
 def load_or_create_embeddings(documents: List[Document], embeddings_path: str, embedder: Embedder) -> np.ndarray:
@@ -28,8 +30,10 @@ def load_or_create_embeddings(documents: List[Document], embeddings_path: str, e
         return np.load(embeddings_path)
     else:
         print("Creating embeddings for documents...")
-        # Assuming there's a function to get document embeddings\
+        # Assuming there's a function to get document embeddings
+        
         embeddings = embedder.get_document_embeddings(documents)
+        os.makedirs(os.path.dirname(embeddings_path), exist_ok=True)
         np.save(embeddings_path, embeddings)
         return embeddings
 
@@ -55,6 +59,7 @@ def load_or_create_annotations(
     else:
         print("Getting automatic annotations using LLM...")
         annotations = annotator.get_annotations(subsample_documents)
+        os.makedirs(os.path.dirname(annotations_path), exist_ok=True)
         joblib.dump(annotations, annotations_path)
         return annotations
 

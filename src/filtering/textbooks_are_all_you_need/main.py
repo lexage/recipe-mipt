@@ -1,15 +1,26 @@
+import sys
+from pathlib import Path
+
+project_root = Path(__file__).resolve().parents[3]
+sys.path.insert(0, str(project_root))
+
+from src.filtering.textbooks_are_all_you_need.src.utils import load_or_create_embeddings, load_or_create_annotations, filter_high_quality_documents  # ← из ЛОКАЛЬНОЙ src
+from src.agent_constructor.core import Document
+from src.filtering.textbooks_are_all_you_need.src.random_forest_cls import RandomForestTrainer 
+from src.filtering.textbooks_are_all_you_need.src.embeddings import Embedder
+from src.filtering.textbooks_are_all_you_need.src.label import EducationalEvaluator
+
+
 import os
 from typing import List
 import numpy as np
 
-from src.agent_constructor.core import Document
-from src.utils import load_or_create_embeddings, load_or_create_annotations, filter_high_quality_documents
-from src.random_forest_cls import RandomForestTrainer
-from src.embeddings import Embedder
 
 def education_value_classifier_pipeline(
     documents: List[Document],
     subsample_size: int = 1000,
+    api_url: str = "http://shtraukh_vllm:8000/v1",
+    model_name: str = "unsloth/gemma-3-12b-it",
     embeddings_path: str = "data/embeddings.npy",
     annotations_path: str = "data/annotations.joblib", 
     models_path: str = "data/models"
@@ -68,12 +79,13 @@ def education_value_classifier_pipeline(
             subsample_documents = documents
             subsample_embeddings = all_embeddings
         
+        annotator = EducationalEvaluator(api_url=api_url, model_name=model_name)
         # Load or generate automatic annotations
-        labels = load_or_create_annotations(subsample_documents, annotations_path)
+        labels = load_or_create_annotations(subsample_documents, annotations_path, annotator)
         
         # Train the model
-        model = trainer.train(subsample_embeddings, labels)
-        
+        train_result = trainer.train(subsample_embeddings, labels)
+        model = train_result[0]
     
     # Stage 3: Filtering using the trained model
     print("=== Stage 3: Data Filtering ===")

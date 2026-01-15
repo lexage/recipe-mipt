@@ -3,7 +3,7 @@ system_prompt = """You are an expert educational evaluator specialized in assess
 
 
 label_prompt = """
-Evaluate the educational value of the following content for a beginner-level student whose primary learning objective is to understand foundational concepts in **<field of study>**:
+Evaluate the educational value of the following content for a beginner-level student whose primary learning objective is to understand foundational concepts:
 
 <example>
 
