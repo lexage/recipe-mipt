@@ -1,5 +1,7 @@
 import openai
-from typing import Optional, Dict, Any
+from typing import List
+from src.agent_constructor.core import Document
+
 from src.prompts import system_prompt, label_prompt
 
 
@@ -57,3 +59,29 @@ class EducationalEvaluator:
         )
         
         return response.choices[0].message.content
+    
+    def get_annotations(self, subsample_documents: List[Document]) -> List[int]:
+        """Generate educational-value annotations for a list of documents.
+        
+        This method iterates over a list of documents, evaluates each one using 
+        `evaluate_content`, and collects the resulting binary labels as integers.
+        
+        Args:
+            subsample_documents: A list of Document objects whose texts will be evaluated 
+                                for educational value.
+                                
+        Returns:
+            A list of integers (0 or 1), where each integer represents the educational 
+            annotation for the corresponding document in the input list.
+            
+        Note:
+            The method assumes that the output of `evaluate_content` is a string 
+            containing either "0" or "1", which it converts to int.
+        """
+        annotations = []
+        for doc in subsample_documents:
+            label = self.evaluate_content(doc.text)
+            annotations.append(label)
+            
+        return annotations
+            
