@@ -1,8 +1,13 @@
+import sys
 import openai
 from typing import List
-from src.agent_constructor.core import Document
+from pathlib import Path
 
-from src.prompts import system_prompt, label_prompt
+project_root = Path(__file__).resolve().parents[3]
+sys.path.insert(0, str(project_root))
+
+from src.agent_constructor.core import Document
+from src.filtering.textbooks_are_all_you_need.src.prompts import system_prompt, label_prompt
 
 
 class EducationalEvaluator:
@@ -49,6 +54,8 @@ class EducationalEvaluator:
         """
         formatted_prompt = self._format_label_prompt(text)
         
+        print("formatted_prompt", formatted_prompt)
+        
         response = self.client.chat.completions.create(
             model=self.model_name,
             messages=[
@@ -82,6 +89,8 @@ class EducationalEvaluator:
         for doc in subsample_documents:
             label = self.evaluate_content(doc.text)
             annotations.append(label)
+        
+        print("annotations ", annotations)
             
         return annotations
             

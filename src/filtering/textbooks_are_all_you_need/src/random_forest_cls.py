@@ -21,7 +21,7 @@ class RandomForestTrainer:
                  random_state: int = 42,
                  model_path: str = 'best_random_forest_model.joblib',
                  datasets_path: str = 'datasets.npz',
-                 cv_folds: int = 5,
+                 cv_folds: int = 2,
                  n_iter_search: int = 20,
                  scoring: str = 'f1_macro',  # or 'accuracy', 'roc_auc', etc.
                  use_random_search: bool = True):
@@ -137,6 +137,7 @@ class RandomForestTrainer:
         return self.best_model, datasets, metadata
 
     def _save_model(self):
+        os.makedirs(os.path.dirname(self.model_path), exist_ok=True)
         joblib.dump(self.best_model, self.model_path)
 
     def _save_datasets(self, X_train, X_test, y_train, y_test):
