@@ -22,4 +22,3 @@ Return a single integer:
 Do not include any additional text—only the integer `0` or `1`.
 
 """
-
