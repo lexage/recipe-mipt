@@ -79,4 +79,3 @@ def filter_high_quality_documents(
         List[Document]: Filtered list containing only high-quality documents
     """
     return [doc for doc, label in zip(documents, labels) if label == 1]
-
