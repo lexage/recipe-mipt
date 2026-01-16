@@ -14,14 +14,16 @@ from src.filtering.textbooks_are_all_you_need.src.embeddings import Embedder
 from src.filtering.textbooks_are_all_you_need.src.label import EducationalEvaluator
 
 
-def load_or_create_embeddings(documents: List[Document], embeddings_path: str, embedder: Embedder) -> np.ndarray:
+def load_or_create_embeddings(
+    documents: List[Document], embeddings_path: str, embedder: Embedder
+) -> np.ndarray:
     """
     Load embeddings from file or create new ones if the file doesn't exist.
-    
+
     Args:
         documents: List of Document objects to generate embeddings for
         embeddings_path: Path to the embeddings file
-        
+
     Returns:
         numpy.ndarray: Array of document embeddings
     """
@@ -31,7 +33,7 @@ def load_or_create_embeddings(documents: List[Document], embeddings_path: str, e
     else:
         print("Creating embeddings for documents...")
         # Assuming there's a function to get document embeddings
-        
+
         embeddings = embedder.get_document_embeddings(documents)
         os.makedirs(os.path.dirname(embeddings_path), exist_ok=True)
         np.save(embeddings_path, embeddings)
@@ -39,17 +41,17 @@ def load_or_create_embeddings(documents: List[Document], embeddings_path: str, e
 
 
 def load_or_create_annotations(
-    subsample_documents: List[Document], 
+    subsample_documents: List[Document],
     annotations_path: str,
-    annotator: EducationalEvaluator
+    annotator: EducationalEvaluator,
 ) -> List[int]:
     """
     Load annotations from file or create new ones using LLM if the file doesn't exist.
-    
+
     Args:
         subsample_documents: List of Document objects to annotate
         annotations_path: Path to the annotations file
-        
+
     Returns:
         List[int]: List of annotation labels (0 or 1)
     """
@@ -65,16 +67,15 @@ def load_or_create_annotations(
 
 
 def filter_high_quality_documents(
-    documents: List[Document], 
-    labels: np.ndarray
+    documents: List[Document], labels: np.ndarray
 ) -> List[Document]:
     """
     Return documents with label '1' (high-quality data).
-    
+
     Args:
         documents: List of Document objects to filter
         labels: Array of labels corresponding to each document (0 or 1)
-        
+
     Returns:
         List[Document]: Filtered list containing only high-quality documents
     """

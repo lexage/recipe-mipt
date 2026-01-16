@@ -74,4 +74,3 @@ self._matched_pattern = ''
 Output: 0
 
 """
-

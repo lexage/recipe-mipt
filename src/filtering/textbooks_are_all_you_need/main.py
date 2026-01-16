@@ -4,9 +4,15 @@ from pathlib import Path
 project_root = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(project_root))
 
-from src.filtering.textbooks_are_all_you_need.src.utils import load_or_create_embeddings, load_or_create_annotations, filter_high_quality_documents  # ← из ЛОКАЛЬНОЙ src
+from src.filtering.textbooks_are_all_you_need.src.utils import (
+    load_or_create_embeddings,
+    load_or_create_annotations,
+    filter_high_quality_documents,
+)
 from src.agent_constructor.core import Document
-from src.filtering.textbooks_are_all_you_need.src.random_forest_cls import RandomForestTrainer 
+from src.filtering.textbooks_are_all_you_need.src.random_forest_cls import (
+    RandomForestTrainer,
+)
 from src.filtering.textbooks_are_all_you_need.src.embeddings import Embedder
 from src.filtering.textbooks_are_all_you_need.src.label import EducationalEvaluator
 
@@ -22,20 +28,20 @@ def education_value_classifier_pipeline(
     api_url: str = "http://shtraukh_vllm:8000/v1",
     model_name: str = "unsloth/gemma-3-12b-it",
     embeddings_path: str = "data/embeddings.npy",
-    annotations_path: str = "data/annotations.joblib", 
-    models_path: str = "data/models"
+    annotations_path: str = "data/annotations.joblib",
+    models_path: str = "data/models",
 ) -> List[Document]:
     """
     Pipeline for classifying and filtering documents based on their educational value.
-    
+
     This pipeline processes a collection of documents through three main stages:
     1. Data preparation: Generates or loads embeddings for all documents
     2. Model training: Either loads a pre-trained model or trains a new classifier on a subsample
     3. Filtering: Applies the trained model to filter documents, returning only high-quality educational content
-    
+
     The pipeline automatically manages directory creation for embeddings, annotations, and model storage.
     If a trained model already exists, it skips the training phase and uses the existing model for prediction.
-    
+
     Args:
         documents: List of Document objects to be processed and filtered
         subsample_size: Number of documents to use for annotation and model training when no pre-trained model exists.
@@ -44,22 +50,22 @@ def education_value_classifier_pipeline(
         embeddings_path: Path for storing/loading document embeddings. Default is "data/embeddings.npy".
         annotations_path: Path for storing/loading document annotations. Default is "data/annotations.joblib".
         models_path: Path for storing/loading trained classification models. Default is "models".
-    
+
     Returns:
         List of Document objects that have been classified as high-quality educational content (label "1").
         The returned list contains a subset of the input documents that passed the quality filter.
     """
-    
+
     # Stage 1: Data preparation
     print("=== Stage 1: Data Preparation ===")
-    
+
     # Load or generate embeddings for all documents
     embedder = Embedder()
     all_embeddings = load_or_create_embeddings(documents, embeddings_path, embedder)
-    
+
     # Stage 2: Model training
     print("=== Stage 2: Model Training ===")
-        
+
     trainer = RandomForestTrainer(model_path=models_path)
 
     if os.path.exists(models_path):
@@ -67,7 +73,7 @@ def education_value_classifier_pipeline(
         model = trainer.load_model(models_path)
     else:
         print("No trained model found. Starting training stage.")
-        
+
         # Extract a subsample for annotation and training
         if len(documents) > subsample_size:
             subsample_indices = np.random.choice(
@@ -78,25 +84,29 @@ def education_value_classifier_pipeline(
         else:
             subsample_documents = documents
             subsample_embeddings = all_embeddings
-        
+
         annotator = EducationalEvaluator(api_url=api_url, model_name=model_name)
         # Load or generate automatic annotations
-        labels = load_or_create_annotations(subsample_documents, annotations_path, annotator)
-        
+        labels = load_or_create_annotations(
+            subsample_documents, annotations_path, annotator
+        )
+
         # Train the model
         train_result = trainer.train(subsample_embeddings, labels)
         model = train_result[0]
-    
+
     # Stage 3: Filtering using the trained model
     print("=== Stage 3: Data Filtering ===")
-    
+
     # Obtain classification labels for all documents
     all_labels = model.predict(all_embeddings)
-    
+
     # Filter: return only documents labeled as "1" (high-quality)
     high_quality_documents = filter_high_quality_documents(documents, all_labels)
-    
-    print(f"Filtered {len(high_quality_documents)} high-quality documents "
-          f"out of {len(documents)} original documents")
-    
+
+    print(
+        f"Filtered {len(high_quality_documents)} high-quality documents "
+        f"out of {len(documents)} original documents"
+    )
+
     return high_quality_documents
