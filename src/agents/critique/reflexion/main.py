@@ -1,6 +1,8 @@
 from abc import ABC, abstractmethod
 from .prompts_code import *
 from src.agent_constructor.agent import Agent
+from langchain_openai import ChatOpenAI
+from langchain_core.messages import HumanMessage
 
 
 class Reflexion(Agent):
@@ -14,40 +16,37 @@ class Reflexion(Agent):
     def __init__(
         self,
         name: str = "Reflexion",
-        do_eval: bool = False,
+        model_name: str = "Qwen/Qwen1.5-32B-Chat-AWQ",
+        openai_api_base_url="http://localhost:7215/v1"
     ):
         super().__init__(name)
-        self.do_eval = do_eval
+        self.llm_model = ChatOpenAI(
+            model=model_name, 
+            openai_api_base=openai_api_base_url,
+            openai_api_key="fake-key",
+            temperature=0.7
+        )
 
-    def llm(self, prompt: str | list[dict]) -> str:
-        # TODO: implement actual LLM call
-        return ""
 
+    def llm(self, message) -> str:
+
+        messages = [
+            HumanMessage(content=message)
+        ]
+
+        response = self.llm_model.invoke(messages)
+        return response.content 
+    
     def make_evaluate_prompt(
         self, question: str, answer: str,
     ) -> str | list[dict]:
-        prompt = (
-            f"{PY_EVALUATE_INSTRUCTION}\n{PY_EVALUATE_FEW_SHOT}\n"
-            f"Problem: {question}\n\n Answer: {answer}\n\n\Evaluation: "
-        )
+        prompt = fr"""{PY_EVALUATE_INSTRUCTION}\n{PY_EVALUATE_FEW_SHOT}\n  Problem: {question}\n\n Implementation: {answer}\n\n\Evaluation: """
         return prompt
 
     def make_reflect_prompt(
         self, question: str, answer: str, evaluation: str
     ) -> str | list[dict]:
-        prompt = (
-            f"{PY_SELF_REFLECTION_INSTRUCTION}\n{PY_SELF_REFLECTION_FEW_SHOT}\n"
-            f" Problem: {question}\n\n Answer: {answer}\n\n Evaluation: {evaluation}\n\Reflection:"
-        )
-        return prompt
-
-    def make_actor_prompt(
-        self, question: str, answer: str, reflection: str
-    ) -> str | list[dict]:
-        prompt = (
-            f"{PY_ACTOR_FEW_SHOT}\n{PY_ACTOR_INSTRUCTION}\n""
-            f"Problem: {question}\n\n Answer: {answer}\n\n Reflection: {reflection}\n\Fine Answer:"
-        )
+        prompt = fr"""{PY_SELF_REFLECTION_INSTRUCTION}\n{PY_SELF_REFLECTION_FEW_SHOT}\n  Problem: {question}\n\n Implementation: {answer}\n\n Evaluation: {evaluation}\n\Reflection:"""
         return prompt
 
     def reflect(self, question: str, answer: str, evaluation: str) -> str:
@@ -56,21 +55,11 @@ class Reflexion(Agent):
         return result
 
     def evaluate(self, question: str, answer: str) -> str:
-        # TODO: implement tests/judge/etc.
-
         prompt = self.make_evaluate_prompt(question, answer)
         result = self.llm(prompt)
         return result
 
-    def actor(self, question: str, answer: str, evaluation: str, reflect: str) -> str:
-        # TODO: implement tests/judge/etc.
-        prompt = self.make_actor_prompt(question, answer, reflect)
-        result = self.llm(prompt)
-        return result
-
     def run(self, question: str, answer: str):
-        if self.do_eval:
-            feedback = self.evaluate(question, answer)
-            reflect_text = self.reflect(question, answer, feedback)
-            return self.actor(question, answer, reflect_text)
-        return answer
+        feedback = self.evaluate(question, answer)
+        return self.reflect(question, answer, feedback)
+

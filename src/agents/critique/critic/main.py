@@ -1,25 +1,36 @@
 from abc import ABC, abstractmethod
 from src.agent_constructor.agent import Agent
-from langchain_tavily import TavilySearch
+import re
 from langchain_core.tools import BaseTool
 from typing import List
+from langchain_core.prompts import (
+    ChatPromptTemplate,
+    SystemMessagePromptTemplate,
+    HumanMessagePromptTemplate,
+)
+from langchain_core.messages import HumanMessage, ToolMessage
 from langchain_experimental.utilities import PythonREPL
 from typing import Annotated
-from langchain_core.tools import tool
-from langchain_tavily import TavilySearch
+from langchain_classic.agents import AgentExecutor
+from langchain_classic.agents import create_openai_functions_agent
 from langchain_community.tools import DuckDuckGoSearchResults
 from langchain_community.utilities import DuckDuckGoSearchAPIWrapper
 from langchain_experimental.utilities import PythonREPL
 from typing import Annotated
 from langchain_core.tools import tool
 from pydantic import BaseModel
-
+from langchain_core.tools import tool
+from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
+import requests
+from langchain_openai import ChatOpenAI
+from langchain_core.tools import tool
+from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 
 class Example(BaseModel):
     question: str
     answer: str
     critique: str
-    correct_answer: str
+    refine_answer: str
 
 def get_examples():
         return[
@@ -132,26 +143,36 @@ class Critic(Agent):
     def __init__(
         self,
         name: str = "CRITIC",
-        use_tools: bool = False,
-        tools: dict = {},
-        examples: list[Example] = [],
+        model_name: str = "Qwen/Qwen1.5-32B-Chat-AWQ",
+        openai_api_base_url="http://localhost:7215/v1"
+
     ):
         super().__init__(name)
         self.refrain =     """You are a Python programming assistant.
         You will be given a problem and implementation in Python and critique of implementation. 
         Your goal is to make the correct implementation based on the critique
         Return only correct implementation"""
-        self.use_tools = use_tools
         self.tools = self.get_tools()
-        self.examples = examples
+        self.llm_model = ChatOpenAI(
+            model=model_name, 
+            openai_api_base= openai_api_base_url,
+            openai_api_key="fake-key",
+            temperature=0.7
+        )
 
-    def llm(self, prompt: str) -> str:
-        # TODO: Replace with actual LLM call
-        return ""
+    def llm(self, message) -> str:
 
-    def get_python_repl_tool(self):
+        messages = [
+            HumanMessage(content=message)
+        ]
+
+        response = self.llm_model.invoke(messages)
+        return response.content 
+
+    def get_python_repl_tool(self) -> BaseTool:
         repl = PythonREPL()
 
+        @tool(description="Use it to compile Python code")
         def python_repl_tool(
             code: Annotated[str, "The python code to execute."],
         ) -> str:
@@ -163,9 +184,9 @@ class Critic(Agent):
                 return f"Failed to execute. Error: {repr(e)}"
             return f"Successfully executed:\n : {result}"
 
-    return python_repl_tool
+        return python_repl_tool
 
-    def get_web_search_tool(self, max_results: int = 3) -> BaseTool:
+    def get_web_search_tool(self, max_results: int = 1) -> BaseTool:
         wrapper = DuckDuckGoSearchAPIWrapper(
             max_results=max_results,
         )
@@ -173,92 +194,61 @@ class Critic(Agent):
             api_wrapper=wrapper
         )
         tool.description = (
-            """Search information using Internet. Use English language for searching"""
+            """Search information using Internet. Use English language for searching."""
         )
         return tool   
 
-    def get_code_tool(self):
-
-        def code_tool(answer: str) -> str:
-            promt = f"You only need to extract the Python code from the following text. I want to compile this code. And You can't fix it. Text: {answer} "
-            return self.llm(promt)
-
-        return code_tool
-
-    def get_problem_tool(self):
-
-        def problem_tool(problem: str) -> str:
-            promt = f"You should create a query to search the internet for implementations to problem. Problem: {problem} "
-            return self.llm(promt)
-
-        return  problem_tool
+    def get_code(self, answer: str) -> str:
+        promt = f"You only need to extract the Python code from the following text. I want to compile this code. And You can't fix it. If you can't find python code, return nothing. Text: {answer} "
+        return self.llm(promt)
         
-    def get_tools(self) -> Dict[str, Any]:
-        return {
-            "problem" : self.get_problem_tool(),
-            "websearch" : self.get_web_search_tool(),
-            "getcode" : self.get_code_tool(),
-            "replcode": self.get_repl_code_tool(),
-        }
+    def get_tools(self) -> List[BaseTool]:
+        return [
+             self.get_web_search_tool(),
+             self.get_python_repl_tool(),
+        ]
 
-    def make_correct_prompt(self, question: str, answer: str, critique: str) -> str:
-        few_shot: str = """EXAMPLES:
-        """
-        for example in self.examples:
-            few_shot += f"""
-                Problem: {example.question}
-
-                Proposed implementation: {example.answer}
-
-                Critique: {example.critique}
-
-                Correct answer: {example.refine_answer}
-            """
-
-        prompt = f"""END OF EXAMPLES
-            {self.refrain}
-            Problem: {question}
-            Proposed implementation: {answer}
-
-            
-
-            Critique: {critique}
-
-            Correct answer:
-        """
-
-        final_prompt = few_shot + prompt
-        return final_prompt
-
-    def get_web_implementations(self, question: str) -> List[str]:
-        problem = self.tools["problem"](question)
-        search_result = self.tools["websearch"].invoke(f"I have got a problem in Python: {problem}.")
-        implementations_list = self.llm(f"""Get a list of links from text. Return only this list, separated by commas. 
-        Examples: 'https://stackoverflow.com/questions/5453026/string-to-list-in-python, https://stackoverflow.com/questions/5453027/string-to-list-in-python'. Text: {search_result} """)
-        return implementations_list.split(', ')
-
-    def tool_critique(self, question: str, response: str) -> str:
-        # TODO: implement tool calls
+    def call_tools(self, problem: str, implementation: str):
+        tool_map = {tool.name: tool for tool in self.tools}
         tool_criticisms = []
-        web_implementations = self.get_web_implementations(question)
-        for implementation in web_implementations:    
-            code = self.tools["getcode"](implementation)
-            tool_criticisms.append(f"Possible implementation: {code}")
-        code = self.tools["getcode"](response)
-        replcode_result = self.tools["replcode"](code)
-        tool_criticisms.append(f"Code's compilation results: {replcode_result}")
+        compilation_result = tool_map["python_repl_tool"].invoke(implementation)
+        prompt = f"You will get a problem, implementation and compilation result of this implementation. You should compare the expected result of problem and compilation's result. Return only result of comparison. Problem: {problem} \n Implementation: {implementation} \n compilation_result: {"\n".join(compilation_result)}  "
+        critic = self.llm(prompt)
+        tool_criticisms = [f"Result of the implementation: {compilation_result} "]
+        tool_criticisms += [f"Comparing the expected result of problem and the compilation result of implementation: {critic}"]
+
         return "\n".join(tool_criticisms)
 
-    def llm_critique(self, question: str, response: str) -> str:
-        critique = self.tool_critique(question, response)
-        prompt = self.make_correct_prompt(question, response, critique)
-        res = self.llm(prompt)
-        return res
+
+    def llm_critique(self, problem: str, code: str) -> str:
+        tools_list = self.get_tools()
+        tools_result = self.call_tools(problem, code)
+        prompt = ChatPromptTemplate.from_messages([
+            ("system", """
+            You will be given a problem and Implementation in Python and information about Implementation. 
+            You should generate criticism of this Implementation using the information:
+            It is important for you to use following criteria:
+            1. Evaluation of implementation
+            2. Logical errors in reasoning 
+            3. Syntax and semantic correctness 
+            4. Conceptual misunderstandings 
+            5. Potential bugs or edge cases 
+            6. Alignment with problem requirements You will need this as a hint when you 
+             Return only Criticism, not implementation"""),
+            ("human",
+                "Problem: {problem} \n Implementation: {implementation} \n Information: {tools_result}  . "
+            ),
+             ("placeholder", "{agent_scratchpad}"),
+        ])
+
+        
+        agent = create_openai_functions_agent(self.llm_model, tools_list, prompt=prompt)
+        agent_executor = AgentExecutor(agent=agent, tools = tools_list,  verbose=True, 
+        return_intermediate_steps=True)
+
+        response = agent_executor.invoke({"problem": problem, "tools_result": tools_result,  "implementation" : self.get_code(code) })
+        return response["output"]
 
     def run(self, question: str, response: str) -> str:
-        # TODO: verify then correct
-
-        if self.use_tools:
-            return self.llm_correct(question, response, self.tool_critique(question, response))
+        return self.llm_critique(question, response)
             
-        return response
