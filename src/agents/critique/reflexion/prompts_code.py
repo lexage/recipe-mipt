@@ -1,31 +1,42 @@
 PY_SELF_REFLECTION_INSTRUCTION = (
-    "You are a Python programming assistant. "
-    "You will be given a problem and implementation in Python and evaluation of implementation. "
-    "Your goal is to critique implementation based on the evaluation step for: "
-    "1. Logical errors in reasoning "
-    "2. Syntax and semantic correctness "
-    "3. Conceptual misunderstandings "
-    "4. Potential bugs or edge cases "
-    "5. Alignment with problem requirements You will need this as a hint when you "
-    "try again later. Only provide the few sentence description in your answer, "
-    "not the implementation."
+""" You are a Python programming assistant.
+        You will be given a problem and implementation in Python and evaluation of this implementation. 
+        Your goal is to write feedback for the implementation step for:
+        1. Evaluation of implementation
+        2. Logical errors in reasoning 
+        3. Syntax and semantic correctness 
+        4. Conceptual misunderstandings 
+        5. Potential bugs or edge cases 
+        6. Alignment with problem requirements You will need this as a hint when you 
+        try again later. 
+        Only provide the few sentence description in your answer, 
+        not the implementation."""
 )
 
 PY_EVALUATE_INSTRUCTION = (
-    "You are a Python programming assistant. "
-    "You will be given a problem and implementation in Python. "
-    "Your goal is to give numerical rating of this implementation from 1 to 5. Return only the number"
+    """You are a Python programming assistant.
+        You will be given a problem and implementation in Python. 
+        Your goal is to compute a reward score that reflects its performance.
+        It is important for you to evaluate how well the proposed implementation matches the context of the problem and the following criteria:
+        1. Evaluation of implementation
+        2. Logical errors in reasoning 
+        3. Syntax and semantic correctness 
+        4. Conceptual misunderstandings 
+        5. Potential bugs or edge cases 
+        6. Alignment with problem requirements You will need this as a hint when you 
+        try again later. 
+        You only need to return a score as an integer from 1 to 5."""
 )
 
 PY_ACTOR_INSTRUCTION = (
     "You are a Python programming assistant. "
     "You will be given a problem and implementation in Python and reflection of it. "
-    "Your goal is fix the implementation of problem using reflection. 
+    "Your goal is fix the implementation of problem using reflection."
     "Return refined implementation"
 )
 
 
-FINE_ANSWER_1 = """
+DATASET_1 = """
     import pandas as pd
 
     data = {
@@ -40,7 +51,7 @@ FINE_ANSWER_1 = """
     print("\nDataFrame after CORRECT implementation:")
     print(df)
 """
-FINE_ANSWER_2 = """
+DATASET_2 = """
     import pandas as pd
 
     data = {
@@ -80,18 +91,19 @@ SELF_REFLECTION_2 = (
 
 PY_SELF_REFLECTION_FEW_SHOT = f"""
     Example 1:
+    Problem:
     You are given a DataFrame containing sales information for various products across different categories. 
+        'Category': ['Electronics', 'Electronics', 'Books', 'Books', 'Books', 'Clothing', 'Clothing'],
+        'Product': ['Laptop', 'Mouse', 'Novel', 'Textbook', 'Magazine', 'Shirt', 'Jeans'],
+        'Sales': [1200, 50, 30, 80, 10, 40, 60]
     Your task is to add a new column, Percentage_of_Category_Sales, which for each product will show what percentage of its category's total sales that specific product represents.
 
     Implementation: 
 
     import pandas as pd
 
-    data = {
-        'Category': ['Electronics', 'Electronics', 'Books', 'Books', 'Books', 'Clothing', 'Clothing'],
-        'Product': ['Laptop', 'Mouse', 'Novel', 'Textbook', 'Magazine', 'Shirt', 'Jeans'],
-        'Sales': [1200, 50, 30, 80, 10, 40, 60]
-    }
+    {DATASET_1}
+
     df = pd.DataFrame(data)
 
     print(df)
@@ -103,6 +115,8 @@ PY_SELF_REFLECTION_FEW_SHOT = f"""
     df['Percentage_of_Category_Sales'] = (df['Sales'] / category_total_sales) * 100
 
     print(df)
+
+    Evaluation: 3
 
     Reflection:
     {SELF_REFLECTION_1}
@@ -122,11 +136,7 @@ PY_SELF_REFLECTION_FEW_SHOT = f"""
 
     import pandas as pd
 
-    data = {
-        'Product': ['A', 'B', 'C'],
-        'Sales_qty': [10, 5, 20],
-        'Price_per_unit': [100, 200, 50]
-    }
+    {DATASET_2}
 
     df = pd.DataFrame(data)
 
@@ -135,82 +145,23 @@ PY_SELF_REFLECTION_FEW_SHOT = f"""
 
     print(df)
 
+    Evaluation: 3
+
     Reflection:
     {SELF_REFLECTION_2}
     END OF EXAMPLES
 """
 
-PY_ACTOR_FEW_SHOT = f"""
+
+PY_EVALUATE_FEW_SHOT = """
     Example 1:
+    Problem:
     You are given a DataFrame containing sales information for various products across different categories. 
-    Your task is to add a new column, Percentage_of_Category_Sales, which for each product will show what percentage of its category's total sales that specific product represents.
-
-    Implementation: 
-
-    import pandas as pd
-
     data = {
         'Category': ['Electronics', 'Electronics', 'Books', 'Books', 'Books', 'Clothing', 'Clothing'],
         'Product': ['Laptop', 'Mouse', 'Novel', 'Textbook', 'Magazine', 'Shirt', 'Jeans'],
         'Sales': [1200, 50, 30, 80, 10, 40, 60]
     }
-    df = pd.DataFrame(data)
-
-    print(df)
-
-    category_total_sales = df.groupby('Category')['Sales'].sum()
-
-    print(category_total_sales)
-
-    df['Percentage_of_Category_Sales'] = (df['Sales'] / category_total_sales) * 100
-
-    print(df)
-
-    Reflection:
-    {SELF_REFLECTION_1}
-
-    Fine Answer:
-    {FINE_ANSWER_1}
-
-    Example 2:
-    Given a sales table:
-
-    Product,Sales_qty,Price_per_unit
-    A,10,100
-    B,5,200
-    C,20,50
-
-    You need to add a column "Revenue" equal to the product of "Sales_qty" and "Price_per_unit" using Pandas.
-
-    Implementation: 
-
-    import pandas as pd
-
-    data = {
-        'Product': ['A', 'B', 'C'],
-        'Sales_qty': [10, 5, 20],
-        'Price_per_unit': [100, 200, 50]
-    }
-
-    df = pd.DataFrame(data)
-
-    df['Revenue'] = df['Sales_qty'] + df['Price_per_unit']
-
-    print(df)
-
-    Reflection:
-    {SELF_REFLECTION_2}
-
-    Fine Answer:
-    {FINE_ANSWER_2}
-
-    END OF EXAMPLES
-"""
-
-PY_EVALUATE_FEW_SHOT = f"""
-    Example 1:
-    Problem:
-    You are given a DataFrame containing sales information for various products across different categories. 
     Your task is to add a new column, Percentage_of_Category_Sales, which for each product will show what percentage of its category's total sales that specific product represents.
 
     Implementation: 
