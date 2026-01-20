@@ -6,6 +6,7 @@ from tqdm import tqdm
 from chromadb.config import Settings
 
 from src.agent_constructor.core import Document, Text, Chunk
+from src.utils.queries import GET_DOCUMENTS_QUERY, GET_EXAMPLES_QUERY
 
 
 class SQLiteDocsDBAdapter:
@@ -19,17 +20,43 @@ class SQLiteDocsDBAdapter:
             conn.row_factory = sqlite3.Row
             cursor = conn.cursor()
             
-            cursor.execute('''
-                SELECT d.id, d.filename, d.content, d.file_path, 
-                    s.name as section, l.name as library
-                FROM documents d
-                JOIN sections s ON d.section_id = s.id
-                JOIN libraries l ON s.library_id = l.id
-                WHERE section == "user_guide" 
-            ''')
+            cursor.execute(GET_DOCUMENTS_QUERY)
             
             for row in cursor.fetchall():
-                documents.append(Document(id=row['id'], source=row['library'], text=row['content'], metadata={}))
+                documents.append(
+                    Document(
+                        id=row['id'], 
+                        source='documents', 
+                        text=row['content'], metadata={
+                            "library": row['library'],
+                            "section": row['section'],
+                            "doc_name": row['name'],
+                        }
+                    )
+                )
+        
+        return documents
+    
+    def get_examples(self) -> List[Document]:
+        documents = []
+        with sqlite3.connect(self.path_to_db) as conn:
+            conn.row_factory = sqlite3.Row
+            cursor = conn.cursor()
+            
+            cursor.execute(GET_EXAMPLES_QUERY)
+            
+            for row in cursor.fetchall():
+                documents.append(
+                    Document(
+                        id=row['id'], 
+                        source='examples', 
+                        text=row['content'], 
+                        metadata={
+                            "doc_id": row['doc_id'],
+                            "order_id": row['order_id'],
+                        }
+                    )
+                )
         
         return documents
     

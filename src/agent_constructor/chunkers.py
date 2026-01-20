@@ -41,7 +41,7 @@ class DummyChunker(Chunker):
 
     def chunk(self, doc: Document) -> List[Chunk]:
         text = doc.text
-        chunk = Chunk(id=str(doc.id), doc_id=doc.id, text=text, tokens=None)
+        chunk = Chunk(id=str(doc.id), doc_id=doc.id, text=text, tokens=None, metadata=doc.metadata)
         return [chunk]
     
     
