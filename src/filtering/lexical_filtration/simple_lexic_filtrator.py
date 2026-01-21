@@ -10,16 +10,16 @@ import logging
 import hashlib
 from pydantic import BaseModel, Field
 import re
-from tqdm import tqdm
 from typing import List, Optional, Set
 
 from src.agent_constructor.core import Chunk
+from src.agent_constructor.filters import Filter
 
 
 # TODO: дальнейшая оптимизация после тестирования:
 # 1. Удаление всех дублей строк может быть опасно для кода. Например, мб два раза return в разветвленной функции;
 # фильтратор решит, что это дубляж, хотя по факту это часть кода. При своем небольшом тестированиии я таких случаев не встречала,
-# но это стоит держать в уме. Потенциальное пешение: посмотреть по результатам тестирования или создать вспомогательную функцию,
+# но это стоит держать в уме. Потенциальное решение: посмотреть по результатам тестирования или создать вспомогательную функцию,
 # определяющую, является ли дубляж блоком кода (например, по ключевым словам типа return, def, ...).
 
 
@@ -50,7 +50,7 @@ class FilteringConfig(BaseModel):
     )
 
 
-class SimpleLexicalFiltrator:
+class SimpleLexicalFiltrator(Filter):
     """
     Класс для простой лексической фильтрации, нормализации и дедупликации текстовых чанков из БД, содержащих код.
 
@@ -341,13 +341,11 @@ class SimpleLexicalFiltrator:
                 i += 1
         chunk.text = "\n".join(result_lines)
 
-    def main_lexical_chunks_filtering(
-        self, chunks_for_filtering: List[Chunk]
-    ) -> List[Chunk]:
+    def apply(self, chunk: Chunk) -> Optional[Chunk]:
         """
-        Выполняет полную лексическую фильтрацию для списка чанков.
+        Выполняет полную лексическую фильтрацию для чанка.
 
-        Процесс для каждого чанка (в зависимости от конфигурационного файла):
+        Процесс дедупликации и фильтрации чанка (в зависимости от конфигурационного файла):
         1. Удаление мусорных строк.
         2. Удаление навигационных строк.
         3. Нормализация пустых строк.
@@ -355,43 +353,35 @@ class SimpleLexicalFiltrator:
         5. Дедупликация повторяющихся строк.
 
         Args:
-            chunks_for_filtering (List[Chunk]): Исходный список чанков.
+            chunk (Chunk): Исходный чанк.
 
         Returns:
-            List[Chunk]: Список отфильтрованных чанков.
+            Chunk: Отфильтрованный чанк либо None, если весь чанк был мусорным.
         """
-        final_chunks: List[Chunk] = []
-        logger.info(
-            "Начинаем лексическую фильтрацию %s чанков",
-            len(chunks_for_filtering),
-        )
-        for chunk in tqdm(
-            chunks_for_filtering,
-            desc="Лексическая фильтрация чанков",
-            total=len(chunks_for_filtering),
-        ):
-            if self.config.remove_terminal_sections:
-                self.remove_terminal_sections(chunk)
-            if self.config.remove_junk_blocks:
-                self.filter_junk_lines_in_chunk(chunk)
-            if self.config.remove_navigation_lines:
-                self.filter_navigation_lines_in_chunk(chunk)
-            if self.config.normalize_empty_lines:
-                self.normalize_empty_lines(chunk)
+        logger.info("Начинаем лексическую фильтрацию чанка...")
+        if self.config.remove_terminal_sections:
+            self.remove_terminal_sections(chunk)
+        if self.config.remove_junk_blocks:
+            self.filter_junk_lines_in_chunk(chunk)
+        if self.config.remove_navigation_lines:
+            self.filter_navigation_lines_in_chunk(chunk)
+        if self.config.normalize_empty_lines:
+            self.normalize_empty_lines(chunk)
 
-            # удаляем точные дубликаты с помощью скользящего окна
-            self.deduplicate_text_per_lines_with_sliding_window(chunk)
-            logger.debug(
-                "После дедупликации методом скользящего окна текст чанка стал: %s",
-                chunk.text,
-            )
-            # удаляем строки-дубликаты
-            self.filter_duplicate_lines(chunk)
-            logger.debug(
-                "После удаления строк-дубликатов текст чанка стал: %s",
-                chunk.text,
-            )
-            if chunk.text.strip():
-                final_chunks.append(chunk)
+        # удаляем точные дубликаты с помощью скользящего окна
+        self.deduplicate_text_per_lines_with_sliding_window(chunk)
+        logger.debug(
+            "После дедупликации методом скользящего окна текст чанка стал: %s",
+            chunk.text,
+        )
+        # удаляем строки-дубликаты
+        self.filter_duplicate_lines(chunk)
+        logger.debug(
+            "После удаления строк-дубликатов текст чанка стал: %s",
+            chunk.text,
+        )
         logger.info("Лексическая фильтрация успешно завершена!")
-        return final_chunks
+        if chunk.text.strip():
+            return chunk
+        else:
+            return None

@@ -1,4 +1,5 @@
 import pytest
+from typing import List
 
 from src.agent_constructor.core import Chunk
 from filtering.lexical_filtration.simple_lexic_filtrator import (
@@ -203,13 +204,28 @@ Transformations Tutorial"""
 def test_lexical_filtrator(lexical_filtrator: SimpleLexicalFiltrator) -> None:
     chunk_1 = Chunk(text=text1, id="123", doc_id="456")
     chunk_2 = Chunk(text=text2, id="890", doc_id="43830")
+    chunks_for_filtering = [chunk_1, chunk_2]
     initial_len_chunk_1 = len(chunk_1.text)
     initial_len_chunk_2 = len(chunk_2.text)
-    final_lines = lexical_filtrator.main_lexical_chunks_filtering(
-        [chunk_1, chunk_2]
+    new_chunks: List[Chunk | None] = []
+    for chunk in chunks_for_filtering:
+        new_chunks.append(lexical_filtrator.apply(chunk))
+    print(
+        "Отфильтрованный текст чанка 1:\n",
+        (
+            new_chunks[0].text
+            if new_chunks[0] is not None
+            else "Весь чанк был мусорным"
+        ),
     )
-    print("Отфильтрованный текст чанка 1:\n", final_lines[0].text)
-    print("Отфильтрованный текст чанка 2:\n", final_lines[1].text)
+    print(
+        "Отфильтрованный текст чанка 2:\n",
+        (
+            new_chunks[1].text
+            if new_chunks[1] is not None
+            else "Весь чанк был мусорным"
+        ),
+    )
     assert initial_len_chunk_1 > len(chunk_1.text)
     assert initial_len_chunk_2 > len(chunk_2.text)
     assert "References#" not in chunk_1.text
