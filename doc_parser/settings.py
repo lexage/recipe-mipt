@@ -10,9 +10,6 @@ ROBOTSTXT_OBEY = True
 
 FEED_EXPORT_ENCODING = "utf-8"
 
-
-
-
 ITEM_PIPELINES = {
     'doc_parser.pipelines.DocsParsePipeline': 300,
 }

@@ -1,8 +1,8 @@
 import re
 import string
+from scrapy import Item, Spider
 
 from doc_parser.constants import (BASE_DIR, ENCODING, RESULTS_DIR)
-from doc_parser.typing import ItemType, SpiderType
 
 
 def normalize_text(text):
@@ -14,7 +14,6 @@ def normalize_text(text):
     return text
 
 def remove_duplicate_content(raw_text: str) -> str:
-    """Copy of the deduplication logic used in ``purify_documents.py``."""
     lines = raw_text.splitlines()
 
     if len(lines) < 10:
@@ -45,11 +44,11 @@ def remove_duplicate_content(raw_text: str) -> str:
 class DocsParsePipeline:
     res_dir = BASE_DIR / RESULTS_DIR
 
-    def open_spider(self, spider: SpiderType) -> None:
+    def open_spider(self, spider: Spider) -> None:
         self.res_dir = self.res_dir / spider.name
         self.res_dir.mkdir(parents=True, exist_ok=True)
 
-    def process_item(self, item: ItemType, spider: SpiderType) -> ItemType:
+    def process_item(self, item: Item, spider: Spider) -> Item:
         if not item['title']:
             return
         
