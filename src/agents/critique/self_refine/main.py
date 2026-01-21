@@ -17,7 +17,7 @@ class SelfRefine(Agent):
     """
     Agent that implements Self-Refine: Iterative Refinement with Self-Feedback.
 
-    Prompts in original paper are task-specific.
+    The agent uses several examples of Python solution critiques to generate criticism of the problem's implementation. 
     """
 
     def __init__(self, name: str = "Self-Refine",

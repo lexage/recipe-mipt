@@ -9,6 +9,9 @@ class Reflexion(Agent):
     """
     Agent that implements Reflexion: Language Agents
     with Verbal Reinforcement Learning.
+    Agent generate criticism of the implementation of the problem.
+    At the first stage agent generate an evaluation of the implementation. (Evaluation is an integer an integer between one and five)
+    Then the agent generates a criticism of the implementation using this evaluation.
     """
 
     # Prompts in original paper are task-specific.

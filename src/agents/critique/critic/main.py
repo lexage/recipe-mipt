@@ -135,9 +135,14 @@ def get_examples():
 class Critic(Agent):
     """
     Agent that implements CRITIC: Large Language Models Can Self-Correct with Tool-Interactive Critiquing.
-    Finds faults in model response via external tools or few-shot prompting.
+    Agent finds faults in model response(problem's implementation) using tools.
+    Agent has got the following tools:
+    1. python_repl_tool - tool for Python code compilation.
+    2. compare_tool - tool for comparing result of compilation of current problem's implementation and the expected results of solving the problem 
+    3. web_search_tool - tool for searching information using Internet
+    At the first stage agent uses python_repl_tool to get result of compilation of the current implementation. Then it uses compare_tool to compare the expected results of the solution with the actual compilation output. 
+    Then agent generates criticism of the implementation using these results.
 
-    Few-shot examples in original paper are task-specific.
     """
 
     def __init__(
@@ -186,6 +191,20 @@ class Critic(Agent):
 
         return python_repl_tool
 
+    def get_compare_tool(self) -> BaseTool:
+
+        @tool(description="Use it make compare between the expected result of problem and compilation's result")
+        def compare_tool(
+            problem: Annotated[str, "Problem."],
+            implementation: Annotated[str, "Implementation of problem."],
+            compilation_result: Annotated[str, "Results of compilation"],
+        ) -> str:
+
+            prompt = f"You will get a problem, implementation and compilation result of this implementation. You should compare the expected result of problem and compilation's result. Return only result of comparison. Problem: {problem} \n Implementation: {implementation} \n compilation_result: {compilation_result}  "
+            return self.llm(prompt)
+
+        return compare_tool
+
     def get_web_search_tool(self, max_results: int = 1) -> BaseTool:
         wrapper = DuckDuckGoSearchAPIWrapper(
             max_results=max_results,
@@ -206,23 +225,24 @@ class Critic(Agent):
         return [
              self.get_web_search_tool(),
              self.get_python_repl_tool(),
+             self.get_compare_tool()
         ]
 
     def call_tools(self, problem: str, implementation: str):
         tool_map = {tool.name: tool for tool in self.tools}
         tool_criticisms = []
-        compilation_result = tool_map["python_repl_tool"].invoke(implementation)
-        prompt = f"You will get a problem, implementation and compilation result of this implementation. You should compare the expected result of problem and compilation's result. Return only result of comparison. Problem: {problem} \n Implementation: {implementation} \n compilation_result: {"\n".join(compilation_result)}  "
-        critic = self.llm(prompt)
+        code = self.get_code(implementation)
+        compilation_result = tool_map["python_repl_tool"].invoke(code)
+        compare_result = tool_map["compare_tool"].invoke({"problem" : problem, "implementation" : code, "compilation_result" : compilation_result})
         tool_criticisms = [f"Result of the implementation: {compilation_result} "]
-        tool_criticisms += [f"Comparing the expected result of problem and the compilation result of implementation: {critic}"]
+        tool_criticisms += [f"Comparing the expected result of problem and the compilation result of implementation: {compare_result}"]
 
         return "\n".join(tool_criticisms)
 
 
-    def llm_critique(self, problem: str, code: str) -> str:
+    def llm_critique(self, problem: str, implementation: str) -> str:
         tools_list = self.get_tools()
-        tools_result = self.call_tools(problem, code)
+        tools_result = self.call_tools(problem, implementation)
         prompt = ChatPromptTemplate.from_messages([
             ("system", """
             You will be given a problem and Implementation in Python and information about Implementation. 
@@ -241,12 +261,11 @@ class Critic(Agent):
              ("placeholder", "{agent_scratchpad}"),
         ])
 
-        
         agent = create_openai_functions_agent(self.llm_model, tools_list, prompt=prompt)
         agent_executor = AgentExecutor(agent=agent, tools = tools_list,  verbose=True, 
         return_intermediate_steps=True)
 
-        response = agent_executor.invoke({"problem": problem, "tools_result": tools_result,  "implementation" : self.get_code(code) })
+        response = agent_executor.invoke({"problem": problem, "tools_result": tools_result,  "implementation" : implementation })
         return response["output"]
 
     def run(self, question: str, response: str) -> str:
