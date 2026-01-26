@@ -25,16 +25,14 @@ class SQLiteDocsDBAdapter:
             conn.row_factory = sqlite3.Row
             cursor = conn.cursor()
 
-            cursor.execute(
-                """
+            cursor.execute("""
                 SELECT d.id, d.filename, d.content, d.file_path, 
                     s.name as section, l.name as library
                 FROM documents d
                 JOIN sections s ON d.section_id = s.id
                 JOIN libraries l ON s.library_id = l.id
                 WHERE section == 'user_guide'
-            """
-            )
+            """)
 
             for row in cursor.fetchall():
                 documents.append(
@@ -53,34 +51,42 @@ def extract_removed_parts(original: str, filtered: str) -> List[str]:
     """Extract removed substrings using difflib."""
     matcher = SequenceMatcher(None, filtered, original)
     removed_parts = []
-    
+
     for tag, i1, i2, j1, j2 in matcher.get_opcodes():
-        if tag == 'insert':
+        if tag == "insert":
             # This part exists in original but not in filtered → was removed
             removed_parts.append(original[j1:j2])
-        elif tag == 'replace':
+        elif tag == "replace":
             # Part was replaced → treat as removal of original segment
             removed_parts.append(original[j1:j2])
-    
+
     return removed_parts
 
 
-def save_filtered_data(filtrate_documents: List[Chunk], original_docs_by_id: Dict[int, Chunk], output_path: str = "filtered_data.json"):
+def save_filtered_data(
+    filtrate_documents: List[Chunk],
+    original_docs_by_id: Dict[int, Chunk],
+    output_path: str = "filtered_data.json",
+):
     """Save filtered documents to a JSON file with original and processed content."""
     data_to_save = []
     for doc in filtrate_documents:
         original_doc = original_docs_by_id.get(doc.id)
         if original_doc:
-            data_to_save.append({
-                "id": doc.id,
-                "original_text": original_doc.text,
-                "filtered_text": doc.text,
-                "original_length": len(original_doc.text),
-                "filtered_length": len(doc.text),
-                "removed_substrings": extract_removed_parts(original_doc.text, doc.text),
-                "metadata": doc.metadata,
-            })
-    
+            data_to_save.append(
+                {
+                    "id": doc.id,
+                    "original_text": original_doc.text,
+                    "filtered_text": doc.text,
+                    "original_length": len(original_doc.text),
+                    "filtered_length": len(doc.text),
+                    "removed_substrings": extract_removed_parts(
+                        original_doc.text, doc.text
+                    ),
+                    "metadata": doc.metadata,
+                }
+            )
+
     with open(output_path, "w", encoding="utf-8") as f:
         json.dump(data_to_save, f, ensure_ascii=False, indent=2)
 
@@ -93,7 +99,7 @@ def save_stats(
     modified_count: int,  # <-- новая метрика
     stats_per_removed: List[Dict[str, Any]],
     stats_per_kept: List[Dict[str, Any]],
-    output_path: str = "filter_stats.json"
+    output_path: str = "filter_stats.json",
 ):
     """Save filtering statistics to a JSON file."""
     stats = {
@@ -105,14 +111,13 @@ def save_stats(
         "kept_documents_stats": stats_per_kept,
         "removed_documents_stats": stats_per_removed,
     }
-    
+
     with open(output_path, "w", encoding="utf-8") as f:
         json.dump(stats, f, ensure_ascii=False, indent=2)
 
 
 def collect_kept_documents_stats(
-    filtrate_documents: List[Chunk],
-    original_docs_by_id: Dict[int, Chunk]
+    filtrate_documents: List[Chunk], original_docs_by_id: Dict[int, Chunk]
 ) -> tuple[List[Dict[str, Any]], int]:
     """
     Collect statistics for documents that were kept after filtering.
@@ -128,14 +133,16 @@ def collect_kept_documents_stats(
         if original_doc:
             orig_len = len(original_doc.text)
             filt_len = len(doc.text)
-            is_modified = (orig_len != filt_len)
+            is_modified = orig_len != filt_len
 
-            stats.append({
-                "id": doc.id,
-                "original_length": orig_len,
-                "filtered_length": filt_len,
-                "was_modified": is_modified
-            })
+            stats.append(
+                {
+                    "id": doc.id,
+                    "original_length": orig_len,
+                    "filtered_length": filt_len,
+                    "was_modified": is_modified,
+                }
+            )
 
             if is_modified:
                 modified_count += 1
@@ -144,9 +151,7 @@ def collect_kept_documents_stats(
 
 
 def collect_removed_documents_stats(
-    removed_docs: List[Chunk],
-    filtrator: ExactSubstrFiltrator,
-    threshold: int
+    removed_docs: List[Chunk], filtrator: ExactSubstrFiltrator, threshold: int
 ) -> List[Dict[str, Any]]:
     """Collect statistics (including post-processed length) for removed documents."""
     stats = []
@@ -154,12 +159,14 @@ def collect_removed_documents_stats(
         processed_docs = filtrator.apply([doc])
         processed_length = len(processed_docs[0].text) if processed_docs else 0
 
-        stats.append({
-            "id": doc.id,
-            "original_length": len(doc.text),
-            "postprocessed_length": processed_length,
-            "reason": f"Post-processed length ({processed_length}) < threshold ({threshold})"
-        })
+        stats.append(
+            {
+                "id": doc.id,
+                "original_length": len(doc.text),
+                "postprocessed_length": processed_length,
+                "reason": f"Post-processed length ({processed_length}) < threshold ({threshold})",
+            }
+        )
     return stats
 
 
@@ -169,7 +176,7 @@ def print_summary_report(
     total_filtered: int,
     removed_count: int,
     modified_count: int,
-    stats_per_removed: List[Dict[str, Any]]
+    stats_per_removed: List[Dict[str, Any]],
 ):
     """Print a human-readable summary of the filtering results."""
     print("\n" + "=" * 50)
@@ -177,14 +184,18 @@ def print_summary_report(
     print(f"Total input documents: {total_initial}")
     print(f"Documents retained after filtering: {total_filtered}")
     print(f"Documents removed: {removed_count}")
-    print(f"Documents with modified content: {modified_count} (out of {total_filtered} kept)")
+    print(
+        f"Documents with modified content: {modified_count} (out of {total_filtered} kept)"
+    )
     print("=" * 50)
 
     if removed_count > 0:
         print("\nExamples of removed documents (first 3):")
         for i, stat in enumerate(stats_per_removed[:3]):
-            print(f"  {i+1}. ID={stat['id']}, original length={stat['original_length']}, "
-                  f"post-processed length={stat['postprocessed_length']}, reason: {stat['reason']}")
+            print(
+                f"  {i+1}. ID={stat['id']}, original length={stat['original_length']}, "
+                f"post-processed length={stat['postprocessed_length']}, reason: {stat['reason']}"
+            )
 
 
 def process_filtering_results(
@@ -194,7 +205,7 @@ def process_filtering_results(
     threshold: int,
     elapsed_time: float,
     output_filtered: str,
-    output_stats: str
+    output_stats: str,
 ):
     """
     Process filtering results: compute statistics, save outputs, and print summary.
@@ -203,12 +214,16 @@ def process_filtering_results(
     original_docs_by_id = {doc.id: doc for doc in documents}
 
     # Analyze kept documents
-    kept_stats, modified_count = collect_kept_documents_stats(filtrate_documents, original_docs_by_id)  # ✅
+    kept_stats, modified_count = collect_kept_documents_stats(
+        filtrate_documents, original_docs_by_id
+    )  # ✅
 
     # Identify and analyze removed documents
     kept_ids = {doc.id for doc in filtrate_documents}
     removed_docs = [doc for doc in documents if doc.id not in kept_ids]
-    removed_stats = collect_removed_documents_stats(removed_docs, filtrator, threshold)  # ✅
+    removed_stats = collect_removed_documents_stats(
+        removed_docs, filtrator, threshold
+    )  # ✅
 
     # Compute high-level metrics
     total_initial = len(documents)
@@ -228,7 +243,7 @@ def process_filtering_results(
         modified_count=modified_count,
         stats_per_removed=removed_stats,
         stats_per_kept=kept_stats,
-        output_path=output_stats
+        output_path=output_stats,
     )
     print(f"Filtering statistics saved to: {output_stats}")
 
@@ -239,7 +254,7 @@ def process_filtering_results(
         total_filtered=total_filtered,
         removed_count=removed_count,
         modified_count=modified_count,
-        stats_per_removed=removed_stats
+        stats_per_removed=removed_stats,
     )
 
 
@@ -255,7 +270,7 @@ def main():
         default="/workspace/proj/grant/data/docs_database_dedup.db",
         help="Path to the SQLite database file",
     )
-    
+
     parser.add_argument(
         "--threshold",
         "-t",
@@ -284,7 +299,7 @@ def main():
         default=20,
         help="Limit the number of documents processed (useful for testing)",
     )
-    
+
     args = parser.parse_args()
 
     data_path = args.data_path
@@ -297,24 +312,23 @@ def main():
     documents = sql_client.get_docs()
     if limit is not None:
         documents = documents[:limit]
-    
+
     print(f"Loaded {len(documents)} documents.")
-    
+
     filtrator = ExactSubstrFiltrator(
-        threshold=threshold,
-        enable_bytes=True,
-        enable_tokenizer=False,
-        tokenizer=None
+        threshold=threshold, enable_bytes=True, enable_tokenizer=False, tokenizer=None
     )
-    
+
     start_time = time.time()
     filtrate_documents = filtrator.apply(documents)
     end_time = time.time()
     elapsed_time = end_time - start_time
-    
+
     print(f"Filtering completed in {elapsed_time:.2f} seconds.")
-    print(f"Kept {len(filtrate_documents)} out of {len(documents)} documents after filtering.")
-    
+    print(
+        f"Kept {len(filtrate_documents)} out of {len(documents)} documents after filtering."
+    )
+
     process_filtering_results(
         documents=documents,
         filtrate_documents=filtrate_documents,
@@ -322,9 +336,9 @@ def main():
         threshold=args.threshold,
         elapsed_time=elapsed_time,
         output_filtered=args.output_filtered,
-        output_stats=args.output_stats
+        output_stats=args.output_stats,
     )
-    
+
 
 if __name__ == "__main__":
     main()
