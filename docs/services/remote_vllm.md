@@ -3,7 +3,7 @@
 
 ## 1. Добавить SSH конфиги
 
-### MacOS/Linux
+### Windows/MacOS/Linux
 
 #### 1.1. Добавить в свой ssh-config (~/.ssh/config) вот это
 
@@ -46,9 +46,6 @@ Host mipt_aigrant_recipe
 
 Ключ можно найти в общем тг канале исследования. 
 Либо попросить у tg: @german_deer
-
-### Windows
-...
 
 
 ## 2. Подключиться к контейнеру на кластере 
