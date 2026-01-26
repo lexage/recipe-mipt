@@ -12,12 +12,12 @@ from pydivsufsort import divsufsort, kasai
 project_root = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(project_root))
 
-from src.agent_constructor.core import Document, Chunk
+from src.agent_constructor.core import Chunk
 from src.agent_constructor.filters import Filter
 
 
 class ExactSubstrFiltrator(Filter):
-    """Filter for removing exact duplicate substrings from text documents.
+    """Filter for removing exact duplicate substrings from text chunks.
     
     Implements the ExactSubstr method described in the paper 
     'Deduplicating Training Data Makes Language Models Better'.
@@ -52,29 +52,29 @@ class ExactSubstrFiltrator(Filter):
         if self.enable_tokenizer and self.tokenizer is None:
             raise ValueError("Tokenizer must be provided when enable_tokenizer=True")
     
-    def _convert_documents_to_bytes(self, docs: List[str]) -> List[bytes]:
-        """Convert documents to byte representation.
+    def _convert_chunks_to_bytes(self, docs: List[str]) -> List[bytes]:
+        """Convert chunks to byte representation.
         
         Args:
-            docs: List of document texts
+            docs: List of chunk texts
             
         Returns:
-            List of byte sequences representing the documents
+            List of byte sequences representing the chunks
         """
         encode_func = tok_encode if self.enable_tokenizer else encode
         return [encode_func(doc, self.tokenizer) if self.enable_tokenizer else encode_func(doc) for doc in docs]
     
     def _build_concatenated_string(self, doc_bytes_list: List[bytes]) -> Tuple[bytes, List[int], List[int]]:
-        """Build concatenated byte string with document separators.
+        """Build concatenated byte string with chunk separators.
         
         Args:
-            doc_bytes_list: List of document byte sequences
+            doc_bytes_list: List of chunk byte sequences
             
         Returns:
             Tuple containing:
             - Concatenated byte string with separators
-            - List of starting offsets for each document
-            - List of document lengths
+            - List of starting offsets for each chunk
+            - List of chunk lengths
         """
         separator = b'\x00'
         total_bytes = bytearray()
@@ -89,16 +89,16 @@ class ExactSubstrFiltrator(Filter):
         
         return bytes(total_bytes), offsets, lengths
     
-    def _create_document_map(self, total_bytes: bytes, offsets: List[int], lengths: List[int]) -> np.ndarray:
-        """Create document ID map for each position in concatenated string.
+    def _create_chunk_map(self, total_bytes: bytes, offsets: List[int], lengths: List[int]) -> np.ndarray:
+        """Create chunk ID map for each position in concatenated string.
         
         Args:
             total_bytes: Concatenated byte string
-            offsets: Document starting positions
-            lengths: Document lengths
+            offsets: Chunk starting positions
+            lengths: Chunk lengths
             
         Returns:
-            Numpy array mapping each position to its document ID
+            Numpy array mapping each position to its chunk ID
             (-1 for invalid positions, -2 for separators)
         """
         n_total = len(total_bytes)
@@ -125,18 +125,18 @@ class ExactSubstrFiltrator(Filter):
         lengths: List[int],
         n_docs: int
     ) -> List[List[Tuple[int, int]]]:
-        """Find duplicate substring intervals to remove from documents.
+        """Find duplicate substring intervals to remove from chunks.
         
         Args:
             suffix_array: Suffix array of concatenated string
             lcp_array: LCP array of concatenated string
-            total_doc_ids: Document ID map
-            offsets: Document starting positions
-            lengths: Document lengths
-            n_docs: Number of documents
+            total_doc_ids: Chunk ID map
+            offsets: Chunk starting positions
+            lengths: Chunk lengths
+            n_docs: Number of chunks
             
         Returns:
-            List of intervals to remove for each document
+            List of intervals to remove for each chunk
         """
         intervals_per_doc = [[] for _ in range(n_docs)]
         
@@ -202,21 +202,21 @@ class ExactSubstrFiltrator(Filter):
         merged.append((cur_start, cur_end))
         return merged
     
-    def _process_document_with_intervals(
+    def _process_chunk_with_intervals(
         self,
         doc_bytes: bytes,
         intervals: List[Tuple[int, int]],
-        original_doc: Document
-    ) -> Document:
-        """Process a document by removing specified intervals.
+        original_doc: Chunk
+    ) -> Chunk:
+        """Process a chunk by removing specified intervals.
         
         Args:
-            doc_bytes: Original document bytes
+            doc_bytes: Original chunk bytes
             intervals: Intervals to remove
-            original_doc: Original Document object
+            original_doc: Original chunk object
             
         Returns:
-            New Document object with duplicates removed
+            New chunk object with duplicates removed
         """
         if not intervals:
             return original_doc
@@ -238,47 +238,45 @@ class ExactSubstrFiltrator(Filter):
         
         return replace(original_doc, text=new_text)
 
-    def apply(self, chunk: Chunk) -> Optional[Chunk]:
-        pass
-    
-    def apply_documents(self, documents: List[Document]) -> List[Document]:
-        """Apply exact substring deduplication to documents.
+
+    def apply(self, chunks: List[Chunk]) -> List[Chunk]:
+        """Apply exact substring deduplication to chunks.
         
         Args:
-            documents: List of Document objects to process
+            chunks: List of chunk objects to process
             
         Returns:
-            List of Document objects with duplicates removed
+            List of chunk objects with duplicates removed
         """
-        if not documents or len(documents) == 1:
-            return documents.copy()
+        if not chunks or len(chunks) == 1:
+            return chunks.copy()
         
-        doc_texts = [doc.text for doc in documents]
-        doc_bytes_list = self._convert_documents_to_bytes(doc_texts)
+        doc_texts = [doc.text for doc in chunks]
+        doc_bytes_list = self._convert_chunks_to_bytes(doc_texts)
         
         total_bytes, offsets, lengths = self._build_concatenated_string(doc_bytes_list)
-        total_doc_ids = self._create_document_map(total_bytes, offsets, lengths)
+        total_doc_ids = self._create_chunk_map(total_bytes, offsets, lengths)
         
         suffix_array = divsufsort(total_bytes)
         lcp_array = kasai(total_bytes, suffix_array)
         
-        n_docs = len(documents)
+        n_docs = len(chunks)
         intervals_per_doc = self._find_duplicate_intervals(
             suffix_array, lcp_array, total_doc_ids, offsets, lengths, n_docs
         )
         
-        result_documents = [documents[0]]
+        result_chunks = [chunks[0]]
         
         for j in range(1, n_docs):
-            result_documents.append(
-                self._process_document_with_intervals(
-                    doc_bytes_list[j],
-                    intervals_per_doc[j],
-                    documents[j]
-                )
+            processed_chunk = self._process_chunk_with_intervals(
+                doc_bytes_list[j],
+                intervals_per_doc[j],
+                chunks[j]
             )
+            if processed_chunk.text:
+                result_chunks.append(processed_chunk)
         
-        return result_documents
+        return result_chunks
 
 
 def tok_encode(seq, tokenizer):

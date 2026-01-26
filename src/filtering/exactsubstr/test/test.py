@@ -5,7 +5,7 @@ from transformers import GPT2Tokenizer
 project_root = Path(__file__).resolve().parents[4]
 sys.path.insert(0, str(project_root))
 
-from src.agent_constructor.core import Document
+from src.agent_constructor.core import Chunk
 from src.filtering.exactsubstr.main import ExactSubstrFiltrator
 
 
@@ -19,12 +19,12 @@ def test_1():
         'Настольные игры классные.'
     ]
 
-    documents = [
-        Document(id=f'doc_{i+1}', text=text, source='local')
+    chunks = [
+        Chunk(id=f'chunk_{i+1}', doc_id=f'doc_{i+1}', text=text)
         for i, text in enumerate(texts)
     ]
     
-    tokenizer = GPT2Tokenizer.from_pretrained('gpt2')
+    # tokenizer = GPT2Tokenizer.from_pretrained('gpt2')
         
     filtrator = ExactSubstrFiltrator(
                     threshold=20,
@@ -32,9 +32,9 @@ def test_1():
                     enable_tokenizer=False,
                     tokenizer=None)
     
-    filtrate_documents = filtrator.apply_documents(documents)
+    filtrate_chunks = filtrator.apply(chunks)
     
-    print(*filtrate_documents, sep='\n\n')
+    print(*filtrate_chunks, sep='\n\n')
     
 
 
@@ -185,8 +185,8 @@ def test_2():
     
     texts = [text_1, text_2]
 
-    documents = [
-        Document(id=f'doc_{i+1}', text=text, source='local')
+    chunks = [
+        Chunk(id=f'chunk_{i+1}', doc_id=f'doc_{i+1}', text=text)
         for i, text in enumerate(texts)
     ]
     
@@ -198,9 +198,9 @@ def test_2():
                     enable_tokenizer=False,
                     tokenizer=None)
     
-    filtrate_documents = filtrator.apply_documents(documents)
+    filtrate_chunks = filtrator.apply(chunks)
     
-    print(*filtrate_documents, sep='\n\n')
+    print(*filtrate_chunks, sep='\n\n')
 
 
 if __name__=="__main__":
