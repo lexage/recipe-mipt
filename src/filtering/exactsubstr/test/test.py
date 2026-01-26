@@ -10,36 +10,33 @@ from src.filtering.exactsubstr.main import ExactSubstrFiltrator
 
 
 def test_1():
-    
+
     texts = [
-        'Кошка сидит на коврике. Свежий воздух полезен для здоровья. Маша ушла гулять.',
-        'Маша ушла гулять.',
-        'Оля играет в настольную игру с друзьями. Настольная игра оказалась очень интересной, всем нравится. Кошка сидит на коврике.',
-        'Оля играет в настольную игру с друзьями.',
-        'Настольные игры классные.'
+        "Кошка сидит на коврике. Свежий воздух полезен для здоровья. Маша ушла гулять.",
+        "Маша ушла гулять.",
+        "Оля играет в настольную игру с друзьями. Настольная игра оказалась очень интересной, всем нравится. Кошка сидит на коврике.",
+        "Оля играет в настольную игру с друзьями.",
+        "Настольные игры классные.",
     ]
 
     chunks = [
-        Chunk(id=f'chunk_{i+1}', doc_id=f'doc_{i+1}', text=text)
+        Chunk(id=f"chunk_{i+1}", doc_id=f"doc_{i+1}", text=text)
         for i, text in enumerate(texts)
     ]
-    
+
     # tokenizer = GPT2Tokenizer.from_pretrained('gpt2')
-        
+
     filtrator = ExactSubstrFiltrator(
-                    threshold=20,
-                    enable_bytes=True,
-                    enable_tokenizer=False,
-                    tokenizer=None)
-    
+        threshold=20, enable_bytes=True, enable_tokenizer=False, tokenizer=None
+    )
+
     filtrate_chunks = filtrator.apply(chunks)
-    
-    print(*filtrate_chunks, sep='\n\n')
-    
+
+    print(*filtrate_chunks, sep="\n\n")
 
 
 def test_2():
-    
+
     text_1 = """Hermite interpolation based INVersion of CDF (HINV) #
 
     Required: CDF
@@ -153,7 +150,7 @@ def test_2():
     >>> plt.legend()
     >>> plt.show()
     """
-    
+
     text_2 = """Trapezoidal Distribution #
 
     Two shape parameters  \(c\in[0,1], d\in[0, 1]\)  giving the distances to the
@@ -182,28 +179,26 @@ def test_2():
     >>> plt.legend()
     >>> plt.show()
     """
-    
+
     texts = [text_1, text_2]
 
     chunks = [
-        Chunk(id=f'chunk_{i+1}', doc_id=f'doc_{i+1}', text=text)
+        Chunk(id=f"chunk_{i+1}", doc_id=f"doc_{i+1}", text=text)
         for i, text in enumerate(texts)
     ]
-    
+
     # tokenizer = GPT2Tokenizer.from_pretrained('gpt2')
-        
+
     filtrator = ExactSubstrFiltrator(
-                    threshold=50,
-                    enable_bytes=True,
-                    enable_tokenizer=False,
-                    tokenizer=None)
-    
+        threshold=50, enable_bytes=True, enable_tokenizer=False, tokenizer=None
+    )
+
     filtrate_chunks = filtrator.apply(chunks)
-    
-    print(*filtrate_chunks, sep='\n\n')
+
+    print(*filtrate_chunks, sep="\n\n")
 
 
-if __name__=="__main__":
-    
+if __name__ == "__main__":
+
     test_1()
     test_2()
