@@ -10,6 +10,7 @@
 │   ├── random_forest_cls.py # Класс для работы с RandomForestClassifier
 │   └── utils.py             # Вспомогательные функции
 ├── experiments_ds1000       # Папка со скриптами запуска экспериментов на наборе данных DS-1000
+├── requirements.txt         # Файл для установки необходимых зависимостей
 └── main.py                  # Основной скрипт запуска
 ```
 
@@ -46,4 +47,4 @@ python run.py --data_path /workspace/data/docs_database.db
 
 ## Вспомогательные ссылки
 
-- [Статья на arXiv](https://arxiv.org/pdf/2306.11644)
+- [Статья на arXiv: Textbooks Are All You Need](https://arxiv.org/pdf/2306.11644)
