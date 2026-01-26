@@ -49,8 +49,8 @@ class SQLiteDocsDBAdapter:
                 )
 
         return documents
-
-
+        
+        
 def main():
     parser = argparse.ArgumentParser(
         description="Filtering DS1000 using the filtering method from the paper.",
@@ -60,7 +60,7 @@ def main():
         "--data_path",
         "-c",
         type=str,
-        default="/data/docs_database.db",
+        default="/workspace/proj/grant/data/docs_database_dedup.db",
         help="Путь к файлу с конфигурациями",
     )
 
@@ -69,7 +69,7 @@ def main():
     data_path = args.data_path
 
     sql_client = SQLiteDocsDBAdapter(data_path)
-    documents = sql_client.get_docs()[:10]
+    documents = sql_client.get_docs()[:20]
 
     high_quality_documents = education_value_classifier_pipeline(
         documents, subsample_size=int(len(documents) * 0.3)

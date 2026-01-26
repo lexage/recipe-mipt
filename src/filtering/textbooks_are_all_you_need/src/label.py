@@ -1,7 +1,9 @@
 import sys
 import openai
-from typing import List
+import json
+from typing import List, Optional
 from pathlib import Path
+from pydantic import BaseModel, Field, ValidationError
 
 project_root = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(project_root))
@@ -11,6 +13,11 @@ from src.filtering.textbooks_are_all_you_need.src.prompts import (
     system_prompt,
     label_prompt,
 )
+
+
+class EvaluationResult(BaseModel):
+    reasoning: str = Field(description="Justification of the assessment")
+    score: int = Field(ge=0, le=1, description="Score (0 or 1)")
 
 
 class EducationalEvaluator:
@@ -40,9 +47,9 @@ class EducationalEvaluator:
         Returns:
             Formatted prompt with the text inserted
         """
-        return self.label_template.replace("<example>", text)
+        return self.label_template.replace("{text}", text)
 
-    def evaluate_content(self, text: str) -> str:
+    def evaluate_content(self, text: str, max_retries: int = 3) -> Optional[EvaluationResult]:
         """
         Evaluate educational value of the provided text content.
 
@@ -52,20 +59,31 @@ class EducationalEvaluator:
         Returns:
             LLM response containing the evaluation result (0 or 1)
         """
-        formatted_prompt = self._format_label_prompt(text)
+        
+        for attempt in range(max_retries):
+            try:
+                prompt = self._format_label_prompt(text)
+                print('prompt ', prompt)
+                response = self.client.chat.completions.create(
+                    model=self.model_name,
+                    messages=[
+                        {"role": "system", "content": self.system_prompt},
+                        {"role": "user", "content": self._format_label_prompt(text)},
+                    ],
+                    temperature=0,
+                    response_format={"type": "json_object"}
+                )
+                content = response.choices[0].message.content
+                
+                
+                result = json.loads(content)
+                return EvaluationResult(**result)
+            except (json.JSONDecodeError, ValidationError) as e:
+                if attempt == max_retries - 1:
+                    raise
+                continue
+        return None
 
-        print("formatted_prompt", formatted_prompt)
-
-        response = self.client.chat.completions.create(
-            model=self.model_name,
-            messages=[
-                {"role": "system", "content": self.system_prompt},
-                {"role": "user", "content": formatted_prompt},
-            ],
-            temperature=0,
-        )
-
-        return response.choices[0].message.content
 
     def get_annotations(self, subsample_documents: List[Document]) -> List[int]:
         """Generate educational-value annotations for a list of documents.
@@ -87,9 +105,7 @@ class EducationalEvaluator:
         """
         annotations = []
         for doc in subsample_documents:
-            label = self.evaluate_content(doc.text)
-            annotations.append(label)
-
-        print("annotations ", annotations)
+            result = self.evaluate_content(doc.text)
+            annotations.append(result.score if result else None)
 
         return annotations
