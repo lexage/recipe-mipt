@@ -44,8 +44,8 @@ class SQLiteDocsDBAdapter:
                 )
 
         return documents
-        
-        
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="Filtering DS1000 using the filtering method from the paper.",
@@ -67,7 +67,7 @@ def main():
     documents = sql_client.get_docs()[:50]
 
     classifier = EducationValueClassifierFilter()
-    
+
     high_quality_documents = classifier.apply(documents)
 
     output_path = Path("high_quality_documents.json")
