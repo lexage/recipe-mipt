@@ -1,7 +1,7 @@
 import sys
 import openai
 import json
-from typing import List, Optional
+from typing import List, Optional, Tuple
 from pathlib import Path
 from pydantic import BaseModel, Field, ValidationError
 
@@ -23,7 +23,7 @@ class EvaluationResult(BaseModel):
 class EducationalEvaluator:
     """Evaluator for assessing educational content value using LLM."""
 
-    def __init__(self, api_url: str, model_name: str, api_key: str = "vllm"):
+    def __init__(self, api_url: str, model_name: str, limit: int = 20, api_key: str = "vllm"):
         """
         Initialize the educational content evaluator.
 
@@ -36,6 +36,7 @@ class EducationalEvaluator:
         self.model_name = model_name
         self.system_prompt = system_prompt
         self.label_template = label_prompt
+        self.limit = limit
 
     def _format_label_prompt(self, text: str) -> str:
         """
@@ -63,7 +64,6 @@ class EducationalEvaluator:
         for attempt in range(max_retries):
             try:
                 prompt = self._format_label_prompt(text)
-                print('prompt ', prompt)
                 response = self.client.chat.completions.create(
                     model=self.model_name,
                     messages=[
@@ -84,28 +84,38 @@ class EducationalEvaluator:
                 continue
         return None
 
-
     def get_annotations(self, subsample_documents: List[Document]) -> List[int]:
         """Generate educational-value annotations for a list of documents.
 
         This method iterates over a list of documents, evaluates each one using
         `evaluate_content`, and collects the resulting binary labels as integers.
+        Stops when minimum threshold of 10 examples for each class (0 and 1) is reached.
 
         Args:
             subsample_documents: A list of Document objects whose texts will be evaluated
                                 for educational value.
 
         Returns:
-            A list of integers (0 or 1), where each integer represents the educational
-            annotation for the corresponding document in the input list.
-
-        Note:
-            The method assumes that the output of `evaluate_content` is a string
-            containing either "0" or "1", which it converts to int.
+            A list of integers (0 or 1) with length equal to the original documents list.
+            Documents after reaching the threshold will have None values.
         """
-        annotations = []
-        for doc in subsample_documents:
+        annotations = [None] * len(subsample_documents)
+        count_0 = 0
+        count_1 = 0
+        limit_per_class  = self.limit // 2
+        
+        for i, doc in enumerate(subsample_documents):
             result = self.evaluate_content(doc.text)
-            annotations.append(result.score if result else None)
-
+            if result is not None:
+                score = result.score
+                annotations[i] = score
+                
+                if score == 0:
+                    count_0 += 1
+                else:
+                    count_1 += 1
+                    
+                if count_0 >= limit_per_class  and count_1 >= limit_per_class:
+                    break
+        
         return annotations

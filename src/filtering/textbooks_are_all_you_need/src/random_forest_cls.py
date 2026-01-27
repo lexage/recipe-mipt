@@ -4,15 +4,15 @@ import joblib
 import pandas as pd
 from typing import Tuple, Dict, Any, Union, Optional
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.model_selection import train_test_split, RandomizedSearchCV
+from sklearn.model_selection import train_test_split
 from sklearn.metrics import classification_report, accuracy_score
-from scipy.stats import randint
 
 
 class RandomForestTrainer:
     """
-    A class for training, tuning, evaluating, and saving the best Random Forest model.
-    Follows Kaggle best practices: hyperparameter tuning, test evaluation, and model persistence.
+    Simple trainer for Random Forest classifier.
+    Handles data splitting, training, evaluation, and model persistence.
+    No hyperparameter tuning – uses provided or default model parameters.
     """
 
     def __init__(
@@ -21,42 +21,31 @@ class RandomForestTrainer:
         random_state: int = 42,
         model_path: str = "best_random_forest_model.joblib",
         datasets_path: str = "datasets.npz",
-        cv_folds: int = 2,
-        n_iter_search: int = 20,
-        scoring: str = "f1_macro",  # or 'accuracy', 'roc_auc', etc.
-        use_random_search: bool = True,
+        model_params: Optional[Dict[str, Any]] = None,
     ):
         """
-        Initialize the trainer with configuration.
+        Initialize trainer.
 
         Parameters
         ----------
         test_size : float
-            Proportion of test split.
+            Proportion of test split (default: 0.2).
         random_state : int
-            For reproducibility.
+            Seed for reproducibility (default: 42).
         model_path : str
-            Path to save the best model.
+            Path to save the trained model (default: "best_random_forest_model.joblib").
         datasets_path : str
-            Path to save train/test splits.
-        cv_folds : int
-            Number of cross-validation folds.
-        n_iter_search : int
-            Number of parameter settings sampled (for RandomizedSearchCV).
-        scoring : str
-            Scoring metric for model selection.
-        use_random_search : bool
-            If True, uses RandomizedSearchCV; otherwise, you can plug in GridSearchCV manually.
+            Path to save train/test splits (default: "datasets.npz").
+        model_params : dict or None
+            Parameters passed to RandomForestClassifier (e.g., n_estimators, max_depth).
+            If None, uses scikit-learn defaults except for random_state and n_jobs.
         """
         self.test_size = test_size
         self.random_state = random_state
         self.model_path = model_path
         self.datasets_path = datasets_path
-        self.cv_folds = cv_folds
-        self.n_iter_search = n_iter_search
-        self.scoring = scoring
-        self.use_random_search = use_random_search
-        self.best_model: Optional[RandomForestClassifier] = None
+        self.model_params = model_params or {}
+        self.model: Optional[RandomForestClassifier] = None
         self.X_test = None
         self.y_test = None
 
@@ -68,13 +57,29 @@ class RandomForestTrainer:
         Dict[str, Any],
     ]:
         """
-        Train and tune a Random Forest model, evaluate on test set, and save the best model.
-        """
-        # Convert to numpy if needed
-        X_array = X.values if isinstance(X, pd.DataFrame) else X
-        y_array = y.values if isinstance(y, pd.Series) else y
+        Train a Random Forest model and evaluate on test set.
 
-        # Split data (stratified)
+        Parameters
+        ----------
+        X : array-like or pandas DataFrame
+            Feature matrix.
+        y : array-like or pandas Series
+            Target vector.
+
+        Returns
+        -------
+        model : RandomForestClassifier
+            Trained model.
+        datasets : tuple
+            (X_train, X_test, y_train, y_test) as numpy arrays.
+        metadata : dict
+            Training metadata including test metrics and model parameters.
+        """
+        # Convert to numpy arrays if needed
+        X_array = X.values if isinstance(X, pd.DataFrame) else np.asarray(X)
+        y_array = y.values if isinstance(y, pd.Series) else np.asarray(y)
+
+        # Stratified train-test split
         X_train, self.X_test, y_train, self.y_test = train_test_split(
             X_array,
             y_array,
@@ -83,37 +88,17 @@ class RandomForestTrainer:
             stratify=y_array,
         )
 
-        # Define base model
-        rf = RandomForestClassifier(random_state=self.random_state, n_jobs=-1)
-
-        # Define hyperparameter space
-        param_dist = {
-            "n_estimators": randint(100, 500),
-            "max_depth": [None] + list(range(5, 31, 5)),
-            "min_samples_split": randint(2, 21),
-            "min_samples_leaf": randint(1, 11),
-            "max_features": ["sqrt", "log2", None],
+        # Initialize and train model
+        rf_params = {
+            "random_state": self.random_state,
+            "n_jobs": -1,
+            **self.model_params,
         }
-
-        # Perform hyperparameter search
-        search = RandomizedSearchCV(
-            estimator=rf,
-            param_distributions=param_dist,
-            n_iter=self.n_iter_search,
-            cv=self.cv_folds,
-            scoring=self.scoring,
-            n_jobs=-1,
-            verbose=1,
-            random_state=self.random_state,
-        )
-
-        search.fit(X_train, y_train)
-
-        # Save best model
-        self.best_model = search.best_estimator_
+        self.model = RandomForestClassifier(**rf_params)
+        self.model.fit(X_train, y_train)
 
         # Evaluate on test set
-        y_pred = self.best_model.predict(self.X_test)
+        y_pred = self.model.predict(self.X_test)
         test_accuracy = accuracy_score(self.y_test, y_pred)
         test_report = classification_report(self.y_test, y_pred, output_dict=True)
 
@@ -121,29 +106,30 @@ class RandomForestTrainer:
         self._save_model()
         self._save_datasets(X_train, self.X_test, y_train, self.y_test)
 
-        # Metadata
+        # Prepare metadata
         metadata = {
             "test_size": self.test_size,
             "random_state": self.random_state,
             "model_path": self.model_path,
             "datasets_path": self.datasets_path,
-            "best_params": search.best_params_,
-            "best_cv_score": search.best_score_,
             "test_accuracy": test_accuracy,
             "test_classification_report": test_report,
-            "feature_importances": self.best_model.feature_importances_,
+            "feature_importances": self.model.feature_importances_,
             "n_features": X_array.shape[1],
             "n_classes": len(np.unique(y_array)),
+            "model_params_used": self.model.get_params(),
         }
 
         datasets = (X_train, self.X_test, y_train, self.y_test)
-        return self.best_model, datasets, metadata
+        return self.model, datasets, metadata
 
     def _save_model(self):
+        """Save the trained model to disk."""
         os.makedirs(os.path.dirname(self.model_path), exist_ok=True)
-        joblib.dump(self.best_model, self.model_path)
+        joblib.dump(self.model, self.model_path)
 
     def _save_datasets(self, X_train, X_test, y_train, y_test):
+        """Save train/test splits to a compressed numpy file."""
         np.savez(
             self.datasets_path,
             X_train=X_train,
@@ -154,32 +140,30 @@ class RandomForestTrainer:
 
     def load_model(self, model_path: Optional[str] = None) -> RandomForestClassifier:
         """
-        Load a pre-trained Random Forest model from a file.
+        Load a pre-trained Random Forest model.
 
         Parameters
         ----------
-        model_path : Optional[str], default=None
-            Path to the saved model file. If None, uses the model_path from initialization.
+        model_path : str or None
+            Path to the model file. If None, uses the path from initialization.
 
         Returns
         -------
         RandomForestClassifier
-            The loaded Random Forest model.
+            Loaded model.
 
         Raises
         ------
         FileNotFoundError
-            If the model file does not exist at the specified path.
+            If the model file does not exist.
         ValueError
             If the loaded object is not a RandomForestClassifier.
         """
         path = model_path or self.model_path
-
         if not os.path.exists(path):
             raise FileNotFoundError(f"Model file not found at path: {path}")
 
         loaded_model = joblib.load(path)
-
         if not isinstance(loaded_model, RandomForestClassifier):
             raise ValueError("Loaded object is not a RandomForestClassifier")
 
