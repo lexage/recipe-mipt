@@ -1,4 +1,3 @@
-import os
 import sys
 import argparse
 import json
@@ -7,42 +6,38 @@ from typing import List
 from pathlib import Path
 from dataclasses import asdict
 
-project_root = Path(__file__).resolve().parents[4]  # 4 уровня вверх
+project_root = Path(__file__).resolve().parents[4]
 sys.path.insert(0, str(project_root))
 
-from src.filtering.textbooks_are_all_you_need.main import (
-    education_value_classifier_pipeline,
-)
-from src.agent_constructor.core import Document
+from src.filtering.textbooks_are_all_you_need.main import EducationValueClassifierFilter
+from src.agent_constructor.core import Chunk
 
 
 class SQLiteDocsDBAdapter:
     def __init__(self, path_to_db: str):
         self.path_to_db = path_to_db
 
-    def get_docs(self) -> List[Document]:
+    def get_docs(self) -> List[Chunk]:
 
         documents = []
         with sqlite3.connect(self.path_to_db) as conn:
             conn.row_factory = sqlite3.Row
             cursor = conn.cursor()
 
-            cursor.execute(
-                """
+            cursor.execute("""
                 SELECT d.id, d.filename, d.content, d.file_path, 
                     s.name as section, l.name as library
                 FROM documents d
                 JOIN sections s ON d.section_id = s.id
                 JOIN libraries l ON s.library_id = l.id
                 WHERE section == 'user_guide'
-            """
-            )
+            """)
 
             for row in cursor.fetchall():
                 documents.append(
-                    Document(
+                    Chunk(
                         id=row["id"],
-                        source=row["library"],
+                        doc_id=row["id"],
                         text=row["content"],
                         metadata={},
                     )
@@ -69,11 +64,11 @@ def main():
     data_path = args.data_path
 
     sql_client = SQLiteDocsDBAdapter(data_path)
-    documents = sql_client.get_docs()[:20]
+    documents = sql_client.get_docs()[:50]
 
-    high_quality_documents = education_value_classifier_pipeline(
-        documents, subsample_size=int(len(documents) * 0.3)
-    )
+    classifier = EducationValueClassifierFilter()
+    
+    high_quality_documents = classifier.apply(documents)
 
     output_path = Path("high_quality_documents.json")
     with open(output_path, "w", encoding="utf-8") as f:
