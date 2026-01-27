@@ -16,6 +16,7 @@ class ComponentNames(Enum):
     TFIDF_EMBEDDING = "src.agents.general.TFIDFEmbedding"
     EMBEDDING_AGENT = "src.agents.general.EmbeddingAgent"
     SIMPLE_AGENT = "src.agents.general.SimpleAgent"
+    ICV_AGENT = "src.agents.general.ICVAgent"
 
     # ===== Agents: Generation =====
     EVAL_GENERATOR = "src.agents.generation.CodeEvalGenerator"

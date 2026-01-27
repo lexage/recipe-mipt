@@ -6,6 +6,7 @@ from .embedding_agents import (
 from .simple_agents import (
     SimpleAgent,
     DummyAgent,
+    ICVAgent,
 )
 
 __all__ = [
@@ -13,4 +14,5 @@ __all__ = [
     "EmbeddingAgent",
     "SimpleAgent",
     "DummyAgent",
+    "ICVAgent",
 ]
