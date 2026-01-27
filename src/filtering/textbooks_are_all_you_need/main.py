@@ -1,4 +1,5 @@
 import sys
+import joblib
 from pathlib import Path
 from typing import List, Tuple, Optional
 import os
@@ -11,7 +12,6 @@ from src.agent_constructor.core import Chunk
 from src.agent_constructor.filters import Filter
 from src.filtering.textbooks_are_all_you_need.src.utils import (
     load_or_create_embeddings,
-    load_or_create_annotations,
     filter_high_quality_documents,
 )
 from src.filtering.textbooks_are_all_you_need.src.random_forest_cls import (
@@ -94,20 +94,22 @@ class EducationValueClassifierFilter(Filter):
         else:
             print("Using all chunks for training (chunk count <= subsample size)")
             return chunks, all_embeddings
-    
-    def _get_annotations(self, chunks: List[Chunk]) -> np.ndarray:
-        """Get or create annotations for the subsample chunks."""
-        print("Getting annotations for subsample chunks...")
-        annotator = EducationalEvaluator(
-            api_url=self.api_url, 
-            model_name=self.model_name,
-            limit = self.limit_labels
-        )
-        return load_or_create_annotations(
-            chunks, 
-            self.annotations_path, 
-            annotator
-        )
+        
+    def save_annotations(self, annotations: List[Optional[int]], path: Optional[str] = None) -> None:
+        """
+        Save annotations to disk in joblib format.
+        
+        Args:
+            annotations: List of annotations (0/1 or None) for chunks
+            path: Custom path to save annotations (defaults to self.annotations_path)
+        """
+        if path is None:
+            path = self.annotations_path
+        
+        os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
+        
+        joblib.dump(annotations, path)
+        print(f"Annotations saved to {path}")
     
     def _get_balanced_annotations(
         self, 
@@ -123,6 +125,8 @@ class EducationValueClassifierFilter(Filter):
         )
         
         all_labels = annotator.get_annotations(subsample_chunks)
+        
+        self.save_annotations(all_labels)
         
         labeled_indices = []
         class_counts = {0: 0, 1: 0}
