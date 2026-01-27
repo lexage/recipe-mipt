@@ -39,4 +39,28 @@ class SimpleAgent(Agent):
         )
 
         return response.choices[0].message.content
-    
+
+class ICVAgent(Agent):
+    def __init__(self, url: str = None, model_name: str = None):
+        super().__init__("icv_agent")
+        
+        self.client = OpenAI(
+            base_url=url,
+            api_key="vllm"
+        )
+
+        self.model_name = model_name
+
+    def run(self, icv_xargs: dict, task: Text) -> Text:
+
+        response = self.client.chat.completions.create(
+            model=self.model_name,
+            messages=[
+                {"role": "user", "content": task}],
+            temperature=0,
+            extra_body={
+                "vllm_xargs" : icv_xargs
+            }
+        )
+
+        return response.choices[0].message.content

@@ -8,10 +8,11 @@ from src.agent_constructor.core import Text
 
 
 class ICV:
-    def __init__(self, url: str, model_name: str) -> None:
+    def __init__(self, url: str, model_name: str, weight : float = 1.0) -> None:
         self.model_name = model_name
         self.base_url = url.rstrip('/')
         self.client = OpenAI(base_url=url, api_key='vllm')
+        self.weight = weight
 
     def run(self, examples: List[Text]):
         
@@ -28,7 +29,9 @@ class ICV:
         for token_id, logprob in tokens_probs.items():
             result_icv_load = result_icv_load + str(token_id) + ':' + str(round(logprob, 3))+';'
 
-        return result_icv_load
+
+
+        return {"target_tokens" : result_icv_load, "weight" : self.weight}
 
     def _eval_example(self, example: Text):
         response = self.client.completions.create(
