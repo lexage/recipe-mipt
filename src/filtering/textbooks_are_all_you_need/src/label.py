@@ -23,7 +23,9 @@ class EvaluationResult(BaseModel):
 class EducationalEvaluator:
     """Evaluator for assessing educational content value using LLM."""
 
-    def __init__(self, api_url: str, model_name: str, limit: int = 20, api_key: str = "vllm"):
+    def __init__(
+        self, api_url: str, model_name: str, limit: int = 20, api_key: str = "vllm"
+    ):
         """
         Initialize the educational content evaluator.
 
@@ -50,7 +52,9 @@ class EducationalEvaluator:
         """
         return self.label_template.replace("{text}", text)
 
-    def evaluate_content(self, text: str, max_retries: int = 3) -> Optional[EvaluationResult]:
+    def evaluate_content(
+        self, text: str, max_retries: int = 3
+    ) -> Optional[EvaluationResult]:
         """
         Evaluate educational value of the provided text content.
 
@@ -60,7 +64,7 @@ class EducationalEvaluator:
         Returns:
             LLM response containing the evaluation result (0 or 1)
         """
-        
+
         for attempt in range(max_retries):
             try:
                 prompt = self._format_label_prompt(text)
@@ -71,11 +75,10 @@ class EducationalEvaluator:
                         {"role": "user", "content": self._format_label_prompt(text)},
                     ],
                     temperature=0,
-                    response_format={"type": "json_object"}
+                    response_format={"type": "json_object"},
                 )
                 content = response.choices[0].message.content
-                
-                
+
                 result = json.loads(content)
                 return EvaluationResult(**result)
             except (json.JSONDecodeError, ValidationError) as e:
@@ -102,20 +105,20 @@ class EducationalEvaluator:
         annotations = [None] * len(subsample_documents)
         count_0 = 0
         count_1 = 0
-        limit_per_class  = self.limit // 2
-        
+        limit_per_class = self.limit // 2
+
         for i, doc in enumerate(subsample_documents):
             result = self.evaluate_content(doc.text)
             if result is not None:
                 score = result.score
                 annotations[i] = score
-                
+
                 if score == 0:
                     count_0 += 1
                 else:
                     count_1 += 1
-                    
-                if count_0 >= limit_per_class  and count_1 >= limit_per_class:
+
+                if count_0 >= limit_per_class and count_1 >= limit_per_class:
                     break
-        
+
         return annotations
