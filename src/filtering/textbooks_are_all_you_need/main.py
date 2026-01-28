@@ -112,11 +112,11 @@ class EducationValueClassifierFilter(Filter):
     ) -> Tuple[np.ndarray, np.ndarray]:
         print("Getting balanced annotations (10 per class)...")
 
-        annotator = EducationalEvaluator(
+        agent_evaluator = EducationalEvaluator(
             api_url=self.api_url, model_name=self.model_name, limit=self.limit_labels
         )
 
-        all_labels = annotator.get_annotations(subsample_chunks)
+        all_labels = agent_evaluator.run(subsample_chunks)
 
         self.save_annotations(all_labels)
 
