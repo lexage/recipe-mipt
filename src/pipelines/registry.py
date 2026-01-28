@@ -27,6 +27,9 @@ class ComponentRegistry:
 
     def load_modules(self, components_names: List[ComponentNames|PipelinesNames]) -> None:
         for component_name in components_names:
+            
+            if component_name in self._registry:
+                continue
 
             if isinstance(component_name, PipelinesNames):
                 module_path = PIPELINES_IMPORT_PATH
@@ -73,7 +76,7 @@ class ComponentRegistry:
     def get_component_info(self, component_type: ComponentNames|PipelinesNames) -> ComponentInfo:
         return self._registry.get(component_type, None)
 
-    def get_component_deps(self, component_type: ComponentNames) -> Dict:
+    def get_component_deps(self, component_type: ComponentNames|PipelinesNames) -> Dict[str, ParamInfo]:
         component_info = self._registry.get(component_type, None)
         if component_info is None or not hasattr(component_info, "params"):
             return []
