@@ -1,7 +1,7 @@
 import sys
 import openai
 import json
-from typing import List, Optional, Tuple
+from typing import List, Optional
 from pathlib import Path
 from pydantic import BaseModel, Field, ValidationError
 
@@ -9,6 +9,7 @@ project_root = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(project_root))
 
 from src.agent_constructor.core import Document
+from src.agent_constructor.agent import Agent
 from src.filtering.textbooks_are_all_you_need.src.prompts import (
     system_prompt,
     label_prompt,
@@ -20,7 +21,7 @@ class EvaluationResult(BaseModel):
     score: int = Field(ge=0, le=1, description="Score (0 or 1)")
 
 
-class EducationalEvaluator:
+class EducationalEvaluator(Agent):
     """Evaluator for assessing educational content value using LLM."""
 
     def __init__(
@@ -34,6 +35,7 @@ class EducationalEvaluator:
             model_name: Name of the model to use for evaluation
             api_key: API key for authentication (default: "vllm")
         """
+        super().__init__("educational_evaluate_agent")
         self.client = openai.OpenAI(base_url=api_url, api_key=api_key)
         self.model_name = model_name
         self.system_prompt = system_prompt
@@ -87,7 +89,7 @@ class EducationalEvaluator:
                 continue
         return None
 
-    def get_annotations(self, subsample_documents: List[Document]) -> List[int]:
+    def run(self, subsample_documents: List[Document]) -> List[int]:
         """Generate educational-value annotations for a list of documents.
 
         This method iterates over a list of documents, evaluates each one using
