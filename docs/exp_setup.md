@@ -30,26 +30,27 @@ if __name__ == "__main__":
 
 ```python
 from src.pipelines.configs import PipelineConfig, ComponentConfig
+from src.pipelines.constants import ComponentNames, PipelinesNames
 from src.pipelines.pipeline_builder import PipelineBuilder
 
 def main():
     cfg = PipelineConfig(
-        pipeline_type="simple",
+        pipeline_type=PipelinesNames.<YOUR_PIPLINE_ENUM>,
         params={"max_context_tokens": 8_000},
         components={
             "retriever": ComponentConfig(
-                type="corag_retriever",
+                type=ComponentNames.<YOUR_RETRIEVER_ENUM>,
                 params={"max_sub_queries": 3}
             ),
             "agent": ComponentConfig(
-                type="corag_final_solver",
+                type=ComponentNames.<YOUR_AGENT_ENUM>,
                 params={"url": "http://localhost:7215/v1"}
             ),
         }
     )
 
-    builder = PipelineBuilder(cfg)
-    pipeline = builder.build()
+    builder = PipelineBuilder()
+    pipeline = builder.build(cfg)
     result = pipeline.run("What is numpy?")
     print(result)
 
@@ -59,12 +60,11 @@ if __name__ == "__main__":
 
 ### Регистрация компонент
 
-Компоненты регистрируются через ленивую загрузку:
+Компоненты и папйплайны регистрируются через ленивую загрузку:
 
-- В `src/pipelines/constants.py` добавляется значение енума `ComponentNames`, где в качестве значения указан полный путь до класса (модуль + имя класса).
+- Для компоненты в `src/pipelines/constants.py` добавляется значение енума `ComponentNames`, где в качестве значения указан полный путь до класса (модуль + имя класса).
+- Для пайплайна в `src/pipelines/constants.py` добавляется значение енума `PipelinesNames`, где в качестве значения указано имя класса пайплайна. Все пайплайны должны наслдеоваться от `Pipline` и лежать в `src/pipelines/templates`.
 - При сборке по конфигу `PipelineBuilder` берет только нужные компоненты, импортирует их по указанному пути и проверяет зависимости/параметры (логика валидации не менялась).
-
-> **_NOTE:_**  Декоратор `ComponentRegistry.register_component` больше не используется: чтобы компонент собирался из конфига, достаточно добавить элемент в `ComponentNames`.
 
 Пример добавления новой компоненты:
 
@@ -124,12 +124,12 @@ ComponentConfig(
 
 ```python
 from src.pipelines.configs import PipelineConfig, ComponentConfig
-from src.pipelines.constants import ComponentNames
+from src.pipelines.constants import ComponentNames, PipelinesNames
 from src.pipelines.pipeline_builder import PipelineBuilder
 from src.benchmarks import DataItemDS1000, DS1000
 
 corag_config = PipelineConfig(
-    pipeline_type="simple",
+    pipeline_type=PipelinesNames.SIMPLE,
     components={
         "embedding_agent": ComponentConfig(
             type=ComponentNames.EMBEDDING_AGENT,
@@ -188,8 +188,8 @@ corag_config = PipelineConfig(
 )
 
 def bench():
-    builder = PipelineBuilder(corag_config)
-    pipeline = builder.build()
+    builder = PipelineBuilder()
+    pipeline = builder.build(corag_config)
 
     def run_pipeline(task: DataItemDS1000):
         return pipeline.run(task.prompt)
