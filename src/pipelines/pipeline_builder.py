@@ -5,22 +5,16 @@ from typing import List
 from src.pipelines.configs import PipelineConfig
 from src.pipelines.factory import ComponentFactory
 from src.pipelines.registry import ComponentRegistry
-from src.pipelines.templates import SimplePipeline, REWOOPipeline, MAPSPipeline
 from src.agent_constructor.pipeline import Pipeline
 
 
 class PipelineBuilder:
     
-    def __init__(self, config: PipelineConfig):
-        self.config = config
+    def __init__(self):
         self.registry = ComponentRegistry()
-        components_name = [component.type for component in config.components.values()]
-        self.registry.load_modules(components_name)
-
         self.factory = ComponentFactory()
-        self._components = {}
-    
-    def _build_order(self, config: PipelineConfig) -> List[str]:
+        
+    def _get_build_order(self, config: PipelineConfig) -> List[str]:
         
         graph = nx.DiGraph()
         for component_name, component_config in config.components.items():
@@ -42,46 +36,45 @@ class PipelineBuilder:
             raise ValueError("Cyclic dependencies have been discovered")
         
         return list(nx.topological_sort(graph))
+    
+    def _check_config(self, config: PipelineConfig):
+        pipeline_components = self.registry.get_component_deps(config.type)
+        required_components = [name for name, info in pipeline_components.items() if not info.has_default]
+        for name in required_components:
+            if not name in config.components:
+                raise ValueError(f"Missing '{name}' component for '{config.type.value}'")
 
-    def build(self) -> Pipeline:
+    def build(self, pipeline_config: PipelineConfig) -> Pipeline:
 
-        build_order = self._build_order(self.config)
+        modules = [component.type for component in pipeline_config.components.values()]
+        modules.append(pipeline_config.type)
+
+        self.registry.load_modules(modules)
+        self._check_config(config=pipeline_config)
+        build_order = self._get_build_order(pipeline_config)
+
+        components = {}
 
         for component_name in build_order:
             
-            component_config = self.config.components.get(component_name)
+            component_config = pipeline_config.components.get(component_name)
             
             component_info = self.registry.get_component_info(component_config.type)
 
             component = self.factory.create_component(
                 component_info=component_info, 
-                available_dependencies=self._components,
+                available_dependencies=components,
                 deps_mapping=component_config.deps_mapping,
                 config_params=component_config.params,
             )
 
-            self._components[component_name] = component
-        if self.config.pipeline_type == "simple":
-            return SimplePipeline(
-                retriever=self._components["retriever"],
-                agent=self._components["agent"],
-                context_assembler=self._components.get("context_assembler", None)
-            )
-        elif self.config.pipeline_type == "rewoo":
-            return REWOOPipeline(
-                planner=self._components["planner"],
-                worker=self._components["worker"],
-                solver=self._components["solver"],
-            )
-        elif self.config.pipeline_type == "maps":
-            return MAPSPipeline(
-                manager=self._components["manager"],
-                solver=self._components["solver"],
-                scholar=self._components["scholar"],
-                critic=self._components["critic"],
-                user_proxy=self._components["user_proxy"],
-                aligner=self._components["aligner"],
-                max_iterations=self.config.params.get("max_iterations", 1)
-            )
-        else:
-            raise ValueError(f"Unknown pipeline type: {self.config.pipeline_type}")
+            components[component_name] = component
+
+        pipeline = self.factory.create_component(
+            component_info=self.registry.get_component_info(pipeline_config.type),
+            available_dependencies=components,
+            deps_mapping={},
+            config_params=pipeline_config.params,
+        )
+        
+        return pipeline
