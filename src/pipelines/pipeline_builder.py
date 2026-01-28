@@ -10,18 +10,11 @@ from src.agent_constructor.pipeline import Pipeline
 
 class PipelineBuilder:
     
-    def __init__(self, config: PipelineConfig):
-        self.config = config
-
+    def __init__(self):
         self.registry = ComponentRegistry()
-        components_name = [component.type for component in config.components.values()]
-        components_name.append(config.type)
-        self.registry.load_modules(components_name)
-
         self.factory = ComponentFactory()
-        self._components = {}
         
-    def _build_order(self, config: PipelineConfig) -> List[str]:
+    def _get_build_order(self, config: PipelineConfig) -> List[str]:
         
         graph = nx.DiGraph()
         for component_name, component_config in config.components.items():
@@ -43,31 +36,45 @@ class PipelineBuilder:
             raise ValueError("Cyclic dependencies have been discovered")
         
         return list(nx.topological_sort(graph))
+    
+    def _check_config(self, config: PipelineConfig):
+        pipeline_components = self.registry.get_component_deps(config.type)
+        required_components = [name for name, info in pipeline_components.items() if not info.has_default]
+        for name in required_components:
+            if not name in config.components:
+                raise ValueError(f"Missing '{name}' component for '{config.type.value}'")
 
-    def build(self) -> Pipeline:
+    def build(self, pipeline_config: PipelineConfig) -> Pipeline:
 
-        build_order = self._build_order(self.config)
+        modules = [component.type for component in pipeline_config.components.values()]
+        modules.append(pipeline_config.type)
+
+        self.registry.load_modules(modules)
+        self._check_config(config=pipeline_config)
+        build_order = self._get_build_order(pipeline_config)
+
+        components = {}
 
         for component_name in build_order:
             
-            component_config = self.config.components.get(component_name)
+            component_config = pipeline_config.components.get(component_name)
             
             component_info = self.registry.get_component_info(component_config.type)
 
             component = self.factory.create_component(
                 component_info=component_info, 
-                available_dependencies=self._components,
+                available_dependencies=components,
                 deps_mapping=component_config.deps_mapping,
                 config_params=component_config.params,
             )
 
-            self._components[component_name] = component
+            components[component_name] = component
 
         pipeline = self.factory.create_component(
-            component_info=self.registry.get_component_info(self.config.type),
-            available_dependencies=self._components,
+            component_info=self.registry.get_component_info(pipeline_config.type),
+            available_dependencies=components,
             deps_mapping={},
-            config_params=self.config.params,
+            config_params=pipeline_config.params,
         )
         
         return pipeline
