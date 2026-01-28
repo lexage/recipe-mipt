@@ -1,6 +1,15 @@
 from enum import Enum
 
 
+PIPELINES_IMPORT_PATH = "src.pipelines.templates"
+
+
+class PipelinesNames(Enum):
+    SIMPLE = "SimplePipeline"
+    REWOO = "REWOOPipeline"
+    MAPS = "MAPSPipeline"
+
+
 class ComponentNames(Enum):
 
     # ===== Agents: Critique =====

@@ -2,7 +2,7 @@ from typing import Dict, Any
 
 from pydantic import BaseModel
 
-from src.pipelines.constants import ComponentNames
+from src.pipelines.constants import ComponentNames, PipelinesNames
 
 
 class ComponentConfig(BaseModel):
@@ -12,6 +12,6 @@ class ComponentConfig(BaseModel):
 
 
 class PipelineConfig(BaseModel):
-    pipeline_type: str
+    type: PipelinesNames
     components: Dict[str, ComponentConfig]
     params: Dict[str, Any] = {}
