@@ -2,6 +2,7 @@ import os
 from typing import Any, Dict, Optional, Tuple, Union
 
 import joblib
+import json
 import numpy as np
 import pandas as pd
 from sklearn.ensemble import RandomForestClassifier
@@ -22,6 +23,8 @@ class RandomForestTrainer:
         random_state: int = 42,
         model_path: str = "best_random_forest_model.joblib",
         datasets_path: str = "datasets.npz",
+        metadata_path: str = "metadata.json",
+        save_metadata: bool = False,
         model_params: Optional[Dict[str, Any]] = None,
     ):
         """
@@ -37,6 +40,11 @@ class RandomForestTrainer:
             Path to save the trained model (default: "best_random_forest_model.joblib").
         datasets_path : str
             Path to save train/test splits (default: "datasets.npz").
+        metadata_path : str
+            Path to save metadata after training (default: "metadata_path")
+        save_metadata : bool
+            Whether to save training metadata (e.g., metrics, timestamps) to disk.
+            Default is False.
         model_params : dict or None
             Parameters passed to RandomForestClassifier (e.g., n_estimators, max_depth).
             If None, uses scikit-learn defaults except for random_state and n_jobs.
@@ -45,6 +53,8 @@ class RandomForestTrainer:
         self.random_state = random_state
         self.model_path = model_path
         self.datasets_path = datasets_path
+        self.metadata_path = metadata_path
+        self.save_metadata = save_metadata
         self.model_params = model_params or {}
         self.model: Optional[RandomForestClassifier] = None
         self.X_test = None
@@ -115,12 +125,15 @@ class RandomForestTrainer:
             "datasets_path": self.datasets_path,
             "test_accuracy": test_accuracy,
             "test_classification_report": test_report,
-            "feature_importances": self.model.feature_importances_,
+            "feature_importances": self.model.feature_importances_.tolist(),
             "n_features": X_array.shape[1],
             "n_classes": len(np.unique(y_array)),
             "model_params_used": self.model.get_params(),
         }
 
+        if self.save_metadata:
+            self._save_metadata(metadata)
+        
         datasets = (X_train, self.X_test, y_train, self.y_test)
         return self.model, datasets, metadata
 
@@ -138,6 +151,23 @@ class RandomForestTrainer:
             y_train=y_train,
             y_test=y_test,
         )
+        
+    def _save_metadata(self, metadata: Dict[str, Any]) -> None:
+        """
+        Save training metadata to a JSON file.
+
+        Serializes the provided metadata dictionary and writes it to the file path
+        specified by `self.metadata_path` with UTF-8 encoding, pretty-printed
+        formatting, and support for non-ASCII characters.
+
+        Parameters
+        ----------
+        metadata : dict
+            A dictionary containing training-related metadata (e.g., evaluation metrics,
+            timestamps, dataset sizes, model parameters). Must be JSON-serializable.
+        """
+        with open(self.metadata_path, 'w', encoding='utf-8') as f:
+            json.dump(metadata, f, ensure_ascii=False, indent=4)
 
     def load_model(self, model_path: Optional[str] = None) -> RandomForestClassifier:
         """
