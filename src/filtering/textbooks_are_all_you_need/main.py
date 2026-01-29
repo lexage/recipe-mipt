@@ -40,20 +40,43 @@ class EducationValueClassifierFilter(Filter):
         embedding_model: str = "Qwen/Qwen3-Embedding-0.6B",
         embeddings_path: str = "data/embeddings.npy",
         annotations_path: str = "data/annotations.joblib",
-        models_path: str = "data/models",
         limit_labels: int = 20,
+        models_path: str = "data/models",
+        datasets_path: str = "data/datasets.npz",
+        metadata_path: str = "data/metadata.json",
+        save_metadata: bool = False,
+        test_size: float = 0.2,
+        random_state: int = 42,
+        
     ) -> None:
         """
-        Initialize the education value classifier filter.
+        Initialize the educational value classifier filter with configurable paths and model settings.
+
+        This component orchestrates annotation (via LLM), embedding generation, and training
+        of a lightweight classifier (e.g., Random Forest) to filter text chunks by educational quality.
 
         Args:
-            subsample_size: Number of chunks to use for annotation and model training
-                when no pre-trained model exists. Default is 1000 chunks.
-            llm_url: URL for the educational value annotation API
-            llm_model: Name of the model to use for educational value annotation
-            embeddings_path: Path for storing/loading chunk embeddings
-            annotations_path: Path for storing/loading chunk annotations
-            models_path: Path for storing/loading trained classification models
+            subsample_size (int): Number of randomly selected text chunks to annotate and use for training
+                when no pre-trained model is available. Default: 1000.
+            llm_url (str): Base URL of the LLM inference service (OpenAI-compatible) used for zero-shot
+                educational value annotation. Default: "http://shtraukh_vllm:8000/v1".
+            llm_model (str): Name of the LLM to use for annotation (e.g., "unsloth/gemma-3-12b-it").
+            embedding_url (str): Base URL of the embedding service (OpenAI-compatible) for vectorizing chunks.
+                Default: "http://shtraukh_vllm:8001/v1".
+            embedding_model (str): Name of the embedding model (e.g., "Qwen/Qwen3-Embedding-0.6B").
+            embeddings_path (str): Path to load from or save chunk embeddings in NumPy (.npy) format.
+            annotations_path (str): Path to load from or save LLM-generated binary annotations in Joblib format.
+            limit_labels (int): Maximum number of annotated samples to retain per class (or total, depending on implementation)
+                to control dataset size or enforce class balance. Default: 20.
+            models_path (str): Directory to store or load trained classifier models (e.g., joblib files).
+            datasets_path (str): Path to store or load the train/test split in NumPy NPZ format.
+            metadata_path (str): Path to save training metadata (metrics, config, etc.) in JSON format.
+            save_metadata (bool): Whether to persist training metadata (e.g., accuracy, feature importances) to disk.
+                Default: False.
+            test_size (float): Proportion of the annotated data to reserve for evaluation (between 0.0 and 1.0).
+                Default: 0.2.
+            random_state (int): Seed for reproducibility in sampling, dataset splitting, and model initialization.
+                Default: 42.
         """
         self.subsample_size = subsample_size
         self.llm_url = llm_url
@@ -62,10 +85,15 @@ class EducationValueClassifierFilter(Filter):
         self.embedding_model = embedding_model
         self.embeddings_path = embeddings_path
         self.annotations_path = annotations_path
-        self.models_path = models_path
         self.limit_labels = limit_labels
         self.limit_labels_per_class = limit_labels // 2
-
+        self.models_path = models_path
+        self.datasets_path = datasets_path
+        self.test_size = test_size
+        self.random_state = random_state
+        self.metadata_path = metadata_path
+        self.save_metadata = save_metadata
+        
         os.makedirs(os.path.dirname(self.models_path), exist_ok=True)
 
     def _prepare_embeddings(self, chunks: List[Chunk]) -> np.ndarray:
@@ -224,7 +252,7 @@ class EducationValueClassifierFilter(Filter):
     def _get_balanced_annotations(
         self, subsample_chunks: List[Chunk], subsample_embeddings: np.ndarray
     ) -> Tuple[np.ndarray, np.ndarray]:
-        print("Getting balanced annotations (10 per class)...")
+        print(f"Getting balanced annotations ({self.limit_labels_per_class} per class)...")
 
         # Try to load existing balanced annotations first
         result = self._load_existing_annotations(subsample_chunks, subsample_embeddings)
@@ -266,7 +294,7 @@ class EducationValueClassifierFilter(Filter):
     ) -> object:
         """Train a new model on the subsample data."""
         print("Training new model on subsample data...")
-        trainer = RandomForestTrainer(model_path=self.models_path)
+        trainer = RandomForestTrainer(test_size=self.test_size, random_state=self.random_state , model_path=self.models_path, datasets_path=self.datasets_path, metadata_path=self.metadata_path, save_metadata=self.save_metadata)
         train_result = trainer.train(subsample_embeddings, labels)
         return train_result[0]
 

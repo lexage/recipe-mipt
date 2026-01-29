@@ -38,6 +38,7 @@ class EducationalEvaluator(Agent):
         Args:
             api_url: Base URL for the OpenAI-compatible API endpoint
             model_name: Name of the model to use for evaluation
+            limit_per_class: Maximum number of annotated samples to consider during training for each class.
             api_key: API key for authentication (default: "vllm")
         """
         super().__init__("educational_evaluate_agent")
@@ -63,13 +64,17 @@ class EducationalEvaluator(Agent):
         self, text: str, max_retries: int = 3
     ) -> Optional[EvaluationResult]:
         """
-        Evaluate educational value of the provided text content.
+        Evaluate the educational value of the provided text content using an LLM.
 
         Args:
-            text: Content to evaluate for educational value
+            text (str): The textual content to be evaluated for educational value.
+            max_retries (int, optional): Maximum number of retry attempts in case of 
+                transient failures (e.g., network issues or LLM timeouts). Defaults to 3.
 
         Returns:
-            LLM response containing the evaluation result (0 or 1)
+            Optional[EvaluationResult]: An object containing the evaluation result 
+                (typically a binary score such as 0 or 1 indicating low or high educational value),
+                or None if evaluation fails after all retries.
         """
 
         for attempt in range(max_retries):
