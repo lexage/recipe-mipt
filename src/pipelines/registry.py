@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from typing import Dict, Type, List
 from pathlib import Path
 
-from src.pipelines.constants import ComponentNames
+from src.pipelines.constants import ComponentNames, PipelinesNames, PIPELINES_IMPORT_PATH
 from src.agent_constructor.core import Block
 
 
@@ -23,13 +23,20 @@ class ComponentInfo:
 
 
 class ComponentRegistry:
-    _registry: Dict[ComponentNames, ComponentInfo] = {}
+    _registry: Dict[ComponentNames|PipelinesNames, ComponentInfo] = {}
 
-    def load_modules(self, components_names: List[ComponentNames]) -> None:
+    def load_modules(self, components_names: List[ComponentNames|PipelinesNames]) -> None:
         for component_name in components_names:
+            
+            if component_name in self._registry:
+                continue
 
-            import_path = component_name.value
-            module_path, class_name = import_path.rsplit(".", 1)
+            if isinstance(component_name, PipelinesNames):
+                module_path = PIPELINES_IMPORT_PATH
+                class_name = component_name.value
+            else:
+                import_path = component_name.value
+                module_path, class_name = import_path.rsplit(".", 1)
 
             module = importlib.import_module(module_path)
             component_class = getattr(module, class_name)
@@ -66,10 +73,10 @@ class ComponentRegistry:
 
         return params
 
-    def get_component_info(self, component_type: ComponentNames) -> ComponentInfo:
+    def get_component_info(self, component_type: ComponentNames|PipelinesNames) -> ComponentInfo:
         return self._registry.get(component_type, None)
 
-    def get_component_deps(self, component_type: ComponentNames) -> Dict:
+    def get_component_deps(self, component_type: ComponentNames|PipelinesNames) -> Dict[str, ParamInfo]:
         component_info = self._registry.get(component_type, None)
         if component_info is None or not hasattr(component_info, "params"):
             return []
