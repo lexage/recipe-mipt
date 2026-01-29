@@ -297,7 +297,7 @@ class EducationValueClassifierFilter(Filter):
         print(f"Prediction distribution: {np.bincount(all_labels.astype(int))}")
 
         # Filter high-quality chunks
-        return [doc for doc, label in zip(chunks, all_labels) if label == 1]
+        return [chunk for chunk, label in zip(chunks, all_labels) if label == 1]
 
     def apply(self, chunks: List[Chunk]) -> List[Chunk]:
         """
