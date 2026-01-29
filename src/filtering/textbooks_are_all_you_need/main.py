@@ -1,8 +1,9 @@
-import sys
-import joblib
-from pathlib import Path
-from typing import List, Tuple, Optional
 import os
+import sys
+from pathlib import Path
+from typing import List, Optional, Tuple
+
+import joblib
 import numpy as np
 
 project_root = Path(__file__).resolve().parents[3]
@@ -11,12 +12,10 @@ sys.path.insert(0, str(project_root))
 from src.agent_constructor.core import Chunk
 from src.agent_constructor.filters import Filter
 from src.agents.general.embedding_agents import EmbeddingAgent
-
+from src.filtering.textbooks_are_all_you_need.src.label import EducationalEvaluator
 from src.filtering.textbooks_are_all_you_need.src.random_forest_cls import (
     RandomForestTrainer,
 )
-from src.filtering.textbooks_are_all_you_need.src.label import EducationalEvaluator
-
 
 class EducationValueClassifierFilter(Filter):
     """

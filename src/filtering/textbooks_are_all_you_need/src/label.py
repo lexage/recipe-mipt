@@ -1,18 +1,19 @@
-import sys
-import openai
 import json
-from typing import List, Optional
+import sys
 from pathlib import Path
+from typing import List, Optional
+
+import openai
 from pydantic import BaseModel, Field, ValidationError
 
 project_root = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(project_root))
 
-from src.agent_constructor.core import Chunk
 from src.agent_constructor.agent import Agent
+from src.agent_constructor.core import Chunk
 from src.filtering.textbooks_are_all_you_need.src.prompts import (
-    system_prompt,
     label_prompt,
+    system_prompt,
 )
 
 

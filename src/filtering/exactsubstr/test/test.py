@@ -1,5 +1,6 @@
 import sys
 from pathlib import Path
+
 from transformers import GPT2Tokenizer
 
 project_root = Path(__file__).resolve().parents[4]

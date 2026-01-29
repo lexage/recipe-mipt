@@ -1,11 +1,12 @@
 import os
-import numpy as np
+from typing import Any, Dict, Optional, Tuple, Union
+
 import joblib
+import numpy as np
 import pandas as pd
-from typing import Tuple, Dict, Any, Union, Optional
 from sklearn.ensemble import RandomForestClassifier
+from sklearn.metrics import accuracy_score, classification_report
 from sklearn.model_selection import train_test_split
-from sklearn.metrics import classification_report, accuracy_score
 
 
 class RandomForestTrainer:
