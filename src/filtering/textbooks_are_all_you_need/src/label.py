@@ -74,7 +74,6 @@ class EducationalEvaluator(Agent):
 
         for attempt in range(max_retries):
             try:
-                prompt = self._format_label_prompt(text)
                 response = self.client.chat.completions.create(
                     model=self.model_name,
                     messages=[
