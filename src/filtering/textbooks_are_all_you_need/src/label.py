@@ -26,7 +26,11 @@ class EducationalEvaluator(Agent):
     """Evaluator for assessing educational content value using LLM."""
 
     def __init__(
-        self, api_url: str, model_name: str, limit_per_class: int = 10, api_key: str = "vllm"
+        self,
+        api_url: str,
+        model_name: str,
+        limit_per_class: int = 10,
+        api_key: str = "vllm",
     ):
         """
         Initialize the educational content evaluator.
