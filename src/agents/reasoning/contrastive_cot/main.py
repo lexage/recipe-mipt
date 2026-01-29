@@ -2,7 +2,7 @@ import random
 # import spacy
 from typing import List, Dict, Union, Optional
 import json
-from src.agents.agent_constructor.agent import Agent
+from src.agent_constructor.agent import Agent
 
 
 class ContrastiveCoT(Agent):
@@ -23,7 +23,7 @@ class ContrastiveCoT(Agent):
     ) -> List[Dict[str, str]]:
         """
         Args:
-            demonstrations: Either a list of example dictionaries or a path to JSON file
+            demonstrations: Either a list of example dictionaries or a path to JSONL file
                             Each example should have:
                             - problem: str
                             - correct_explanation: str
@@ -31,10 +31,13 @@ class ContrastiveCoT(Agent):
                             - incorrect_explanation: str (optional)
                             - incorrect_code: str (optional)
         """
-        if isinstance(demonstrations, str):
+        if isinstance(demonstrations, str) and demonstrations.endswith('.jsonl'):
+            examples_list = []
             with open(demonstrations, 'r', encoding='utf-8') as f:
-                data = json.load(f)
-                return data
+                for line in f:
+                    if line.strip():
+                        examples_list.append(json.loads(line))
+            return examples_list
         elif isinstance(demonstrations, list):
             return demonstrations
         else:

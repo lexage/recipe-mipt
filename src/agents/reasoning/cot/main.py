@@ -1,5 +1,6 @@
-from typing import Optional, List, Union
-from src.agents.agent_constructor.agent import Agent
+from typing import Optional, List, Union, Dict
+from src.agent_constructor.agent import Agent
+import json
 
 
 class CoT(Agent):
@@ -7,7 +8,7 @@ class CoT(Agent):
         self, 
         name: str = "CoT", 
         mode: str = "zero-shot", 
-        few_shot_examples: Optional[Union[str, List[str]]] = None
+        few_shot_examples: Optional[Union[str, List[Dict[str, str]]]] = None
     ):
         """
         Args:
@@ -21,18 +22,21 @@ class CoT(Agent):
     
     def load_examples(
         self, 
-        few_shot_examples: Optional[Union[str, List[str]]]
+        few_shot_examples: Optional[Union[str, List[Dict[str, str]]]]
     ) -> List[str]:
         """Load few-shot examples from file or use provided examples."""
         if self.mode != "few-shot" or few_shot_examples is None:
             return []
-        
-        if isinstance(few_shot_examples, str):
+
+        if isinstance(few_shot_examples, str) and few_shot_examples.endswith('.jsonl'):
+            examples_list = []
             with open(few_shot_examples, 'r', encoding='utf-8') as f:
-                examples = f.read().split('---')  # Assuming examples separated by '---'
-            return [ex.strip() for ex in examples if ex.strip()]
+                for line in f:
+                    if line.strip():
+                        examples_list.append(json.loads(line))
+            return [example["example"] for example in examples_list]
         elif isinstance(few_shot_examples, list):
-            return few_shot_examples
+            return [example["example"] for example in few_shot_examples]
         else:
             print(f"Warning: Invalid examples type. Using zero-shot mode.")
             return []

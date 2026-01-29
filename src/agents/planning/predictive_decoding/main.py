@@ -3,7 +3,7 @@ import torch
 import io
 import argparse
 import numpy as np
-from src.agents.agent_constructor.agent import Agent
+from src.agent_constructor.agent import Agent
 
 
 class MPCSampleAgent(Agent):  # the algorithm should be stateless, and generates a whole plan / code / chain of actions at once.

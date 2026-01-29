@@ -4,7 +4,7 @@ from typing import List, Dict, Union, Optional
 from sentence_transformers import SentenceTransformer
 from sklearn.cluster import KMeans
 from sklearn.metrics.pairwise import cosine_similarity
-from src.agents.agent_constructor.agent import Agent
+from src.agent_constructor.agent import Agent
 
 
 class AutoCoT(Agent):    
@@ -29,10 +29,13 @@ class AutoCoT(Agent):
         - Only questions: [{"question": "..."}]
         - Questions with reference code: [{"question": "...", "code": "..."}]
         """
-        if isinstance(problems, str):
+        if isinstance(problems, str) and problems.endswith('.jsonl'):
+            examples_list = []
             with open(problems, 'r', encoding='utf-8') as f:
-                data = json.load(f)
-                return data
+                for line in f:
+                    if line.strip():
+                        examples_list.append(json.loads(line))
+            return examples_list
         elif isinstance(problems, list):
             return problems
         else:
@@ -151,11 +154,9 @@ Explain the reasoning behind this code implementation:\n{self.cot_trigger}
         
         demos = []
         for i, cluster in enumerate(clusters):
-            if cluster:
-                selected_problem, reference_code = self.select_demo_from_cluster(cluster, clustered_dists[i])
-                if selected_problem:
-                    demo = self.generate_rationale_and_code(selected_problem, reference_code)
-                    demos.append(demo)
+            selected_problem, reference_code = self.select_demo_from_cluster(cluster, clustered_dists[i])
+            demo = self.generate_rationale_and_code(selected_problem, reference_code)
+            demos.append(demo)
         
         demo_text = self.create_demo_text(demos)
         return demo_text

@@ -1,7 +1,7 @@
 from typing import List, Dict, Any
 import json
 import re
-from src.agents.agent_constructor.agent import Agent
+from src.agent_constructor.agent import Agent
 
 
 class Selection:
@@ -157,7 +157,11 @@ class SelectionInference(Agent):
         self.selection_module = Selection(self.selection_examples, self.selection_mode)
         self.inference_module = Inference(self.inference_examples)
         
-    def load_examples(self, examples: str, module: str = "selection") -> str:
+    def load_examples(
+        self, 
+        examples: str, 
+        module: str = "selection"
+    ) -> str:
         """
         Load examples.
         
@@ -167,29 +171,32 @@ class SelectionInference(Agent):
         Returns:
             Formatted examples string
         """
-        if examples.endswith('.json'):
-            with open(examples, 'r') as f:
-                data = json.load(f)
-                if module == "selection":
-                    return self._format_selection_examples(data)
-                else:
-                    return self._format_inference_examples(data)
+        if examples.endswith('.jsonl'):
+            examples_list = []
+            with open(examples, 'r', encoding='utf-8') as f:
+                for line in f:
+                    if line.strip():
+                        examples_list.append(json.loads(line))
+            if module == "selection":
+                return self._format_selection_examples(examples_list)
+            else:
+                return self._format_inference_examples(examples_list)
         else:
             return examples
     
-    def _format_selection_examples(self, examples_data: Dict[str, Any]) -> str:
+    def _format_selection_examples(self, examples_list: List[Dict[str, str]]) -> str:
         """Format selection examples from structured data."""
         formatted = ""
-        for example in examples_data.get("examples", []):
+        for example in examples_list:
             formatted += f"Context: {example['context']}\n"
             formatted += f"Question: {example['question']}\n"
             formatted += f"Reason: {example['selection']}\n\n"
         return formatted
     
-    def _format_inference_examples(self, examples_data: Dict[str, Any]) -> str:
+    def _format_inference_examples(self, examples_list: List[Dict[str, str]]) -> str:
         """Format inference examples from structured data."""
         formatted = ""
-        for example in examples_data.get("examples", []):
+        for example in examples_list:
             formatted += f"{example['selection']}. Therefore, {example['inference']}\n\n"
         return formatted
     
