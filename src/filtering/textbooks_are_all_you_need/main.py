@@ -15,7 +15,6 @@ from src.agents.general.embedding_agents import EmbeddingAgent
 from src.filtering.textbooks_are_all_you_need.src.random_forest_cls import (
     RandomForestTrainer,
 )
-# from src.filtering.textbooks_are_all_you_need.src.embeddings import Embedder
 from src.filtering.textbooks_are_all_you_need.src.label import EducationalEvaluator
 
 
@@ -65,6 +64,8 @@ class EducationValueClassifierFilter(Filter):
         self.annotations_path = annotations_path
         self.models_path = models_path
         self.limit_labels = limit_labels
+        self.limit_labels_per_class = limit_labels // 2
+        
 
         os.makedirs(os.path.dirname(self.models_path), exist_ok=True)
 
@@ -77,10 +78,10 @@ class EducationValueClassifierFilter(Filter):
             print(f"Loading embeddings from {self.embeddings_path}")
             return np.load(self.embeddings_path)
         else:
-            print("Creating embeddings for documents...")
-            # Assuming there's a function to get document embeddings
-            documents_text = [doc.text for doc in chunks]
-            embeddings = np.array(embedder.run(documents_text))
+            print("Creating embeddings for chunks...")
+            # Assuming there's a function to get chunk embeddings
+            chunks_text = [chunk.text for chunk in chunks]
+            embeddings = np.array(embedder.run(chunks_text))
             os.makedirs(os.path.dirname(self.embeddings_path), exist_ok=True)
             np.save(self.embeddings_path, embeddings)
             return embeddings
@@ -123,17 +124,15 @@ class EducationValueClassifierFilter(Filter):
         self,
         labels: List[Optional[int]], 
         embeddings: np.ndarray,
-        target_per_class: int = 10,
         strict: bool = False
     ) -> Optional[Tuple[np.ndarray, np.ndarray]]:
         """
-        Extract a balanced subset of examples (up to target_per_class per class).
+        Extract a balanced subset of examples (up to self.limit_labels_per_class per class).
         
         Args:
             labels: List of labels (may contain None values)
             embeddings: Embeddings corresponding to labels
-            target_per_class: Target number of examples per class
-            strict: If True, return None if unable to collect target_per_class examples for each class.
+            strict: If True, return None if unable to collect self.limit_labels_per_class examples for each class.
                     If False, return whatever was collected.
         
         Returns:
@@ -145,11 +144,11 @@ class EducationValueClassifierFilter(Filter):
         
         for i, label in enumerate(labels):
             if label is not None and label in (0, 1):
-                if (label == 0 and class_counts[0] < target_per_class) or \
-                (label == 1 and class_counts[1] < target_per_class):
+                if (label == 0 and class_counts[0] < self.limit_labels_per_class) or \
+                (label == 1 and class_counts[1] < self.limit_labels_per_class):
                     labeled_indices.append(i)
                     class_counts[label] += 1
-                if class_counts[0] >= target_per_class and class_counts[1] >= target_per_class:
+                if class_counts[0] >= self.limit_labels_per_class and class_counts[1] >= self.limit_labels_per_class:
                     break
         
         # Check if we have any valid examples
@@ -159,10 +158,10 @@ class EducationValueClassifierFilter(Filter):
             return None
         
         # In strict mode, require exact balance
-        if strict and (class_counts[0] < target_per_class or class_counts[1] < target_per_class):
+        if strict and (class_counts[0] < self.limit_labels_per_class or class_counts[1] < self.limit_labels_per_class):
             print(f"Insufficient balanced examples: "
                 f"class 0: {class_counts[0]}, class 1: {class_counts[1]} "
-                f"(need {target_per_class} each)")
+                f"(need {self.limit_labels_per_class} each)")
             return None
         
         filtered_embeddings = embeddings[labeled_indices]
@@ -204,7 +203,6 @@ class EducationValueClassifierFilter(Filter):
             return self._extract_balanced_subset(
                 all_labels, 
                 subsample_embeddings, 
-                target_per_class=10, 
                 strict=True
             )
                 
@@ -226,7 +224,7 @@ class EducationValueClassifierFilter(Filter):
         print("No existing balanced annotations found. Creating new annotations...")
 
         agent_evaluator = EducationalEvaluator(
-            api_url=self.llm_url, model_name=self.llm_model, limit=self.limit_labels
+            api_url=self.llm_url, model_name=self.llm_model, limit_per_class=self.limit_labels_per_class
         )
 
         all_labels = agent_evaluator.run(subsample_chunks)
@@ -236,7 +234,6 @@ class EducationValueClassifierFilter(Filter):
         result = self._extract_balanced_subset(
             all_labels, 
             subsample_embeddings, 
-            target_per_class=10, 
             strict=False
         )
         
@@ -281,10 +278,10 @@ class EducationValueClassifierFilter(Filter):
             subsample_chunks, subsample_embeddings
         )
 
-        if len(filtered_labels) < 20:
+        if len(filtered_labels) < self.limit_labels:
             raise ValueError(
                 f"Could not collect enough balanced examples. "
-                f"Got {len(filtered_labels)} total, need at least 20"
+                f"Got {len(filtered_labels)} total, need at least self.limit_labels"
             )
 
         return self._train_new_model(filtered_embeddings, filtered_labels)
