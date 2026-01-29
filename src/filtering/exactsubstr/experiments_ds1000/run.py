@@ -325,9 +325,7 @@ def main():
     elapsed_time = end_time - start_time
 
     print(f"Filtering completed in {elapsed_time:.2f} seconds.")
-    print(
-        f"Kept {len(filtrate_chunks)} out of {len(chunks)} chunks after filtering."
-    )
+    print(f"Kept {len(filtrate_chunks)} out of {len(chunks)} chunks after filtering.")
 
     process_filtering_results(
         chunks=chunks,
