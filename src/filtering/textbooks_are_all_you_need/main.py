@@ -10,14 +10,12 @@ sys.path.insert(0, str(project_root))
 
 from src.agent_constructor.core import Chunk
 from src.agent_constructor.filters import Filter
-from src.filtering.textbooks_are_all_you_need.src.utils import (
-    load_or_create_embeddings,
-    filter_high_quality_documents,
-)
+from src.agents.general.embedding_agents import EmbeddingAgent
+
 from src.filtering.textbooks_are_all_you_need.src.random_forest_cls import (
     RandomForestTrainer,
 )
-from src.filtering.textbooks_are_all_you_need.src.embeddings import Embedder
+# from src.filtering.textbooks_are_all_you_need.src.embeddings import Embedder
 from src.filtering.textbooks_are_all_you_need.src.label import EducationalEvaluator
 
 
@@ -37,8 +35,10 @@ class EducationValueClassifierFilter(Filter):
     def __init__(
         self,
         subsample_size: int = 1000,
-        api_url: str = "http://shtraukh_vllm:8000/v1",
-        model_name: str = "unsloth/gemma-3-12b-it",
+        llm_url: str = "http://shtraukh_vllm:8000/v1",
+        llm_model: str = "unsloth/gemma-3-12b-it",
+        embedding_url: str = "http://shtraukh_vllm:8001/v1",
+        embedding_model: str = "Qwen/Qwen3-Embedding-0.6B",
         embeddings_path: str = "data/embeddings.npy",
         annotations_path: str = "data/annotations.joblib",
         models_path: str = "data/models",
@@ -50,28 +50,40 @@ class EducationValueClassifierFilter(Filter):
         Args:
             subsample_size: Number of chunks to use for annotation and model training
                 when no pre-trained model exists. Default is 1000 chunks.
-            api_url: URL for the educational value annotation API
-            model_name: Name of the model to use for educational value annotation
+            llm_url: URL for the educational value annotation API
+            llm_model: Name of the model to use for educational value annotation
             embeddings_path: Path for storing/loading chunk embeddings
             annotations_path: Path for storing/loading chunk annotations
             models_path: Path for storing/loading trained classification models
         """
         self.subsample_size = subsample_size
-        self.api_url = api_url
-        self.model_name = model_name
+        self.llm_url = llm_url
+        self.llm_model = llm_model
+        self.embedding_url = embedding_url
+        self.embedding_model = embedding_model
         self.embeddings_path = embeddings_path
         self.annotations_path = annotations_path
         self.models_path = models_path
         self.limit_labels = limit_labels
 
-        # Ensure model directory exists
         os.makedirs(os.path.dirname(self.models_path), exist_ok=True)
 
     def _prepare_embeddings(self, chunks: List[Chunk]) -> np.ndarray:
         """Prepare or load embeddings for all chunks."""
         print("Preparing embeddings for chunks...")
-        embedder = Embedder()
-        return load_or_create_embeddings(chunks, self.embeddings_path, embedder)
+        embedder = EmbeddingAgent(self.embedding_url, self.embedding_model)
+        
+        if os.path.exists(self.embeddings_path):
+            print(f"Loading embeddings from {self.embeddings_path}")
+            return np.load(self.embeddings_path)
+        else:
+            print("Creating embeddings for documents...")
+            # Assuming there's a function to get document embeddings
+            documents_text = [doc.text for doc in chunks]
+            embeddings = np.array(embedder.run(documents_text))
+            os.makedirs(os.path.dirname(self.embeddings_path), exist_ok=True)
+            np.save(self.embeddings_path, embeddings)
+            return embeddings
 
     def _create_subsample(
         self, chunks: List[Chunk], all_embeddings: np.ndarray
@@ -89,7 +101,7 @@ class EducationValueClassifierFilter(Filter):
             print("Using all chunks for training (chunk count <= subsample size)")
             return chunks, all_embeddings
 
-    def save_annotations(
+    def _save_annotations(
         self, annotations: List[Optional[int]], path: Optional[str] = None
     ) -> None:
         """
@@ -106,44 +118,133 @@ class EducationValueClassifierFilter(Filter):
 
         joblib.dump(annotations, path)
         print(f"Annotations saved to {path}")
+            
+    def _extract_balanced_subset(
+        self,
+        labels: List[Optional[int]], 
+        embeddings: np.ndarray,
+        target_per_class: int = 10,
+        strict: bool = False
+    ) -> Optional[Tuple[np.ndarray, np.ndarray]]:
+        """
+        Extract a balanced subset of examples (up to target_per_class per class).
+        
+        Args:
+            labels: List of labels (may contain None values)
+            embeddings: Embeddings corresponding to labels
+            target_per_class: Target number of examples per class
+            strict: If True, return None if unable to collect target_per_class examples for each class.
+                    If False, return whatever was collected.
+        
+        Returns:
+            Tuple of (filtered_embeddings, filtered_labels) if examples were collected,
+            None if no examples collected or strict=True and target not met.
+        """
+        labeled_indices = []
+        class_counts = {0: 0, 1: 0}
+        
+        for i, label in enumerate(labels):
+            if label is not None and label in (0, 1):
+                if (label == 0 and class_counts[0] < target_per_class) or \
+                (label == 1 and class_counts[1] < target_per_class):
+                    labeled_indices.append(i)
+                    class_counts[label] += 1
+                if class_counts[0] >= target_per_class and class_counts[1] >= target_per_class:
+                    break
+        
+        # Check if we have any valid examples
+        if not labeled_indices:
+            if strict:
+                print("No valid annotations collected")
+            return None
+        
+        # In strict mode, require exact balance
+        if strict and (class_counts[0] < target_per_class or class_counts[1] < target_per_class):
+            print(f"Insufficient balanced examples: "
+                f"class 0: {class_counts[0]}, class 1: {class_counts[1]} "
+                f"(need {target_per_class} each)")
+            return None
+        
+        filtered_embeddings = embeddings[labeled_indices]
+        filtered_labels = np.array([labels[i] for i in labeled_indices])
+        
+        mode = "Loaded" if strict else "Collected"
+        print(f"{mode} balanced annotations: {class_counts[0]} class 0 and {class_counts[1]} class 1 examples")
+        return filtered_embeddings, filtered_labels
+
+    def _load_existing_annotations(
+        self, subsample_chunks: List[Chunk], subsample_embeddings: np.ndarray
+    ) -> Optional[Tuple[np.ndarray, np.ndarray]]:
+        """
+        Load existing annotations from disk and extract a balanced subset (10 per class).
+        
+        Args:
+            subsample_chunks: List of subsampled chunks
+            subsample_embeddings: Embeddings corresponding to subsample_chunks
+        
+        Returns:
+            Tuple of (filtered_embeddings, filtered_labels) if at least 10 examples per class exist,
+            otherwise None to trigger new annotation.
+        """
+        if not os.path.exists(self.annotations_path):
+            print(f"No existing annotations found at {self.annotations_path}")
+            return None
+        
+        try:
+            all_labels = joblib.load(self.annotations_path)
+            print(f"Loaded {len(all_labels)} existing annotations from {self.annotations_path}")
+            
+            # Verify annotation count matches subsample size
+            if len(all_labels) != len(subsample_chunks):
+                print(f"Annotation count ({len(all_labels)}) doesn't match subsample size ({len(subsample_chunks)})")
+                print("Annotations may be from a different dataset version - skipping reuse")
+                return None
+            
+            # Extract balanced subset with strict requirements
+            return self._extract_balanced_subset(
+                all_labels, 
+                subsample_embeddings, 
+                target_per_class=10, 
+                strict=True
+            )
+                
+        except Exception as e:
+            print(f"Error loading annotations: {e}")
+            return None
 
     def _get_balanced_annotations(
         self, subsample_chunks: List[Chunk], subsample_embeddings: np.ndarray
     ) -> Tuple[np.ndarray, np.ndarray]:
         print("Getting balanced annotations (10 per class)...")
+        
+        # Try to load existing balanced annotations first
+        result = self._load_existing_annotations(subsample_chunks, subsample_embeddings)
+        if result is not None:
+            return result
+        
+        # If no existing balanced annotations, create new ones
+        print("No existing balanced annotations found. Creating new annotations...")
 
         agent_evaluator = EducationalEvaluator(
-            api_url=self.api_url, model_name=self.model_name, limit=self.limit_labels
+            api_url=self.llm_url, model_name=self.llm_model, limit=self.limit_labels
         )
 
         all_labels = agent_evaluator.run(subsample_chunks)
 
-        self.save_annotations(all_labels)
+        self._save_annotations(all_labels)
 
-        labeled_indices = []
-        class_counts = {0: 0, 1: 0}
-
-        for i, label in enumerate(all_labels):
-            if label is not None:
-                if (label == 0 and class_counts[0] < 10) or (
-                    label == 1 and class_counts[1] < 10
-                ):
-                    labeled_indices.append(i)
-                    class_counts[label] += 1
-                elif class_counts[0] >= 10 and class_counts[1] >= 10:
-                    break
-
-        if labeled_indices:
-            filtered_embeddings = subsample_embeddings[labeled_indices]
-            filtered_labels = np.array([all_labels[i] for i in labeled_indices])
-
-            print(
-                f"Collected {class_counts[0]} class 0 and {class_counts[1]} class 1 examples"
-            )
-            return filtered_embeddings, filtered_labels
-        else:
-            print("No valid annotations collected")
-            return np.array([]), np.array([])
+        result = self._extract_balanced_subset(
+            all_labels, 
+            subsample_embeddings, 
+            target_per_class=10, 
+            strict=False
+        )
+        
+        if result is not None:
+            return result
+        
+        print("No valid annotations collected")
+        return np.array([]), np.array([])
 
     def _load_existing_model(self, trainer: RandomForestTrainer) -> Optional[object]:
         """Load existing model if available."""
@@ -187,7 +288,7 @@ class EducationValueClassifierFilter(Filter):
             )
 
         return self._train_new_model(filtered_embeddings, filtered_labels)
-
+    
     def _filter_chunks(
         self, model: object, all_embeddings: np.ndarray, chunks: List[Chunk]
     ) -> List[Chunk]:
@@ -199,7 +300,7 @@ class EducationValueClassifierFilter(Filter):
         print(f"Prediction distribution: {np.bincount(all_labels.astype(int))}")
 
         # Filter high-quality chunks
-        return filter_high_quality_documents(chunks, all_labels)
+        return [doc for doc, label in zip(chunks, all_labels) if label == 1]
 
     def apply(self, chunks: List[Chunk]) -> List[Chunk]:
         """
