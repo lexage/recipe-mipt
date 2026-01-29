@@ -25,7 +25,7 @@ class EducationalEvaluator(Agent):
     """Evaluator for assessing educational content value using LLM."""
 
     def __init__(
-        self, api_url: str, model_name: str, limit: int = 20, api_key: str = "vllm"
+        self, api_url: str, model_name: str, limit_per_class: int = 10, api_key: str = "vllm"
     ):
         """
         Initialize the educational content evaluator.
@@ -40,7 +40,7 @@ class EducationalEvaluator(Agent):
         self.model_name = model_name
         self.system_prompt = system_prompt
         self.label_template = label_prompt
-        self.limit = limit
+        self.limit_per_class = limit_per_class
 
     def _format_label_prompt(self, text: str) -> str:
         """
@@ -107,7 +107,6 @@ class EducationalEvaluator(Agent):
         annotations = [None] * len(subsample_documents)
         count_0 = 0
         count_1 = 0
-        limit_per_class = self.limit // 2
 
         for i, doc in enumerate(subsample_documents):
             result = self.evaluate_content(doc.text)
@@ -120,7 +119,7 @@ class EducationalEvaluator(Agent):
                 else:
                     count_1 += 1
 
-                if count_0 >= limit_per_class and count_1 >= limit_per_class:
+                if count_0 >= self.limit_per_class and count_1 >= self.limit_per_class:
                     break
 
         return annotations
