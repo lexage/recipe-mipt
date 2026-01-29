@@ -233,12 +233,12 @@ def test_3():
 
 if __name__ == "__main__":
 
-    print("#"*10)
+    print("#" * 10)
     print("Тест 1")
     test_1()
-    print("#"*10)
+    print("#" * 10)
     print("Тест 2")
     test_2()
-    print("#"*10)
+    print("#" * 10)
     print("Тест 3")
     test_3()

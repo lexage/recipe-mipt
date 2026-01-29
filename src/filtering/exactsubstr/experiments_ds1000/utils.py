@@ -213,4 +213,3 @@ def process_filtering_results(
         modified_count=modified_count,
         stats_per_removed=removed_stats,
     )
-
