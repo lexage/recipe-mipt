@@ -59,7 +59,7 @@ def main():
         default="/workspace/proj/grant/data/docs_database_dedup.db",
         help="Path to the data file",
     )
-    
+
     parser.add_argument(
         "--result_path",
         "-r",
@@ -72,7 +72,7 @@ def main():
 
     data_path = args.data_path
     result_path = args.result_path
-    
+
     os.makedirs(os.path.dirname(result_path), exist_ok=True)
 
     sql_client = SQLiteDocsDBAdapter(data_path)
@@ -81,7 +81,6 @@ def main():
     classifier = EducationValueClassifierFilter()
 
     high_quality_chunks = classifier.apply(chunks)
-
 
     output_path = Path(result_path)
     with open(output_path, "w", encoding="utf-8") as f:
@@ -93,6 +92,7 @@ def main():
         )
 
     print(f"Saved {len(high_quality_chunks)} documents to {output_path}")
+
 
 if __name__ == "__main__":
 
