@@ -8,7 +8,7 @@ from pydantic import BaseModel, Field, ValidationError
 project_root = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(project_root))
 
-from src.agent_constructor.core import Document
+from src.agent_constructor.core import Chunk
 from src.agent_constructor.agent import Agent
 from src.filtering.textbooks_are_all_you_need.src.prompts import (
     system_prompt,
@@ -89,26 +89,26 @@ class EducationalEvaluator(Agent):
                 continue
         return None
 
-    def run(self, subsample_documents: List[Document]) -> List[int]:
-        """Generate educational-value annotations for a list of documents.
+    def run(self, subsample_chunks: List[Chunk]) -> List[int]:
+        """Generate educational-value annotations for a list of chunks.
 
-        This method iterates over a list of documents, evaluates each one using
+        This method iterates over a list of chunks, evaluates each one using
         `evaluate_content`, and collects the resulting binary labels as integers.
         Stops when minimum threshold of 10 examples for each class (0 and 1) is reached.
 
         Args:
-            subsample_documents: A list of Document objects whose texts will be evaluated
+            subsample_chunks: A list of Chunk objects whose texts will be evaluated
                                 for educational value.
 
         Returns:
-            A list of integers (0 or 1) with length equal to the original documents list.
-            Documents after reaching the threshold will have None values.
+            A list of integers (0 or 1) with length equal to the original chunks list.
+            Chunks after reaching the threshold will have None values.
         """
-        annotations = [None] * len(subsample_documents)
+        annotations = [None] * len(subsample_chunks)
         count_0 = 0
         count_1 = 0
 
-        for i, doc in enumerate(subsample_documents):
+        for i, doc in enumerate(subsample_chunks):
             result = self.evaluate_content(doc.text)
             if result is not None:
                 score = result.score

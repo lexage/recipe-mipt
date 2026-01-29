@@ -19,7 +19,7 @@ class SQLiteDocsDBAdapter:
 
     def get_docs(self) -> List[Chunk]:
 
-        documents = []
+        chunks = []
         with sqlite3.connect(self.path_to_db) as conn:
             conn.row_factory = sqlite3.Row
             cursor = conn.cursor()
@@ -34,7 +34,7 @@ class SQLiteDocsDBAdapter:
             """)
 
             for row in cursor.fetchall():
-                documents.append(
+                chunks.append(
                     Chunk(
                         id=row["id"],
                         doc_id=row["id"],
@@ -43,7 +43,7 @@ class SQLiteDocsDBAdapter:
                     )
                 )
 
-        return documents
+        return chunks
 
 
 def main():
@@ -64,22 +64,22 @@ def main():
     data_path = args.data_path
 
     sql_client = SQLiteDocsDBAdapter(data_path)
-    documents = sql_client.get_docs()[:50]
+    chunks = sql_client.get_docs()[:50]
 
     classifier = EducationValueClassifierFilter()
 
-    high_quality_documents = classifier.apply(documents)
+    high_quality_chunks = classifier.apply(chunks)
 
-    output_path = Path("high_quality_documents.json")
+    output_path = Path("high_quality_chunks.json")
     with open(output_path, "w", encoding="utf-8") as f:
         json.dump(
-            [asdict(doc) for doc in high_quality_documents],
+            [asdict(doc) for doc in high_quality_chunks],
             f,
             ensure_ascii=False,
             indent=2,
         )
 
-    print(f"Сохранено {len(high_quality_documents)} документов в {output_path}")
+    print(f"Сохранено {len(high_quality_chunks)} документов в {output_path}")
 
 
 if __name__ == "__main__":
