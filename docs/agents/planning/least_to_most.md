@@ -1,6 +1,6 @@
 # Least-to-Most Prompting
 
-- **Модуль**: [`LeastToMostPlanner`](../src/agents/planning/least_to_most/main.py)
+- **Модуль**: [`LeastToMostPlanner`](../../../src/agents/planning/least_to_most/main.py)
 - **Cтатья**: [LEAST-TO-MOST PROMPTING ENABLES COMPLEX REASONING IN LARGE LANGUAGE MODELS](https://arxiv.org/pdf/2205.10625)
 
 ---
