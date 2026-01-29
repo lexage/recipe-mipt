@@ -47,7 +47,6 @@ class EducationValueClassifierFilter(Filter):
         save_metadata: bool = False,
         test_size: float = 0.2,
         random_state: int = 42,
-        
     ) -> None:
         """
         Initialize the educational value classifier filter with configurable paths and model settings.
@@ -93,7 +92,7 @@ class EducationValueClassifierFilter(Filter):
         self.random_state = random_state
         self.metadata_path = metadata_path
         self.save_metadata = save_metadata
-        
+
         os.makedirs(os.path.dirname(self.models_path), exist_ok=True)
 
     def _prepare_embeddings(self, chunks: List[Chunk]) -> np.ndarray:
@@ -252,7 +251,9 @@ class EducationValueClassifierFilter(Filter):
     def _get_balanced_annotations(
         self, subsample_chunks: List[Chunk], subsample_embeddings: np.ndarray
     ) -> Tuple[np.ndarray, np.ndarray]:
-        print(f"Getting balanced annotations ({self.limit_labels_per_class} per class)...")
+        print(
+            f"Getting balanced annotations ({self.limit_labels_per_class} per class)..."
+        )
 
         # Try to load existing balanced annotations first
         result = self._load_existing_annotations(subsample_chunks, subsample_embeddings)
@@ -294,7 +295,14 @@ class EducationValueClassifierFilter(Filter):
     ) -> object:
         """Train a new model on the subsample data."""
         print("Training new model on subsample data...")
-        trainer = RandomForestTrainer(test_size=self.test_size, random_state=self.random_state , model_path=self.models_path, datasets_path=self.datasets_path, metadata_path=self.metadata_path, save_metadata=self.save_metadata)
+        trainer = RandomForestTrainer(
+            test_size=self.test_size,
+            random_state=self.random_state,
+            model_path=self.models_path,
+            datasets_path=self.datasets_path,
+            metadata_path=self.metadata_path,
+            save_metadata=self.save_metadata,
+        )
         train_result = trainer.train(subsample_embeddings, labels)
         return train_result[0]
 

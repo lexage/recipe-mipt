@@ -133,7 +133,7 @@ class RandomForestTrainer:
 
         if self.save_metadata:
             self._save_metadata(metadata)
-        
+
         datasets = (X_train, self.X_test, y_train, self.y_test)
         return self.model, datasets, metadata
 
@@ -151,7 +151,7 @@ class RandomForestTrainer:
             y_train=y_train,
             y_test=y_test,
         )
-        
+
     def _save_metadata(self, metadata: Dict[str, Any]) -> None:
         """
         Save training metadata to a JSON file.
@@ -166,7 +166,7 @@ class RandomForestTrainer:
             A dictionary containing training-related metadata (e.g., evaluation metrics,
             timestamps, dataset sizes, model parameters). Must be JSON-serializable.
         """
-        with open(self.metadata_path, 'w', encoding='utf-8') as f:
+        with open(self.metadata_path, "w", encoding="utf-8") as f:
             json.dump(metadata, f, ensure_ascii=False, indent=4)
 
     def load_model(self, model_path: Optional[str] = None) -> RandomForestClassifier:

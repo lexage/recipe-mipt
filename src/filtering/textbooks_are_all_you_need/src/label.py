@@ -68,11 +68,11 @@ class EducationalEvaluator(Agent):
 
         Args:
             text (str): The textual content to be evaluated for educational value.
-            max_retries (int, optional): Maximum number of retry attempts in case of 
+            max_retries (int, optional): Maximum number of retry attempts in case of
                 transient failures (e.g., network issues or LLM timeouts). Defaults to 3.
 
         Returns:
-            Optional[EvaluationResult]: An object containing the evaluation result 
+            Optional[EvaluationResult]: An object containing the evaluation result
                 (typically a binary score such as 0 or 1 indicating low or high educational value),
                 or None if evaluation fails after all retries.
         """
