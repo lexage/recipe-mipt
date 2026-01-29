@@ -4,7 +4,6 @@ from typing import List, Optional, Tuple
 
 import numpy as np
 import struct
-
 from dataclasses import replace
 
 from pydivsufsort import divsufsort, kasai

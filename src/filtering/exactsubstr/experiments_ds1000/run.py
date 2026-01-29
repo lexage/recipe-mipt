@@ -1,11 +1,11 @@
-import sys
 import argparse
 import json
 import sqlite3
+import sys
 import time
 from difflib import SequenceMatcher
-from typing import List, Dict, Any
 from pathlib import Path
+from typing import Any, Dict, List
 
 project_root = Path(__file__).resolve().parents[4]
 sys.path.insert(0, str(project_root))

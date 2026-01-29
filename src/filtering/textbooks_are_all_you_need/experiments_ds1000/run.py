@@ -1,16 +1,16 @@
-import sys
 import argparse
 import json
 import sqlite3
-from typing import List
-from pathlib import Path
+import sys
 from dataclasses import asdict
+from pathlib import Path
+from typing import List
 
 project_root = Path(__file__).resolve().parents[4]
 sys.path.insert(0, str(project_root))
 
-from src.filtering.textbooks_are_all_you_need.main import EducationValueClassifierFilter
 from src.agent_constructor.core import Chunk
+from src.filtering.textbooks_are_all_you_need.main import EducationValueClassifierFilter
 
 
 class SQLiteDocsDBAdapter:
