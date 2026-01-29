@@ -38,6 +38,38 @@ def test_1():
 
 def test_2():
 
+    texts = [
+        """Кошка сидит на коврике.""",
+        """Свежий воздух полезен для здоровья.""",
+        """Сегодня прекрасная погода для прогулки в парке.""",
+        """Кошка сидит на коврике.""",
+        """Давайте выйдем на улицу и подышим свежим воздухом.""",
+        """Сегодня прекрасная погода для прогулки в парке.""",
+        """Кошка сидит на коврике.""",
+        """Сегодня прекрасная погода для прогулки в парке.""",
+        """Кошка сидит на коврике.""",
+        """Кошка сидит на коврике.""",
+        """Давайте выйдем на улицу и подышим свежим воздухом.""",
+    ]
+
+    chunks = [
+        Chunk(id=f"chunk_{i+1}", doc_id=f"doc_{i+1}", text=text)
+        for i, text in enumerate(texts)
+    ]
+
+    # tokenizer = GPT2Tokenizer.from_pretrained('gpt2')
+
+    filtrator = ExactSubstrFiltrator(
+        threshold=20, enable_bytes=True, enable_tokenizer=False, tokenizer=None
+    )
+
+    filtrate_chunks = filtrator.apply(chunks)
+
+    print(*filtrate_chunks, sep="\n\n")
+
+
+def test_3():
+
     text_1 = """Hermite interpolation based INVersion of CDF (HINV) #
 
     Required: CDF
@@ -201,5 +233,12 @@ def test_2():
 
 if __name__ == "__main__":
 
+    print("#"*10)
+    print("Тест 1")
     test_1()
+    print("#"*10)
+    print("Тест 2")
     test_2()
+    print("#"*10)
+    print("Тест 3")
+    test_3()

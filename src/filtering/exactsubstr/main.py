@@ -84,13 +84,13 @@ class ExactSubstrFiltrator(Filter):
             - List of starting offsets for each chunk
             - List of chunk lengths
         """
-        separator = b"\x00"
         total_bytes = bytearray()
         offsets = []
         lengths = [len(b) for b in doc_bytes_list]
 
         for i, b in enumerate(doc_bytes_list):
             if i > 0:
+                separator = bytes([min(254, i)])
                 total_bytes.extend(separator)
             offsets.append(len(total_bytes))
             total_bytes.extend(b)
@@ -113,12 +113,6 @@ class ExactSubstrFiltrator(Filter):
         """
         n_total = len(total_bytes)
         total_doc_ids = np.full(n_total, -1, dtype=np.int32)
-        n_docs = len(offsets)
-
-        for i in range(n_docs - 1):
-            sep_pos = offsets[i] + lengths[i]
-            if sep_pos < n_total:
-                total_doc_ids[sep_pos] = -2
 
         for i, (start, length) in enumerate(zip(offsets, lengths)):
             end = min(start + length, n_total)
@@ -164,25 +158,28 @@ class ExactSubstrFiltrator(Filter):
                 continue
 
             if doc_id1 < doc_id2:
-                later_doc_id, pos_in_later = doc_id2, pos2
-            elif doc_id2 < doc_id1:
-                later_doc_id, pos_in_later = doc_id1, pos1
+                keep_doc, keep_pos = doc_id1, pos1
+                remove_doc, remove_pos = doc_id2, pos2
             else:
+                keep_doc, keep_pos = doc_id2, pos2
+                remove_doc, remove_pos = doc_id1, pos1
+
+            start_in_remove = remove_pos - offsets[remove_doc]
+            if not (0 <= start_in_remove < lengths[remove_doc]):
                 continue
 
-            start_in_doc = pos_in_later - offsets[later_doc_id]
-            end_in_doc = start_in_doc + lcp_val - 1
+            max_possible_lcp = lengths[remove_doc] - start_in_remove
+            actual_lcp = min(lcp_val, max_possible_lcp)
 
-            if not (0 <= start_in_doc < lengths[later_doc_id]):
+            if actual_lcp < self.threshold:
                 continue
 
-            if end_in_doc >= lengths[later_doc_id]:
-                end_in_doc = lengths[later_doc_id] - 1
-                lcp_val = end_in_doc - start_in_doc + 1
-                if lcp_val < self.threshold:
-                    continue
+            end_in_remove = start_in_remove + actual_lcp - 1
 
-            intervals_per_doc[later_doc_id].append((start_in_doc, end_in_doc))
+            if start_in_remove == 0 and actual_lcp >= lengths[remove_doc]:
+                intervals_per_doc[remove_doc].append((0, lengths[remove_doc] - 1))
+            else:
+                intervals_per_doc[remove_doc].append((start_in_remove, end_in_remove))
 
         return intervals_per_doc
 
@@ -277,13 +274,12 @@ class ExactSubstrFiltrator(Filter):
             suffix_array, lcp_array, total_doc_ids, offsets, lengths, n_docs
         )
 
-        result_chunks = [chunks[0]]
-
-        for j in range(1, n_docs):
+        result_chunks = []
+        for j in range(n_docs):
             processed_chunk = self._process_chunk_with_intervals(
                 doc_bytes_list[j], intervals_per_doc[j], chunks[j]
             )
-            if processed_chunk.text:
+            if processed_chunk.text.strip():
                 result_chunks.append(processed_chunk)
 
         return result_chunks
