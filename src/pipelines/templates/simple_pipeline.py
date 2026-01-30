@@ -1,11 +1,33 @@
 from src.agent_constructor.context_engine import Retriever
+from src.agent_constructor.db import IDB
+from src.agent_constructor.chunkers import Chunker
+from src.agent_constructor.filters import Filter
 from src.agent_constructor.agent import Agent
 from src.agent_constructor.pipeline import Pipeline
 from src.agent_constructor.context_engine import ContextAssembler
 
 class SimplePipeline(Pipeline):
-    def __init__(self, retriever: Retriever, agent: Agent, context_assembler: ContextAssembler = None):
+    def __init__(self, 
+                 data_base: IDB, 
+                 retriever: Retriever, 
+                 agent: Agent, 
+                 chunker: Chunker,
+                 filter: Filter = None, 
+                 context_assembler: ContextAssembler = None):
+        
+
         super().__init__("simple_pipeline")
+
+        documents = data_base.get_documents()
+        chunks = []
+
+        [chunks.extend(chunker.chunk(doc)) for doc in documents]
+        if filter:
+            filterd_chunks = [chunk for chunk in chunks if filter.apply(chunk)]
+            data_base.add_chunks(filterd_chunks)
+        else:
+            data_base.add_chunks(chunks)
+
         self.retriever = retriever
         self.agent = agent
         self.context_assembler = context_assembler
