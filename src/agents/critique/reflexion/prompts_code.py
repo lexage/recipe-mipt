@@ -1,5 +1,4 @@
-PY_SELF_REFLECTION_INSTRUCTION = (
-""" You are a Python programming assistant.
+PY_SELF_REFLECTION_INSTRUCTION = """ You are a Python programming assistant.
         You will be given a problem and implementation in Python and evaluation of this implementation. 
         Your goal is to write feedback for the implementation step for:
         1. Evaluation of implementation
@@ -11,10 +10,8 @@ PY_SELF_REFLECTION_INSTRUCTION = (
         try again later. 
         Only provide the few sentence description in your answer, 
         not the implementation."""
-)
 
-PY_EVALUATE_INSTRUCTION = (
-    """You are a Python programming assistant.
+PY_EVALUATE_INSTRUCTION = """You are a Python programming assistant.
         You will be given a problem and implementation in Python. 
         Your goal is to compute a reward score that reflects its performance.
         It is important for you to evaluate how well the proposed implementation matches the context of the problem and the following criteria:
@@ -26,7 +23,6 @@ PY_EVALUATE_INSTRUCTION = (
         6. Alignment with problem requirements You will need this as a hint when you 
         try again later. 
         You only need to return a score as an integer from 1 to 5."""
-)
 
 PY_ACTOR_INSTRUCTION = (
     "You are a Python programming assistant. "
@@ -68,8 +64,7 @@ DATASET_2 = """
     print(df)
 """
 
-SELF_REFLECTION_1 = (
-    """The line category_total_sales = df.groupby('Category')['Sales'].sum() correctly calculates the sum of sales for each category.
+SELF_REFLECTION_1 = """The line category_total_sales = df.groupby('Category')['Sales'].sum() correctly calculates the sum of sales for each category.
        The result is a Series where the index consists of category names ('Electronics', 'Books', 'Clothing') and the values are the corresponding sales sums.
        When you perform arithmetic operations between two Series (or a Series and a DataFrame), Pandas, by default, attempts to align the operands by their indexes.
        The index of df['Sales'] is a numerical range (0, 1, 2, 3, 4, 5, 6), which is the standard DataFrame index.
@@ -79,15 +74,12 @@ SELF_REFLECTION_1 = (
        For category_total_sales.loc['Electronics'] (value 1250), Pandas looks for the index 'Electronics' in df['Sales']. No such index exists there.
        As a result of this alignment operation, Pandas fills values for which no match is found with NaN (Not a Number). In our case, since the indexes do not match at all in type and value, almost all (or all) elements in the new Percentage_of_Category_Sales column will become NaN."
     """
-)
-SELF_REFLECTION_2 = (
-    """Instead of multiplication ( * ), addition ( + ) is used, so "Revenue" contains the sum of sales quantity and price, not their product.
+SELF_REFLECTION_2 = """Instead of multiplication ( * ), addition ( + ) is used, so "Revenue" contains the sum of sales quantity and price, not their product.
        This fundamentally changes the meaning:
 
        For product A, instead of 10 * 100 = 1000, it shows 10 + 100 = 110.
 
        This leads to incorrect data analysis because revenue is wrongly calculated"""
-)
 
 PY_SELF_REFLECTION_FEW_SHOT = f"""
     Example 1:
