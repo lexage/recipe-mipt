@@ -96,7 +96,22 @@ class EducationValueClassifierFilter(Filter):
         os.makedirs(os.path.dirname(self.models_path), exist_ok=True)
 
     def _prepare_embeddings(self, chunks: List[Chunk]) -> np.ndarray:
-        """Prepare or load embeddings for all chunks."""
+        """
+        Prepare or load precomputed embeddings for the given list of chunks.
+
+        This internal method first checks if embeddings have already been saved at
+        `self.embeddings_path`. If so, it loads and returns them. Otherwise, it generates
+        new embeddings by sending chunk texts to a remote embedding service via
+        `EmbeddingAgent`, saves the resulting embeddings to disk for future use,
+        and returns them as a NumPy array.
+
+        Args:
+            chunks: A list of Chunk objects containing the text content to embed.
+
+        Returns:
+            A NumPy array of shape (n_chunks, embedding_dim) containing the embeddings
+            corresponding one-to-one with the input chunks.
+        """
         print("Preparing embeddings for chunks...")
         embedder = EmbeddingAgent(self.embedding_url, self.embedding_model)
 
@@ -115,7 +130,24 @@ class EducationValueClassifierFilter(Filter):
     def _create_subsample(
         self, chunks: List[Chunk], all_embeddings: np.ndarray
     ) -> Tuple[List[Chunk], np.ndarray]:
-        """Create a random subsample of chunks for training."""
+        """
+        Create a random subsample of chunks and their corresponding embeddings for training.
+
+        If the total number of input chunks exceeds `self.subsample_size`, this method randomly
+        selects a subset of that size without replacement. Otherwise, it returns all chunks
+        and embeddings unchanged. This helps control computational cost and memory usage
+        during model training while maintaining representativeness.
+
+        Args:
+            chunks: A list of Chunk objects to potentially subsample.
+            all_embeddings: A NumPy array of shape (n_chunks, embedding_dim) containing
+                            embeddings corresponding to each chunk.
+
+        Returns:
+            A tuple containing:
+                - A list of subsampled (or original) Chunk objects.
+                - A NumPy array of the corresponding embeddings.
+        """
         if len(chunks) > self.subsample_size:
             print(f"Creating subsample of {self.subsample_size} chunks for training...")
             subsample_indices = np.random.choice(
@@ -251,6 +283,26 @@ class EducationValueClassifierFilter(Filter):
     def _get_balanced_annotations(
         self, subsample_chunks: List[Chunk], subsample_embeddings: np.ndarray
     ) -> Tuple[np.ndarray, np.ndarray]:
+        """
+        Retrieve or generate a balanced set of binary annotations (labels) for the given chunks.
+
+        This internal method first attempts to load previously saved balanced annotations that match
+        the current subsample. If none are found, it uses an LLM-based `EducationalEvaluator` to label
+        the chunks as high-quality (1) or low-quality (0) educational content, aiming for a balanced
+        number of examples per class (as defined by `self.limit_labels_per_class`). The resulting labels
+        and corresponding embeddings are then saved for future reuse and returned as a balanced subset.
+
+        Args:
+            subsample_chunks: A list of Chunk objects to be annotated.
+            subsample_embeddings: A NumPy array of embeddings corresponding to the chunks.
+
+        Returns:
+            A tuple of two NumPy arrays:
+                - filtered_embeddings: Embeddings for chunks with valid, balanced labels.
+                - filtered_labels: Binary labels (0 or 1) for those chunks.
+
+            If no valid annotations can be collected, returns two empty arrays.
+        """
         print(
             f"Getting balanced annotations ({self.limit_labels_per_class} per class)..."
         )
@@ -284,7 +336,19 @@ class EducationValueClassifierFilter(Filter):
         return np.array([]), np.array([])
 
     def _load_existing_model(self, trainer: RandomForestTrainer) -> Optional[object]:
-        """Load existing model if available."""
+        """
+        Attempt to load a pre-trained model from the specified model path using the provided trainer.
+
+        This internal method checks whether a model file exists at `self.models_path`. If it does,
+        it uses the given `RandomForestTrainer` instance to load and return the model. Otherwise,
+        it returns `None`, indicating that no existing model is available.
+
+        Args:
+            trainer: An instance of `RandomForestTrainer` capable of loading a model from disk.
+
+        Returns:
+            The loaded model object if a model file exists at `self.models_path`; otherwise, `None`.
+        """
         if os.path.exists(self.models_path):
             print("Loading existing trained model...")
             return trainer.load_model(self.models_path)
@@ -293,7 +357,22 @@ class EducationValueClassifierFilter(Filter):
     def _train_new_model(
         self, subsample_embeddings: np.ndarray, labels: np.ndarray
     ) -> object:
-        """Train a new model on the subsample data."""
+        """
+        Train a new classification model using the provided embeddings and binary labels.
+
+        This internal method initializes a RandomForestTrainer with the instance's configuration
+        parameters and trains a model on the given labeled subsample. The trained model is saved
+        to disk according to the trainer's settings, and metadata may be persisted if enabled.
+
+        Args:
+            subsample_embeddings: A NumPy array of shape (n_samples, embedding_dim) containing
+                                the feature vectors for the training samples.
+            labels: A 1D NumPy array of binary labels (0 = low-quality, 1 = high-quality)
+                    corresponding to each embedding.
+
+        Returns:
+            The trained model object (e.g., a scikit-learn RandomForestClassifier).
+        """
         print("Training new model on subsample data...")
         trainer = RandomForestTrainer(
             test_size=self.test_size,
@@ -309,6 +388,21 @@ class EducationValueClassifierFilter(Filter):
     def _get_or_train_model(
         self, all_embeddings: np.ndarray, chunks: List[Chunk]
     ) -> object:
+        """
+        Retrieve a pre-trained model if available; otherwise, train a new one using a balanced subsample of annotated chunks.
+
+        This internal method first attempts to load an existing model from disk. If no model is found,
+        it creates a representative subsample of the input chunks and embeddings, extracts a balanced set
+        of labeled examples (high-quality vs. low-quality), validates that enough labeled data is available,
+        and trains a new classifier using those examples.
+
+        Args:
+            all_embeddings: A NumPy array of shape (n_chunks, embedding_dim) containing embeddings for all input chunks.
+            chunks: A list of Chunk objects corresponding to the embeddings, potentially containing annotation metadata.
+
+        Returns:
+            A trained model object (e.g., scikit-learn estimator) ready for prediction.
+        """
         trainer = RandomForestTrainer(model_path=self.models_path)
 
         model = self._load_existing_model(trainer)
@@ -336,7 +430,22 @@ class EducationValueClassifierFilter(Filter):
     def _filter_chunks(
         self, model: object, all_embeddings: np.ndarray, chunks: List[Chunk]
     ) -> List[Chunk]:
-        """Filter chunks using the trained model."""
+        """
+        Filter chunks based on binary predictions from a trained classification model.
+
+        This internal method applies the provided model to a set of chunk embeddings,
+        interprets the output as binary labels (0 = low-quality, 1 = high-quality),
+        and returns only those chunks predicted as high-quality educational content.
+
+        Args:
+            model: A trained scikit-learn-compatible classifier with a `predict` method.
+            all_embeddings: A NumPy array of shape (n_chunks, embedding_dim) containing
+                            the vector representations of the input chunks.
+            chunks: A list of Chunk objects corresponding one-to-one with the embeddings.
+
+        Returns:
+            A list of Chunk objects for which the model predicted label == 1.
+        """
         print("Applying model to filter chunks...")
 
         # Get predictions for all chunks
