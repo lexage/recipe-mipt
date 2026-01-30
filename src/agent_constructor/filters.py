@@ -13,7 +13,7 @@ class Filter(Block):
     required: bool = False
 
     @abstractmethod
-    def apply(self, chunk: List[Chunk]) -> List[Chunk]:
+    def apply(self, chunks: List[Chunk]) -> List[Chunk]:
         """Apply filtering or transformation to a list of chunks.
 
         This method processes a list of Chunk objects and returns a new list
@@ -27,14 +27,3 @@ class Filter(Block):
             List[Chunk]: A list of processed chunks to keep.
         """
         raise NotImplementedError
-
-
-class LengthFilter(Filter):
-    def __init__(self, required: bool = False, min_len: int = 20):
-        self.required = required
-        self.min_len = min_len
-
-    def apply(self, chunk: Chunk) -> Optional[Chunk]:
-        if len(chunk.text.strip()) < self.min_len:
-            return None
-        return chunk
