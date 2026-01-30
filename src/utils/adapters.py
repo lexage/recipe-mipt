@@ -49,6 +49,9 @@ class SQLiteDocsDBAdapter:
             conn.row_factory = sqlite3.Row
             cursor = conn.cursor()
             
+            cursor.execute("SELECT COUNT(*) FROM documents")
+            id_offset = cursor.fetchone()[0]
+            
             if ids:
                 placeholders = ','.join('?' * len(ids))
                 query = f"{GET_EXAMPLES_QUERY} WHERE e.id IN ({placeholders})"
@@ -59,7 +62,7 @@ class SQLiteDocsDBAdapter:
             for row in cursor.fetchall():
                 documents.append(
                     Document(
-                        id=row['id'], 
+                        id=row['id'] + id_offset, 
                         source='examples', 
                         text=row['content'], 
                         metadata={
