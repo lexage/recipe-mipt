@@ -285,20 +285,58 @@ class ExactSubstrFiltrator(Filter):
         return result_chunks
 
 
-def tok_encode(seq, tokenizer):
+def tok_encode(seq: str, tokenizer) -> bytes:
+    """
+    Encode a text sequence into a compact byte representation using the tokenizer.
+
+    Args:
+        seq: Input text string to encode.
+        tokenizer: Tokenizer object with an `encode` method.
+
+    Returns:
+        Byte representation of the tokenized sequence (little-endian unsigned shorts).
+    """
     tokens = tokenizer.encode(seq)
     return struct.pack(f"<{len(tokens)}H", *tokens)
 
 
-def tok_decode(byte_seq, tokenizer):
+def tok_decode(byte_seq: bytes, tokenizer) -> str:
+    """
+    Decode a byte sequence back into text using the tokenizer.
+
+    Args:
+        byte_seq: Byte sequence representing token IDs (as little-endian unsigned shorts).
+        tokenizer: Tokenizer object with a `decode` method.
+
+    Returns:
+        Decoded text string.
+    """
     num_tokens = len(byte_seq) // 2
     tokens = struct.unpack(f"<{num_tokens}H", byte_seq)
     return tokenizer.decode(list(tokens))
 
 
-def encode(seq):
+def encode(seq: str) -> bytes:
+    """
+    Encode a string to UTF-8 bytes.
+
+    Args:
+        seq: Input string.
+
+    Returns:
+        UTF-8 encoded bytes.
+    """
     return seq.encode("utf-8")
 
 
-def decode(seq):
+def decode(seq: bytes) -> str:
+    """
+    Decode UTF-8 bytes to string, ignoring invalid characters.
+
+    Args:
+        seq: UTF-8 encoded bytes.
+
+    Returns:
+        Decoded string with invalid characters ignored.
+    """
     return seq.decode("utf-8", errors="ignore")

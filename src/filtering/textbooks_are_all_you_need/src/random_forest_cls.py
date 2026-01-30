@@ -27,27 +27,17 @@ class RandomForestTrainer:
         save_metadata: bool = False,
         model_params: Optional[Dict[str, Any]] = None,
     ):
-        """
-        Initialize trainer.
+        """Initialize trainer.
 
-        Parameters
-        ----------
-        test_size : float
-            Proportion of test split (default: 0.2).
-        random_state : int
-            Seed for reproducibility (default: 42).
-        model_path : str
-            Path to save the trained model (default: "best_random_forest_model.joblib").
-        datasets_path : str
-            Path to save train/test splits (default: "datasets.npz").
-        metadata_path : str
-            Path to save metadata after training (default: "metadata_path")
-        save_metadata : bool
-            Whether to save training metadata (e.g., metrics, timestamps) to disk.
-            Default is False.
-        model_params : dict or None
-            Parameters passed to RandomForestClassifier (e.g., n_estimators, max_depth).
-            If None, uses scikit-learn defaults except for random_state and n_jobs.
+        Args:
+            test_size: Proportion of test split (default: 0.2).
+            random_state: Seed for reproducibility (default: 42).
+            model_path: Path to save the trained model.
+            datasets_path: Path to save train/test splits.
+            metadata_path: Path to save metadata after training.
+            save_metadata: Whether to save training metadata (e.g., metrics, timestamps).
+            model_params: Parameters passed to RandomForestClassifier.
+                If None, uses scikit-learn defaults plus random_state and n_jobs=-1.
         """
         self.test_size = test_size
         self.random_state = random_state
@@ -67,24 +57,17 @@ class RandomForestTrainer:
         Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray],
         Dict[str, Any],
     ]:
-        """
-        Train a Random Forest model and evaluate on test set.
+        """Train a Random Forest model and evaluate on test set.
 
-        Parameters
-        ----------
-        X : array-like or pandas DataFrame
-            Feature matrix.
-        y : array-like or pandas Series
-            Target vector.
+        Args:
+            X: Feature matrix (array-like or pandas DataFrame).
+            y: Target vector (array-like or pandas Series).
 
-        Returns
-        -------
-        model : RandomForestClassifier
-            Trained model.
-        datasets : tuple
-            (X_train, X_test, y_train, y_test) as numpy arrays.
-        metadata : dict
-            Training metadata including test metrics and model parameters.
+        Returns:
+            A tuple containing:
+                - Trained RandomForestClassifier.
+                - Tuple (X_train, X_test, y_train, y_test) as NumPy arrays.
+                - Dictionary with training metadata (metrics, params, etc.).
         """
         # Convert to numpy arrays if needed
         X_array = X.values if isinstance(X, pd.DataFrame) else np.asarray(X)
@@ -138,12 +121,23 @@ class RandomForestTrainer:
         return self.model, datasets, metadata
 
     def _save_model(self):
-        """Save the trained model to disk."""
+        """Save the trained model to disk using joblib.
+
+        Creates the parent directory if it doesn't exist and serializes
+        the current model to `self.model_path`.
+        """
         os.makedirs(os.path.dirname(self.model_path), exist_ok=True)
         joblib.dump(self.model, self.model_path)
 
     def _save_datasets(self, X_train, X_test, y_train, y_test):
-        """Save train/test splits to a compressed numpy file."""
+        """Save train/test splits to a compressed NumPy file.
+
+        Args:
+            X_train: Training feature matrix.
+            X_test: Test feature matrix.
+            y_train: Training labels.
+            y_test: Test labels.
+        """
         np.savez(
             self.datasets_path,
             X_train=X_train,
@@ -153,42 +147,23 @@ class RandomForestTrainer:
         )
 
     def _save_metadata(self, metadata: Dict[str, Any]) -> None:
-        """
-        Save training metadata to a JSON file.
+        """Save training metadata to a JSON file.
 
-        Serializes the provided metadata dictionary and writes it to the file path
-        specified by `self.metadata_path` with UTF-8 encoding, pretty-printed
-        formatting, and support for non-ASCII characters.
-
-        Parameters
-        ----------
-        metadata : dict
-            A dictionary containing training-related metadata (e.g., evaluation metrics,
-            timestamps, dataset sizes, model parameters). Must be JSON-serializable.
+        Args:
+            metadata: Dictionary containing training-related metadata.
+                Must be JSON-serializable.
         """
         with open(self.metadata_path, "w", encoding="utf-8") as f:
             json.dump(metadata, f, ensure_ascii=False, indent=4)
 
     def load_model(self, model_path: Optional[str] = None) -> RandomForestClassifier:
-        """
-        Load a pre-trained Random Forest model.
+        """Load a pre-trained Random Forest model.
 
-        Parameters
-        ----------
-        model_path : str or None
-            Path to the model file. If None, uses the path from initialization.
+        Args:
+            model_path: Path to the model file. If None, uses self.model_path.
 
-        Returns
-        -------
-        RandomForestClassifier
-            Loaded model.
-
-        Raises
-        ------
-        FileNotFoundError
-            If the model file does not exist.
-        ValueError
-            If the loaded object is not a RandomForestClassifier.
+        Returns:
+            Loaded RandomForestClassifier.
         """
         path = model_path or self.model_path
         if not os.path.exists(path):

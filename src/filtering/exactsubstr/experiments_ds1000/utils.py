@@ -60,7 +60,7 @@ def save_stats(
     total_initial: int,
     total_filtered: int,
     removed_count: int,
-    modified_count: int,  # <-- новая метрика
+    modified_count: int,
     stats_per_removed: List[Dict[str, Any]],
     stats_per_kept: List[Dict[str, Any]],
     output_path: str = "filter_stats.json",
