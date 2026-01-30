@@ -20,36 +20,35 @@ class Reflexion(Agent):
         self,
         name: str = "Reflexion",
         model_name: str = "Qwen/Qwen1.5-32B-Chat-AWQ",
-        openai_api_base_url="http://localhost:7215/v1"
+        openai_api_base_url="http://localhost:7215/v1",
     ):
         super().__init__(name)
         self.llm_model = ChatOpenAI(
-            model=model_name, 
+            model=model_name,
             openai_api_base=openai_api_base_url,
             openai_api_key="fake-key",
-            temperature=0.7
+            temperature=0.7,
         )
-
 
     def llm(self, message) -> str:
 
-        messages = [
-            HumanMessage(content=message)
-        ]
+        messages = [HumanMessage(content=message)]
 
         response = self.llm_model.invoke(messages)
-        return response.content 
-    
+        return response.content
+
     def make_evaluate_prompt(
-        self, question: str, answer: str,
+        self,
+        question: str,
+        answer: str,
     ) -> str | list[dict]:
-        prompt = fr"""{PY_EVALUATE_INSTRUCTION}\n{PY_EVALUATE_FEW_SHOT}\n  Problem: {question}\n\n Implementation: {answer}\n\n\Evaluation: """
+        prompt = rf"""{PY_EVALUATE_INSTRUCTION}\n{PY_EVALUATE_FEW_SHOT}\n  Problem: {question}\n\n Implementation: {answer}\n\n\Evaluation: """
         return prompt
 
     def make_reflect_prompt(
         self, question: str, answer: str, evaluation: str
     ) -> str | list[dict]:
-        prompt = fr"""{PY_SELF_REFLECTION_INSTRUCTION}\n{PY_SELF_REFLECTION_FEW_SHOT}\n  Problem: {question}\n\n Implementation: {answer}\n\n Evaluation: {evaluation}\n\Reflection:"""
+        prompt = rf"""{PY_SELF_REFLECTION_INSTRUCTION}\n{PY_SELF_REFLECTION_FEW_SHOT}\n  Problem: {question}\n\n Implementation: {answer}\n\n Evaluation: {evaluation}\n\Reflection:"""
         return prompt
 
     def reflect(self, question: str, answer: str, evaluation: str) -> str:
@@ -65,4 +64,3 @@ class Reflexion(Agent):
     def run(self, question: str, answer: str):
         feedback = self.evaluate(question, answer)
         return self.reflect(question, answer, feedback)
-

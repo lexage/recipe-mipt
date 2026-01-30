@@ -23,10 +23,10 @@ from .self_refine.main import (
 )
 
 __all__ = [
-    "ComplexCritic", 
+    "ComplexCritic",
     "Critic",
     "Panel",
     "Decrim",
     "Reflexion",
     "SelfRefine",
-    ]
+]
