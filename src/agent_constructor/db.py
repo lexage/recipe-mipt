@@ -4,14 +4,13 @@ from typing import (
     Iterable,
     List,
     Tuple,
+    Optional,
 )
 
 from src.agent_constructor.core import Chunk, Document, Text, Block
 from src.agent_constructor.chunkers import Chunker
 from src.agent_constructor.agent import Agent
 from src.utils.adapters import SQLiteDocsDBAdapter, ChromaDocsAdapter
-from src.utils.wrappers import EmbeddingFunctionWrapper
-from src.agent_constructor.filters import Filter
 
 
 class IDB(Block):
@@ -27,6 +26,10 @@ class IDB(Block):
 
     @abstractmethod
     def all_chunks(self) -> List[Chunk]:
+        raise NotImplementedError
+    
+    @abstractmethod
+    def get_documents(ids: Optional[List[int]]) -> List[Document]:
         raise NotImplementedError
     
 class InMemoryDB(IDB):
@@ -53,61 +56,40 @@ class InMemoryDB(IDB):
 
 class LocalDB(IDB):
     def __init__(
-            self, 
-            chunker: Chunker, 
-            embedding_model: Agent,
-            filter: Filter = None,
-            db_generator: Agent = None,
+            self,
+            embedder: Agent,
             path_to_db: str = 'data/docs_database.db', 
             path_to_vector_db: str = 'data/docs_vector_database', 
             collection_name: str = 'docs',
             ):
 
-        self.doc_data_base = SQLiteDocsDBAdapter(
+        self.sqlite_adapter = SQLiteDocsDBAdapter(
             path_to_db=path_to_db
             )
-
-        self.vector_data_base = ChromaDocsAdapter(
+        
+        self.vdb_adapter = ChromaDocsAdapter(
+            embedder=embedder,
             collection_name=collection_name,
-            path_to_db=path_to_vector_db,
-            embedding_function=EmbeddingFunctionWrapper(embedding_model)
-            )
-        
-        documents = self.doc_data_base.get_docs()
-        
-        if db_generator:
-            id_bias = len(documents)
-            synth_documents = [Document(id=id_bias+i, text=db_generator.run(d.text), source=db_generator.name) for i, d in enumerate(documents)]
-            documents.extend(synth_documents)
-
-        if not self.vector_data_base.populated:
-            self.vector_data_base.populate(
-                self._get_chunks(
-                    chunker=chunker,
-                    filter=filter, 
-                    documents=documents,
-                )
-            )
-
-    def _get_chunks(self, chunker: Chunker, filter: Filter, documents: List[Document]):
-        chunks = []
-        for document in documents:
-            doc_chunks = chunker.chunk(document)
-            chunks.extend(doc_chunks)
-        if filter:
-            return [c for c in chunks if filter.apply(c)]
-        else:
-            return chunks
+            path_to_db=path_to_vector_db
+        )
     
-    def query(self, queries: Text, top_k: int) -> List[Chunk]:
-        chunks = self.vector_data_base.search(queries=[queries], top_k=top_k)[0]      
+    def get_documents(self, ids: List[int] = None) -> List[Document]:
+        if not ids:
+            documents = self.sqlite_adapter.get_docs()
+            documents.extend(self.sqlite_adapter.get_examples())
+        else:
+            documents = self.sqlite_adapter.get_docs(ids)
+        return documents
+
+    def query(self, queries: Text, top_k: int = 10) -> List[Chunk]:
+        chunks = self.vdb_adapter.search(queries=[queries], top_k=top_k)[0]      
         return chunks
     
     def all_chunks(self) -> List[Chunk]:
-        return []
+        return self.vdb_adapter.get_chunks()
     
-    def add_chunks(self, chunks):
-        return super().add_chunks(chunks)
+    def add_chunks(self, chunks: List[Chunk]):
+        self.vdb_adapter.add(chunks)
 
 
 class LocalRaptorDB(IDB):
