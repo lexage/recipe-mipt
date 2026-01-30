@@ -81,8 +81,8 @@ class LocalDB(IDB):
             documents = self.sqlite_adapter.get_docs(ids)
         return documents
 
-    def query(self, queries: Text, top_k: int = 10) -> List[Chunk]:
-        chunks = self.vdb_adapter.search(queries=[queries], top_k=top_k)[0]      
+    def query(self, query_text: Text, top_k: int = 10) -> List[Chunk]:
+        chunks = self.vdb_adapter.search(queries=[query_text], top_k=top_k)[0]      
         return chunks
     
     def all_chunks(self) -> List[Chunk]:
