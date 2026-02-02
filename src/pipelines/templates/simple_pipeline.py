@@ -23,10 +23,9 @@ class SimplePipeline(Pipeline):
 
         [chunks.extend(chunker.chunk(doc)) for doc in documents]
         if filter:
-            filterd_chunks = [chunk for chunk in chunks if filter.apply(chunk)]
-            data_base.add_chunks(filterd_chunks)
-        else:
-            data_base.add_chunks(chunks)
+            chunks = filter.apply(chunks)
+            
+        data_base.add_chunks(chunks)
 
         self.retriever = retriever
         self.agent = agent

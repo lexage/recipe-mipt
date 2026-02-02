@@ -37,7 +37,7 @@ class ContextAssembler(Block):
 
 # ---------- Simple ContextAssembler implementation ----------
 class SimpleContextAssembler(ContextAssembler):
-    def assemble(self, query: str, chunks: Sequence[Chunk]) -> Text:
+    def assemble(self, chunks: Sequence[Chunk]) -> Text:
         # naive concatenation with headers
         parts = [f"[CHUNK {c.id} | doc={c.doc_id}]\n{c.text}" for c in chunks]
         return "\n\n".join(parts)
@@ -55,3 +55,17 @@ class CoRAGContextAssembler(ContextAssembler):
             prev_qna_data += f"Sub-query {i+1}: {q}\nSub-answer {i+1}: {a}\n"
 
         return f"##Documents\n{context}\n\n## Intermediate queries and answers\n{prev_qna_data}"
+
+
+class InstructRAGContextAssembler(ContextAssembler):
+    def assemble(self, data: Tuple[List[Text], List[Chunk]]):
+        rationalities, chunks = data
+        context = ""
+        for i, chunk in enumerate(chunks):
+            rationality = rationalities[i] if i < len(rationalities) else ""
+            context += f"[CHUNK {chunk.id} | doc={chunk.doc_id}]\n"
+            if rationality:
+                context += f"Rationality: {rationality}\n"
+            context += f"{chunk.text}\n\n"
+
+        return context.strip()
