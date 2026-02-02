@@ -37,7 +37,7 @@ class ContextAssembler(Block):
 
 # ---------- Simple ContextAssembler implementation ----------
 class SimpleContextAssembler(ContextAssembler):
-    def assemble(self, query: str, chunks: Sequence[Chunk]) -> Text:
+    def assemble(self, chunks: Sequence[Chunk]) -> Text:
         # naive concatenation with headers
         parts = [f"[CHUNK {c.id} | doc={c.doc_id}]\n{c.text}" for c in chunks]
         return "\n\n".join(parts)
