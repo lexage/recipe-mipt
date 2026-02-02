@@ -8,9 +8,11 @@
 
 import logging
 import hashlib
-from pydantic import BaseModel, Field
 import re
 from typing import List, Optional, Set
+
+from pydantic import BaseModel, Field
+from tqdm import tqdm
 
 from src.agent_constructor.core import Chunk
 from src.agent_constructor.filters import Filter
@@ -376,7 +378,11 @@ class SimpleLexicalFiltrator(Filter):
             List[Chunk]: Отфильтрованный список чанков.
         """
         final_chunks: List[Chunk] = []
-        for idx, chunk in enumerate(chunks, start=1):
+        for idx, chunk in tqdm(
+            enumerate(chunks, start=1),
+            desc="Лексическая фильтрация",
+            total=len(chunks),
+        ):
             logger.info("Начинаем лексическую фильтрацию чанка № %s...", idx)
             if self.config.remove_terminal_sections:
                 self.remove_terminal_sections(chunk)
