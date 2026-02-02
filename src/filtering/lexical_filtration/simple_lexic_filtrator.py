@@ -383,30 +383,51 @@ class SimpleLexicalFiltrator(Filter):
             desc="Лексическая фильтрация",
             total=len(chunks),
         ):
-            logger.info("Начинаем лексическую фильтрацию чанка № %s...", idx)
-            if self.config.remove_terminal_sections:
-                self.remove_terminal_sections(chunk)
-            if self.config.remove_junk_blocks:
-                self.filter_junk_lines_in_chunk(chunk)
-            if self.config.remove_navigation_lines:
-                self.filter_navigation_lines_in_chunk(chunk)
-            if self.config.normalize_empty_lines:
-                self.normalize_empty_lines(chunk)
+            original_text = chunk.text
+            try:
+                logger.info(
+                    "Начинаем лексическую фильтрацию чанка № %s...", idx
+                )
+                if original_text is None:
+                    logger.warning(
+                        "Чанк № %s имеет пустой `text` (None). Пропускаем", idx
+                    )
+                    continue
+                if self.config.remove_terminal_sections:
+                    self.remove_terminal_sections(chunk)
+                if self.config.remove_junk_blocks:
+                    self.filter_junk_lines_in_chunk(chunk)
+                if self.config.remove_navigation_lines:
+                    self.filter_navigation_lines_in_chunk(chunk)
+                if self.config.normalize_empty_lines:
+                    self.normalize_empty_lines(chunk)
 
-            # удаляем точные дубликаты с помощью скользящего окна
-            self.deduplicate_text_per_lines_with_sliding_window(chunk)
-            logger.debug(
-                "После дедупликации методом скользящего окна текст чанка "
-                "стал: %s",
-                chunk.text,
-            )
-            # удаляем строки-дубликаты
-            self.filter_duplicate_lines(chunk)
-            logger.debug(
-                "После удаления строк-дубликатов текст чанка стал: %s",
-                chunk.text,
-            )
-            logger.info("Лексическая фильтрация успешно завершена!")
-            if chunk.text.strip():
+                # удаляем точные дубликаты с помощью скользящего окна
+                self.deduplicate_text_per_lines_with_sliding_window(chunk)
+                logger.debug(
+                    "После дедупликации методом скользящего окна текст чанка "
+                    "стал: %s",
+                    chunk.text,
+                )
+                # удаляем строки-дубликаты
+                self.filter_duplicate_lines(chunk)
+                logger.debug(
+                    "После удаления строк-дубликатов текст чанка стал: %s",
+                    chunk.text,
+                )
+                logger.info("Лексическая фильтрация успешно завершена!")
+                if chunk.text.strip():
+                    final_chunks.append(chunk)
+            except Exception as e:
+                logger.error(
+                    "Ошибка при обработке чанка № %s. Текст чанка оставлен "
+                    "без изменений. Ошибка: %s",
+                    idx,
+                    e,
+                    exc_info=True,
+                )
+                # восстанавливаем исходный текст (так как могли успеть что-то
+                # отрезать до ошибки)
+                chunk.text = original_text
                 final_chunks.append(chunk)
         return final_chunks
