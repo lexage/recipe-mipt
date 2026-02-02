@@ -1,5 +1,4 @@
 import pytest
-from typing import List
 
 from src.agent_constructor.core import Chunk
 from filtering.lexical_filtration.simple_lexic_filtrator import (
@@ -24,9 +23,9 @@ Dunnett’s test compares the means of multiple experimental groups against a
 single control group. In [1], the influence of drugs on blood count
 measurements on three groups of animals is investigated.
 
-The following table summarizes the results of the experiment in which two groups
-received different drugs, and one group acted as a control. Blood counts (in
-millions of cells per cubic millimeter) were recorded:
+The following table summarizes the results of the experiment in which two
+groups received different drugs, and one group acted as a control. Blood
+counts (in millions of cells per cubic millimeter) were recorded:
 
 import numpy as np
 control = np.array([7.40, 8.50, 7.20, 8.24, 9.84, 8.32])
@@ -207,9 +206,7 @@ def test_lexical_filtrator(lexical_filtrator: SimpleLexicalFiltrator) -> None:
     chunks_for_filtering = [chunk_1, chunk_2]
     initial_len_chunk_1 = len(chunk_1.text)
     initial_len_chunk_2 = len(chunk_2.text)
-    new_chunks: List[Chunk | None] = []
-    for chunk in chunks_for_filtering:
-        new_chunks.append(lexical_filtrator.apply(chunk))
+    new_chunks = lexical_filtrator.apply(chunks_for_filtering)
     print(
         "Отфильтрованный текст чанка 1:\n",
         (
