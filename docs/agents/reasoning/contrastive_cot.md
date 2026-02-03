@@ -1,6 +1,7 @@
 # Contrastive Chain-of-Thought
 
 - **Модуль**: [`ContrastiveCoT`](../../../src/agents/reasoning/contrastive_cot/main.py)
+- **Модуль**: [`ContrastiveCoT`](../../../src/agents/reasoning/contrastive_cot/main.py)
 - **Cтатья**: [Contrastive Chain-of-Thought Prompting](https://arxiv.org/pdf/2311.09277)
 - **Официальный репозиторий**: [GitHub](https://github.com/DAMO-NLP-SG/contrastive-cot)
 

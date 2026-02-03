@@ -1,6 +1,7 @@
 # Selection-Inference
 
 - **Модуль**: [`SelectionInference`](../../../src/agents/reasoning/selection_inference/main.py)
+- **Модуль**: [`SelectionInference`](../../../src/agents/reasoning/selection_inference/main.py)
 - **Cтатья**: [Selection-Inference: Exploiting Large Language Models for Interpretable Logical Reasoning](https://arxiv.org/pdf/2205.09712)
 
 ---
@@ -23,6 +24,7 @@
 - `inference_examples: str` - строка с примерами для этапа Inference или путь до файла с ними в формате `jsonl`. Файл должен содержать ключи `"selection"` (набор фактов) и `"inference"` (утверждение, выведенное на основе этих фактов); 
 - `name: str = "SelectionInference"` - имя агента; 
 - `selection_mode: str = "simple"` - метод выбора фактов на этапе Selection. Есть две опции: `"simple"` и `"scoring"`.   
+    * Simple подход: показать модели несколько примеров и явно попросить ее сгенерировать необходимые факты;
     * Simple подход: показать модели несколько примеров и явно попросить ее сгенерировать необходимые факты;
     * Scoring подход: для каждого факта в контексте получить оценку его логарифмического правдоподобия, добавить факт с максимальной оценкой к выбранным фактам и в контекст, повторять процесс, пока не наберется нужное количество фактов;
 - `max_steps: int = 5` - число итераций алгоритма.

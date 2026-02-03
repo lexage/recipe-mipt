@@ -1,6 +1,7 @@
 # Automatic Chain-of-Thought
 
 - **Модуль**: [`AutoCoT`](../../../src/agents/reasoning/autocot/main.py)
+- **Модуль**: [`AutoCoT`](../../../src/agents/reasoning/autocot/main.py)
 - **Cтатья**: [AUTOMATIC CHAIN OF THOUGHT PROMPTING IN LARGE LANGUAGE MODELS](https://arxiv.org/pdf/2210.03493)
 - **Официальный репозиторий**: [GitHub](https://github.com/amazon-science/auto-cot)
 
