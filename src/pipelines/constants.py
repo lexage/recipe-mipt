@@ -27,8 +27,6 @@ class ComponentNames(Enum):
     SIMPLE_AGENT = "src.agents.general.SimpleAgent"
 
     # ===== Agents: Generation =====
-    EVAL_GENERATOR = "src.agents.generation.CodeEvalGenerator"
-    INCORRECT_GENERATOR = "src.agents.generation.IncorrectExampleGenerator"
     RANDOM_WORD_GENERATOR = "src.agents.generation.RandomWordGenerator"
     SHOTS_GENERATOR = "src.agents.generation.ZeroFewShotGenerator"
     INSTRUCT_GENERATOR = "src.agents.generation.InstuctGenerator"
@@ -86,3 +84,7 @@ class ComponentNames(Enum):
     # ===== Context Assemblers =====
     CORAG_CONTEXT_ASSEMBLER = "src.agent_constructor.context_engine.CoRAGContextAssembler"
     SIMPLE_CONTEXT_ASSEMBLER = "src.agent_constructor.context_engine.SimpleContextAssembler"
+
+    # ===== Generators =====
+    CODE_EVAL_GENERATOR = "src.generation.code_eval.CodeEvalGenerator"
+    INCORRECT_EXAMPLES_GENERATOR = "src.generation.incorrect_examples.IncorrectExampleGenerator"

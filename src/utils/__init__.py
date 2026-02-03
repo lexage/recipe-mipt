@@ -1,0 +1,2 @@
+DOCUMENT_SRC_EXAMPLES = 'examples'
+DOCUMENT_SRC_DOCUMENTS = 'documents'

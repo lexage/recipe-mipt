@@ -5,6 +5,7 @@ from typing import List, Optional
 from tqdm import tqdm
 from chromadb.config import Settings
 
+from src.utils import DOCUMENT_SRC_DOCUMENTS, DOCUMENT_SRC_EXAMPLES
 from src.agent_constructor.core import Document, Text, Chunk
 from src.utils.queries import GET_DOCUMENTS_QUERY, GET_EXAMPLES_QUERY
 from src.utils.wrappers import EmbeddingFunctionWrapper
@@ -32,7 +33,7 @@ class SQLiteDocsDBAdapter:
                 documents.append(
                     Document(
                         id=row['id'], 
-                        source='documents', 
+                        source=DOCUMENT_SRC_DOCUMENTS, 
                         text=row['content'], metadata={
                             "library": row['library'],
                             "section": row['section'],
@@ -63,7 +64,7 @@ class SQLiteDocsDBAdapter:
                 documents.append(
                     Document(
                         id=row['id'] + id_offset, 
-                        source='examples', 
+                        source=DOCUMENT_SRC_EXAMPLES, 
                         text=row['content'], 
                         metadata={
                             "doc_id": row['doc_id'],
