@@ -1,6 +1,6 @@
 import pickle
 from pathlib import Path
-from typing import Any
+from typing import Any, List
 from typing import cast
 
 import sys
@@ -26,7 +26,8 @@ from src.filtering.neardup.config.io.input_configs import LocalHFDatasetInputCon
 from src.filtering.neardup.utils.logger import log
 from src.filtering.neardup.utils.progress import use_tqdm
 
-from src.agent_constructor.core import Document
+# from src.agent_constructor.core import Document
+from src.agent_constructor.core import Chunk
 
 
 class InvalidDatasetTypeError(Exception):
@@ -35,14 +36,15 @@ class InvalidDatasetTypeError(Exception):
 
 
 def load_dataset(
-    documents: list[Document],
+    chunks: List[Chunk],
     config: Config
 ) -> Dataset:
     dataset_dict = {
-        "id": list(map(attrgetter('id'), documents)),
-        "text": list(map(attrgetter('text'), documents)),
-        "source": list(map(attrgetter('source'), documents)),
-        "metadata": list(map(attrgetter('metadata'), documents)),
+        "id": list(map(attrgetter('id'), chunks)),
+        "doc_id": list(map(attrgetter('doc_id'), chunks)),
+        "text": list(map(attrgetter('text'), chunks)),
+        "tokens": list(map(attrgetter('tokens'), chunks)),
+        "metadata": list(map(attrgetter('metadata'), chunks)),
     }
     
     ds = Dataset.from_dict(dataset_dict)

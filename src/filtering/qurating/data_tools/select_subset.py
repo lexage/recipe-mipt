@@ -13,7 +13,8 @@ from tqdm import tqdm
 import gc
 import torch
 from datasets import load_from_disk, load_dataset, concatenate_datasets, Dataset
-from src.agent_constructor.core import Document
+# from src.agent_constructor.core import Document
+from src.agent_constructor.core import Chunk
 from src.filtering.qurating.configs.config import SelectionConfig
 
 
@@ -253,7 +254,7 @@ def equi_domain_percentile_indices(metrics, num_tokens, total_num_tokens, domain
     )
 
 
-def select_data() -> List[Document]:
+def select_data() -> List[Chunk]:
     config = SelectionConfig()
     selected_documents = []
     
@@ -294,20 +295,23 @@ def select_data() -> List[Document]:
         if not os.path.exists(config.output + f"/{shard}/state.json"):
             dataset.save_to_disk(config.output + f"/{shard}", num_proc=config.num_workers)
         
-        # конвертация в List[Document]
-        shard_documents = []
+        # конвертация в List[Chunk]
+        shard_chunks = []
         for i in range(len(dataset)):
             item = dataset[i]
-            document = Document(
-                id=str(item['id']),
-                text=str(item['text']),
-                source=str(item['source']),
-                metadata=dict(item['metadata'])
+            
+            chunk = Chunk(
+                id=str(item["id"]),
+                doc_id=str(item["doc_id"]),
+                text=str(item["text"]),
+                tokens=item.get("tokens"),
+                metadata=item.get("metadata", {})
             )
-            shard_documents.append(document)
+
+            shard_chunks.append(chunk)
         
-        selected_documents.extend(shard_documents)
-        print(f"Shard {shard}: added {len(shard_documents)} documents")
+        selected_documents.extend(shard_chunks)
+        print(f"Shard {shard}: added {len(shard_chunks)} documents")
         
     num_shards = shard + 1
 

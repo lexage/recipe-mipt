@@ -1,4 +1,4 @@
-from typing import cast
+from typing import cast, List
 
 import sys
 import os
@@ -21,16 +21,17 @@ from src.filtering.neardup.utils.logger import log
 from src.filtering.neardup.utils.progress import use_custom_progress_bar
 from src.filtering.neardup.utils.timer import Timer
 
-from src.agent_constructor.core import Document
+# from src.agent_constructor.core import Document
+from src.agent_constructor.core import Chunk
 
 
 def load_and_preprocess(
-    documents: list[Document],
+    chunks: List[Chunk],
     config: Config
 ) -> tuple[Dataset, int, int]:
     """Load and preprocess the dataset."""
     algo = cast(MinHashAlgorithmConfig, config.algorithm)
-    ds = load_dataset(documents, config)
+    ds = load_dataset(chunks, config)
     original_len = len(ds)
     result: Dataset = ds.filter(  # pyright: ignore[reportUnknownMemberType]
         algo.get_filtering_func(),
@@ -138,16 +139,17 @@ def check_false_positives(config: Config, ds: Dataset) -> tuple[Dataset, dict[in
         # ])
     )
     
-    tokenize_func = algo._get_tokenize_func()
-    results = results.with_columns(
-        edit_score=pl.struct([algo.text_column, f"{algo.text_column}_right"]).map_elements(
-            lambda record: edit_similarity(  # pyright: ignore[reportAny]
-                tokenize_func(record[algo.text_column]),  # pyright: ignore[reportAny]
-                tokenize_func(record[f"{algo.text_column}_right"]),  # pyright: ignore[reportAny]
-            ),
-            return_dtype=pl.Float64,
-        )
-    ).filter(pl.col("edit_score") >= algo.edit_threshold)
+    if algo.check_edit_sim:
+        tokenize_func = algo._get_tokenize_func()
+        results = results.with_columns(
+            edit_score=pl.struct([algo.text_column, f"{algo.text_column}_right"]).map_elements(
+                lambda record: edit_similarity(  # pyright: ignore[reportAny]
+                    tokenize_func(record[algo.text_column]),  # pyright: ignore[reportAny]
+                    tokenize_func(record[f"{algo.text_column}_right"]),  # pyright: ignore[reportAny]
+                ),
+                return_dtype=pl.Float64,
+            )
+        ).filter(pl.col("edit_score") >= algo.edit_threshold)
     
     results = results.with_columns([
         pl.col(algo.internal_index_column).alias("idx1"),
@@ -206,9 +208,9 @@ def remove_duplicates(config: Config, ds: Dataset) -> Dataset:
 
 
 def neardup_pipeline(
-    documents: list[Document],
+    chunks: List[Chunk],
     config: Config
-) -> None:
+) -> List[Chunk]:
     """
     Running MinHash algorithm.
 
@@ -224,7 +226,7 @@ def neardup_pipeline(
 
     with timer("Total", enable_spin=False), use_custom_progress_bar():
         with timer("Preprocessing", enable_spin=False):
-            ds, ORIGINAL_LEN, FILTERED_LEN = load_and_preprocess(documents, config)
+            ds, ORIGINAL_LEN, FILTERED_LEN = load_and_preprocess(chunks, config)
             log.info(f"Filtered {ORIGINAL_LEN - FILTERED_LEN} records")
 
         with timer("MinHashing", enable_spin=False):
@@ -241,7 +243,7 @@ def neardup_pipeline(
         with timer("Filtering", enable_spin=False):
             final_data = remove_duplicates(config, ds)
 
-        # TODO: преобразовать в List[Document]
+        # TODO: преобразовать в List[Chunk]
         with timer("Saving"):
             save_dataset(config, final_data=final_data, clusters=assignment)
 
@@ -251,19 +253,3 @@ def neardup_pipeline(
                 final_data.cleanup_cache_files()
 
     timer.report({"Before": ORIGINAL_LEN, "After": len(final_data)})
-
-
-# if __name__ == "__main__":  # pragma: no cover
-#     from pydantic_settings import CliApp
-
-#     from text_dedup.utils.env import check_env
-
-#     config = CliApp.run(Config)
-#     check_env()
-#     if config.debug.enable_profiling:
-#         from scalene.scalene_profiler import enable_profiling
-
-#         with enable_profiling():
-#             main(config)
-#     else:
-#         main(config)

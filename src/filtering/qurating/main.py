@@ -1,7 +1,8 @@
 import os
 import sys
 sys.path.insert(0, os.getcwd())
-from src.agent_constructor.core import Document
+# from src.agent_constructor.core import Document
+from src.agent_constructor.core import Chunk
 from src.filtering.qurating.prompting.score_pairwise import collect_judgement_data
 from src.filtering.qurating.training.run_qurater_training import run_training
 from src.filtering.qurating.data_tools.qurater_annotate import annotate_data
@@ -9,9 +10,9 @@ from src.filtering.qurating.data_tools.select_subset import select_data
 from typing import List
 
 def qurating_pipeline(
-    docs_for_training: List[Document],
-    docs_for_filtering: List[Document] 
-) -> List[Document]:
+    chunks_for_training: List[Chunk],
+    chunks_for_filtering: List[Chunk] 
+) -> List[Chunk]:
     # getting data for QuRater training
     templates = [
         ".src/filtering/qurating/prompting/templates/pairwise_code_clarity_readability.txt",
@@ -28,7 +29,7 @@ def qurating_pipeline(
     ]
     
     for template_file, output_path in zip(templates, output_paths):
-        collect_judgement_data(docs_for_training, template_file, output_path)
+        collect_judgement_data(chunks_for_training, template_file, output_path)
     
     # QuRater training
     # trained QuRater is saved to "src/filtering/qurating/checkpoints-preferences/trained_qurater"
@@ -36,7 +37,7 @@ def qurating_pipeline(
     
     # getting the scores for the data we want to filter out
     # the annotated data is saved to "src/filtering/qurating/datasets/annotated_data" as Arrow
-    annotate_data(docs_for_filtering)
+    annotate_data(chunks_for_filtering)
     
     # selecting data based on scores
     # the selected data is saved to "src/filtering/qurating/datasets/selected_data" as Arrow divided on shards

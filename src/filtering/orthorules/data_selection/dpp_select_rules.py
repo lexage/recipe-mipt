@@ -7,14 +7,15 @@ from tqdm import tqdm
 from dppy.finite_dpps import FiniteDPP
 import numpy as np
 from src.filtering.orthorules.experiments_ds1000.rating.rating_prompts import rules
+from typing import List
 
 
-def dpp_sample(dpp: FiniteDPP, r: int = 10) -> list[int]:
+def dpp_sample(dpp: FiniteDPP, r: int = 10) -> List[int]:
     dpp.sample_exact_k_dpp(size=r)
     selected_indices = dpp.list_of_samples[-1]
     return selected_indices
 
-def select_rules(r: int = 10) -> list[int]:
+def select_rules(r: int = 10) -> List[int]:
     root_dir = './src/filtering/orthorules/experiments_ds1000/rating/batch_rating_results'
     quality_vector_ls = [] 
 

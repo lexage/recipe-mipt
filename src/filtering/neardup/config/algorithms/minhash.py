@@ -88,6 +88,7 @@ class MinHashAlgorithmConfig(AlgorithmConfig):
     ngram_size: int = 1
     threshold: float
     edit_threshold: float = 0.8
+    check_edit_sim: bool = False
     min_length: int = 5
     false_positive_weight: float = 0.5
     false_negative_weight: float = 0.5

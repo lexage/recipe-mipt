@@ -8,7 +8,8 @@ import sys
 sys.path.insert(0, os.getcwd())
 from src.filtering.qurating.modeling.modeling_flash_llama import LlamaForSequenceClassification
 from src.filtering.qurating.configs.config import AnnotationConfig
-from src.agent_constructor.core import Document
+# from src.agent_constructor.core import Document
+from src.agent_constructor.core import Chunk
 from operator import attrgetter
 from typing import List
 
@@ -145,16 +146,17 @@ class ModelAnnotator:
         return output
 
 
-def annotate_data(documents: List[Document]):
+def annotate_data(chunks: List[Chunk]):
     config = AnnotationConfig()
-                
+    
     dataset_dict = {
-        "id": list(map(attrgetter('id'), documents)),
-        "text": list(map(attrgetter('text'), documents)),
-        "source": list(map(attrgetter('source'), documents)),
-        "metadata": list(map(attrgetter('metadata'), documents)),
+        "id": list(map(attrgetter('id'), chunks)),
+        "doc_id": list(map(attrgetter('doc_id'), chunks)),
+        "text": list(map(attrgetter('text'), chunks)),
+        "tokens": list(map(attrgetter('tokens'), chunks)),
+        "metadata": list(map(attrgetter('metadata'), chunks)),
     }
-        
+                
     dataset = Dataset.from_dict(dataset_dict)
 
     # src_dataset = dataset.shard(config.shard[1], config.shard[0], contiguous=True)

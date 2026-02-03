@@ -10,144 +10,56 @@ from typing import List, Optional, Dict, Callable, Iterable, Union
 from tqdm import tqdm
 
 from data_selection import HashedNgramDSIR
-from data_selection.base import default_load_dataset_fn, default_parse_example_fn
+from data_selection.base import default_parse_example_fn
 
-from src.agent_constructor.core import Document
+# from src.agent_constructor.core import Document
+from src.agent_constructor.core import Chunk
 from src.agent_constructor.chunkers import DSIRChunker
 
 import nltk
 # nltk.download('punkt_tab')
 
 
-def handle_filtration(documents: List[Document]) -> List[Document]:
+def handle_filtration(chunks: List[Chunk]) -> List[Chunk]:
     # TODO: add implementation
-    return documents
+    return chunks
 
 
-def split_document(args) -> List[Dict]:
-    doc, chunk_length = args
-    chunker = DSIRChunker(chunk_length)
-    chunks = chunker.chunk(doc)
-    return [{"text": chunk.text, "metadata": chunk.metadata, "id": chunk.id} for chunk in chunks]
-
-
-def split_parallel(
-    documents: List[Document], 
-    output_file: str, 
-    chunk_length: int = 128, 
-    num_workers: int = None
-) -> None:
-    if num_workers is None:
-        num_workers = cpu_count()
-    
-    args = [(doc, chunk_length) for doc in documents]
-    
-    output_str_path = f'./src/filtering/dsir/chunk_data/{output_file}'
-    output_path = Path(output_str_path)
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    
-    with Pool(processes=num_workers) as pool:
-        all_chunks = list(tqdm(
-            pool.imap(split_document, args),
-            total=len(documents),
-            desc="Documents splitting"
-        ))
-    
-    with open(output_path, 'w', encoding='utf-8') as f:
-        for chunks_list in all_chunks:
-            for chunk in chunks_list:
-                f.write(json.dumps(chunk, ensure_ascii=False).strip() + '\n')
-    return output_str_path
-
-
-def chunks_processing(
-    filtered_raw_documents: List[Document],
-    target_documents: List[Document],
-    num_to_sample: int,
-    chunk_length: int = 128, 
-    num_workers: int = None,
-    num_proc: Optional[int] = None,
-    ngrams: int = 2,
-    num_buckets: int = 10000,
-    min_example_length: int = 100,
-    separate_targets: bool = False,
-    target_proportions: Optional[List[float]] = None,
-    num_tokens_to_fit: Union[str, int] = 'auto',
-    top_k: bool = False
-) -> None:
-    raw_output_path = split_parallel(
-        documents=filtered_raw_documents, 
-        output_file="raw.jsonl", 
-        chunk_length=chunk_length, 
-        num_workers=num_workers
-    )
-    target_output_path = split_parallel(
-        documents=target_documents, 
-        output_file="target.jsonl", 
-        chunk_length=chunk_length, 
-        num_workers=num_workers
-    )
-    
-    dsir = HashedNgramDSIR(
-        raw_datasets=[raw_output_path], 
-        target_datasets=[target_output_path], 
-        cache_dir="./src/filtering/dsir/dsir_cache", 
-        tokenizer="word_tokenize",
-        raw_load_dataset_fn=default_load_dataset_fn,
-        raw_parse_example_fn=default_parse_example_fn,
-        target_load_dataset_fn=default_load_dataset_fn,
-        target_parse_example_fn=default_parse_example_fn,
-        num_proc=num_proc,
-        ngrams=ngrams,
-        num_buckets=num_buckets,
-        min_example_length=min_example_length,
-        separate_targets=separate_targets,
-        target_proportions=target_proportions
-    )
-    
-    dsir.fit_importance_estimator(num_tokens_to_fit=num_tokens_to_fit)
-    dsir.compute_importance_weights()
-    
-    dsir.resample(
-        out_dir="./src/filtering/dsir/resampled", 
-        num_to_sample=num_to_sample, 
-        cache_dir="./src/filtering/dsir/resampled_cache",
-        top_k=top_k
-    )
-
-
-def create_load_dataset_fn(documents: List[Document]) -> Callable[[str], Iterable[Dict]]:
+def create_load_dataset_fn(chunks: List[Chunk]) -> Callable[[str], Iterable[Dict]]:
     """
-    Create the function load_dataset_fn for DSIR from the list of documents.
+    Create the function load_dataset_fn for DSIR from the list of chunks.
     The path argument is needed for compatibility.
     """
     def load_dataset_fn(path: str) -> Iterable[Dict]:
-        for doc in documents:
+        for chunk in chunks:
             yield {
-                "id": doc.id,
-                "text": doc.text,
-                "source": doc.source,
-                "metadata": doc.metadata
+                "id": chunk.id,
+                "doc_id": chunk.doc_id,
+                "text": chunk.text,
+                "tokens": chunk.tokens,
+                "metadata": chunk.metadata
             }
     return load_dataset_fn
 
 
-def documents_processing(
-    filtered_raw_documents: List[Document], 
-    target_documents: List[Document],
+def dsir_pipeline(
+    raw_chunks: List[Chunk], 
+    target_chunks: List[Chunk],
     num_to_sample: int,
     num_proc: Optional[int] = None,
     ngrams: int = 2,
     num_buckets: int = 10000,
-    tokenizer: str = 'wordpunct',
+    tokenizer: str = 'word_tokenize',
     min_example_length: int = 100,
     separate_targets: bool = False,
     target_proportions: Optional[List[float]] = None,
     num_tokens_to_fit: Union[str, int] = 'auto',
     top_k: bool = False
-) -> None:
-    raw_load_fn = create_load_dataset_fn(filtered_raw_documents)
-    target_load_fn = create_load_dataset_fn(target_documents)
+) -> List[Chunk]:
+    filtered_raw_chunks = handle_filtration(raw_chunks)
+    
+    raw_load_fn = create_load_dataset_fn(filtered_raw_chunks)
+    target_load_fn = create_load_dataset_fn(target_chunks)
     
     raw_paths = ["in_memory_raw"]
     target_paths = ["in_memory_target"]
@@ -178,55 +90,29 @@ def documents_processing(
         cache_dir="./src/filtering/dsir/resampled_cache",
         top_k=top_k
     )
-
-
-def dsir_pipeline(
-    raw_documents: List[Document], 
-    target_documents: List[Document],
-    num_to_sample: int,
-    is_splitting: bool = True,
-    chunk_length: int = 128, 
-    num_workers: int = None,
-    num_proc: Optional[int] = None,
-    ngrams: int = 2,
-    num_buckets: int = 10000,
-    tokenizer: str = 'wordpunct',
-    min_example_length: int = 100,
-    separate_targets: bool = False,
-    target_proportions: Optional[List[float]] = None,
-    num_tokens_to_fit: Union[str, int] = 'auto',
-    top_k: bool = False
-) -> None:
-    filtered_raw_documents = handle_filtration(raw_documents)
     
-    if is_splitting:
-        chunks_processing(
-            filtered_raw_documents=filtered_raw_documents,
-            target_documents=target_documents,
-            num_to_sample=num_to_sample,
-            chunk_length=chunk_length, 
-            num_workers=num_workers,
-            num_proc=num_proc,
-            ngrams=ngrams,
-            num_buckets=num_buckets,
-            min_example_length=min_example_length,
-            separate_targets=separate_targets,
-            target_proportions=target_proportions,
-            num_tokens_to_fit=num_tokens_to_fit,
-            top_k=top_k
-        )
-    else:
-        documents_processing(
-            filtered_raw_documents=filtered_raw_documents, 
-            target_documents=target_documents,
-            num_to_sample=num_to_sample,
-            num_proc=num_proc,
-            ngrams=ngrams,
-            num_buckets=num_buckets,
-            tokenizer=tokenizer,
-            min_example_length=min_example_length,
-            separate_targets=separate_targets,
-            target_proportions=target_proportions,
-            num_tokens_to_fit=num_tokens_to_fit,
-            top_k=top_k
-        )
+    resampled_chunks = []
+    resampled_dir = Path("./src/filtering/dsir/resampled")
+    
+    for file_path in resampled_dir.glob("*.jsonl"):
+        if file_path.stat().st_size == 0:
+            continue
+            
+        with open(file_path, 'r', encoding='utf-8') as f:
+            for line in f:
+                line = line.strip()
+                if not line:
+                    continue
+                
+                data = json.loads(line)
+                
+                chunk = Chunk(
+                    id=str(data["id"]),
+                    doc_id=str(data["doc_id"]),
+                    text=str(data["text"]),
+                    tokens=data.get("tokens"),
+                    metadata=data.get("metadata", {})
+                )
+                resampled_chunks.append(chunk)
+
+    return resampled_chunks

@@ -4,11 +4,13 @@ sys.path.insert(0, os.getcwd())
 import json
 from tqdm import tqdm
 import numpy as np
-from src.agent_constructor.core import Document
+from typing import List
+# from src.agent_constructor.core import Document
+from src.agent_constructor.core import Chunk
 from src.filtering.orthorules.experiments_ds1000.rating.rating_prompts import *
 
 
-def average_scores(total_size: int, rule_indices: list, rating_results_path: str) -> list[float]:
+def average_scores(total_size: int, rule_indices: List[int], rating_results_path: str) -> List[float]:
     cumulative_sum = np.zeros(total_size)
 
     for rule_index in tqdm(rule_indices, desc=f"Average scores for {len(rule_indices)} rules:"):
@@ -27,7 +29,7 @@ def average_scores(total_size: int, rule_indices: list, rating_results_path: str
     return average_vector.tolist()
 
 
-def gumbel_trick_sampling(quality_scores: list[float], tau: float = 1.0, k: int = 20000) -> list[int]:
+def gumbel_trick_sampling(quality_scores: List[float], tau: float = 1.0, k: int = 20000) -> List[int]:
     """
     Perform quality sampling using the Gumbel top-k trick.
 
@@ -49,7 +51,7 @@ def gumbel_trick_sampling(quality_scores: list[float], tau: float = 1.0, k: int 
     return sorted_indices.tolist()
 
 
-def stochastic_sampling(quality_scores: list[float], tau: float = 1.0, k: int = 20000) -> list[int]:
+def stochastic_sampling(quality_scores: List[float], tau: float = 1.0, k: int = 20000) -> List[int]:
     exp_scores = np.exp(quality_scores / tau)
     probs = exp_scores / np.sum(exp_scores)
     
@@ -63,20 +65,20 @@ def stochastic_sampling(quality_scores: list[float], tau: float = 1.0, k: int = 
     return selected_indices.tolist()
 
 
-def top_k_selection(quality_scores: list[float], k: int = 20000) -> list[int]:
+def top_k_selection(quality_scores: List[float], k: int = 20000) -> List[int]:
     selected_indices = np.argsort(quality_scores)[-k:][::-1]
     return selected_indices.tolist()
 
 
 def select_high_quality_data(
-    documents: list[Document], 
-    rule_indices: list, 
+    chunks: List[Chunk], 
+    rule_indices: List[int], 
     tau: float = 1.0, 
     k: int = 20000,
     sampling_method: str = "gumbel"
-) -> list[Document]:
+) -> List[Chunk]:
     rating_results_path = './src/filtering/orthorules/experiments_ds1000/rating/all_data_rating_results'
-    total_size = len(documents)
+    total_size = len(chunks)
     
     scores = average_scores(total_size, rule_indices, rating_results_path)
     
@@ -89,4 +91,4 @@ def select_high_quality_data(
     else:
         selected_indices = top_k_selection(scores, k=k)
     
-    return [documents[idx] for idx in selected_indices]
+    return [chunks[idx] for idx in selected_indices]

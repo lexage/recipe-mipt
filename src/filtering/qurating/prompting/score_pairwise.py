@@ -6,7 +6,8 @@ import sys
 sys.path.insert(0, os.getcwd())
 from src.filtering.qurating.prompting.openai_util import query_openai
 from src.filtering.qurating.configs.config import PairwiseComparisonConfig
-from src.agent_constructor.core import Document
+# from src.agent_constructor.core import Document
+from src.agent_constructor.core import Chunk
 from datasets import Dataset
 from operator import attrgetter
 
@@ -157,17 +158,18 @@ class Comparator:
         )
         
 def collect_judgement_data(
-    documents: List[Document],
+    chunks: List[Chunk],
     template_file: str,
-    output_path: str #".src/filtering/qurating/datasets/judgement_data"
+    output_path: str
 ):  
     config = PairwiseComparisonConfig()
                 
     dataset_dict = {
-        "id": list(map(attrgetter('id'), documents)),
-        "text": list(map(attrgetter('text'), documents)),
-        "source": list(map(attrgetter('source'), documents)),
-        "metadata": list(map(attrgetter('metadata'), documents)),
+        "id": list(map(attrgetter('id'), chunks)),
+        "doc_id": list(map(attrgetter('doc_id'), chunks)),
+        "text": list(map(attrgetter('text'), chunks)),
+        "tokens": list(map(attrgetter('tokens'), chunks)),
+        "metadata": list(map(attrgetter('metadata'), chunks)),
     }
         
     # Create Hugging Face dataset

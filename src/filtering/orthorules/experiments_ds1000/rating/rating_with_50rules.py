@@ -9,7 +9,9 @@ import random
 # from modules.module_generation import *
 sys.path.insert(0, os.getcwd())
 from src.filtering.orthorules.experiments_ds1000.rating.rating_prompts import *
-from src.agent_constructor.core import Document
+# from src.agent_constructor.core import Document
+from src.agent_constructor.core import Chunk
+from typing import List
 
 
 def free_memory() -> None:
@@ -17,17 +19,17 @@ def free_memory() -> None:
     gc.collect()
 
 
-def llm(questions: list[str]) -> list[int]:
+def llm(questions: List[str]) -> List[int]:
     # TODO: Replace with actual LLM call
     return [0.5] * len(questions)
 
 
-def rule_based_rating(rule: str, chunk_data: list[str]) -> list[int]:
-    size = len(chunk_data)
+def rule_based_rating(rule: str, batch_data: List[str]) -> List[int]:
+    size = len(batch_data)
     questions = []
     
     for i in range(size):
-        prompt_i = rule_rating_prompt(rule, chunk_data[i])
+        prompt_i = rule_rating_prompt(rule, batch_data[i])
         questions.append(prompt_i)
 
     free_memory()
@@ -35,18 +37,18 @@ def rule_based_rating(rule: str, chunk_data: list[str]) -> list[int]:
     return responses
 
 
-def select_random_batch(documents: list[Document], batch_size: int = 10000) -> list[Document]:
-    if len(documents) <= batch_size:
-        return documents.copy()
+def select_random_batch(chunks: List[Chunk], batch_size: int = 10000) -> List[Chunk]:
+    if len(chunks) <= batch_size:
+        return chunks.copy()
     
-    return random.sample(documents, batch_size)
+    return random.sample(chunks, batch_size)
 
 
 def data_rating(
-    data: list[Document],
+    data: List[Chunk],
     folder_name: str,
     rules_indices: list[int],
-    chunk_size: int = 1000
+    batch_size: int = 1000
 ) -> None:
     free_memory()
     
@@ -65,17 +67,17 @@ def data_rating(
         if not os.path.exists(rule_folder):
             os.makedirs(rule_folder)
                         
-        for start_idx in range(0, total_size, chunk_size):
+        for start_idx in range(0, total_size, batch_size):
             free_memory()
-            end_idx = min(start_idx + chunk_size, total_size)
-            chunk_data = [d.text for d in data[start_idx:end_idx]]
-            chunk_number = start_idx // chunk_size
-            chunk_save_path = os.path.join(rule_folder, f'chunk{chunk_number}.json')
+            end_idx = min(start_idx + batch_size, total_size)
+            batch_data = [d.text for d in data[start_idx:end_idx]]
+            batch_number = start_idx // batch_size
+            batch_save_path = os.path.join(rule_folder, f'batch{batch_number}.json')
             
-            quality_responses = rule_based_rating(rules[rule_idx], chunk_data)
+            quality_responses = rule_based_rating(rules[rule_idx], batch_data)
             
             # Save batch results
-            with open(chunk_save_path, 'w') as json_file:
+            with open(batch_save_path, 'w') as json_file:
                 json.dump(quality_responses, json_file, indent=4)
 
     print("All rules processed.")
