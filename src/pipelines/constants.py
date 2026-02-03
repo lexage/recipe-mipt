@@ -73,3 +73,8 @@ class ComponentNames(Enum):
 
     # ===== Context Assemblers =====
     CORAG_CONTEXT_ASSEMBLER = "src.agent_constructor.context_engine.CoRAGContextAssembler"
+
+    # ===== ICL =====
+    ICCL_ICL = "src.icl.ICCL"
+    LENS_ICL = "src.icl.Lens"
+    FEW_SHOT_ICL = "src.icl.FewShot"

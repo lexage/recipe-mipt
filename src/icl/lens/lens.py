@@ -9,9 +9,11 @@ from sklearn.metrics.pairwise import cosine_similarity
 
 from src.agent_constructor.core import Text
 from src.agent_constructor.agent import Agent
+from src.agent_constructor.context_engine import Chunk
+from src.agent_constructor.icl import ICLBlock
 
 
-class Lens:
+class Lens(ICLBlock):
 
     _ppl_cache = {}
     _examples_features_cache = {}
@@ -49,13 +51,13 @@ class Lens:
 
         self.score_set = []
 
-    def run(self, examples: List[Text]) -> List[Text]:
+    def apply(self, chunks: List[Chunk]) -> List[Chunk]:
         print("=" * 60)
         print("running lens")
         print("=" * 60)
-        print(f"total input examples: {len(examples)}")
+        print(f"total input examples: {len(chunks)}")
 
-        if not examples:
+        if not chunks:
             print("warning: empty examples list, returning empty list")
             return []
 
@@ -63,7 +65,7 @@ class Lens:
         print("stage 1: filtering")
         print("-" * 60)
         informative_examples = self.filter(
-            examples=examples,
+            chunks=chunks,
             progressive_factor=self.progressive_factor,
             init_score_size=self.init_score_set_size,
             candidate_size=self.filtered_set_size,
@@ -71,7 +73,7 @@ class Lens:
         print(f"filtering completed. selected examples: {len(informative_examples)}")
 
         # Не используется далее: validation_set возможно не нужен, если дальше не используется
-        validation_set = set(examples) - set(informative_examples)
+        validation_set = set(chunks) - set(informative_examples)
         print(f"validation set size: {len(validation_set)}")
 
         print("\n" + "-" * 60)
@@ -91,10 +93,10 @@ class Lens:
         return best_permutation
 
     def filter(self, 
-               examples: List[Text], 
+               examples: List[Chunk], 
                progressive_factor: int, 
                init_score_size: int, 
-               candidate_size: int):
+               candidate_size: int) -> List[Chunk]:
         
         print(f"filtering parameters:")
         print(f"   - progressive_factor: {progressive_factor}")
@@ -154,12 +156,12 @@ class Lens:
 
     # TO-DO: Problem with dublecates (when getting e_new)
     def search(self, 
-               examples: List[Text], 
+               examples: List[Chunk], 
                validation_set: List[Text],
                search_set_size: int, 
                search_iterations: int, 
                beam_size: int, 
-               substitution_size: int):
+               substitution_size: int) -> List[Chunk]:
 
         print(f"search parameters:")
         print(f"   - search_iterations: {search_iterations}")
@@ -212,7 +214,7 @@ class Lens:
         print(f"\nsearch completed. returning best permutation (size: {len(permutations[0])})")
         return permutations[0]
     
-    def _diversity(self, example: Text, example_set: List[Text]):
+    def _diversity(self, example: Chunk, example_set: List[Chunk]):
         score = self._info_score(example, relative_set=self.score_set)
         
         if len(example_set) == 0:
@@ -220,8 +222,8 @@ class Lens:
         elif self.embedding_model == None:
             similarities = [random.uniform(0,1) for _ in example_set]
         else:
-            example_features = self._vectorize(example)
-            set_features = [self._vectorize(set_item)[0] for set_item in example_set]
+            example_features = self._vectorize(example.text)
+            set_features = [self._vectorize(set_item.text)[0] for set_item in example_set]
             similarities = cosine_similarity(example_features, set_features)[0]
 
         return score - self.diversity_weight * (np.sum(similarities))
@@ -244,23 +246,22 @@ class Lens:
         return eval_set[:beam_size]
         # Это заглушка. Хорошо бы реализовать ранжирование permutation наборов по проверочной метрике
 
-    def _get_permutations(self, examples, search_set_size, beam_size):
+    def _get_permutations(self, examples:List[Chunk], search_set_size:int, beam_size:int) -> List[List[Chunk]]:
         return [random.sample(examples, search_set_size) for _ in range(beam_size)]
 
     def _hash_string(self, st: str):
         return int(hashlib.md5(st.encode('utf-8')).hexdigest(), 16)
 
-    def _info_score(self, example: Text, relative_set: Set[Text]):
+    def _info_score(self, example: Chunk, relative_set: Set[Chunk]):
         if self.model_name == None:
             return random.uniform(0,1)
 
         score = 0
-        total_relative = len(relative_set)
-        for idx, re in enumerate(relative_set):
+        for re in relative_set:
             
             # 1) CALCULATE PPL FOR RELATIVE EXAMPLE 
             # WITHOUT TARGET EXAMPLE AS CONTEXT
-            prompt_hash = self._hash_string(re)
+            prompt_hash = self._hash_string(re.text)
 
             if prompt_hash in self._ppl_cache:
                 ppl = self._ppl_cache[prompt_hash]
@@ -268,7 +269,7 @@ class Lens:
                 response = self.client.completions.create(
                     model=self.model_name,
                     temperature=0,
-                    prompt=re,
+                    prompt=re.text,
                     max_tokens=100,
                     logprobs=True,
                 )
@@ -280,14 +281,14 @@ class Lens:
             # 2) CALCULATE PPL FOR RELATIVE EXAMPLE
             # WITH TARGET EXAMPLE AS CONTEXT
 
-            pair_prompt_hash = self._hash_string(re+example)
+            pair_prompt_hash = self._hash_string(re.text+example.text)
             if pair_prompt_hash in self._ppl_cache:
                 pair_ppl = self._ppl_cache[pair_prompt_hash]
             else:
                 response = self.client.completions.create(
                     model=self.model_name,
                     temperature=0,
-                    prompt=re+example,
+                    prompt=re.text+example.text,
                     max_tokens=100,
                     logprobs=True,
                 )
