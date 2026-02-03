@@ -209,19 +209,24 @@ class SelectionInference(Agent):
             question: Question to answer
             
         Returns:
-            Answer to question
+            Reasoning
         """
         current_context = context
-        final_inference = ""
+        reasoning_chain = []
         
-        for _ in range(self.max_steps):
+        for step in range(self.max_steps):
             if self.selection_mode == "simple":
                 selection = self.selection_module.select_simple(current_context, question)
             else:
                 selection = self.selection_module.select_scoring(current_context, question)
             
             inference = self.inference_module.infer(selection)
-            current_context += f" {inference}"
-            final_inference = inference
             
-        return final_inference
+            reasoning_chain.append(f"Step {step + 1}:")
+            reasoning_chain.append(f"  Selection: {selection}")
+            reasoning_chain.append(f"  Inference: {inference}")
+            reasoning_chain.append("")
+            
+            current_context += f" {inference}"
+            
+        return "\n".join(reasoning_chain)

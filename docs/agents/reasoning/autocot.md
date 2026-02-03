@@ -1,6 +1,6 @@
 # Automatic Chain-of-Thought
 
-- **Модуль**: [`AutoCoT`](src/agents/reasoning/autocot/main.py)
+- **Модуль**: [`AutoCoT`](../../../src/agents/reasoning/autocot/main.py)
 - **Cтатья**: [AUTOMATIC CHAIN OF THOUGHT PROMPTING IN LARGE LANGUAGE MODELS](https://arxiv.org/pdf/2210.03493)
 - **Официальный репозиторий**: [GitHub](https://github.com/amazon-science/auto-cot)
 
@@ -47,4 +47,4 @@ solution = reasoner.run(task, num_demos=5)
 
 Здесь `task: str` - текстовое описание задачи, `num_demos: int = 4` - количество демонстрационных примеров, которые будут получены. 
 
-Основной метод - `run` - возвращает решение задачи.
+Основной метод - `run` - возвращает рассуждение (`str`).

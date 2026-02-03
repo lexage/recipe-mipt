@@ -1,6 +1,6 @@
 # Contrastive Chain-of-Thought
 
-- **Модуль**: [`ContrastiveCoT`](src/agents/reasoning/contrastive_cot/main.py)
+- **Модуль**: [`ContrastiveCoT`](../../../src/agents/reasoning/contrastive_cot/main.py)
 - **Cтатья**: [Contrastive Chain-of-Thought Prompting](https://arxiv.org/pdf/2311.09277)
 - **Официальный репозиторий**: [GitHub](https://github.com/DAMO-NLP-SG/contrastive-cot)
 
@@ -36,4 +36,4 @@ reasoner = ContrastiveCoT("demonstrations.jsonl")
 solution = reasoner.run(task) # task: str - текстовое описание задачи 
 ```
 
-Основной метод - `run` - возвращает решение задачи.
+Основной метод - `run` - возвращает рассуждение (`str`).

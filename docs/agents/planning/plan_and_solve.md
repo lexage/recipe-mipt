@@ -1,6 +1,6 @@
 # Plan-and-Solve Prompting
 
-- **Модуль**: [`PlanAndSolveAgent`](src/agents/planning/plan_and_solve/main.py)
+- **Модуль**: [`PlanAndSolveAgent`](../../../src/agents/planning/plan_and_solve/main.py)
 - **Cтатья**: [Plan-and-Solve Prompting: Improving Zero-Shot Chain-of-Thought Reasoning by Large Language Models](https://arxiv.org/pdf/2305.04091)
 - **Официальный репозиторий**: [GitHub](https://github.com/AGI-Edgerunners/Plan-and-Solve-Prompting)
 
@@ -23,7 +23,7 @@ planner = PlanAndSolveAgent() # передавать параметры иниц
 plan = planner.run(task) # task: str - текстовое описание задачи 
 ```
 
-Основной метод - `run` - возвращает план решения задачи.
+Основной метод - `run` - возвращает план решения задачи (`str`).
 
 ---
 

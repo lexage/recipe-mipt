@@ -171,7 +171,4 @@ Explain the reasoning behind this code implementation:\n{self.cot_trigger}
         prompt = f"{demo_text}Problem:\n{task}\n\nReasoning:\n{self.cot_trigger}"
         reasoning = self.llm(prompt)
         
-        answer_prompt = f"{prompt}\n{reasoning}\n{self.direct_answer_trigger}"
-        code_solution = self.llm(answer_prompt)
-       
-        return code_solution
+        return reasoning

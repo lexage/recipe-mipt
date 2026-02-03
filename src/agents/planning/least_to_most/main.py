@@ -44,6 +44,6 @@ Subproblems:
         subproblems = self.extract_subproblems(response)
         return subproblems
     
-    def run(self, task: str) -> str:
+    def run(self, task: str) -> List[str]:
         plan = self.decompose(task)
         return plan

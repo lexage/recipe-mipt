@@ -4,25 +4,27 @@ import io
 import argparse
 import numpy as np
 from src.agent_constructor.agent import Agent
+from typing import Any, Optional
 
 
 class MPCSampleAgent(Agent):  # the algorithm should be stateless, and generates a whole plan / code / chain of actions at once.
-    def __init__(self,
-                 llm_model,
-                 name="MPCSampleAgent",
-                 prompt_path=None,
-                 lookahead_thought_length=3,
-                 lookahead_token_length=None,    # the length of the lookahead token sequence, default use thought length as evaluation chunk
-                 reward_threshold=1.0,
-                 beam_size=8,
-                 beam_temperature=0.7,
-                 select_temperature=0.1,
-                 n_generate_sample=8,
-                 value_type = "logp",
-                 do_sample=True,
-                 use_memory=True,
-                 max_problem_size=50
-                 ):
+    def __init__(
+        self,
+        llm_model: Any,
+        name: str = "MPCSampleAgent",
+        prompt_path: Optional[str] = None,
+        lookahead_thought_length: int = 3,
+        lookahead_token_length: Optional[int] = None,    # the length of the lookahead token sequence, default use thought length as evaluation chunk
+        reward_threshold: float = 1.0,
+        beam_size: int = 8,
+        beam_temperature: float = 0.7,
+        select_temperature: float = 0.1,
+        n_generate_sample: int = 8,
+        value_type: str = "logp",
+        do_sample: bool = True,
+        use_memory: bool = True,
+        max_problem_size: int = 50
+    ):
         super().__init__(name)
         
         self.llm_model = llm_model

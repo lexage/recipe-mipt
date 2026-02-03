@@ -107,11 +107,12 @@ class ContrastiveCoT(Agent):
             "incorrect_code": incorrect_code
         }
     
-    def format_programming_prompt(self, demonstrations: List[Dict], task: str) -> str:
+    def make_prompt(self, demonstrations: List[Dict], task: str) -> str:
         """
         Format prompt for programming tasks with contrastive examples.
         """
-        prompt = """Solve the following programming problem using step-by-step reasoning.
+        prompt = """Provide ONLY step-by-step reasoning for the following programming problem. Do NOT write final solution. Only output your reasoning process.
+        
 I'll show you both correct and incorrect approaches to help you avoid common mistakes.
 
 """
@@ -127,9 +128,7 @@ I'll show you both correct and incorrect approaches to help you avoid common mis
             prompt += f"Incorrect answer: {demo['incorrect_code']}\n\n"
             prompt += "---\n\n"
         
-        prompt += f"""Now solve this programming problem. Think step by step and provide:
-1. Your reasoning process
-2. The complete code solution
+        prompt += f"""Now analyze this programming problem. Think step by step but provide ONLY reasoning. Do NOT write final solution.
 
 Problem: {task}
 
@@ -157,7 +156,7 @@ Reasoning:"""
             )
             contrastive_demos.append(contrastive_demo)
         
-        prompt = self.format_programming_prompt(contrastive_demos, task)
-        response = self.llm(prompt)
+        prompt = self.make_prompt(contrastive_demos, task)
+        reasoning = self.llm(prompt)
         
-        return response
+        return reasoning

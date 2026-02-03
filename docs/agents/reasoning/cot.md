@@ -1,6 +1,6 @@
 # Chain-of-Thought
 
-- **Модуль**: [`CoT`](src/agents/reasoning/cot/main.py)
+- **Модуль**: [`CoT`](../../../src/agents/reasoning/cot/main.py)
 - **Cтатья**: 
     * CoT Few-Shot: [Chain-of-Thought Prompting Elicits Reasoning in Large Language Models](https://proceedings.neurips.cc/paper_files/paper/2022/file/9d5609613524ecf4f15af0f7b31abca4-Paper-Conference.pdf)
     * CoT Zero-Shot: [Large Language Models are Zero-Shot Reasoners](https://proceedings.neurips.cc/paper_files/paper/2022/file/8bb0d291acd4acf06ef112099c16f326-Paper-Conference.pdf)
@@ -10,8 +10,8 @@
 ## Принцип работы
 
 Есть два режима работы: Few-Shot и Zero-Shot. 
-* В первом - модели предоставляется несколько демонстрационных примеров, каждый из которых содержит входной вопрос, последовательность промежуточных шагов рассуждения и итоговый ответ. 
-* Во втором - к запросу добавляется фраза-инструкция, такая как «Let’s think step by step», которая побуждает модель генерировать цепочку рассуждений. 
+* Few-Shot: модели предоставляется несколько демонстрационных примеров, каждый из которых содержит входной вопрос, последовательность промежуточных шагов рассуждения и итоговый ответ. 
+* Zero-Shot: к запросу добавляется фраза-инструкция, такая как «Let’s think step by step», которая побуждает модель генерировать цепочку рассуждений. 
 
 ---
 
@@ -34,4 +34,4 @@ reasoner = CoT(mode="few-shot", few_shot_examples="examples.txt")
 solution = reasoner.run(task) # task: str - текстовое описание задачи 
 ```
 
-Основной метод - `run` - возвращает решение задачи.
+Основной метод - `run` - возвращает рассуждение (`str`).

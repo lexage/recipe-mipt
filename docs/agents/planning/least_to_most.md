@@ -1,6 +1,6 @@
 # Least-to-Most Prompting
 
-- **Модуль**: [`LeastToMostPlanner`](src/agents/planning/least_to_most/main.py)
+- **Модуль**: [`LeastToMostPlanner`](../../../src/agents/planning/least_to_most/main.py)
 - **Cтатья**: [LEAST-TO-MOST PROMPTING ENABLES COMPLEX REASONING IN LARGE LANGUAGE MODELS](https://arxiv.org/pdf/2205.10625)
 
 ---
@@ -22,7 +22,7 @@ planner = LeastToMostPlanner() # передавать параметры ини�
 plan = planner.run(task) # task: str - текстовое описание задачи 
 ```
 
-Основной метод - `run` - возвращает список подзадач, на которые разбилась исходная задача, от простой до сложной. Исходная задача будет в этом списке последней. 
+Основной метод - `run` - возвращает список подзадач (`List[str]`), на которые разбилась исходная задача, от простой до сложной. Исходная задача будет в этом списке последней. 
 
 ---
 

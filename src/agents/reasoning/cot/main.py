@@ -41,44 +41,38 @@ class CoT(Agent):
             print(f"Warning: Invalid examples type. Using zero-shot mode.")
             return []
     
-    def build_prompt(self, task: str) -> str:
+    def make_prompt(self, task: str) -> str:
         """Build the prompt based on the mode."""
         prompt_parts = []
         
         if self.mode == "few-shot" and self.examples:
             # Add few-shot examples
             prompt_parts.append("Here are some examples of solving programming problems step by step:")
+            prompt_parts.append("NOTE: Only show your reasoning process. Do NOT provide final solution.")
             for i, example in enumerate(self.examples, 1):
                 prompt_parts.append(f"Example {i}:")
                 prompt_parts.append(example)
-            prompt_parts.append("\nNow solve the following problem:")
+            prompt_parts.append("\nNow analyze the following problem. Provide ONLY step-by-step reasoning:")
         else:
             # Zero-shot mode
-            prompt_parts.append("Let's think step by step to solve the programming problem.")
+            prompt_parts.append("Think step by step to analyze this programming problem.")
+            prompt_parts.append("Provide ONLY your reasoning process. Do NOT write final solution.")
         
         # Add the task
         prompt_parts.append(f"Problem: {task}")
-        prompt_parts.append("\nStep-by-step reasoning:")
+        prompt_parts.append("\nReasoning:")
         
         return "\n".join(prompt_parts)
     
     def llm(self, prompt: str) -> str:
         # TODO: Replace with actual LLM call
         return ""
-    
-    def extract_code(self, reasoning: str) -> str:
-        """
-        Extract code from the reasoning text.
-        """
-        # TODO: Add implementation
-        return ""
         
     def run(self, task: str) -> str:
         """
         Run the Chain-of-Thought process for the given task.
         """
-        prompt = self.build_prompt(task)
+        prompt = self.make_prompt(task)
         reasoning = self.llm(prompt)
-        code = self.extract_code(reasoning)
         
-        return code
+        return reasoning
