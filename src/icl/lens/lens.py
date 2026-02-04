@@ -1,3 +1,5 @@
+# See: docs/icl/lens.md
+
 import random
 import heapq
 import numpy as np
