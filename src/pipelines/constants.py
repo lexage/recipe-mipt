@@ -16,7 +16,7 @@ class ComponentNames(Enum):
     TFIDF_EMBEDDING = "src.agents.general.TFIDFEmbedding"
     EMBEDDING_AGENT = "src.agents.general.EmbeddingAgent"
     SIMPLE_AGENT = "src.agents.general.SimpleAgent"
-    ICV_AGENT = "src.agents.general.ICVAgent"
+    ICV_AGENT = "src.icl.icv.ICV"
 
     # ===== Agents: Generation =====
     EVAL_GENERATOR = "src.agents.generation.CodeEvalGenerator"
@@ -75,6 +75,6 @@ class ComponentNames(Enum):
     CORAG_CONTEXT_ASSEMBLER = "src.agent_constructor.context_engine.CoRAGContextAssembler"
 
     # ===== ICL =====
-    ICCL_ICL = "src.icl.ICCL"
-    LENS_ICL = "src.icl.Lens"
-    FEW_SHOT_ICL = "src.icl.FewShot"
+    ICCL_ICL = "src.icl.iccl.ICCL"
+    LENS_ICL = "src.icl.lens.Lens"
+    FEW_SHOT_ICL = "src.icl.fewshot.FewShot"
