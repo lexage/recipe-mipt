@@ -1,37 +1,41 @@
 
 import requests
 
-from typing import List
 from openai import OpenAI
 
 from src.agent_constructor.core import Text
+from src.agent_constructor.agent import Agent
 
 
-class ICV:
+class ICV(Agent):
     def __init__(self, url: str, model_name: str, weight : float = 1.0) -> None:
+        super().__init__("icv_agent")
         self.model_name = model_name
         self.base_url = url.rstrip('/')
         self.client = OpenAI(base_url=url, api_key='vllm')
         self.weight = weight
 
-    def run(self, examples: List[Text]):
-        
-        tokens_probs = {}
+    def run(self, task: Text, context: Text):        
 
-        for example in examples:
-            
-            example_probs = self._eval_example(example)
-
-            for token_id, logprob in example_probs.items():
-                tokens_probs[token_id] = tokens_probs.get(token_id, 0) + logprob
+        example_probs = self._eval_example(context)
 
         result_icv_load = ""
-        for token_id, logprob in tokens_probs.items():
+        for token_id, logprob in example_probs.items():
             result_icv_load = result_icv_load + str(token_id) + ':' + str(round(logprob, 3))+';'
 
+        icv_load = {"target_tokens" : result_icv_load, "weight" : self.weight}
 
+        response = self.client.chat.completions.create(
+            model=self.model_name,
+            messages=[
+                {"role": "user", "content": task}],
+            temperature=0,
+            extra_body={
+                "vllm_xargs" : icv_load
+            }
+        )
 
-        return {"target_tokens" : result_icv_load, "weight" : self.weight}
+        return response.choices[0].message.content
 
     def _eval_example(self, example: Text):
         response = self.client.completions.create(
@@ -72,4 +76,3 @@ class ICV:
             token_ids.append(result["tokens"][0])
         
         return token_ids
-
