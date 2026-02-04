@@ -1,3 +1,5 @@
+# See: docs/icl/lens.md
+
 import random
 import heapq
 import numpy as np
@@ -9,9 +11,11 @@ from sklearn.metrics.pairwise import cosine_similarity
 
 from src.agent_constructor.core import Text
 from src.agent_constructor.agent import Agent
+from src.agent_constructor.context_engine import Chunk
+from src.agent_constructor.icl import ICLBlock
 
 
-class Lens:
+class Lens(ICLBlock):
 
     _ppl_cache = {}
     _examples_features_cache = {}
@@ -49,21 +53,24 @@ class Lens:
 
         self.score_set = []
 
-    def run(self, examples: List[Text]) -> List[Text]:
+    def apply(self, chunks: List[Chunk]) -> List[Chunk]:
         print("=" * 60)
         print("running lens")
         print("=" * 60)
-        print(f"total input examples: {len(examples)}")
+        print(f"total input examples: {len(chunks)}")
 
-        if not examples:
+        if not chunks:
             print("warning: empty examples list, returning empty list")
             return []
 
         print("\n" + "-" * 60)
         print("stage 1: filtering")
         print("-" * 60)
+
+        chunks_map = {chunk.text : chunk for chunk in chunks}
+        chunks_text = list(chunks_map.keys())
         informative_examples = self.filter(
-            examples=examples,
+            examples=chunks_text,
             progressive_factor=self.progressive_factor,
             init_score_size=self.init_score_set_size,
             candidate_size=self.filtered_set_size,
@@ -71,7 +78,7 @@ class Lens:
         print(f"filtering completed. selected examples: {len(informative_examples)}")
 
         # Не используется далее: validation_set возможно не нужен, если дальше не используется
-        validation_set = set(examples) - set(informative_examples)
+        validation_set = set(chunks_text) - set(informative_examples)
         print(f"validation set size: {len(validation_set)}")
 
         print("\n" + "-" * 60)
@@ -88,13 +95,14 @@ class Lens:
         print(f"search completed. best permutation size: {len(best_permutation)}")
         print("=" * 60)
 
-        return best_permutation
+        result = [chunks_map[text] for text in best_permutation]
+        return result
 
     def filter(self, 
                examples: List[Text], 
                progressive_factor: int, 
                init_score_size: int, 
-               candidate_size: int):
+               candidate_size: int) -> List[Text]:
         
         print(f"filtering parameters:")
         print(f"   - progressive_factor: {progressive_factor}")
@@ -154,12 +162,12 @@ class Lens:
 
     # TO-DO: Problem with dublecates (when getting e_new)
     def search(self, 
-               examples: List[Text], 
+               examples: List[Chunk], 
                validation_set: List[Text],
                search_set_size: int, 
                search_iterations: int, 
                beam_size: int, 
-               substitution_size: int):
+               substitution_size: int) -> List[Chunk]:
 
         print(f"search parameters:")
         print(f"   - search_iterations: {search_iterations}")
@@ -212,7 +220,7 @@ class Lens:
         print(f"\nsearch completed. returning best permutation (size: {len(permutations[0])})")
         return permutations[0]
     
-    def _diversity(self, example: Text, example_set: List[Text]):
+    def _diversity(self, example: Chunk, example_set: List[Text]):
         score = self._info_score(example, relative_set=self.score_set)
         
         if len(example_set) == 0:
@@ -244,7 +252,7 @@ class Lens:
         return eval_set[:beam_size]
         # Это заглушка. Хорошо бы реализовать ранжирование permutation наборов по проверочной метрике
 
-    def _get_permutations(self, examples, search_set_size, beam_size):
+    def _get_permutations(self, examples:List[Text], search_set_size:int, beam_size:int) -> List[List[Text]]:
         return [random.sample(examples, search_set_size) for _ in range(beam_size)]
 
     def _hash_string(self, st: str):
@@ -255,8 +263,7 @@ class Lens:
             return random.uniform(0,1)
 
         score = 0
-        total_relative = len(relative_set)
-        for idx, re in enumerate(relative_set):
+        for re in relative_set:
             
             # 1) CALCULATE PPL FOR RELATIVE EXAMPLE 
             # WITHOUT TARGET EXAMPLE AS CONTEXT
