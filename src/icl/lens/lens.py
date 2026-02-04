@@ -64,8 +64,11 @@ class Lens(ICLBlock):
         print("\n" + "-" * 60)
         print("stage 1: filtering")
         print("-" * 60)
+
+        chunks_map = {chunk.text : chunk for chunk in chunks}
+        chunks_text = list(chunks_map.keys())
         informative_examples = self.filter(
-            chunks=chunks,
+            examples=chunks_text,
             progressive_factor=self.progressive_factor,
             init_score_size=self.init_score_set_size,
             candidate_size=self.filtered_set_size,
@@ -73,7 +76,7 @@ class Lens(ICLBlock):
         print(f"filtering completed. selected examples: {len(informative_examples)}")
 
         # Не используется далее: validation_set возможно не нужен, если дальше не используется
-        validation_set = set(chunks) - set(informative_examples)
+        validation_set = set(chunks_text) - set(informative_examples)
         print(f"validation set size: {len(validation_set)}")
 
         print("\n" + "-" * 60)
@@ -90,13 +93,14 @@ class Lens(ICLBlock):
         print(f"search completed. best permutation size: {len(best_permutation)}")
         print("=" * 60)
 
-        return best_permutation
+        result = [chunks_map[text] for text in best_permutation]
+        return result
 
     def filter(self, 
-               examples: List[Chunk], 
+               examples: List[Text], 
                progressive_factor: int, 
                init_score_size: int, 
-               candidate_size: int) -> List[Chunk]:
+               candidate_size: int) -> List[Text]:
         
         print(f"filtering parameters:")
         print(f"   - progressive_factor: {progressive_factor}")
@@ -214,7 +218,7 @@ class Lens(ICLBlock):
         print(f"\nsearch completed. returning best permutation (size: {len(permutations[0])})")
         return permutations[0]
     
-    def _diversity(self, example: Chunk, example_set: List[Chunk]):
+    def _diversity(self, example: Chunk, example_set: List[Text]):
         score = self._info_score(example, relative_set=self.score_set)
         
         if len(example_set) == 0:
@@ -222,8 +226,8 @@ class Lens(ICLBlock):
         elif self.embedding_model == None:
             similarities = [random.uniform(0,1) for _ in example_set]
         else:
-            example_features = self._vectorize(example.text)
-            set_features = [self._vectorize(set_item.text)[0] for set_item in example_set]
+            example_features = self._vectorize(example)
+            set_features = [self._vectorize(set_item)[0] for set_item in example_set]
             similarities = cosine_similarity(example_features, set_features)[0]
 
         return score - self.diversity_weight * (np.sum(similarities))
@@ -246,13 +250,13 @@ class Lens(ICLBlock):
         return eval_set[:beam_size]
         # Это заглушка. Хорошо бы реализовать ранжирование permutation наборов по проверочной метрике
 
-    def _get_permutations(self, examples:List[Chunk], search_set_size:int, beam_size:int) -> List[List[Chunk]]:
+    def _get_permutations(self, examples:List[Text], search_set_size:int, beam_size:int) -> List[List[Text]]:
         return [random.sample(examples, search_set_size) for _ in range(beam_size)]
 
     def _hash_string(self, st: str):
         return int(hashlib.md5(st.encode('utf-8')).hexdigest(), 16)
 
-    def _info_score(self, example: Chunk, relative_set: Set[Chunk]):
+    def _info_score(self, example: Text, relative_set: Set[Text]):
         if self.model_name == None:
             return random.uniform(0,1)
 
@@ -261,7 +265,7 @@ class Lens(ICLBlock):
             
             # 1) CALCULATE PPL FOR RELATIVE EXAMPLE 
             # WITHOUT TARGET EXAMPLE AS CONTEXT
-            prompt_hash = self._hash_string(re.text)
+            prompt_hash = self._hash_string(re)
 
             if prompt_hash in self._ppl_cache:
                 ppl = self._ppl_cache[prompt_hash]
@@ -269,7 +273,7 @@ class Lens(ICLBlock):
                 response = self.client.completions.create(
                     model=self.model_name,
                     temperature=0,
-                    prompt=re.text,
+                    prompt=re,
                     max_tokens=100,
                     logprobs=True,
                 )
@@ -281,14 +285,14 @@ class Lens(ICLBlock):
             # 2) CALCULATE PPL FOR RELATIVE EXAMPLE
             # WITH TARGET EXAMPLE AS CONTEXT
 
-            pair_prompt_hash = self._hash_string(re.text+example.text)
+            pair_prompt_hash = self._hash_string(re+example)
             if pair_prompt_hash in self._ppl_cache:
                 pair_ppl = self._ppl_cache[pair_prompt_hash]
             else:
                 response = self.client.completions.create(
                     model=self.model_name,
                     temperature=0,
-                    prompt=re.text+example.text,
+                    prompt=re+example,
                     max_tokens=100,
                     logprobs=True,
                 )
