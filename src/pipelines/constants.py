@@ -1,6 +1,15 @@
 from enum import Enum
 
 
+PIPELINES_IMPORT_PATH = "src.pipelines.templates"
+
+
+class PipelinesNames(Enum):
+    SIMPLE = "SimplePipeline"
+    REWOO = "REWOOPipeline"
+    MAPS = "MAPSPipeline"
+
+
 class ComponentNames(Enum):
 
     # ===== Agents: Critique =====
@@ -60,12 +69,16 @@ class ComponentNames(Enum):
     LOCAL_RAPTOR_DB = "src.agent_constructor.db.LocalRaptorDB"
 
     # ===== Retrievers =====
-    CORAG_RETRIEVER = "src.rag.CoRAGRetriever"
-    RAPTOR_RETRIEVER = "src.rag.RaptorRetriever"
-    INSTRUCT_RETRIEVER = "src.rag.InstructRAGRetriever"
+    CORAG_RETRIEVER = "src.rag.corag.CoRAGRetriever"
+    RAPTOR_RETRIEVER = "src.rag.raptor.RaptorRetriever"
+    INSTRUCT_RETRIEVER = "src.rag.instructrag.InstructRAGRetriever"
+    SIMPLE_RETRIEVER = "src.rag.simple.SimpleRetriever"
 
     # ===== Filters =====
-    LENGTH_FILTER = "src.agent_constructor.filters.LengthFilter"
+    EXACT_SUBSTR_FILTER = "src.filtering.exactsubstr.ExactSubstrFiltrator"
+    SIMPLE_LEXICAL_FILTER = "src.filtering.lexical_filtration.SimpleLexicalFiltrator"
+    LENGTH_FILTER = "src.filtering.simple_filters.LengthFilter"
+    EDUCATION_VALUE_FILTER = "src.filtering.textbooks_are_all_you_need.EducationValueClassifierFilter"
 
     # ===== Chunkers =====
     DUMMY_CHUNKER = "src.agent_constructor.chunkers.DummyChunker"
@@ -73,6 +86,8 @@ class ComponentNames(Enum):
 
     # ===== Context Assemblers =====
     CORAG_CONTEXT_ASSEMBLER = "src.agent_constructor.context_engine.CoRAGContextAssembler"
+    SIMPLE_CONTEXT_ASSEMBLER = "src.agent_constructor.context_engine.SimpleContextAssembler"
+
 
     # ===== ICL =====
     ICCL_ICL = "src.icl.iccl.ICCL"

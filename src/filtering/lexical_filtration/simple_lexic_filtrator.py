@@ -1,16 +1,18 @@
 """
 Модуль для лексической фильтрации и нормализации текстовых чанков.
 
-Основные возможности модуля включают удаление "мусорных" строк, определяемых конфигурационным файлом, а также
-удаление навигационных элементов, нормализацию пустых строк
-и дедупликацию повторяющихся блоков текста.
+Основные возможности модуля включают удаление "мусорных" строк, определяемых
+конфигурационным файлом, а также удаление навигационных элементов,
+нормализацию пустых строк и дедупликацию повторяющихся блоков текста.
 """
 
 import logging
 import hashlib
-from pydantic import BaseModel, Field
 import re
 from typing import List, Optional, Set
+
+from pydantic import BaseModel, Field
+from tqdm import tqdm
 
 from src.agent_constructor.core import Chunk
 from src.agent_constructor.filters import Filter
@@ -28,11 +30,13 @@ logger = logging.getLogger(__name__)
 
 class FilteringConfig(BaseModel):
     remove_junk_blocks: bool = Field(
-        description="Флаг удаления мусорных строк (определяется списком мусорных слов в конструкторе класса)",
+        description="Флаг удаления мусорных строк (определяется списком "
+        "мусорных слов в конструкторе класса)",
         default=True,
     )
     remove_navigation_lines: bool = Field(
-        description="Флаг удаления навигационных строк (определяется списком навигационных слов в конструкторе класса)",
+        description="Флаг удаления навигационных строк (определяется списком "
+        "навигационных слов в конструкторе класса)",
         default=True,
     )
     min_len_for_dedup: int = Field(
@@ -52,12 +56,14 @@ class FilteringConfig(BaseModel):
 
 class SimpleLexicalFiltrator(Filter):
     """
-    Класс для простой лексической фильтрации, нормализации и дедупликации текстовых чанков из БД, содержащих код.
+    Класс для простой лексической фильтрации, нормализации и дедупликации
+    текстовых чанков из БД, содержащих код.
 
     Использует три основных метода:
     1. Дедупликация последовательных блоков строк с помощью скользящего окна.
     2. Удаление непоследовательных дубликатов строк на основе MD5-хэшей.
-    3. Удаление мусорных и навигационных строк с помощью регулярных выражений или поиска подвхождений.
+    3. Удаление мусорных и навигационных строк с помощью регулярных выражений
+    или поиска подвхождений.
     """
 
     def __init__(self, config: Optional[FilteringConfig] = None) -> None:
@@ -65,8 +71,8 @@ class SimpleLexicalFiltrator(Filter):
         Инициализирует фильтратор с конфигом.
 
         Args:
-            config (Optional[FilteringConfig]): Объект конфигурации. Если не передан,
-                используется конфигурация по умолчанию.
+            config (Optional[FilteringConfig]): Объект конфигурации. Если не
+                передан, используется конфигурация по умолчанию.
         """
         self.config = config or self._get_default_config()
 
@@ -83,8 +89,8 @@ class SimpleLexicalFiltrator(Filter):
             ]
         ]
 
-        # терминальные секции (т.е. секции, которые обычно помещаются в конце текстового блока чанка и
-        # не имеют смысловой ценности)
+        # терминальные секции (т.е. секции, которые обычно помещаются в конце
+        # текстового блока чанка и не имеют смысловой ценности)
         self.terminal_patterns = [
             re.compile(r"References#.*", flags=re.IGNORECASE | re.DOTALL)
         ]
@@ -97,8 +103,10 @@ class SimpleLexicalFiltrator(Filter):
                 r"Created On:.*",
                 r"Published:.*",
                 r"Author:.*",
-                r"arXiv:\d+\.\d+",  # обычно это ссылки на статью с оригинальной имплементацией метода, содержатся в References#
-                # Оставлены на всякий случай, мб стоит убрать после тестирования и/или рефакторинга
+                r"arXiv:\d+\.\d+",  # обычно это ссылки на статью с
+                # оригинальной имплементацией метода, содержатся в References#
+                # оставлены на всякий случай, мб стоит убрать после
+                # тестирования и/или рефакторинга
                 r"DOI:.*",  # аналогично
                 r"ISBN:.*",  # аналогично
                 r"\b\d{1,2}/\d{1,2}/\d{4}\b",
@@ -119,7 +127,8 @@ class SimpleLexicalFiltrator(Filter):
 
     def _is_junk_line(self, line: str) -> bool:
         """
-        Проверяет, является ли строка "мусорной" согласно мусорным паттернам в конструкторе класса.
+        Проверяет, является ли строка "мусорной" согласно мусорным паттернам в
+        конструкторе класса.
 
         Args:
             line (str): Строка для проверки.
@@ -142,7 +151,8 @@ class SimpleLexicalFiltrator(Filter):
             r"^\d+$", normalized
         ):
             logger.info(
-                "Строка %s слишком маленькая и состоит только из цифр, удаляем...",
+                "Строка %s слишком маленькая и состоит только из цифр, "
+                "удаляем...",
                 normalized,
             )
             return True
@@ -171,14 +181,15 @@ class SimpleLexicalFiltrator(Filter):
 
     def _is_navigation(self, line: str) -> bool:
         """
-        Проверяет, является ли строка навигационной (что считается навигационным,
-        определяется в списке выражений в конструкторе класса).
+        Проверяет, является ли строка навигационной (что считается
+        навигационным, определяется в списке выражений в конструкторе класса).
 
         Args:
             line (str): Строка для проверки.
 
         Returns:
-            bool: True, если строка содержит навигационные ключевые слова, иначе False.
+            bool: True, если строка содержит навигационные ключевые слова,
+                иначе False.
         """
         normalized = line.rstrip()
         if not normalized:
@@ -190,7 +201,8 @@ class SimpleLexicalFiltrator(Filter):
 
     def remove_terminal_sections(self, chunk: Chunk) -> None:
         """
-        Удаляет всё, начиная с ключевого слова и до конца текста. Изменяет поле text чанка in-place.
+        Удаляет всё, начиная с ключевого слова и до конца текста. Изменяет
+        поле `text` чанка in-place.
 
         Args:
             chunk (Chunk): Объект чанка для обработки.
@@ -207,7 +219,8 @@ class SimpleLexicalFiltrator(Filter):
 
     def normalize_empty_lines(self, chunk: Chunk) -> None:
         """
-        Заменяет множественные пустые строки на одну. Изменяет поле text чанка in-place.
+        Заменяет множественные пустые строки на одну. Изменяет поле `text`
+        чанка in-place.
 
         Args:
             chunk (Chunk): Объект чанка для обработки.
@@ -218,7 +231,8 @@ class SimpleLexicalFiltrator(Filter):
 
     def filter_navigation_lines_in_chunk(self, chunk: Chunk) -> None:
         """
-        Удаляет навигационные строки из текста чанка. Изменяет поле text чанка in-place.
+        Удаляет навигационные строки из текста чанка. Изменяет поле `text`
+        чанка in-place.
 
         Args:
             chunk (Chunk): Объект чанка для обработки.
@@ -231,7 +245,8 @@ class SimpleLexicalFiltrator(Filter):
 
     def filter_junk_lines_in_chunk(self, chunk: Chunk) -> None:
         """
-        Удаляет мусорные строки из текста чанка. Изменяет поле text чанка in-place.
+        Удаляет мусорные строки из текста чанка. Изменяет поле `text` чанка
+        in-place.
 
         Args:
             chunk (Chunk): Объект чанка для обработки.
@@ -249,7 +264,7 @@ class SimpleLexicalFiltrator(Filter):
 
         Сохраняет первую встреченную уникальную строку (с ее оригинальными
         отступами), а все последующие ее дубликаты удаляет.
-        Изменяет поле text чанка in-place.
+        Изменяет поле `text` чанка in-place.
 
         Args:
             chunk (Chunk): Объект чанка для обработки.
@@ -258,7 +273,8 @@ class SimpleLexicalFiltrator(Filter):
         unique_lines: List[str] = []
         local_seen_hashes: Set[str] = (
             set()
-        )  # локальный сет для текущего чанка, чтобы хэши не накапливались между чанками
+        )  # локальный сет для текущего чанка, чтобы хэши не накапливались
+        # между чанками
         for line in original_chunk_text_lines:
             # cчитаем хэш от нормализованной строки
             line_hash = self._count_md5_hash(line)
@@ -269,7 +285,8 @@ class SimpleLexicalFiltrator(Filter):
                 continue
 
             # защита кода: не удаляем короткие строки типа return True, break.
-            # TODO: в будущем заменить на вспомогательную функцию, определяющую, код в строке или нет
+            # TODO: в будущем заменить на вспомогательную функцию,
+            # определяющую, код в строке или нет
             if len(line.strip()) < self.config.min_len_for_dedup:
                 unique_lines.append(line)
                 continue
@@ -288,7 +305,8 @@ class SimpleLexicalFiltrator(Filter):
         Устраняет последовательные повторы блоков строк внутри одного чанка.
 
         Алгоритм ищет повторяющиеся последовательности строк (окна) длиной от
-        1 до `sliding_window_max_length` и "схлопывает" их до одного экземпляра.
+        1 до `sliding_window_max_length` и "схлопывает" их до одного
+        экземпляра.
         Метод изменяет поле text чанка in-place.
 
         Args:
@@ -308,8 +326,8 @@ class SimpleLexicalFiltrator(Filter):
                 self.config.sliding_window_max_length, (lines_number - i) // 2
             )
             for k in range(1, max_window + 1):
-                block1 = lines[i : i + k]
-                block2 = lines[i + k : i + 2 * k]
+                block1 = lines[i: i + k]
+                block2 = lines[i + k: i + 2 * k]
                 logger.debug(
                     "Сравниваем блоки текста длиной %s: %s и %s",
                     k,
@@ -324,14 +342,14 @@ class SimpleLexicalFiltrator(Filter):
                             "Найден дублирующийся блок из %s строк!", best_k
                         )
             if best_k > 0:
-                result_lines.extend(lines[i : i + best_k])
+                result_lines.extend(lines[i: i + best_k])
                 # перепрыгиваем блок-дубляж
                 i += best_k
                 # делаем дополнительный цикл для проверки,
                 # что блок повторяется только раз
                 while i + best_k <= lines_number:
-                    next_block = lines[i : i + best_k]
-                    if next_block == lines[i - best_k : i]:
+                    next_block = lines[i: i + best_k]
+                    if next_block == lines[i - best_k: i]:
                         i += best_k
                     else:
                         break
@@ -341,11 +359,12 @@ class SimpleLexicalFiltrator(Filter):
                 i += 1
         chunk.text = "\n".join(result_lines)
 
-    def apply(self, chunk: Chunk) -> Optional[Chunk]:
+    def apply(self, chunks: List[Chunk]) -> List[Chunk]:
         """
-        Выполняет полную лексическую фильтрацию для чанка.
+        Выполняет полную лексическую фильтрацию для списка чанков.
 
-        Процесс дедупликации и фильтрации чанка (в зависимости от конфигурационного файла):
+        Процесс дедупликации и фильтрации каждого чанка (в зависимости от
+        конфигурационного файла):
         1. Удаление мусорных строк.
         2. Удаление навигационных строк.
         3. Нормализация пустых строк.
@@ -353,35 +372,62 @@ class SimpleLexicalFiltrator(Filter):
         5. Дедупликация повторяющихся строк.
 
         Args:
-            chunk (Chunk): Исходный чанк.
+            List[Chunk]: Список исходных чанков.
 
         Returns:
-            Chunk: Отфильтрованный чанк либо None, если весь чанк был мусорным.
+            List[Chunk]: Отфильтрованный список чанков.
         """
-        logger.info("Начинаем лексическую фильтрацию чанка...")
-        if self.config.remove_terminal_sections:
-            self.remove_terminal_sections(chunk)
-        if self.config.remove_junk_blocks:
-            self.filter_junk_lines_in_chunk(chunk)
-        if self.config.remove_navigation_lines:
-            self.filter_navigation_lines_in_chunk(chunk)
-        if self.config.normalize_empty_lines:
-            self.normalize_empty_lines(chunk)
+        final_chunks: List[Chunk] = []
+        for idx, chunk in tqdm(
+            enumerate(chunks, start=1),
+            desc="Лексическая фильтрация",
+            total=len(chunks),
+        ):
+            original_text = chunk.text
+            try:
+                logger.info(
+                    "Начинаем лексическую фильтрацию чанка № %s...", idx
+                )
+                if original_text is None:
+                    logger.warning(
+                        "Чанк № %s имеет пустой `text` (None). Пропускаем", idx
+                    )
+                    continue
+                if self.config.remove_terminal_sections:
+                    self.remove_terminal_sections(chunk)
+                if self.config.remove_junk_blocks:
+                    self.filter_junk_lines_in_chunk(chunk)
+                if self.config.remove_navigation_lines:
+                    self.filter_navigation_lines_in_chunk(chunk)
+                if self.config.normalize_empty_lines:
+                    self.normalize_empty_lines(chunk)
 
-        # удаляем точные дубликаты с помощью скользящего окна
-        self.deduplicate_text_per_lines_with_sliding_window(chunk)
-        logger.debug(
-            "После дедупликации методом скользящего окна текст чанка стал: %s",
-            chunk.text,
-        )
-        # удаляем строки-дубликаты
-        self.filter_duplicate_lines(chunk)
-        logger.debug(
-            "После удаления строк-дубликатов текст чанка стал: %s",
-            chunk.text,
-        )
-        logger.info("Лексическая фильтрация успешно завершена!")
-        if chunk.text.strip():
-            return chunk
-        else:
-            return None
+                # удаляем точные дубликаты с помощью скользящего окна
+                self.deduplicate_text_per_lines_with_sliding_window(chunk)
+                logger.debug(
+                    "После дедупликации методом скользящего окна текст чанка "
+                    "стал: %s",
+                    chunk.text,
+                )
+                # удаляем строки-дубликаты
+                self.filter_duplicate_lines(chunk)
+                logger.debug(
+                    "После удаления строк-дубликатов текст чанка стал: %s",
+                    chunk.text,
+                )
+                logger.info("Лексическая фильтрация успешно завершена!")
+                if chunk.text.strip():
+                    final_chunks.append(chunk)
+            except Exception as e:
+                logger.error(
+                    "Ошибка при обработке чанка № %s. Текст чанка оставлен "
+                    "без изменений. Ошибка: %s",
+                    idx,
+                    e,
+                    exc_info=True,
+                )
+                # восстанавливаем исходный текст (так как могли успеть что-то
+                # отрезать до ошибки)
+                chunk.text = original_text
+                final_chunks.append(chunk)
+        return final_chunks

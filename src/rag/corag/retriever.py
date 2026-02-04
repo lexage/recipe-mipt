@@ -3,6 +3,7 @@ from typing import List, Tuple
 from src.agent_constructor.context_engine import Retriever
 from src.agent_constructor.agent import Agent
 from src.agent_constructor.db import IDB
+from src.agent_constructor.core import Chunk
 
 
 class CoRAGRetriever(Retriever):
@@ -13,7 +14,7 @@ class CoRAGRetriever(Retriever):
         self.sub_solver = sub_solver
         self.max_sub_queries = max_sub_queries
 
-    def retrieve(self, query: str, k: int = 1) -> List[Tuple]:
+    def retrieve(self, query: str, k: int = 1) -> Tuple[List, List[Chunk]]:
         prev_qna = []
         retrived_chunks = []
         for i in range(self.max_sub_queries):
