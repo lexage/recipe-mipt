@@ -10,24 +10,17 @@ from typing import (
 )
 import random
 
+import os
+import sys
+sys.path.insert(0, os.getcwd())
+
+from src.agent_constructor.agent import Agent
+
 from context_engine import ContextAssembler
 # from core import Text
 from db import IDB
 
 # ---------- Agent primitives: Planner, Critic, Student ----------
-class Agent(ABC):
-    """Base class for all agents in the system."""
-
-    def __init__(self, name: str):
-        self.name = name
-    
-    @abstractmethod
-    def run(self, *args, **kwargs):
-        raise NotImplementedError
-    
-    def __str__(self):
-        return f"{self.__class__.__name__}({self.name})"
-
 
 class Planner(Agent):
     """Generate a plan (list of steps) given a task and context."""
@@ -36,7 +29,7 @@ class Planner(Agent):
         super().__init__(name)
     
     @abstractmethod
-    def run(self, task: Text, context: Text) -> List[Text]:
+    def run(self, task: Text, context: Text = None) -> List[Text]:
         raise NotImplementedError
 
 
@@ -47,7 +40,7 @@ class Critic(Agent):
         super().__init__(name)
     
     @abstractmethod
-    def run(self, candidate: Text, context: Text) -> Tuple[bool, Optional[Text]]:
+    def run(self, candidate: Text, context: Text = None) -> Tuple[bool, Optional[Text]]:
         raise NotImplementedError
 
 
@@ -61,17 +54,16 @@ class Student(Agent):
         super().__init__(name)
     
     @abstractmethod
-    def run(self, prompt: Text, context: Text) -> Text:
+    def run(self, prompt: Text, context: Text = None) -> Text:
         raise NotImplementedError
-        
-# -------- Agents for MARS pipeline --------------
-    
+
+            
 class UserProxy(Agent):
     def __init__(self, name: str = "UserProxy"):
         super().__init__(name)
     
     @abstractmethod
-    def run(self, prompt: Text, context: Text) -> Text:
+    def run(self, prompt: Text, context: Text = None) -> Text:
         raise NotImplementedError
     
     
@@ -80,7 +72,7 @@ class Teacher(Agent):
         super().__init__(name)
     
     @abstractmethod
-    def run(self, prompt: Text, context: Text) -> Text:
+    def run(self, prompt: Text, context: Text = None) -> Text:
         raise NotImplementedError
     
     
@@ -89,152 +81,12 @@ class Target(Agent):
         super().__init__(name)
     
     @abstractmethod
-    def run(self, prompt: Text, context: Text) -> float:
+    def run(self, prompt: Text, context: Text = None) -> float:
         raise NotImplementedError
     
     @abstractmethod
     def check_stop_condition(self) -> bool:
         raise NotImplementedError
-
-
-# ---------- Orchestration: Pipeline & Workflows ----------
-
-@dataclass
-class PipelineConfig:
-    planner: Planner
-    critic: Critic
-    student: Student
-    max_iterations: int = 3
-    # loop_until_accepted: bool = True
-    
-
-class AgentPipeline1:
-    """Orchestrates planner -> student -> critic cycles according to config."""
-
-    def __init__(self, db: IDB, context_assembler: ContextAssembler, cfg: PipelineConfig):
-        self.db = db
-        self.context_assembler = context_assembler
-        self.cfg = cfg
-
-    def run(self, task: Text) -> Text:
-        # 1) retrieve context
-        retrieved = self.db.query(task, top_k=10)
-        context = self.context_assembler.assemble(task, retrieved)
-
-        last_output: Optional[Text] = None
-        for iteration in range(self.cfg.max_iterations):
-            # 2) planning
-            steps = self.cfg.planner.run(task, context)
-            # either step-by-step or full plan
-            if len(steps) > 1:
-                plan_prompt = "\n".join(steps)
-            else:
-                plan_prompt = steps[0]
-
-            # student produces
-            output = self.cfg.student.run(plan_prompt, context)
-
-            # critic evaluates
-            accepted, feedback = self.cfg.critic.run(output, context)
-
-            if accepted:
-                return output
-
-            # if not accepted, incorporate feedback into next iteration
-            # simple strategy: append feedback to context and try again
-            if feedback:
-                context = context + "\n\nCRITIC_FEEDBACK:\n" + feedback
-            
-            last_output = output
-
-            # if not self.cfg.loop_until_accepted:
-            #     break
-
-        # return last produced output if nothing accepted
-        return last_output or ""
-
-
-class AgentPipeline2:
-    """Orchestrates planner -> student -> critic cycles according to config."""
-
-    def __init__(self, db: IDB, context_assembler: ContextAssembler, cfg: PipelineConfig):
-        self.db = db
-        self.context_assembler = context_assembler
-        self.cfg = cfg
-
-    def run(self, task: Text) -> Text:
-        # 1) retrieve context
-        retrieved = self.db.query(task, top_k=10)
-        context = self.context_assembler.assemble(task, retrieved)
-
-        output: Optional[Text] = None
-        iteration = 0
-
-        while True:
-            # 2) planning
-            steps = self.cfg.planner.run(task, context)
-            # either step-by-step or full plan
-            if len(steps) > 1:
-                plan_prompt = "\n".join(steps)
-            else:
-                plan_prompt = steps[0]
-
-            # student produces
-            output = self.cfg.student.run(plan_prompt, context)
-
-            if iteration == self.cfg.max_iterations:
-                return output or ""
-
-            # critic evaluates
-            accepted, feedback = self.cfg.critic.run(output, context)
-
-            if accepted:
-                return output
-
-            # if not accepted, incorporate feedback into next iteration
-            # simple strategy: append feedback to context and try again
-            if feedback:
-                context = context + "\n\nCRITIC_FEEDBACK:\n" + feedback
-            
-            iteration += 1 
-            
-            
-class AgentPipeline3:
-    """Orchestrates planner -> student -> critic cycles according to config."""
-
-    def __init__(self, db: IDB, context_assembler: ContextAssembler, cfg: PipelineConfig):
-        self.db = db
-        self.context_assembler = context_assembler
-        self.cfg = cfg
-
-    def run(self, task: Text) -> Text:
-        # 1) retrieve context
-        retrieved = self.db.query(task, top_k=10)
-        context = self.context_assembler.assemble(task, retrieved)
-
-        last_output: Optional[Text] = None
-        for iteration in range(self.cfg.max_iterations):
-            # 2) planning
-            plan_step_prompt = self.cfg.planner.run(task, context)
-            
-            # student produces
-            output = self.cfg.student.run(plan_step_prompt, context)
-
-            # critic evaluates
-            accepted, feedback = self.cfg.critic.run(output, context)
-
-            if accepted:
-                return output
-
-            # if not accepted, incorporate feedback into next iteration
-            # simple strategy: append feedback to context and try again
-            if feedback:
-                context = context + "\n\nCRITIC_FEEDBACK:\n" + feedback
-            
-            last_output = output
-
-        # return last produced output if nothing accepted
-        return last_output or ""
 
 
 # ---------- MARS config and pipeline ----------------
@@ -261,40 +113,41 @@ class Manager(Agent):
         context = self.context_assembler.assemble(task, retrieved)
 
         task = self.cfg.user_proxy.run(input, context)
-        steps = self.cfg.planner.run(task, context)
+        steps = self.cfg.planner.run(task)
 
         teacher_input = f"Task definition:\n{task}\n"
-        teacher_init = self.cfg.teacher.run(teacher_input, context)
+        teacher_init = self.cfg.teacher.run(teacher_input)
 
-        critic_init = self.cfg.critic.run(teacher_init, context)
+        critic_init = self.cfg.critic.run(teacher_init)
 
         student_input = f"Make the prompt better:\n{task}\n"
-        student_response = self.cfg.student.run(student_input, context)
+        student_response = self.cfg.student.run(student_input)
 
-        target_response = self.cfg.target.run(student_response, context)
+        target_response = self.cfg.target.run(student_response)
 
         while True:
             if self.cfg.target.check_stop_condition():
                 print("Stop condition met!")
                 break
             
-            for i, step in enumerate(steps):
+            for _, step in enumerate(steps):
                 teacher_input = f"\n{task}\n{student_response}\n{step}\n"
-                teacher_response = self.cfg.teacher.run(teacher_input, context)
+                teacher_response = self.cfg.teacher.run(teacher_input)
 
-                accepted, feedback = self.cfg.critic.run(teacher_response, context)
+                accepted, feedback = self.cfg.critic.run(teacher_response)
 
                 if accepted == False:
                     if feedback:
                         teacher_input = f"\n{feedback}\n{task}\n{student_response}\n{step}\n"
-                    teacher_response = self.cfg.teacher.run(teacher_input, context)
+                    teacher_response = self.cfg.teacher.run(teacher_input)
 
                 student_input = f"\n{task}\n{student_response}\n{teacher_response}\n"
-                student_response = self.cfg.student.run(student_input, context)
+                student_response = self.cfg.student.run(student_input)
 
-            target_response = self.cfg.target.run(student_response, context)
-
+            target_response = self.cfg.target.run(student_response)
+        
         print("The end!")
+        return target_response
 
 
 # ---------- Example planner / critic / student (very small stubs) ----------
@@ -303,25 +156,6 @@ class SimplePlanner(Planner):
         # naive: split task by sentences as steps
         return [s.strip() for s in task.split(".") if s.strip()]
     
-    
-class SimplePlannerStepByStep(Planner):
-    def __init__(self):
-        super().__init__()
-        self._call_count = 0
-        self._cached_sentences = []
-    
-    def run(self, task: Text, context: Text) -> Text:
-        if not self._cached_sentences:
-            self._cached_sentences = [s.strip() for s in task.split(".") if s.strip()]
-        
-        if self._call_count >= len(self._cached_sentences):
-            return ""
-        
-        result = self._cached_sentences[self._call_count]
-        self._call_count += 1
-        
-        return result
-
 
 class SimpleCritic(Critic):
     def critique(self, candidate: Text, context: Text) -> Tuple[bool, Optional[Text]]:
@@ -331,7 +165,7 @@ class SimpleCritic(Critic):
         return False, "output too short"
 
 
-class MockStudent(Student):
+class SimpleStudent(Student):
     def execute(self, prompt: Text, context: Text) -> Text:
         # In real system this wraps LLM calls. Here we echo prompt + short summary.
         return f"EXECUTION_RESULT:\nPrompt:\n{prompt}\n---\nContext-snippet: {context[:200]}"
