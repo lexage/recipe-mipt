@@ -15,7 +15,7 @@ import torch
 from datasets import load_from_disk, load_dataset, concatenate_datasets, Dataset
 # from src.agent_constructor.core import Document
 from src.agent_constructor.core import Chunk
-from src.filtering.qurating.configs.config import SelectionConfig
+from src.filtering.qurating.configs.selection_config import SelectionConfig
 
 
 def maybe_concatenate(datasets):

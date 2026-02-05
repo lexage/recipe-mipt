@@ -51,8 +51,8 @@ def dsir_pipeline(
     num_buckets: int = 10000,
     tokenizer: str = 'word_tokenize',
     min_example_length: int = 100,
-    separate_targets: bool = False,
-    target_proportions: Optional[List[float]] = None,
+    # separate_targets: bool = False,
+    # target_proportions: Optional[List[float]] = None,
     num_tokens_to_fit: Union[str, int] = 'auto',
     top_k: bool = False
 ) -> List[Chunk]:
@@ -77,8 +77,8 @@ def dsir_pipeline(
         ngrams=ngrams,
         num_buckets=num_buckets,
         min_example_length=min_example_length,
-        separate_targets=separate_targets,
-        target_proportions=target_proportions
+        # separate_targets=separate_targets,
+        # target_proportions=target_proportions
     )
     
     dsir.fit_importance_estimator(num_tokens_to_fit=num_tokens_to_fit)

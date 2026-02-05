@@ -7,7 +7,7 @@ import os
 import sys
 sys.path.insert(0, os.getcwd())
 from src.filtering.qurating.modeling.modeling_flash_llama import LlamaForSequenceClassification
-from src.filtering.qurating.configs.config import AnnotationConfig
+from src.filtering.qurating.configs.annotation_config import AnnotationConfig
 # from src.agent_constructor.core import Document
 from src.agent_constructor.core import Chunk
 from operator import attrgetter

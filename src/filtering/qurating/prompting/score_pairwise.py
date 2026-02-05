@@ -5,7 +5,7 @@ import os
 import sys
 sys.path.insert(0, os.getcwd())
 from src.filtering.qurating.prompting.openai_util import query_openai
-from src.filtering.qurating.configs.config import PairwiseComparisonConfig
+from src.filtering.qurating.configs.pairwise_comparison_config import PairwiseComparisonConfig
 # from src.agent_constructor.core import Document
 from src.agent_constructor.core import Chunk
 from datasets import Dataset

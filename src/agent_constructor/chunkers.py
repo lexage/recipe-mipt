@@ -60,9 +60,9 @@ class DSIRChunker(Chunker):
         text_chunks = [' '.join(words[i:i + self.chunk_length]) 
                        for i in range(0, len(words), self.chunk_length)]
         
-        for i, chunk_text in enumerate(text_chunks):
+        for _, chunk_text in enumerate(text_chunks):
             chunk = Chunk(
-                id=f"{doc.id}_chunk_{i}",
+                id=str(uuid.uuid4()),
                 doc_id=doc.id,
                 text=chunk_text,
                 tokens=None,

@@ -47,7 +47,7 @@ def select_random_batch(chunks: List[Chunk], batch_size: int = 10000) -> List[Ch
 def data_rating(
     data: List[Chunk],
     folder_name: str,
-    rules_indices: list[int],
+    rules_indices: List[int],
     batch_size: int = 1000
 ) -> None:
     free_memory()

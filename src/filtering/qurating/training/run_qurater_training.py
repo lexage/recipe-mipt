@@ -8,7 +8,7 @@ import torch
 sys.path.insert(0, os.getcwd())
 
 from train_preference_model import train_qurater, ScriptArguments, TrainingArguments
-from src.filtering.qurating.configs.config import QuraterTrainingConfig, EnvConfig
+from src.filtering.qurating.configs.training_config import QuraterTrainingConfig, EnvConfig
 
 
 def run_training(train_datasets: List[str]):

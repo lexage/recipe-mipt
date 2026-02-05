@@ -32,13 +32,10 @@ def qurating_pipeline(
         collect_judgement_data(chunks_for_training, template_file, output_path)
     
     # QuRater training
-    # trained QuRater is saved to "src/filtering/qurating/checkpoints-preferences/trained_qurater"
     run_training(output_paths)
     
     # getting the scores for the data we want to filter out
-    # the annotated data is saved to "src/filtering/qurating/datasets/annotated_data" as Arrow
     annotate_data(chunks_for_filtering)
     
     # selecting data based on scores
-    # the selected data is saved to "src/filtering/qurating/datasets/selected_data" as Arrow divided on shards
     return select_data()

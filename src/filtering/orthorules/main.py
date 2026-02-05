@@ -5,6 +5,7 @@ import sys
 import gc
 import torch
 import random
+from typing import List
 
 # from modules.module_generation import *
 sys.path.insert(0, os.getcwd())
@@ -17,14 +18,14 @@ from src.agent_constructor.core import Chunk
 
 
 def orthorules_pipeline(
-    chunks: list[Chunk], 
+    chunks: List[Chunk], 
     subset_size: int = 10000, 
     batch_size: int = 1000,
     r: int = 10,
     tau: float = 1.0,
     k: int = 20000,
     sampling_method: str = "gumbel"
-) -> list[Chunk]:
+) -> List[Chunk]:
     random_subset = select_random_batch(chunks, subset_size)
     data_rating(random_subset, "batch_rating_results", range(len(rules)), batch_size=batch_size)
     
