@@ -23,20 +23,30 @@ class REWOOPipeline(Pipeline):
         self.solver = solver
 
     def run(self, task: Text) -> Text:
-        # 1) Planner composes a full blueprint for the task
-        plan: List[Text] = self.planner.run(task)
+        plan: Text = self.planner.run(task)
 
-        # 2) Worker collects evidence for each plan step (can be parallelised)
-        evidences: List[Text] = asyncio.run(self._worker_run(task, plan))
+        steps: List[Text] = [
+            line for line in plan.splitlines() if line.strip()
+        ]
 
-        # 3) Solver combines task, plan and evidences into the final answer
-        final_answer: Text = self.solver.run(task, plan, evidences)
+        evidences: List[Text] = asyncio.run(self._worker_run(task, steps))
+
+        steps_complitions = [
+            f"Plan {i + 1}: {p}\nEvidence {i + 1}: {e}"
+            for i, (p, e) in enumerate(zip(steps, evidences))
+        ]
+        plan_complition: Text = "\n".join(steps_complitions)
+
+        final_answer: Text = self.solver.run(
+            task,
+            context=plan_complition,
+        )
         return final_answer
 
-    async def _worker_run(self, task: Text, plan: List[Text]) -> List[Text]:
+    async def _worker_run(self, task: Text, steps: List[Text]) -> List[Text]:
         worker_tasks = [
-            asyncio.create_task(self.worker.run(task, sub_task))
-            for sub_task in plan
+            asyncio.create_task(self.worker.run(step, context=task))
+            for step in steps
         ]
         evidences = await asyncio.gather(*worker_tasks)
         return list(evidences)

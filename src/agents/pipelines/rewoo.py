@@ -1,5 +1,3 @@
-from typing import List
-
 from openai import OpenAI
 
 from src.agent_constructor.agent import Agent
@@ -8,33 +6,26 @@ from src.agent_constructor.core import Text
 
 class PlannerREWOO(Agent):
     """
-    ReWOO Planner: given an initial task, produces a short, ordered list
-    of high-level plans (sub-tasks) that a Worker can execute independently.
+    ReWOO Planner: given an initial task, produces a textual blueprint
     """
 
     def __init__(
         self,
-        url: str | None = None,
-        model_name: str | None = None,
+        url: str,
+        model_name: str,
         maximum_steps: int = 5,
         name: str = "rewoo_planner_agent",
     ):
         super().__init__(name)
         self.maximum_steps = maximum_steps
 
-        # If no model/url provided, fall back to a simple deterministic stub.
-        self.dummy_mode = not (url and model_name)
-        if not self.dummy_mode:
-            self.client = OpenAI(base_url=url, api_key="vllm")
+        self.client = OpenAI(base_url=url, api_key="vllm")
         self.model_name = model_name
 
-    def run(self, task: Text) -> List[Text]:
+    def run(self, task: Text, context: Text = "") -> Text:
         """
-        Produce an ordered list of textual plan steps for the given task.
+        Produce a textual plan for the given task (one or more lines).
         """
-        if self.dummy_mode:
-            # Simple baseline: repeat the original task with step numbers.
-            return [f"Step {i + 1}: {task}" for i in range(self.maximum_steps)]
 
         system_prompt = (
             "You are the Planner module in a ReWOO-style pipeline.\n"
@@ -48,7 +39,8 @@ class PlannerREWOO(Agent):
             "Step 1: ...\nStep 2: ...\n..."
         )
 
-        user_prompt = f"Task:\n{task}\n\nProduce the plan steps now."
+        user_context = f"\n\nAdditional context:\n{context}" if context else ""
+        user_prompt = f"Task:\n{task}{user_context}\n\nProduce the plan steps now."
 
         response = self.client.chat.completions.create(
             model=self.model_name,
@@ -59,11 +51,12 @@ class PlannerREWOO(Agent):
             temperature=0,
         )
 
-        content = response.choices[0].message.content or ""
-        lines = [line.strip() for line in content.splitlines() if line.strip()]
+        content = response.choices[0].message.content
 
-        # Truncate to the configured maximum number of steps.
-        return lines[: self.maximum_steps]
+        lines = [line for line in content.splitlines() if line.strip()]
+        if len(lines) > self.maximum_steps:
+            lines = lines[: self.maximum_steps]
+        return "\n".join(lines)
 
 
 class WorkerREWOO(Agent):
@@ -74,23 +67,19 @@ class WorkerREWOO(Agent):
 
     def __init__(
         self,
-        url: str | None = None,
-        model_name: str | None = None,
+        url: str,
+        model_name: str,
         name: str = "rewoo_worker_agent",
     ):
         super().__init__(name)
 
-        self.dummy_mode = not (url and model_name)
-        if not self.dummy_mode:
-            self.client = OpenAI(base_url=url, api_key="vllm")
+        self.client = OpenAI(base_url=url, api_key="vllm")
         self.model_name = model_name
 
-    async def run(self, task: Text, plan_step: Text) -> Text:
+    async def run(self, task: Text, context: Text = "") -> Text:
         """
         Given the original task and a single plan step, return concise textual evidence.
         """
-        if self.dummy_mode:
-            return f"Evidence for plan '{plan_step}' on task '{task}'"
 
         response = self.client.chat.completions.create(
             model=self.model_name,
@@ -99,17 +88,17 @@ class WorkerREWOO(Agent):
                     "role": "system",
                     "content": (
                         "You are the Worker module in a ReWOO-style pipeline. "
-                        "Given the original task and one plan step, you retrieve or infer "
-                        "concise evidence that helps solve the task. "
+                        "Given the current sub-task and optional context, you retrieve or infer "
+                        "concise evidence that helps solve the overall task. "
                         "Return only the evidence text, without extra commentary."
                     ),
                 },
                 {
                     "role": "user",
                     "content": (
-                        f"Task:\n{task}\n\n"
-                        f"Plan step:\n{plan_step}\n\n"
-                        "Return the evidence for this plan step."
+                        f"Sub-task:\n{task}\n\n"
+                        f"Context (may include the original task, prior steps, etc.):\n{context}\n\n"
+                        "Return the evidence for this sub-task."
                     ),
                 },
             ],
@@ -127,46 +116,34 @@ class SolverREWOO(Agent):
 
     def __init__(
         self,
-        url: str | None = None,
-        model_name: str | None = None,
+        url: str,
+        model_name: str,
         name: str = "rewoo_solver_agent",
     ):
         super().__init__(name)
 
-        self.dummy_mode = not (url and model_name)
-        if not self.dummy_mode:
-            self.client = OpenAI(base_url=url, api_key="vllm")
+        self.client = OpenAI(base_url=url, api_key="vllm")
         self.model_name = model_name
 
-    def run(self, task: Text, plan: List[Text], evidences: List[Text]) -> Text:
+    def run(self, task: Text, context: Text = "") -> Text:
         """
-        Combine the task, plans and evidences into a final answer.
+        Combine the task and provided textual context (typically plans + evidences)
+        into a final answer.
         """
-        if self.dummy_mode:
-            lines = []
-            for i, (p, e) in enumerate(zip(plan, evidences), start=1):
-                lines.append(f"{i}. Plan: {p}\n   Evidence: {e}")
-            return "FINAL ANSWER (dummy solver):\n" + "\n\n".join(lines)
-
-        plans_block = "\n".join(
-            f"Plan {i + 1}: {p}\nEvidence {i + 1}: {e}"
-            for i, (p, e) in enumerate(zip(plan, evidences))
-        )
 
         system_prompt = (
             "You are the Solver module in a ReWOO-style pipeline.\n"
             "You are given:\n"
             "- the original task,\n"
-            "- an ordered list of plan steps,\n"
-            "- and evidence corresponding to each step.\n\n"
-            "Use the plans and evidence carefully (they may contain irrelevant details) "
+            "- and a block of context that already combines plans and evidences.\n\n"
+            "Use this context carefully (it may contain irrelevant details) "
             "to answer the task as accurately as possible.\n"
             "Respond with the final answer only, without showing intermediate reasoning."
         )
 
         user_prompt = (
             f"Task:\n{task}\n\n"
-            f"Plans and evidence:\n{plans_block}\n\n"
+            f"Context (plans + evidences):\n{context}\n\n"
             "Now provide the final answer to the task."
         )
 
