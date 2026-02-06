@@ -1,3 +1,10 @@
+"""
+Модуль для взаимодействия с GitHub API и загрузки содержимого репозиториев.
+
+Обеспечивает функционал для аутентификации, поиска конкретных файлов по
+расширениям, фильтрации по паттернам и извлечения README.
+"""
+
 import logging
 import os
 from typing import Iterator, Optional
@@ -5,8 +12,8 @@ from typing import Iterator, Optional
 from dotenv import load_dotenv
 from github import Auth, Github, GithubException, Repository
 
-from src.utils.github_parser.github_parser_config import (
-    GitHubExampleFetcherConfig,
+from src.utils.github_parser.config import (
+    GitHubLoaderConfig,
     RepoFile,
     RepoWalkResult,
 )
@@ -14,41 +21,71 @@ from src.utils.github_parser.github_parser_config import (
 
 # TODO: написать readme + для лексического фильтратора тоже
 # TODO: написать тесты!
+# TODO: подумать, как обрабатывать .md!
+
 
 load_dotenv()
 GITHUB_ACCESS_TOKEN = os.environ["GITHUB_ACCESS_TOKEN"]
 logger = logging.getLogger(__file__)
 
 
-# TODO: докстринги! + порядок импортов
-# TODO: подумать, как обрабатывать .md!
-# TODO: проверить init
-
-
 class TorchGitHubLoader:
     """
-    Класс для взаимодействия с GitHub API. Осуществляет
-    подключение и скачивание сырых файлов из выбранного репозитория.
+    Класс для взаимодействия с GitHub API.
+    Осуществляет подключение к репозиториям, рекурсивный обход файловой
+    структуры и скачивание сырого содержимого файлов.
+
+    Attributes:
+        auth (Auth.Token): Объект аутентификации GitHub.
+        github_client (Github): Клиент для работы с GitHub API.
+        config (GitHubLoaderConfig): Конфиг для загрузчика файлов с
+            репозитория.
     """
 
     def __init__(
-        self, config: GitHubExampleFetcherConfig, token: Optional[str] = None
+        self,
+        config_for_github_loader: GitHubLoaderConfig,
+        token: Optional[str] = None,
     ) -> None:
         """
-        Docstring for __init__
+        Инициализирует клиент GitHub.
+
+        Args:
+            config_for_github_loader (GitHubLoaderConfig): Конфиг для
+                загрузчика файлов с репозитория.
+            token (Optional[str]): Персональный токен доступа GitHub.
+                Если не указан, пытается получить из переменной окружения
+                    GITHUB_ACCESS_TOKEN.
+
+        Raises:
+            ValueError: Если токен не передан и не найден в переменных
+                окружения.
         """
         token = token or os.environ["GITHUB_ACCESS_TOKEN"]
         if not token:
             raise ValueError(
-                "GitHub Token не найден. Проверьте .env или передайте токен."
+                "GitHub токен не найден. Проверьте .env или передайте токен!"
             )
         self.auth = Auth.Token(token)
         self.github_client = Github(auth=self.auth)
-        self.config = config.config_for_github_loader
+        self.config = config_for_github_loader
 
     def _get_specific_repo(
         self, target_repo_name: str
     ) -> Repository.Repository:
+        """
+        Получает объект репозитория GitHub по его полному имени.
+
+        Args:
+            target_repo_name (str): Полное имя репозитория.
+
+        Returns:
+            Repository.Repository: Объект репозитория PyGithub.
+
+        Raises:
+            GithubException: Если репозиторий не найден или возникли
+                проблемы с API.
+        """
         try:
             target_repo = self.github_client.get_repo(target_repo_name)
             logger.info(
@@ -61,13 +98,20 @@ class TorchGitHubLoader:
             raise
 
     def get_readme_content(self, target_repo: Repository.Repository) -> str:
-        """Скачивает и декодирует содержимое README.md."""
+        """
+        Скачивает и декодирует содержимое файла README из репозитория.
+
+        Args:
+            target_repo (Repository.Repository): Объект репозитория, из
+                которого нужно получить README.
+
+        Returns:
+            str: Декодированное содержимое README. Возвращает пустую строку,
+                если файл не найден.
+        """
         try:
             readme = target_repo.get_readme()
-            logger.info(
-                "Нашли файл README.md, который имеет %s строк",
-                len(readme.line_numbers),
-            )
+            logger.info("Нашли файл README.md!")
             return readme.decoded_content.decode()
         except GithubException:
             logger.warning(
@@ -81,7 +125,20 @@ class TorchGitHubLoader:
         specific_folder_for_search: str = "",
     ) -> Iterator[RepoFile]:
         """
-        Если specific_folder_for_search пустая, то вернет содержимое всей репы.
+        Рекурсивно обходит репозиторий и возвращает содержимое файлов.
+
+        Args:
+            target_repo (Repository.Repository): Объект репозитория для поиска.
+            specific_folder_for_search (str): Путь к конкретной папке внутри
+                репозитория. По умолчанию поиск идет от корня.
+
+        Yields:
+            Iterator[RepoFile]: Итератор объектов RepoFile, содержащих путь к
+                файлу и его байтовое содержимое.
+
+        Note:
+            Метод игнорирует файлы, имена которых содержат паттерны из
+                конфига.
         """
         try:
             target_repo_content = target_repo.get_contents(
@@ -144,11 +201,16 @@ class TorchGitHubLoader:
         self, target_repo_name: str, specific_folder_for_search: str
     ) -> RepoWalkResult:
         """
-        Docstring for __call__
+        Выполняет комплексный обход репозитория: извлекает README и
+        создает итератор по всем подходящим файлам.
 
-        :param self: Description
-        :return: Description
-        :rtype: Any
+        Args:
+            target_repo_name (str): Полное имя репозитория.
+            specific_folder_for_search (str): Стартовая папка/файл для поиска.
+
+        Returns:
+            RepoWalkResult: Структура данных, содержащая строку README,
+                объект репозитория и итератор файлов.
         """
         target_repo = self._get_specific_repo(target_repo_name)
         readme = self.get_readme_content(target_repo)
