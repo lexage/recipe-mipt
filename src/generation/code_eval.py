@@ -27,7 +27,7 @@ class CodeEvalGenerator(Generator):
         for doc in tqdm(documents, desc="Code Eval Generation"):
             synth_docs.append(
                 Document(
-                    id=len(synth_docs) + ids_offset,
+                    id=str(len(synth_docs) + ids_offset),
                     text=self._run_model(doc.text),
                     source=self.name,
                     metadata={"generated_from" : doc.id})
