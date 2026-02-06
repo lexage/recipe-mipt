@@ -1,19 +1,36 @@
-from typing import List
 from src.agent_constructor.agent import Agent
+from langchain_openai import ChatOpenAI
+from langchain_core.messages import HumanMessage
 
 
 class Decrim(Agent):
     """DeCRIM agent implementing the Decompose, Critique, and Refine pipeline."""
 
-    def __init__(self, name: str = "Decrim", max_iterations: int = 10):
+    def __init__(
+        self,
+        name: str = "Decrim",
+        max_iterations: int = 10,
+        model_name: str = "Qwen/Qwen1.5-32B-Chat-AWQ",
+        openai_api_base_url="http://localhost:7215/v1",
+    ):
         super().__init__(name)
         self.max_iterations = max_iterations
+        self.llm_model = ChatOpenAI(
+            model=model_name,
+            openai_api_base=openai_api_base_url,
+            openai_api_key="fake-key",
+            temperature=0.7,
+        )
 
-    def llm(self, prompt: str, model_type: str = "initial") -> str:
-        # TODO: Replace with actual LLM call
-        return ""
+    def llm(self, message: str) -> str:
+        # TODO: different models for decomposition and feedback?
 
-    def _parse_constraints(self, constraints_response: str) -> List[str]:
+        messages = [HumanMessage(content=message)]
+
+        response = self.llm_model.invoke(messages)
+        return response.content
+
+    def _parse_constraints(self, constraints_response: str) -> list[str]:
         """Parse constraints from LLM response."""
         # Extract numbered constraints from the response
         lines = constraints_response.strip().split("\n")
@@ -35,7 +52,7 @@ class Decrim(Agent):
         )
 
     def _create_critique_prompt(
-        self, instruction: str, constraints: List[str], response: str
+        self, instruction: str, constraints: list[str], response: str
     ) -> str:
         """Build prompt for critique step."""
         constraints_text = "\n".join(
@@ -43,20 +60,20 @@ class Decrim(Agent):
         )
 
         return f"""
-        You are an assistant whose job is to help me perform tasks. 
-        I will give you an instruction and an AI assistant response. 
-        The instruction includes some constraints to be followed by AI assistant while generating response. 
-        Your task is to check and let me know which of the constraints are satisfied by the AI assistant response. 
-        Please state short reasons on whether constraint is satisfied in the response or not. 
+        You are an assistant whose job is to help me perform tasks.
+        I will give you an instruction and an AI assistant response.
+        The instruction includes some constraints to be followed by AI assistant while generating response.
+        Your task is to check and let me know which of the constraints are satisfied by the AI assistant response.
+        Please state short reasons on whether constraint is satisfied in the response or not.
         Also include final answer as "Constraint followed" or "Constraint not followed" for each constraint.
-        
+
         Instruction: {instruction}
-        
+
         Constraints:
         {constraints_text}
-        
+
         Assistant Response: {response}
-        
+
         Please analyze each constraint one by one and provide your critique:
         """
 
@@ -77,8 +94,8 @@ class Decrim(Agent):
         return True
 
     def _extract_unsatisfied_constraints(
-        self, critique_result: str, all_constraints: List[str]
-    ) -> List[str]:
+        self, critique_result: str, all_constraints: list[str]
+    ) -> list[str]:
         """Extract list of unsatisfied constraints from critique response."""
         # TODO: Add real extraction
         unsatisfied = []
@@ -94,77 +111,49 @@ class Decrim(Agent):
 
         return unsatisfied if unsatisfied else all_constraints
 
-    def _create_refine_prompt(
-        self,
-        instruction: str,
-        previous_response: str,
-        unsatisfied_constraints: List[str],
-    ) -> str:
-        """Build prompt for refine step."""
-        constraints_text = ", ".join(
-            [f'"{constraint}"' for constraint in unsatisfied_constraints]
-        )
-
-        return f"""
-        You are provided an instruction, an AI response to the instruction and a feedback about the response. 
-        Please correct the AI response according to the feedback provided.
-        
-        Instruction: {instruction}
-        
-        AI response: {previous_response}
-        
-        Feedback: Response did not follow {len(unsatisfied_constraints)} constraint(s): {constraints_text}
-        
-        Corrected response:
-        """
-
-    def run(self, instruction: str) -> str:
-        """
-        Args:
-            instruction: User instruction with multiple constraints
-
-        Returns:
-            Final refined response
-        """
-        initial_prompt = f"""
-        You are an AI assistant. Please respond to the following user instruction.
-        Make sure to follow all the provided constraints.
-        
-        Instruction: {instruction}
-        
-        Response:
-        """
-        initial_response = self.llm(initial_prompt, model_type="initial")
-        current_response = initial_response
-
+    def _decompose(self, question: str) -> list[str]:
+        # TODO: add few-shot examples
         decompose_prompt = f"""
-        You are an assistant whose job is to help me perform tasks. 
-        I will give you an instruction that implicitly contains constraints to be followed. 
+        You are an assistant whose job is to help me perform tasks.
+        I will give you an instruction that implicitly contains constraints to be followed.
         Your task is to list the constraints provided by the user in an enumerated list format.
-        
-        Original Instruction: {instruction}
-        
+
+        Original Instruction: {question}
+
         Provided Constraints:
         """
         constraints = self.llm(decompose_prompt, model_type="decompose")
         constraint_list = self._parse_constraints(constraints)
+        return constraint_list
 
-        for _ in range(self.max_iterations):
-            critique_prompt = self._create_critique_prompt(
-                instruction, constraint_list, current_response
-            )
-            critique_result = self.llm(critique_prompt, model_type="critic")
+    def _critique(self, question: str, answer: str, constraints: list[str]) -> str:
+        critique_prompt = self._create_critique_prompt(question, constraints, answer)
+        critique_result = self.llm(critique_prompt)
 
-            if self._all_constraints_satisfied(critique_result):
-                break
-
+        # TODO: edit or delete conclusion?
+        if self._all_constraints_satisfied(critique_result):
+            conclusion = "All constraints satisfied"
+        else:
             unsatisfied_constraints = self._extract_unsatisfied_constraints(
-                critique_result, constraint_list
+                critique_result, constraints
+            )
+            conclusion = (
+                f"Unsatisfied constraints: {', '.join(unsatisfied_constraints)}"
             )
 
-            refine_prompt = self._create_refine_prompt(
-                instruction, current_response, unsatisfied_constraints
-            )
-            current_response = self.llm(refine_prompt, model_type="refine")
+        return f"{critique_result}\n{conclusion}"
 
-        return current_response
+    def run(self, question: str, answer: str) -> str:
+        """
+        Args:
+            question: User instruction with multiple constraints
+            answer: LLM response
+
+        Returns:
+            Feedback
+        """
+
+        constraints = self._decompose(question, answer)
+        feedback = self._critique(question, answer, constraints)
+
+        return feedback
