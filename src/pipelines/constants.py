@@ -8,6 +8,7 @@ class PipelinesNames(Enum):
     SIMPLE = "SimplePipeline"
     REWOO = "REWOOPipeline"
     MAPS = "MAPSPipeline"
+    REACT = "REACTPipeline"
 
 
 class ComponentNames(Enum):

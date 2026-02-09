@@ -1,5 +1,6 @@
 import re
 from abc import ABC, abstractmethod
+from openai import OpenAI
 from src.agent_constructor.context_engine import ContextAssembler
 from src.agent_constructor.db import IDB
 from src.agent_constructor.agent import Agent
@@ -10,6 +11,8 @@ class ReActAgent(Agent):
     
     def __init__(
         self, 
+        url: str = None,
+        model_name: str = None,
         name: str = "ReActAgent", 
         instruction: str = None, 
         examples: list = None, 
@@ -24,6 +27,10 @@ class ReActAgent(Agent):
         self.db = db
         self.context_assembler = context_assembler
         self.memory = []
+        
+        self.client = OpenAI(base_url=url, api_key="vllm")
+        self.model_name = model_name
+
         
     def _get_default_instruction(self):
         """Return default instruction for the ReAct agent."""
@@ -63,15 +70,23 @@ Work through the problem systematically, breaking it down into manageable steps.
         return prompt
     
     def llm(self, prompt: str) -> str:
-        # TODO: Replace with actual LLM call
-        return ""
+        """Сalling the llm to get a response."""
+        response = self.client.chat.completions.create(
+            model=self.model_name,
+            messages=[
+                {"role": "user", "content": prompt},
+            ],
+            temperature=0,
+        )
+
+        return response.choices[0].message.content
     
     def _extract_thought_and_action(self, response: str) -> tuple:
         """Extract thought and action from the model response."""
         thought = ""
         action = ""
         
-        thought_match = re.search(r'Thought:\s*(.*?)(?=\nAction:|\n*$)', response, re.DOTALL)
+        thought_match = re.search(r'Think:\s*(.*?)(?=\nAction:|\n*$)', response, re.DOTALL)
         if thought_match:
             thought = thought_match.group(1).strip()
         
@@ -86,8 +101,8 @@ Work through the problem systematically, breaking it down into manageable steps.
         """Retrieve context from the database."""
         if self.db and self.context_assembler:
             retrieved = self.db.query(task, top_k)
-            context = self.context_assembler.assemble(task, retrieved)
-            return context
+            retrieved_context = self.context_assembler.assemble(retrieved)
+            return task + "\n\n" + retrieved_context
         return "No database or context assembler available."
     
     def _make_action_prompt(self, task: str, action: str, thought: str, items_num: int = 6) -> str:
