@@ -4,7 +4,7 @@ from openai import OpenAI
 from typing import List, Optional
 from tqdm import tqdm
 
-from agent_constructor.generator import Generator
+from src.agent_constructor.generator import Generator
 from src.agent_constructor.core import Text, Document
 from src.utils import DOCUMENT_SRC_EXAMPLES
 
@@ -61,9 +61,9 @@ class InstructGenerator(Generator):
         return answer
 
     def generate(self, documents: List[Document]) -> List[Document]:
-        synth_docs = []
+        synth_docs: list[Document] = []
         ids_offset = len(documents)+1
-
+        print("a")
         documents = [
             doc for doc in documents if doc.source == DOCUMENT_SRC_EXAMPLES
             ]
@@ -77,5 +77,6 @@ class InstructGenerator(Generator):
                     source=self.name,
                     metadata={"generated_from": doc.id})
             )
+            print(f"synth_docs: {synth_docs}")
 
         return synth_docs
