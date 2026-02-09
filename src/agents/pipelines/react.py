@@ -1,9 +1,19 @@
 import re
+import logging
 from abc import ABC, abstractmethod
 from openai import OpenAI
 from src.agent_constructor.context_engine import ContextAssembler
 from src.agent_constructor.db import IDB
 from src.agent_constructor.agent import Agent
+
+
+logging.basicConfig(
+    filename='/workspace/data/react.log',
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s'
+)
+
+logger = logging.getLogger(__name__)
 
 
 class ReActAgent(Agent):
@@ -30,6 +40,9 @@ class ReActAgent(Agent):
         
         self.client = OpenAI(base_url=url, api_key="vllm")
         self.model_name = model_name
+        
+        logger.info(f"SYSTEM_PROMPT: {self.instruction}")
+        logger.info("\n_____________________________\n")
 
         
     def _get_default_instruction(self):
@@ -160,13 +173,22 @@ Finish: False"""
     
     def run(self, task: str) -> str:
         """Run the ReAct agent to solve the programming task."""
+        logger.info(f"TASK: {task}")
+        logger.info("\n_____________________________\n")
+        
         self.memory = []
         
-        for _ in range(self.max_iterations):
+        for idx in range(self.max_iterations):
+            logger.info(f"STEP {idx+1}:")
+            
             prompt = self.make_prompt(task)
+            logger.info(f"INSTRUCTION: {prompt}")
+            
             response = self.llm(prompt)
             thought, action = self._extract_thought_and_action(response)
-            
+            logger.info(f"THOUGHT: {thought}")
+            logger.info(f"ACTION: {action}")
+
             if not thought or not action:
                 thought = "Unable to parse response. Considering what to do next."
                 action = "analyze_task"
@@ -175,9 +197,14 @@ Finish: False"""
             self.memory.append(("Action", action))
             
             observation, is_finish = self._execute_action(action, task, thought)
+            logger.info(f"OBSERVATION: {observation}")
+            logger.info(f"IS_FINISH: {is_finish}")
+            logger.info("\n_____________________________\n")
+
             self.memory.append(("Observation", observation))
             
             if is_finish:
+                logger.info(f"FINAL_ANSWER: {observation}")
                 return observation
         
         # If max iterations reached, return the last observation
