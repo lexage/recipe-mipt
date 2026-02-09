@@ -1,59 +1,116 @@
+from dataclasses import dataclass, field
+from typing import Optional, List
+from enum import Enum, auto
+
 from src.agent_constructor.core import Text
-from src.agents.pipelines.maps import MAPSAgentNames, MAPSPipelineState
 from src.agent_constructor.agent import Agent
 from src.agent_constructor.pipeline import Pipeline
+from src.agent_constructor.context_engine import Retriever
+
+
+class MAPSAgents(Enum):
+    ALIGNER = auto()
+    SCHOLAR = auto()
+    SOLVER = auto()
+    CRITIC = auto()
+
+
+@dataclass
+class MAPSPipelineState:
+    
+    task: Text
+    context: Text
+
+    aligned_info: Text = ""
+    research: Text = ""
+    solution: Text = ""
+    feedback: Text = ""
+
+    scores: Optional[List[int]] = field(default_factory=lambda: [-1] * 3)
+
 
 class MAPSPipeline(Pipeline):
 
-    def __init__(self, user_proxy: Agent, aligner: Agent, scholar: Agent, solver: Agent, critic: Agent, manager: Agent, max_iterations: int):
+    def __init__(self, aligner: Agent, scholar: Agent, solver: Agent, critic: Agent, retriever: Retriever = None, max_iterations: int = 1):
         super().__init__("maps_pipeline")
-        self.user_proxy = user_proxy 
+        self.retriever = retriever
         self.aligner = aligner 
         self.scholar = scholar 
-        self.solver = solver 
-        self.critic = critic 
-        self.manager = manager 
+        self.solver = solver
+        self.critic = critic
         self.max_iterations = max_iterations
 
     def run(self, task: Text) -> Text:
-
+        
         context = ""
-
+        if self.retriever:
+            context = self.retriever.retrieve(task)
+        
         state = MAPSPipelineState(
-            diagram=task,
+            task=task,
             context=context,
-            question=task
         )
+        
+        next_agent = MAPSAgents.ALIGNER
+        i = 0
+        while i < self.max_iterations:
 
-        task_description = self.user_proxy.run(
-            state.question, state.context)
+            match next_agent:
 
-        for _ in range(self.max_iterations):
+                case MAPSAgents.ALIGNER:
 
-            plan = self.manager.run(state)
-            for step in plan:
-
-                if step == MAPSAgentNames.ALIGNER:
                     state.aligned_info = self.aligner.run(
-                        task_description,
-                        state.context,
-                        state.feedback[0]
+                    state.task, 
+                    state.context + state.feedback
                     )
 
-                if step == MAPSAgentNames.SCHOLAR:
+                    next_agent = MAPSAgents.SCHOLAR
+
+                case MAPSAgents.SCHOLAR:
+
                     state.research = self.scholar.run(
-                        task_description, state.aligned_info, state.context, state.feedback[1])
+                    state.task, 
+                    state.aligned_info + state.context + state.feedback
+                    )
 
-                if step == MAPSAgentNames.SOLVER:
+                    next_agent = MAPSAgents.SOLVER
+
+                case MAPSAgents.SOLVER:
+
                     state.solution = self.solver.run(
-                        task_description, state.aligned_info, state.research, state.feedback[2])
+                    state.task, 
+                    state.research + state.aligned_info + state.context + state.feedback)
 
-            scores, feedback = self.critic.run(
-                state.solution, state.research, state.aligned_info)
+                    next_agent = MAPSAgents.CRITIC
 
-            if min(scores) >= 5:
-                break
-            state.scores = scores
-            state.feedback = feedback
+                case MAPSAgents.CRITIC:
+
+                    state.scores, state.feedback = self.critic.run(
+                        self._critic_prompt(
+                            state.aligned_info, 
+                            state.research,
+                            state.solution
+                        )
+                    )
+
+                    if min(state.scores) >= 5:
+                        break
+                    
+                    agent_id = state.scores.index(min(state.scores))
+                    next_agent = [MAPSAgents.ALIGNER, MAPSAgents.SCHOLAR, MAPSAgents.SOLVER][agent_id]
+                    i += 1
 
         return state.solution
+
+    def _critic_prompt(
+            self, 
+            aligner_results: Text, 
+            scholar_results: Text,
+            solver_results: Text
+            ):
+        
+        return f"""
+[alignment]: \n{aligner_results}\n\n
+[knowledge]: \n{scholar_results}\n\n
+[solution]: \n{solver_results}\n\n
+"""
