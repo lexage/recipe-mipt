@@ -17,7 +17,7 @@ class AlignerMAPS(Agent):
 
         self.model_name = model_name
 
-    def run(self, task: Text, context: Text) -> Text:
+    def run(self, task: Text) -> Text:
 
         system_prompt = (
 """You are a text alignment specialist conducting structured analysis through Socratic interrogation. Systematically examine text pairs using this framework:
@@ -39,16 +39,11 @@ d) Omission patterns (mutually exclusive missing elements)”
 4) Potential inference pathways?”"""
         )
 
-        user_prompt = (
-            f"[Task]\n{task}\n\n"
-            f"[Context] (may include background information and previous feedback):\n{context}\n\n"
-        )
-
         response = self.client.chat.completions.create(
             model=self.model_name,
             messages=[
                 {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_prompt},
+                {"role": "user", "content": task},
             ],
             temperature=0,
         )
@@ -66,7 +61,7 @@ class ScholarMAPS(Agent):
 
         self.model_name = model_name
 
-    def run(self, task: Text, context: Text) -> Text:
+    def run(self, task: Text) -> Text:
 
         system_prompt = (
 """You are a scientific knowledge retrieval system conducting structured inquiry through Socratic questioning. Process input data with this analytical framework:
@@ -92,16 +87,12 @@ Output as: 1) Knowledge Inventory Table (Concept-Definition-SourceAnchor)
 3) Gap Analysis Report (ExternalKnowledgeRequirements)."""
         )
 
-        user_prompt = (
-            f"[Task]:\n{task}\n\n"
-            f"[Context] (may include aligned information, background, and feedback):\n{context}\n\n"
-        )
 
         response = self.client.chat.completions.create(
             model=self.model_name,
             messages=[
                 {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_prompt},
+                {"role": "user", "content": task},
             ],
             temperature=0,
         )
@@ -118,7 +109,7 @@ class SolverMAPS(Agent):
 
         self.model_name = model_name
 
-    def run(self, task: Text, context: Text) -> Text:
+    def run(self, task: Text) -> Text:
 
         system_prompt = (
 """You are a scientific problem-solving system operating through Socratic dialectics. Engage in this structured inquiry process:
@@ -146,17 +137,12 @@ Output JSON structured as:
 α
  due to… (TheoremRef: Maxwell-Eq)”, ”Phase 4”: ”[Validation] Verified dimensional consistency in…”, }, ”final_answer”: ”final result”} }"""
         )
-
-        user_prompt = (
-            f"[Task]:\n{task}\n\n"
-            f"[Context] (aligned information, knowledge, feedback, etc.):\n{context}\n\n"
-        )
-
+    
         response = self.client.chat.completions.create(
             model=self.model_name,
             messages=[
                 {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_prompt},
+                {"role": "user", "content": task},
             ],
             temperature=0,
         )
