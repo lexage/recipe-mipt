@@ -3,7 +3,7 @@ from src.agent_constructor.db import IDB
 from src.agent_constructor.chunkers import Chunker
 from src.agent_constructor.filters import Filter
 from src.agent_constructor.agent import Agent
-from agent_constructor.generator import Generator
+from src.agent_constructor.generator import Generator
 from src.agent_constructor.pipeline import Pipeline
 from src.agent_constructor.context_engine import ContextAssembler
 from src.agent_constructor.icl import ICLBlock
