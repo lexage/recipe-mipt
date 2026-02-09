@@ -60,8 +60,7 @@ class MAPSPipeline(Pipeline):
                 case MAPSAgents.ALIGNER:
 
                     state.aligned_info = self.aligner.run(
-                    state.task, 
-                    state.context + state.feedback
+                        self._aligner_prompt(state)
                     )
 
                     next_agent = MAPSAgents.SCHOLAR
@@ -69,8 +68,7 @@ class MAPSPipeline(Pipeline):
                 case MAPSAgents.SCHOLAR:
 
                     state.research = self.scholar.run(
-                    state.task, 
-                    state.aligned_info + state.context + state.feedback
+                        self._scholar_prompt(state)
                     )
 
                     next_agent = MAPSAgents.SOLVER
@@ -78,19 +76,15 @@ class MAPSPipeline(Pipeline):
                 case MAPSAgents.SOLVER:
 
                     state.solution = self.solver.run(
-                    state.task, 
-                    state.research + state.aligned_info + state.context + state.feedback)
+                        self._solver_prompt(state)
+                    )
 
                     next_agent = MAPSAgents.CRITIC
 
                 case MAPSAgents.CRITIC:
 
                     state.scores, state.feedback = self.critic.run(
-                        self._critic_prompt(
-                            state.aligned_info, 
-                            state.research,
-                            state.solution
-                        )
+                        self._critic_prompt(state)
                     )
 
                     if min(state.scores) >= 5:
@@ -102,15 +96,41 @@ class MAPSPipeline(Pipeline):
 
         return state.solution
 
-    def _critic_prompt(
-            self, 
-            aligner_results: Text, 
-            scholar_results: Text,
-            solver_results: Text
-            ):
+    @staticmethod
+    def _aligner_prompt(state: MAPSPipelineState):
+        prompt = f"[task]:\n{state.task}\n\n"
+
+        if state.context:
+            prompt += f"[context]:\n{state.context}\n\n"
         
-        return f"""
-[alignment]: \n{aligner_results}\n\n
-[knowledge]: \n{scholar_results}\n\n
-[solution]: \n{solver_results}\n\n
-"""
+        if state.feedback:
+            prompt += f"[previous aligment]:\n{state.aligned_info}\n\n[feedback]:\n{state.feedback}"
+
+        return prompt
+    
+    @staticmethod
+    def _scholar_prompt(state: MAPSPipelineState):
+        prompt = f"[task]:\n{state.task}\n\n"
+
+        if state.context:
+            prompt += f"[context]:\n{state.context}\n\n"
+
+        prompt += f"[aligment]:\n{state.aligned_info}\n\n"
+        
+        if state.feedback:
+            prompt += f"[previous knowledge]:\n{state.research}\n\n[feedback]:\n{state.feedback}"
+
+        return prompt
+    
+    @staticmethod
+    def _solver_prompt(state: MAPSPipelineState):
+        prompt = f"[aligment]:\n{state.aligned_info}\n\n[knowledge]:\n{state.research}\n\n"
+        
+        if state.feedback:
+            prompt += f"[previous solution]:\n{state.solution}\n\n[feedback]:\n{state.feedback}"
+
+        return prompt
+
+    def _critic_prompt(self, state: MAPSPipelineState):
+        return f"[alignment]: \n{state.aligned_info}\n\n[knowledge]: \n{state.research}\n\n[solution]: \n{state.solution}\n\n"
+    
