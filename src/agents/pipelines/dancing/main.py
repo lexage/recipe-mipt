@@ -1,17 +1,30 @@
 import random
 from typing import List
 from src.agent_constructor.agent import Agent
+from langchain_openai import ChatOpenAI
+from langchain_core.messages import HumanMessage, ToolMessage
 
 
 class Panel(Agent):
-    def __init__(self, name: str = "Panel"):
+    def __init__(self, 
+                 name: str = "Panel", 
+                model_name: str = "Qwen/Qwen1.5-32B-Chat-AWQ",
+                openai_api_base_url="http://localhost:7215/v1"):
+        
         super().__init__(name)
         self.temperature = 0.6
         self.num_candidates = 5
+        self.llm_model = ChatOpenAI(
+            model=model_name,
+            openai_api_base=openai_api_base_url,
+            openai_api_key="fake-key",
+            temperature=self.temperature,
+        )
 
-    def llm(self, prompt: str) -> str:
-        # TODO: Replace with actual LLM call
-        return ""
+    def llm(self, message) -> str:
+        messages = [HumanMessage(content=message)]
+        response = self.llm_model.invoke(messages)
+        return response.content
 
     def _create_sampling_prompt(
         self, problem: str, context: str, sampling_type: str
@@ -110,11 +123,9 @@ Return only the index number (0-based) of the selected candidate:"""
         return prompt
 
     def _extract_candidate_index(
-        self, selection_response: str, num_candidates: int
+        self, selection_response: str
     ) -> int:
-        """Extract candidate index from LLM response."""
-        # TODO: Add real implementation
-        return random.randint(0, num_candidates - 1)
+        return int(selection_response)
 
     def _select_best_candidate(
         self, candidates: List[str], critiques: List[str]
@@ -126,7 +137,7 @@ Return only the index number (0-based) of the selected candidate:"""
         selection_prompt = self._create_selection_prompt(candidates, critiques)
         selection_response = self.llm(selection_prompt)
         selected_index = self._extract_candidate_index(
-            selection_response, len(candidates)
+            selection_response
         )
 
         return candidates[selected_index]
