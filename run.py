@@ -17,7 +17,7 @@ pipeline_config = PipelineConfig(
     params={"top_k" : 10},
     components={
         "embedder": ComponentConfig(
-            type=ComponentNames.TFIDF_EMBEDDING,
+            type=ComponentNames.EMBEDDING_AGENT,
             params={"name": "embedder", "url": "http://localhost:7216/v1", "model_name": "Qwen/Qwen3-Embedding-4B"}
         ),
         "data_base": ComponentConfig(
