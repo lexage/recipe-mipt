@@ -89,7 +89,7 @@ class ComponentNames(Enum):
     # ===== Generators =====
     CODE_EVAL_GENERATOR = "src.generation.code_eval.CodeEvalGenerator"
     INCORRECT_EXAMPLES_GENERATOR = "src.generation.incorrect_examples.IncorrectExampleGenerator"
-    INSTRUCT_GENERATOR = "src.generation.new_instruct.InstructGenerator"
+    INSTRUCT_GENERATOR = "src.generation.new_insruct.InstructGenerator"
     RANDOM_WORD_GENERATOR = "src.generation.random_word.RandomWordGenerator"
     RANDOM_TOPIC_GENERATOR = "src.generation.random_topic.RandomTopicGenerator"
     ZERO_SHOT_GENERATOR = "src.generation.zero_shot.ZeroShotGenerator"
