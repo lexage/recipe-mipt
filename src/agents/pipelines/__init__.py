@@ -17,6 +17,10 @@ from .react import(
     ReActAgent,
 )
 
+from src.agents.pipelines.dancing.main import (
+    Panel,
+)
+
 __all__ = [
     "ScholarMAPS",
     "SolverMAPS",
@@ -28,4 +32,5 @@ __all__ = [
     "WorkerREWOO",
     "SolverREWOO",
     "ReActAgent",
+    "Panel",
 ]

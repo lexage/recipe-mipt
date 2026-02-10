@@ -125,7 +125,11 @@ Return only the index number (0-based) of the selected candidate:"""
     def _extract_candidate_index(
         self, selection_response: str
     ) -> int:
-        return int(selection_response)
+        prompt = f"""You are a Python programmer. You are given a reasoning about the index of the best candidate. 
+                    You should return only one integer (the index of the best candidate) (without any other words) from this reasoning.
+                    I will have to insert it into int(index). Reasoning : {selection_response}"""
+        responce_index = self.llm(prompt)
+        return int(responce_index)
 
     def _select_best_candidate(
         self, candidates: List[str], critiques: List[str]
