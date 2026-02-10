@@ -56,8 +56,10 @@ class Decrim(Agent):
         # TODO: add few-shot examples
         decompose_prompt = f"""
         You are an assistant whose job is to help me perform tasks.
-        I will give you an instruction that implicitly contains constraints to be followed.
+        I will give you a coding instruction that implicitly contains constraints to be followed.
         Your task is to list the constraints provided by the user in an enumerated list format.
+        The constraints should help validate that the instruction will be carried out correctly,
+        and the resulting code will be correct and follow the syntax of the specified programming language.
 
         Original Instruction: {question}
 
@@ -72,7 +74,8 @@ class Decrim(Agent):
 
         critique_prompt = f"""
         You are an assistant whose job is to help me perform tasks.
-        I will give you an instruction and an AI assistant response.
+        I will give you a coding instruction and an AI assistant response.
+        The response should be a valid and correct piece of code which follows the syntax of the programming language.
         The instruction includes some constraints to be followed by AI assistant while generating response.
         Your task is to check and let me know which of the constraints are satisfied by the AI assistant response.
         Please state short reasons on whether constraint is satisfied in the response or not.
