@@ -16,7 +16,7 @@ pipeline_config = PipelineConfig(
     type=PipelinesNames.SIMPLE,
     components={
         "embedder": ComponentConfig(
-            type=ComponentNames.EMBEDDING_AGENT,
+            type=ComponentNames.TFIDF_EMBEDDING,
             params={"name": "embedder", "url": "http://localhost:7216/v1", "model_name": "Qwen/Qwen3-Embedding-4B"}
         ),
         "data_base": ComponentConfig(
@@ -42,6 +42,10 @@ pipeline_config = PipelineConfig(
         "retriever": ComponentConfig(
             type=ComponentNames.SIMPLE_RETRIEVER,
             params={"name": "simple_retriever"},
+        ),
+        "generator": ComponentConfig(
+            type=ComponentNames.CODE_EVAL_GENERATOR,
+            params={"url": "http://localhost:7215/v1", "model_name": "Qwen/Qwen1.5-32B-Chat-AWQ"}
         ),
         "agent": ComponentConfig(
             type=ComponentNames.SIMPLE_AGENT,

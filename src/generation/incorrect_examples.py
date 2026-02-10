@@ -3,7 +3,7 @@ import random
 from openai import OpenAI
 from typing import List, Optional
 from tqdm import tqdm
-from agent_constructor.generator import Generator
+from src.agent_constructor.generator import Generator
 from src.agent_constructor.core import Text, Document
 from src.utils import DOCUMENT_SRC_EXAMPLES
 
