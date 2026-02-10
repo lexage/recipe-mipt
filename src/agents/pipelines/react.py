@@ -1,19 +1,32 @@
 import re
 import logging
-from abc import ABC, abstractmethod
 from openai import OpenAI
+from pathlib import Path
 from src.agent_constructor.context_engine import ContextAssembler
 from src.agent_constructor.db import IDB
 from src.agent_constructor.agent import Agent
 
 
-logging.basicConfig(
-    filename='/workspace/data/react.log',
-    level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s'
-)
+class PlainFormatter(logging.Formatter):
+    def format(self, record):
+        return record.getMessage()
 
-logger = logging.getLogger(__name__)
+def setup_logger(log_file):
+    logger = logging.getLogger("agent")
+    logger.setLevel(logging.INFO)
+    logger.handlers.clear()
+    logger.propagate = False
+
+    Path(log_file).parent.mkdir(parents=True, exist_ok=True)
+
+    file_handler = logging.FileHandler(log_file, encoding="utf-8")
+    file_handler.setFormatter(PlainFormatter())
+    logger.addHandler(file_handler)
+
+    return logger
+
+
+logger = setup_logger("/workspace/data/react.log")
 
 
 class ReActAgent(Agent):
@@ -64,21 +77,23 @@ Work through the problem systematically, breaking it down into manageable steps.
     
     def make_prompt(self, task: str) -> str:
         """Create the prompt for the LLM."""
-        prompt = self.instruction + "\n\n"
+        # prompt = self.instruction + "\n\n"
+        # prompt += f"Task: {task}\n\n"
+        prompt = f"Task: {task}\n\n"
+        
+        # Add history
+        if len(self.memory) > 0:
+            prompt += f"Memory Content:\n"
+        for item_type, content in self.memory:
+            prompt += f"{item_type}: {content}\n"
+        
+        prompt += "\nPlease respond in the format:\nThink: [your reasoning]\nAction: [action_name]"
         
         # Add few-shot examples
         if self.examples:
             prompt += "Examples:\n"
             for example in self.examples:
                 prompt += example + "\n\n"
-            
-        prompt += f"Task: {task}\n\n"
-        
-        # Add history
-        for item_type, content in self.memory:
-            prompt += f"{item_type}: {content}\n"
-        
-        prompt += "\nPlease respond in the format:\nThink: [your reasoning]\nAction: [action_name]"
         
         return prompt
     
@@ -87,6 +102,7 @@ Work through the problem systematically, breaking it down into manageable steps.
         response = self.client.chat.completions.create(
             model=self.model_name,
             messages=[
+                {"role": "system", "content": self.instruction},
                 {"role": "user", "content": prompt},
             ],
             temperature=0,
@@ -115,7 +131,8 @@ Work through the problem systematically, breaking it down into manageable steps.
         if self.db and self.context_assembler:
             retrieved = self.db.query(task, top_k)
             retrieved_context = self.context_assembler.assemble(retrieved)
-            return task + "\n\n" + retrieved_context
+            # return task + "\n\n" + retrieved_context
+            return f'query: {task}\n\nretrieved context: {retrieved_context}'
         return "No database or context assembler available."
     
     def _make_action_prompt(self, task: str, action: str, thought: str, items_num: int = 6) -> str:
@@ -136,7 +153,7 @@ Finish: False"""
         # Add relevant history context
         if self.memory:
             prompt += "\n\nRelevant history:\n"
-            for item_type, content in self.memory[-items_num:]:  # Last items_num items for context
+            for item_type, content in self.memory[-items_num:-2]:  # Last items_num items for context
                 prompt += f"{item_type}: {content}\n"
         
         return prompt
@@ -163,6 +180,7 @@ Finish: False"""
         else:
             # For any other action, call LLM with a prompt based on task, action, and memory
             prompt = self._make_action_prompt(task, action, thought)
+            logger.info(f"ACTION PROMPT: {prompt}\n")
             response = self.llm(prompt)
             
             # Extract finish flag and clean observation
@@ -179,32 +197,34 @@ Finish: False"""
         self.memory = []
         
         for idx in range(self.max_iterations):
-            logger.info(f"STEP {idx+1}:")
-            
+            logger.info(f"STEP {idx+1}:\n")
+
             prompt = self.make_prompt(task)
-            logger.info(f"INSTRUCTION: {prompt}")
+            logger.info(f"INSTRUCTION: {prompt}\n")
             
             response = self.llm(prompt)
             thought, action = self._extract_thought_and_action(response)
-            logger.info(f"THOUGHT: {thought}")
-            logger.info(f"ACTION: {action}")
 
             if not thought or not action:
                 thought = "Unable to parse response. Considering what to do next."
                 action = "analyze_task"
+                
+            logger.info(f"THOUGHT: {thought}\n")
+            logger.info(f"ACTION: {action}\n")
             
             self.memory.append(("Thought", thought))
             self.memory.append(("Action", action))
             
             observation, is_finish = self._execute_action(action, task, thought)
-            logger.info(f"OBSERVATION: {observation}")
+            logger.info(f"OBSERVATION: {observation}\n")
             logger.info(f"IS_FINISH: {is_finish}")
             logger.info("\n_____________________________\n")
 
             self.memory.append(("Observation", observation))
             
             if is_finish:
-                logger.info(f"FINAL_ANSWER: {observation}")
+                logger.info(f"FINAL_ANSWER: {observation}\n")
+                logger.info("\n_____________________________\n")
                 return observation
         
         # If max iterations reached, return the last observation
