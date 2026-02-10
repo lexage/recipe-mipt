@@ -47,23 +47,23 @@ class Config(BaseSettings):
         return (TomlConfigSettingsSource(settings_cls),)
 
 
-# def load_config_from_toml(toml_path: Path) -> Config:  # pragma: no cover
-#     """Load Config from a TOML file.
+def load_config_from_toml(toml_path: Path) -> Config:  # pragma: no cover
+    """Load Config from a TOML file.
 
-#     Parameters
-#     ----------
-#     toml_path : Path
-#         Path to the TOML configuration file
+    Parameters
+    ----------
+    toml_path : Path
+        Path to the TOML configuration file
 
-#     Returns
-#     -------
-#     Config
-#         Loaded configuration object
-#     """
-#     original_config = Config.model_config.copy()
-#     Config.model_config = SettingsConfigDict(toml_file=str(toml_path))
-#     try:
-#         config = Config()  # type: ignore[call-arg]  # pyright: ignore[reportCallIssue]
-#     finally:
-#         Config.model_config = original_config
-#     return config
+    Returns
+    -------
+    Config
+        Loaded configuration object
+    """
+    original_config = Config.model_config.copy()
+    Config.model_config = SettingsConfigDict(toml_file=str(toml_path))
+    try:
+        config = Config()  # type: ignore[call-arg]  # pyright: ignore[reportCallIssue]
+    finally:
+        Config.model_config = original_config
+    return config

@@ -1,4 +1,5 @@
 from typing import cast, List
+from pathlib import Path
 
 import sys
 import os
@@ -20,6 +21,7 @@ from src.filtering.neardup.utils.edit_sim import edit_similarity
 from src.filtering.neardup.utils.logger import log
 from src.filtering.neardup.utils.progress import use_custom_progress_bar
 from src.filtering.neardup.utils.timer import Timer
+from src.filtering.neardup.config.base import load_config_from_toml
 
 # from src.agent_constructor.core import Document
 from src.agent_constructor.core import Chunk
@@ -208,8 +210,7 @@ def remove_duplicates(config: Config, ds: Dataset) -> Dataset:
 
 
 def neardup_pipeline(
-    chunks: List[Chunk],
-    config: Config
+    chunks: List[Chunk]
 ) -> List[Chunk]:
     """
     Running MinHash algorithm.
@@ -220,6 +221,7 @@ def neardup_pipeline(
         The deduplication configuration object.
 
     """
+    config = load_config_from_toml(Path("./src/filtering/neardup/config.toml"))
 
     algo = cast(MinHashAlgorithmConfig, config.algorithm)
     timer = Timer()
@@ -231,7 +233,7 @@ def neardup_pipeline(
 
         with timer("MinHashing", enable_spin=False):
             embedded = fingerprint(config, ds)
-
+        
         with timer("Clustering"):
             assignment = cluster(config, embedded)
             ds = assign(config, ds, assignment)

@@ -1,3 +1,5 @@
+# pip install python-Levenshtein
+
 import Levenshtein
 
 def edit_similarity(
