@@ -51,67 +51,8 @@ class Decrim(Agent):
             else ["Follow all instructions carefully"]
         )
 
-    def _create_critique_prompt(
-        self, instruction: str, constraints: list[str], response: str
-    ) -> str:
-        """Build prompt for critique step."""
-        constraints_text = "\n".join(
-            [f"{i+1}. {constraint}" for i, constraint in enumerate(constraints)]
-        )
-
-        return f"""
-        You are an assistant whose job is to help me perform tasks.
-        I will give you an instruction and an AI assistant response.
-        The instruction includes some constraints to be followed by AI assistant while generating response.
-        Your task is to check and let me know which of the constraints are satisfied by the AI assistant response.
-        Please state short reasons on whether constraint is satisfied in the response or not.
-        Also include final answer as "Constraint followed" or "Constraint not followed" for each constraint.
-
-        Instruction: {instruction}
-
-        Constraints:
-        {constraints_text}
-
-        Assistant Response: {response}
-
-        Please analyze each constraint one by one and provide your critique:
-        """
-
-    def _all_constraints_satisfied(self, critique_result: str) -> bool:
-        """Check if all constraints are satisfied based on critique result."""
-        # TODO: Add real parsing
-        unsatisfied_indicators = [
-            "not followed",
-            "not satisfied",
-            "unsatisfied",
-            "failed",
-            "missing",
-        ]
-
-        for indicator in unsatisfied_indicators:
-            if indicator in critique_result.lower():
-                return False
-        return True
-
-    def _extract_unsatisfied_constraints(
-        self, critique_result: str, all_constraints: list[str]
-    ) -> list[str]:
-        """Extract list of unsatisfied constraints from critique response."""
-        # TODO: Add real extraction
-        unsatisfied = []
-        lower_result = critique_result.lower()
-
-        for i, constraint in enumerate(all_constraints):
-            constraint_lower = constraint.lower()
-            if any(
-                indicator in lower_result
-                for indicator in [f"constraint {i+1} not", f"{constraint_lower} not"]
-            ):
-                unsatisfied.append(constraint)
-
-        return unsatisfied if unsatisfied else all_constraints
-
-    def _decompose(self, question: str) -> list[str]:
+    def _create_decompose_prompt(self, question: str) -> str:
+        """Build prompt for decomposition step."""
         # TODO: add few-shot examples
         decompose_prompt = f"""
         You are an assistant whose job is to help me perform tasks.
@@ -122,26 +63,50 @@ class Decrim(Agent):
 
         Provided Constraints:
         """
-        constraints = self.llm(decompose_prompt, model_type="decompose")
-        constraint_list = self._parse_constraints(constraints)
-        return constraint_list
+        return decompose_prompt
 
-    def _critique(self, question: str, answer: str, constraints: list[str]) -> str:
-        critique_prompt = self._create_critique_prompt(question, constraints, answer)
+    def _create_critique_prompt(
+        self, question: str, constraints_text: str, answer: str
+    ) -> str:
+        """Build prompt for critique step."""
+
+        critique_prompt = f"""
+        You are an assistant whose job is to help me perform tasks.
+        I will give you an instruction and an AI assistant response.
+        The instruction includes some constraints to be followed by AI assistant while generating response.
+        Your task is to check and let me know which of the constraints are satisfied by the AI assistant response.
+        Please state short reasons on whether constraint is satisfied in the response or not.
+        Also include final answer as "Constraint followed" or "Constraint not followed" for each constraint.
+
+        Instruction: {question}
+
+        {constraints_text}
+
+        Assistant Response: {answer}
+
+        Please analyze each constraint one by one and provide your critique:
+        """
+        return critique_prompt
+
+    def _decompose(self, question: str) -> str:
+        decompose_prompt = self._create_decompose_prompt(question)
+        constraints = self.llm(decompose_prompt)
+
+        constraint_list = self._parse_constraints(constraints)
+        constraints_text = "\n".join(
+            [f"{i+1}. {constraint}" for i, constraint in enumerate(constraint_list)]
+        )
+        constraints_text = "Constraints:\n" + constraints_text
+
+        return constraints_text
+
+    def _critique(self, question: str, answer: str, constraints_text: str) -> str:
+        critique_prompt = self._create_critique_prompt(
+            question, constraints_text, answer
+        )
         critique_result = self.llm(critique_prompt)
 
-        # TODO: edit or delete conclusion?
-        if self._all_constraints_satisfied(critique_result):
-            conclusion = "All constraints satisfied"
-        else:
-            unsatisfied_constraints = self._extract_unsatisfied_constraints(
-                critique_result, constraints
-            )
-            conclusion = (
-                f"Unsatisfied constraints: {', '.join(unsatisfied_constraints)}"
-            )
-
-        return f"{critique_result}\n{conclusion}"
+        return f"{constraints_text}\n\n{critique_result}"
 
     def run(self, question: str, answer: str) -> str:
         """
@@ -153,7 +118,7 @@ class Decrim(Agent):
             Feedback
         """
 
-        constraints = self._decompose(question, answer)
+        constraints = self._decompose(question)
         feedback = self._critique(question, answer, constraints)
 
         return feedback
