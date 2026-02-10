@@ -1,8 +1,6 @@
 from .maps import(
     ScholarMAPS ,
     SolverMAPS,
-    UserProxyMAPS,
-    ManagerMAPS,
     AlignerMAPS,
     CriticMAPS,
 )
@@ -20,8 +18,6 @@ from .react import(
 __all__ = [
     "ScholarMAPS",
     "SolverMAPS",
-    "UserProxyMAPS",
-    "ManagerMAPS",
     "AlignerMAPS",
     "CriticMAPS",
     "PlannerREWOO",

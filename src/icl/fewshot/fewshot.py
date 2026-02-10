@@ -1,12 +1,16 @@
+# See: docs/icl/fewshot.md
+
 import numpy as np
 
 from typing import List
 from openai import OpenAI
 
 from src.agent_constructor.core import Text
+from src.agent_constructor.icl import ICLBlock
+from src.agent_constructor.context_engine import Chunk
 
 
-class FewShot:
+class FewShot(ICLBlock):
 
     def __init__(self, url: str, model_name: str, k: int = 5) -> None:
         self.model_name = model_name
@@ -24,31 +28,31 @@ class FewShot:
         entropy = -np.mean(all_probs)
         return np.exp(entropy)
 
-    def _score_pair(self, ctx: Text, target: Text):
-        ppl_base = self._ppl(target)
-        ppl_cond = self._ppl(ctx + "\n" + target)
+    def _score_pair(self, ctx: Chunk, target: Chunk):
+        ppl_base = self._ppl(target.text)
+        ppl_cond = self._ppl(ctx.text + "\n" + target.text)
         return ppl_base - ppl_cond
 
-    def _score_single(self, example: Text, all_examples: List[Text]):
-        others = [x for x in all_examples if x is not example]
+    def _score_single(self, chunk: Chunk, all_chunks: List[Chunk]):
+        others = [x for x in all_chunks if x is not chunk]
         score = 0
         for t in others:
-            score += self._score_pair(example, t)
+            score += self._score_pair(chunk, t)
         return score
 
-    def run(self, examples: List[Text]):
-        if not examples:
+    def apply(self, chunks: List[Chunk]) -> List[Chunk]:
+        if not chunks:
             return []
 
-        if self.k >= len(examples):
-            return examples
+        if self.k >= len(chunks):
+            return chunks
 
         scores = []
-        for e in examples:
-            s = self._score_single(e, examples)
-            scores.append((s, e))
+        for chunk in chunks:
+            s = self._score_single(chunk, chunks)
+            scores.append((s, chunk))
 
         scores.sort(key=lambda x: -x[0])
-        best = [e for i, e in scores[:self.k]]
+        best = [chunk for i, chunk in scores[:self.k]]
 
         return best

@@ -25,6 +25,7 @@ class ComponentNames(Enum):
     TFIDF_EMBEDDING = "src.agents.general.TFIDFEmbedding"
     EMBEDDING_AGENT = "src.agents.general.EmbeddingAgent"
     SIMPLE_AGENT = "src.agents.general.SimpleAgent"
+    ICV_AGENT = "src.icl.icv.ICV"
 
     # ===== Agents: Pipelines =====
     REWOO_SOLVER = "src.agents.pipelines.SolverREWOO"
@@ -79,6 +80,11 @@ class ComponentNames(Enum):
     # ===== Context Assemblers =====
     CORAG_CONTEXT_ASSEMBLER = "src.agent_constructor.context_engine.CoRAGContextAssembler"
     SIMPLE_CONTEXT_ASSEMBLER = "src.agent_constructor.context_engine.SimpleContextAssembler"
+
+    # ===== ICL =====
+    ICCL_ICL = "src.icl.iccl.ICCL"
+    LENS_ICL = "src.icl.lens.Lens"
+    FEW_SHOT_ICL = "src.icl.fewshot.FewShot"
 
     # ===== Generators =====
     CODE_EVAL_GENERATOR = "src.generation.code_eval.CodeEvalGenerator"

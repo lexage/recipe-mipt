@@ -6,6 +6,7 @@ from src.agent_constructor.agent import Agent
 from src.agent_constructor.generator import Generator
 from src.agent_constructor.pipeline import Pipeline
 from src.agent_constructor.context_engine import ContextAssembler
+from src.agent_constructor.icl import ICLBlock
 
 class SimplePipeline(Pipeline):
     def __init__(self, 
@@ -14,8 +15,10 @@ class SimplePipeline(Pipeline):
                  agent: Agent, 
                  chunker: Chunker,
                  filter: Filter = None,
+                 icl_block: ICLBlock = None,
                  generator: Generator = None,
-                 context_assembler: ContextAssembler = None):
+                 context_assembler: ContextAssembler = None,
+                 top_k: int = 1):
         
 
         super().__init__("simple_pipeline")
@@ -37,9 +40,15 @@ class SimplePipeline(Pipeline):
         self.retriever = retriever
         self.agent = agent
         self.context_assembler = context_assembler
+        self.icl_block = icl_block
+        self.top_k = top_k
             
     def run(self, task: str) -> str:
-        context = self.retriever.retrieve(query=task)
+        context = self.retriever.retrieve(query=task, k=self.top_k)
+        if self.icl_block:
+            context = self.icl_block.apply(context)
+
         if self.context_assembler:
             context = self.context_assembler.assemble(context)
+        
         return self.agent.run(task, context)
