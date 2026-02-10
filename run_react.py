@@ -17,13 +17,13 @@ pipeline_config = PipelineConfig(
     components={
         "embedder": ComponentConfig(
             type=ComponentNames.EMBEDDING_AGENT,
-            params={"name": "embedder", "url": "http://vllm_rerank_embed:8000/v1", "model_name": "Qwen/Qwen3-Embedding-0.6B"}
+            params={"name": "embedder", "url": "http://team_recipe-dev-ssh:7216/v1", "model_name": "Qwen/Qwen3-Embedding-4B"}
         ),
         "db": ComponentConfig(
             type=ComponentNames.LOCAL_DB,
             params={
                 "path_to_db": "/workspace/data/docs_database_examples.db",
-                "path_to_vector_db": "/workspace/data/docs_vector_database",
+                "path_to_vector_db": "/workspace/data/docs_vector_database_qwen_4b",
                 "collection_name": "docs"
                 },
         ),
@@ -33,15 +33,17 @@ pipeline_config = PipelineConfig(
         ),
         "agent": ComponentConfig(
             type=ComponentNames.REACT_AGENT,
-            params={"name": "ReActAgent", "url": "http://vllm:8000/v1", "model_name": "Qwen/Qwen3-30B-A3B-FP8"}
+            params={"name": "ReActAgent", "url": "http://team_recipe-dev-ssh:7215/v1", "model_name": "Qwen/Qwen1.5-32B-Chat-AWQ"}
         )
     }
 )
 
+
 def main():
     pipeline = PipelineBuilder().build(pipeline_config)
     result = pipeline.run("What is pandas?")
-    print(result)
+    print("RESULT: ", result)
+
 
 if __name__ == "__main__":
     main()
