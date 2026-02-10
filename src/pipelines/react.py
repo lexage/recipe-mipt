@@ -77,8 +77,7 @@ Work through the problem systematically, breaking it down into manageable steps.
     
     def make_prompt(self, task: str) -> str:
         """Create the prompt for the LLM."""
-        # prompt = self.instruction + "\n\n"
-        # prompt += f"Task: {task}\n\n"
+
         prompt = f"Task: {task}\n\n"
         
         # Add history
@@ -97,17 +96,13 @@ Work through the problem systematically, breaking it down into manageable steps.
         
         return prompt
     
-    def llm(self, prompt: str) -> str:
+    def llm(self, prompt: str, history: list = []) -> str:
         """Сalling the llm to get a response."""
         response = self.client.chat.completions.create(
             model=self.model_name,
-            messages=[
-                {"role": "system", "content": self.instruction},
-                {"role": "user", "content": prompt},
-            ],
+            messages=history + [{"role": "user", "content": prompt},],
             temperature=0,
         )
-
         return response.choices[0].message.content
     
     def _extract_thought_and_action(self, response: str) -> tuple:
@@ -202,7 +197,7 @@ Finish: False"""
             prompt = self.make_prompt(task)
             logger.info(f"INSTRUCTION: {prompt}\n")
             
-            response = self.llm(prompt)
+            response = self.llm(prompt, history=[{"role": "system", "content": self.instruction}])
             thought, action = self._extract_thought_and_action(response)
 
             if not thought or not action:
