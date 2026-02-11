@@ -50,9 +50,13 @@ class ExtractedExample(BaseModel):
     Определяет структуру данных для загрузки в БД
     """
 
-    source_object_type: Literal["function", "class"] = Field(
-        description="Тип исходного объекта: функция или класс"
-    )
+    source_object_type: Literal[
+        "function",
+        "class",
+        "markdown_example",
+        "rst_example",
+        "torchmetrics_example",
+    ] = Field(description="Тип исходного объекта: функция или класс")
     source_object_name: str = Field(
         description="Имя извлеченного класса или функции"
     )

@@ -1,5 +1,5 @@
 repo_for_analyzing: Lightning-AI/torchmetrics
-specific_folder_for_analyzing: src/torchmetrics/classification/accuracy.py
+specific_folder_for_analyzing: docs/source/pages/plotting.rst
 config_for_github_loader:
   allowed_file_extensions: [".py", ".md", ".rst"]
-  skip_file_patterns: ["init", "test"]
+  skip_file_patterns: ["init", "test", "pycache", "git"]

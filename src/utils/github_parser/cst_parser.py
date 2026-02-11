@@ -12,7 +12,11 @@ from typing import List, Literal, Optional, Tuple
 
 import libcst as cst
 
+from src.utils.github_parser.abstract_parser import BaseRepoParser
 from src.utils.github_parser.config import ExtractedExample
+from src.utils.github_parser.helping_functions import (
+    clean_code_lines_from_repl_symbols,
+)
 
 
 logger = logging.getLogger(__file__)
@@ -149,17 +153,7 @@ class DocstringProcessor(cst.CSTVisitor):
                 references = ref_split[1]
 
         # чистим код от символов >>>
-        code_lines: List[str] = []
-        for line in raw_code_block.split("\n"):
-            line = line.strip()
-            if line.startswith(">>> ") or line.startswith("... "):
-                clean_line = line[4:]
-                code_lines.append(clean_line)
-            elif not line:
-                if code_lines:
-                    code_lines.append("")
-
-        solution_code = "\n".join(code_lines)
+        solution_code = clean_code_lines_from_repl_symbols(raw_code_block)
         if not solution_code:
             return None
 
@@ -180,7 +174,7 @@ class DocstringProcessor(cst.CSTVisitor):
         self._extract_from_node(node, kind="function")
 
 
-class CSTCodeParser:
+class CSTCodeParser(BaseRepoParser):
     """
     Парсер исходного кода Python на базе библиотеки LibCST.
 
@@ -188,7 +182,7 @@ class CSTCodeParser:
     и запуск DocstringProcessor для извлечения примеров.
     """
 
-    def parse_python_module(
+    def parse(
         self, file_content: bytes, file_path: str
     ) -> Optional[List[ExtractedExample]]:
         """
@@ -204,7 +198,7 @@ class CSTCodeParser:
             Optional[List[ExtractedExample]]: Список извлеченных примеров
                 или None в случае ошибки/игнорирования файла.
         """
-        if file_path.endswith((".md", ".rst")):
+        if not file_path.endswith(".py"):
             return
         try:
             tree = cst.parse_module(file_content)
