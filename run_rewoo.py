@@ -7,13 +7,14 @@ from src.pipelines.constants import ComponentNames, PipelinesNames
 from src.pipelines.pipeline_builder import PipelineBuilder
 import logging
 
+
 logging.getLogger("openai").setLevel(logging.ERROR)
 logging.getLogger("httpx").setLevel(logging.ERROR)
 logging.getLogger("httpcore").setLevel(logging.ERROR)
 
 
 pipeline_config = PipelineConfig(
-    type=PipelinesNames.SIMPLE,
+    type=PipelinesNames.REWOO, 
     components={
         # "embedder": ComponentConfig(
         #     type=ComponentNames.TFIDF_EMBEDDING,
@@ -30,7 +31,7 @@ pipeline_config = PipelineConfig(
                 "model_name": "Qwen/Qwen3-Embedding-4B"
             }
         ),
-        # "data_base": ComponentConfig(
+        # "db": ComponentConfig(
         #     type=ComponentNames.LOCAL_DB,
         #     params={
         #         "path_to_db": "grant/db/docs_database_examples.db",
@@ -38,7 +39,7 @@ pipeline_config = PipelineConfig(
         #         "collection_name": "docs"
         #         },
         # ),
-        "data_base": ComponentConfig(
+        "db": ComponentConfig(
             type=ComponentNames.LOCAL_DB,
             params={
                 "path_to_db": "grant/db/docs_database_examples.db",
@@ -46,26 +47,30 @@ pipeline_config = PipelineConfig(
                 "collection_name": "docs"
                 },
         ),
-        "chunker": ComponentConfig(
-            type=ComponentNames.DUMMY_CHUNKER,
-            params={"name": "chunker"}
-        ),
-        "filter": ComponentConfig(
-            type=ComponentNames.LENGTH_FILTER,
-            params={"name": "filter", "min_len": 100}
-        ),
         "context_assembler": ComponentConfig(
-            type=ComponentNames.SIMPLE_CONTEXT_ASSEMBLER,
-            params={"name": "simple_assembler"},
+            type = ComponentNames.SIMPLE_CONTEXT_ASSEMBLER,
+            params={"name": "SimpleContext"}
         ),
-        "retriever": ComponentConfig(
-            type=ComponentNames.SIMPLE_RETRIEVER,
-            params={"name": "simple_retriever"},
-        ),
-        "agent": ComponentConfig(
-            type=ComponentNames.SIMPLE_AGENT,
+        "planner": ComponentConfig(
+            type=ComponentNames.REWOO_PLANNER,
             params={
-                "name": "simple_agent",
+                "name": "PlannerREWOO",
+                "url": "http://team_recipe-dev-ssh:7215/v1",
+                "model_name": "Qwen/Qwen1.5-32B-Chat-AWQ"
+            }
+        ),
+        "worker": ComponentConfig(
+            type=ComponentNames.REWOO_WORKER,
+            params={
+                "name": "WorkerREWOO",
+                "url": "http://team_recipe-dev-ssh:7215/v1",
+                "model_name": "Qwen/Qwen1.5-32B-Chat-AWQ"
+            }
+        ),
+        "solver": ComponentConfig(
+            type=ComponentNames.REWOO_SOLVER,
+            params={
+                "name": "SolverREWOO",
                 "url": "http://team_recipe-dev-ssh:7215/v1",
                 "model_name": "Qwen/Qwen1.5-32B-Chat-AWQ"
             }
@@ -76,7 +81,7 @@ pipeline_config = PipelineConfig(
 
 def main():
     pipeline = PipelineBuilder().build(pipeline_config)
-    result = pipeline.run('What is pandas?')
+    result = pipeline.run("What is pandas?")
     print(result)
 
 

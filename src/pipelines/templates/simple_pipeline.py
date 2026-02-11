@@ -6,7 +6,9 @@ from src.agent_constructor.agent import Agent
 from src.agent_constructor.pipeline import Pipeline
 from src.agent_constructor.context_engine import ContextAssembler
 
+
 class SimplePipeline(Pipeline):
+
     def __init__(self, 
                  data_base: IDB, 
                  retriever: Retriever, 
@@ -14,8 +16,6 @@ class SimplePipeline(Pipeline):
                  chunker: Chunker,
                  filter: Filter = None, 
                  context_assembler: ContextAssembler = None):
-        
-
         super().__init__("simple_pipeline")
 
         documents = data_base.get_documents()

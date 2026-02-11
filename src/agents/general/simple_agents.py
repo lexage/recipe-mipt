@@ -33,10 +33,8 @@ class SimpleAgent(Agent):
 
         response = self.client.chat.completions.create(
             model=self.model_name,
-            messages=[
-                {"role": "user", "content": user_prompt}],
+            messages=[{"role": "user", "content": user_prompt}],
             temperature=0,
         )
 
         return response.choices[0].message.content
-    
