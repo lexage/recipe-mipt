@@ -8,7 +8,9 @@ from src.agent_constructor.pipeline import Pipeline
 from src.agent_constructor.context_engine import ContextAssembler
 from src.agent_constructor.icl import ICLBlock
 
+
 class SimplePipeline(Pipeline):
+
     def __init__(self, 
                  data_base: IDB, 
                  retriever: Retriever, 
@@ -16,6 +18,7 @@ class SimplePipeline(Pipeline):
                  chunker: Chunker,
                  filter: Filter = None, 
                  icl_block: ICLBlock = None,
+                 generator: Generator = None,
                  context_assembler: ContextAssembler = None,
                  enhancer: Agent = None,
                  top_k: int = 1):
