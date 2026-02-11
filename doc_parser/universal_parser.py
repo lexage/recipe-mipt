@@ -266,7 +266,8 @@ class LibCSTDocstringExtractor:
         try:
             with open(filepath, 'r', encoding='utf-8') as f:
                 code = f.read()
-
+                
+            print(len(code))
             # Парсим модуль
             module = cst.parse_module(code)
 
@@ -419,5 +420,5 @@ def extract_docstrings(path: str) -> List[String]:
 # Пример использования
 if __name__ == "__main__":
     # Пример 1: Извлечение из venv
-    docstrings = extract_docstrings("./venv/lib/python3.12/site-packages/numpy")
+    docstrings = extract_docstrings("/workspace/venv/lib/python3.11/site-packages/numpy")
     print(docstrings[1].information.signature)
