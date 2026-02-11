@@ -27,13 +27,6 @@ class ComponentNames(Enum):
     SIMPLE_AGENT = "src.agents.general.SimpleAgent"
     ICV_AGENT = "src.icl.icv.ICV"
 
-    # ===== Agents: Generation =====
-    EVAL_GENERATOR = "src.agents.generation.CodeEvalGenerator"
-    INCORRECT_GENERATOR = "src.agents.generation.IncorrectExampleGenerator"
-    RANDOM_WORD_GENERATOR = "src.agents.generation.RandomWordGenerator"
-    SHOTS_GENERATOR = "src.agents.generation.ZeroFewShotGenerator"
-    INSTRUCT_GENERATOR = "src.agents.generation.InstuctGenerator"
-
     # ===== Agents: Pipelines =====
     REWOO_SOLVER = "src.agents.pipelines.SolverREWOO"
     REWOO_WORKER = "src.agents.pipelines.WorkerREWOO"
@@ -88,8 +81,16 @@ class ComponentNames(Enum):
     CORAG_CONTEXT_ASSEMBLER = "src.agent_constructor.context_engine.CoRAGContextAssembler"
     SIMPLE_CONTEXT_ASSEMBLER = "src.agent_constructor.context_engine.SimpleContextAssembler"
 
-
     # ===== ICL =====
     ICCL_ICL = "src.icl.iccl.ICCL"
     LENS_ICL = "src.icl.lens.Lens"
     FEW_SHOT_ICL = "src.icl.fewshot.FewShot"
+
+    # ===== Generators =====
+    CODE_EVAL_GENERATOR = "src.generation.code_eval.CodeEvalGenerator"
+    INCORRECT_EXAMPLES_GENERATOR = "src.generation.incorrect_examples.IncorrectExampleGenerator"
+    INSTRUCT_GENERATOR = "src.generation.new_insruct.InstructGenerator"
+    RANDOM_WORD_GENERATOR = "src.generation.random_word.RandomWordGenerator"
+    RANDOM_TOPIC_GENERATOR = "src.generation.random_topic.RandomTopicGenerator"
+    ZERO_SHOT_GENERATOR = "src.generation.zero_shot.ZeroShotGenerator"
+    ONE_SHOT_GENERATOR = "src.generation.one_shot.OneShotGenerator"
