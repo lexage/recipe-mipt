@@ -21,11 +21,9 @@ from src.utils.github_parser.config import (
 
 # TODO: написать readme + для лексического фильтратора тоже
 # TODO: написать тесты!
-# TODO: подумать, как обрабатывать .md!
 
 
 load_dotenv()
-GITHUB_ACCESS_TOKEN = os.environ["GITHUB_ACCESS_TOKEN"]
 logger = logging.getLogger(__file__)
 
 

@@ -8,8 +8,10 @@
 
 import logging
 from typing import List
+from pathlib import Path
 
 from src.utils.github_parser.config import ExtractedExample
+from src.utils.github_parser.text_file_parsers import MarkdownParser, RSTParser
 from src.utils.github_parser.cst_parser import CSTCodeParser
 from src.utils.github_parser.github_repo_loader import TorchGitHubLoader
 
@@ -31,7 +33,11 @@ class DatasetBuilder:
     """
 
     def __init__(
-        self, loader: TorchGitHubLoader, parser: CSTCodeParser
+        self,
+        loader: TorchGitHubLoader,
+        code_parser: CSTCodeParser,
+        md_parser: MarkdownParser,
+        rst_parser: RSTParser,
     ) -> None:
         """
         Инициализирует DatasetBuilder необходимыми компонентами.
@@ -44,7 +50,9 @@ class DatasetBuilder:
         """
 
         self.loader = loader
-        self.parser = parser
+        self.code_parser = code_parser
+        self.md_parser = md_parser
+        self.rst_parser = rst_parser
 
     def run(
         self, target_repo: str, target_folder: str
@@ -73,10 +81,26 @@ class DatasetBuilder:
 
         for file in files_from_repo.files_iterator:
             logger.debug("Обрабатываем файл %s", file.path)
-            fetched_examples = self.parser.parse_python_module(
-                file.content, file.path
-            )
-            # TODO: добавить логику парсинга Markdown файлов и rst.
+            if file.path.endswith(".py") and "examples" not in file.path:
+                fetched_examples = self.code_parser.parse(
+                    file.content, file.path
+                )
+            elif file.path.endswith(".md"):
+                fetched_examples = self.md_parser.parse(
+                    file.content, file.path
+                )
+            elif file.path.endswith(".rst"):
+                fetched_examples = self.rst_parser.parse(
+                    file.content, file.path
+                )
+            # вписать сюда обработку examples
+            else:
+                logger.error(
+                    "Не поддерживается файл формата %s", Path(file.path).suffix
+                )
+                raise NotImplementedError(
+                    f"Не поддерживается файл формата {Path(file.path).suffix}"
+                )
             if fetched_examples:
                 logger.info(
                     "Получили %s примера (-ов) in %s",
