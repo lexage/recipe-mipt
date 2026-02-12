@@ -2,7 +2,7 @@ import sys
 import re
 import logging
 from pathlib import Path
-from typing import List
+from typing import List, Tuple
 
 project_root = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(project_root))
@@ -77,6 +77,17 @@ def split_examples(examples: str) -> List[str]:
     return [b for b in blocks if b.strip() and ">>>" in b]
 
 
+def replace_examples(docstring: str, examples: List[str]) -> Tuple[str, List[int]]:
+    """Заменяет примеры в строке на заглушки вида '<example_num>', где num - порядковый номер примера в конкретной функции """
+    result = docstring
+    placeholders = []
+    for order_id, ex in enumerate(examples):
+        placeholder = f"<example_{order_id}>"
+        result = result.replace(ex, placeholder, 1)
+        placeholders.append(order_id)
+    return result, placeholders
+
+
 if __name__ == "__main__":
 
     library_names = [
@@ -101,8 +112,12 @@ if __name__ == "__main__":
 
         i = 0
         for docstring in docstrings:
-            docstring_examples = extract_examples(docstring.string)
+            old_docstring = docstring.string
+            docstring_examples = extract_examples(old_docstring)
+            
             if docstring_examples:
+                result, placeholders = replace_examples(docstring.string, docstring_examples)
+                docstring.string = result
                 docstring.examples = docstring_examples
                 all_examples.append(docstring_examples)
 
@@ -110,7 +125,10 @@ if __name__ == "__main__":
                     logger.info(f"ПРИМЕР {i+1}\n")
                     logger.info("_" * 10 + "\n")
 
-                    logger.info(f"ИСХОДНАЯ DOCSTRING:\n {docstring.string}\n\n")
+                    logger.info(f"ИСХОДНАЯ DOCSTRING:\n {old_docstring}\n\n")
+                    logger.info("_" * 10 + "\n")
+                    
+                    logger.info(f"ОБНОВЛЕННАЯ DOCSTRING:\n {docstring.string}\n\n")
                     logger.info("_" * 10 + "\n")
 
                     logger.info("ИЗВЛЕЧЕННЫЕ ПРИМЕРЫ КОДА:\n\n")
