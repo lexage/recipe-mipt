@@ -25,8 +25,8 @@ class SimplePipeline(Pipeline):
         documents = data_base.get_documents()
         if generator:
             synth_docs=generator.generate(documents=documents)
-        
-        documents.extend(synth_docs)
+            documents.extend(synth_docs)
+            
         chunks = []
         [chunks.extend(chunker.chunk(doc)) for doc in documents]
         if filter:
