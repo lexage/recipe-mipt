@@ -1,13 +1,8 @@
 import sys
-import sqlite3
-from dataclasses import dataclass, field
-from typing import (
-    Any,
-    Mapping,
-    Optional,
-    List
-)
+import re
+import logging
 from pathlib import Path
+from typing import List
 
 project_root = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(project_root))
@@ -15,84 +10,117 @@ sys.path.insert(0, str(project_root))
 from doc_parser.universal_parser import extract_docstrings
 
 
-Text = str
-Metadata = Mapping[str, Any]
+class PlainFormatter(logging.Formatter):
+    def format(self, record):
+        return record.getMessage()
+
+def setup_logger(log_file):
+    logger = logging.getLogger("agent")
+    logger.setLevel(logging.INFO)
+    logger.handlers.clear()
+    logger.propagate = False
+
+    Path(log_file).parent.mkdir(parents=True, exist_ok=True)
+
+    file_handler = logging.FileHandler(log_file, encoding="utf-8")
+    file_handler.setFormatter(PlainFormatter())
+    logger.addHandler(file_handler)
+
+    return logger
 
 
-@dataclass
-class Chunk:
-    id: str
-    doc_id: str
-    text: Text
-    tokens: Optional[int] = None
-    metadata: Metadata = field(default_factory=dict)
+logger = setup_logger("/workspace/data/extract_example.log")
 
 
-class SQLiteDocsDBAdapter:
+def extract_examples(docstring: str) -> List[str]:
+    """
+    Извлекает содержимое секции Examples из докстринга.
+    Поддерживает форматы: "Examples", "Examples:", "Examples\n--------".
+    """
+    # Ищем заголовок секции (с возможным двоеточием и разделителем)
+    pattern = (
+        r'^\s*Examples\s*:{0,2}\s*\n'          # "Examples" + опц. ":" + перевод строки
+        r'(?:\s*[-=]{4,}\s*\n)?'               # Опциональный разделитель (---- или ====)
+        r'(.+?)'                               # Содержимое секции (захватываем)
+        r'(?=\n\s*[A-Z][a-z]+\s*:{0,2}\s*\n'   # Следующая секция (заголовок с большой буквы)
+        r'|\n\s*[-=]{4,}\s*\n'                 # Или новый разделитель
+        r'|\Z)'                                # Или конец строки
+    )
+    match = re.search(pattern, docstring, re.MULTILINE | re.DOTALL)
     
-    def __init__(self, path_to_db: str):
-        self.path_to_db = path_to_db
+    if match:
+        content = match.group(1)
+        start = content.find('>>>')
+        if start == -1:
+            start = content.find('...')
+        content = content[start:] if start != -1 else ''
+        return split_examples(content.rstrip())
+        
+    return None
 
-    def get_docs(self, library_name: str = "numpy") -> List[Chunk]:
-        """Получает список чанко, принадлежащих конкретной библиотеке"""
-        
-        chunks = []
-        with sqlite3.connect(self.path_to_db) as conn:
-            conn.row_factory = sqlite3.Row
-            cursor = conn.cursor()
-            cursor.execute(f"""
-                SELECT d.id, d.content
-                FROM documents d
-                JOIN sections s ON d.section_id = s.id
-                JOIN libraries l ON s.library_id = l.id
-                WHERE l.name = '{library_name}';
-            """)
-            for row in cursor.fetchall():
-                chunks.append(Chunk(
-                    id=row["id"],
-                    doc_id=row["id"],
-                    text=row["content"],
-                    metadata={},
-                ))
-        return chunks
-    
-    def get_libraries_name(self):
-        """Получает список имен библиотек, содержащихся в базе данных"""
-        
-        libraries_name = []
-        with sqlite3.connect(self.path_to_db) as conn:
-            conn.row_factory = sqlite3.Row
-            cursor = conn.cursor()
-            cursor.execute(f"""
-                SELECT name FROM libraries
-            """)
-            for row in cursor.fetchall():
-                libraries_name.append(row[0])
-        return libraries_name
-        
+
+def split_examples(examples: str) -> List[str]:
+    """Разделяет примеры"""
+    blocks, cur = [], []
+    for line in examples.split('\n'):
+        s = line.rstrip()
+        if s and set(s) <= {'-', '='} and len(s) >= 4:
+            continue
+        if not s:
+            if cur:
+                blocks.append('\n'.join(cur))
+                cur = []
+            continue
+        cur.append(s)
+    if cur:
+        blocks.append('\n'.join(cur))
+    return [b for b in blocks if b.strip() and '>>>' in b]
+
 
 if __name__ == "__main__":
     
-    path_to_db = "/workspace/data/docs_database_dedup.db"
-    db = SQLiteDocsDBAdapter(path_to_db)
+    library_names = ["numpy", "scipy", "matplotlib", "torch", "sklearn", "pandas", "tensorflow"]
     
-    libraries_name = db.get_libraries_name()
-    print('libraries_name ', libraries_name)
-    
-    for library in libraries_name:
-        print("*"*10)
-        print(f"Парсинг библиотеки: {library}")
-        print("*"*10)
-        chunks = db.get_docs(library)
-        strings = [chunk.text for chunk in chunks]
-        docstrings = extract_docstrings(strings, library)
-        if len(docstrings) > 0:
-            print(f"Пример извлеченных docstrings: {docstrings[10]}")
-        else:
-            print(f"Не удалось получить docstrings")
-            
+
+    for library_name in library_names:
+        logger.info(f"БИБЛИОТЕКА: {library_name}\n")
+        logger.info("_" * 10 + "\n")
+        
+        docstrings = extract_docstrings(f"/workspace/venv/lib/python3.11/site-packages/{library_name}")
+        
+        all_examples = []
+
+        i = 0
+        for docstring in docstrings:
+            docstring_examples = extract_examples(docstring.string)
+            if docstring_examples:
+                docstring.examples = docstring_examples
+                all_examples.append(docstring_examples)
+                
+                if i < 10:
+                    logger.info(f"ПРИМЕР {i+1}\n")
+                    logger.info("_" * 10 + "\n")
+
+                    logger.info(f"ИСХОДНАЯ DOCSTRING:\n {docstring.string}\n\n")
+                    logger.info("_" * 10 + "\n")
+                    
+                    logger.info("ИЗВЛЕЧЕННЫЕ ПРИМЕРЫ КОДА:\n\n")
+                    for idx, example in enumerate(docstring.examples):
+                        logger.info(f"ПРИМЕР КОДА {idx+1}:\n{example}\n\n")
+                    i += 1
+                    logger.info("_" * 10 + "\n")
+
+
+
+        logger.info(f"Количество извлеченных docstrings: {len(docstrings)}\n")
+        logger.info("_" * 10 + "\n")
+        logger.info(f"Количество docstrings, в которых были обнаружены примеры: {len(all_examples)}\n")
+        logger.info("_" * 10 + "\n\n")
+
+        
+       
 
     
-        
+    
     
     
