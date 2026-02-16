@@ -24,18 +24,20 @@ class SimpleAgent(Agent):
 
         self.model_name = model_name
 
-    def run(self, context: Text, task: Text) -> Text:
+    def run(self, task: Text, context: Text) -> Text:
 
         if self.dummy_mode:
             return f"Answer on {task} using context:\n\n{context}"
 
-        user_prompt = f"""Using context: \n{context}\n\nAnswer on qestion: {task}"""
+        prompt = f"[CONTEXT]:\n{context}\n[TASK]:\n{task}"
 
-        response = self.client.chat.completions.create(
+        response = self.client.completions.create(
             model=self.model_name,
-            messages=[
-                {"role": "user", "content": user_prompt}],
-            temperature=0,
+            prompt=prompt,
+            temperature=0.2,
+            top_p=0.95,
+            max_tokens=1024,
+            stop=["</code>", "# SOLUTION END"],
         )
 
-        return response.choices[0].message.content
+        return response.choices[0].text
