@@ -133,7 +133,7 @@ Operational Protocol:
 Document each reasoning step with evidence anchors (e.g., “Stem-Line5: v=Δx/Δt”).
 Flag unresolved assumptions with [UnvalidatedPremise] tags
 Output JSON structured as:
-{ { ”process”: { { ”Phase 1”: ”[Framing] Identified core demand as… (Evidence: Q-Line2)”, ”Phase 2”: ”[Audit] Quantified parameters… (ConflictResolved: OptionC vs Text\S3)”, ”Phase 3”: ”[Pathway] Eliminated hypothesis 
+{ { ”process”: { { ”Phase 1”: ”[Framing] Identified core demand as… (Evidence: Q-Line2)”, ”Phase 2”: ”[Audit] Quantified parameters… (ConflictResolved: OptionC vs Text\\S3)”, ”Phase 3”: ”[Pathway] Eliminated hypothesis 
 α
  due to… (TheoremRef: Maxwell-Eq)”, ”Phase 4”: ”[Validation] Verified dimensional consistency in…”, }, ”final_answer”: ”final result”} }"""
         )

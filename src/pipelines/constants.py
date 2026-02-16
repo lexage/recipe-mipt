@@ -76,6 +76,7 @@ class ComponentNames(Enum):
     # ===== Chunkers =====
     DUMMY_CHUNKER = "src.agent_constructor.chunkers.DummyChunker"
     SIMPLE_CHUNKER = "src.agent_constructor.chunkers.SimpleChunker"
+    RECURSIVE_CHUNKER = "src.agent_constructor.chunkers.RecursiveChunker"
 
     # ===== Context Assemblers =====
     CORAG_CONTEXT_ASSEMBLER = "src.agent_constructor.context_engine.CoRAGContextAssembler"
