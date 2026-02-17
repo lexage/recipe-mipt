@@ -8,13 +8,11 @@ class Decrim(Agent):
 
     def __init__(
         self,
-        name: str = "Decrim",
-        max_iterations: int = 10,
+        name: str = "DeCRIM",
         model_name: str = "Qwen/Qwen1.5-32B-Chat-AWQ",
         openai_api_base_url="http://localhost:7215/v1",
     ):
         super().__init__(name)
-        self.max_iterations = max_iterations
         self.llm_model = ChatOpenAI(
             model=model_name,
             openai_api_base=openai_api_base_url,

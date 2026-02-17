@@ -1,21 +1,21 @@
-from .maps import(
-    ScholarMAPS ,
+from .maps import (
+    ScholarMAPS,
     SolverMAPS,
     AlignerMAPS,
     CriticMAPS,
 )
 
-from .rewoo import(
-    PlannerREWOO, 
-    WorkerREWOO, 
+from .rewoo import (
+    PlannerREWOO,
+    WorkerREWOO,
     SolverREWOO,
 )
 
-from .react import(
+from .react import (
     ReActAgent,
 )
 
-from src.agents.pipelines.dancing.main import (
+from .panel import (
     Panel,
 )
 
