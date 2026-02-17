@@ -8,6 +8,7 @@ Python-кода (удаление префиксов REPL и техническ�
 """
 
 import logging
+import textwrap
 from typing import List
 
 
@@ -56,9 +57,10 @@ def clean_code_lines_from_repl_symbols_and_doctest_comments(
     """
     Очищает строки кода от символов REPL и технических комментариев doctest.
 
-    Функция удаляет префиксы >>> и ... в начале строк, а также вырезает
-    служебные директивы модуля doctest, чтобы оставить только
-    чистый код.
+    Поддерживает два режима:
+    1. REPL-блоки (содержат '>>>'): удаляются префиксы и строки вывода.
+    2. Обычные блоки кода: сохраняются все строки, удаляются только
+    doctest-комментарии.
 
     Args:
         raw_code_block (str): Необработанный блок кода, содержащий символы REPL
@@ -67,6 +69,9 @@ def clean_code_lines_from_repl_symbols_and_doctest_comments(
     Returns:
         str: Очищенный многострочный код.
     """
+    lines = raw_code_block.split("\n")
+    is_repl_block = any(line.lstrip().startswith(">>>") for line in lines)
+
     cleaned_code_lines: List[str] = []
     # мусорные служебные комментарии для модуля doctest
     doctest_comments = [
@@ -75,32 +80,37 @@ def clean_code_lines_from_repl_symbols_and_doctest_comments(
         "# doctest: +SKIP",
     ]
 
-    for line in raw_code_block.split("\n"):
-        # убираем пробелы слева для проверки префикса,
-        # но сохраняем оригинал для корректного среза
-        left_stripped_line = line.lstrip()
-        clean_line = line.rstrip()
-        is_repl_line = False
+    for line in lines:
+        clean_line = line
+        for comment in doctest_comments:
+            clean_line = clean_line.replace(comment, "")
 
-        if left_stripped_line.startswith(
-            ">>> "
-        ) or left_stripped_line.startswith("... "):
-            clean_line = left_stripped_line[4:]
-            is_repl_line = True
-        elif left_stripped_line.startswith(
-            ">>>"
-        ) or left_stripped_line.startswith("..."):
-            clean_line = left_stripped_line[3:]
-            is_repl_line = True
+        if not clean_line.strip():
+            if not is_repl_block:
+                cleaned_code_lines.append("")
+            continue
 
-        if is_repl_line:
-            for comment in doctest_comments:
-                if comment in clean_line:
-                    clean_line = clean_line.replace(comment, "")
+        left_stripped = clean_line.lstrip()
 
-        # if clean_line:
-        #     cleaned_code_lines.append(clean_line)
-            if clean_line:
-                cleaned_code_lines.append(clean_line)
+        if is_repl_block:
+            if left_stripped.startswith(">>> ") or left_stripped.startswith(
+                "... "
+            ):
+                cleaned_code_lines.append(left_stripped[4:])
+            elif left_stripped.startswith(">>>") or left_stripped.startswith(
+                "..."
+            ):
+                cleaned_code_lines.append(left_stripped[3:])
+            else:
+                # это строка вывода REPL (например "tensor([1.])"),
+                # пропускаем ее
+                pass
+        else:
+            cleaned_code_lines.append(clean_line)
+
+    result = "\n".join(cleaned_code_lines)
+
+    if not is_repl_block:
+        result = textwrap.dedent(result)
 
     return "\n".join(cleaned_code_lines)

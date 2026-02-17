@@ -73,6 +73,7 @@ if __name__ == "__main__":
         logger.info("АНАЛИЗ ЗАВЕРШЕН")
         logger.info("=" * 70)
         logger.info("Время анализа в секундах: %s", processing_time)
+        # TODO: добавить LLM для фильтрации
         if dataset:
             for example in dataset:
                 logger.info("-" * 50)
