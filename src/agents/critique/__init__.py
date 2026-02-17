@@ -6,10 +6,6 @@ from .critic.main import (
     Critic,
 )
 
-from .dancing.main import (
-    Panel,
-)
-
 from .decrim.main import (
     Decrim,
 )
@@ -23,10 +19,9 @@ from .self_refine.main import (
 )
 
 __all__ = [
-    "ComplexCritic", 
+    "ComplexCritic",
     "Critic",
-    "Panel",
     "Decrim",
     "Reflexion",
     "SelfRefine",
-    ]
+]
