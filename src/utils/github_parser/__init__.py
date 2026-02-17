@@ -11,7 +11,9 @@ from .dataset_builder import DatasetBuilder
 from .text_file_parsers import MarkdownParser, RSTParser
 
 
-# туду: добавить новые импорты!
+# TODO: обсудить с Лёшей installation readme - note в
+# https://github.com/Lightning-AI/torchmetrics/blob/master/src/torchmetrics/video/vmaf.py
+
 
 __all__ = [
     "CSTCodeParser",

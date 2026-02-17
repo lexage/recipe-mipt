@@ -7,7 +7,7 @@
 
 import logging
 import os
-from typing import Iterator, Optional
+from typing import Iterator, Optional, Tuple
 
 from dotenv import load_dotenv
 from github import Auth, Github, GithubException, Repository
@@ -17,10 +17,6 @@ from src.utils.github_parser.config import (
     RepoFile,
     RepoWalkResult,
 )
-
-
-# TODO: написать readme + для лексического фильтратора тоже
-# TODO: написать тесты!
 
 
 load_dotenv()
@@ -95,7 +91,9 @@ class TorchGitHubLoader:
             logger.error("Ошибка GitHub API: %s", e, exc_info=True)
             raise
 
-    def get_readme_content(self, target_repo: Repository.Repository) -> str:
+    def get_readme_content(
+        self, target_repo: Repository.Repository
+    ) -> Tuple[str, str]:
         """
         Скачивает и декодирует содержимое файла README из репозитория.
 
@@ -104,18 +102,18 @@ class TorchGitHubLoader:
                 которого нужно получить README.
 
         Returns:
-            str: Декодированное содержимое README. Возвращает пустую строку,
-                если файл не найден.
+            tuple[str, str]: Декодированное содержимое README и путь до него в
+                репозитории. Возвращает пустые строки, если файл не найден.
         """
         try:
             readme = target_repo.get_readme()
             logger.info("Нашли файл README.md!")
-            return readme.decoded_content.decode()
+            return readme.decoded_content.decode(), readme.path
         except GithubException:
             logger.warning(
                 f"README не найден в репозитории {target_repo.full_name}"
             )
-            return ""
+            return "", ""
 
     def get_python_and_markdown_files(
         self,
@@ -178,7 +176,7 @@ class TorchGitHubLoader:
                 self.config.allowed_file_extensions
             ):
                 if any(
-                    skip_pattern in file_content.name
+                    skip_pattern.lower() in file_content.name.lower()
                     for skip_pattern in self.config.skip_file_patterns
                 ):
                     continue
@@ -211,12 +209,13 @@ class TorchGitHubLoader:
                 объект репозитория и итератор файлов.
         """
         target_repo = self._get_specific_repo(target_repo_name)
-        readme = self.get_readme_content(target_repo)
+        readme_content, readme_path = self.get_readme_content(target_repo)
         files_iterator = self.get_python_and_markdown_files(
             target_repo, specific_folder_for_search
         )
         return RepoWalkResult(
-            readme=readme,
+            readme_content=readme_content,
+            readme_path=readme_path,
             target_repo=target_repo,
             files_iterator=files_iterator,
         )

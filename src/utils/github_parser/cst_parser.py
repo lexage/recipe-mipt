@@ -3,7 +3,7 @@
 
 Содержит инструменты для обхода абстрактного синтаксического дерева (AST),
 извлечения докстрингов из классов и функций, а также парсинга разделов
-'Examples' для формирования наборов данных.
+'Examples' для формирования наборов данных вида "задача-решение".
 """
 
 import logging
@@ -15,11 +15,19 @@ import libcst as cst
 from src.utils.github_parser.abstract_parser import BaseRepoParser
 from src.utils.github_parser.config import ExtractedExample
 from src.utils.github_parser.helping_functions import (
-    clean_code_lines_from_repl_symbols,
+    clean_code_lines_from_repl_symbols_and_doctest_comments,
 )
 
 
 logger = logging.getLogger(__file__)
+
+
+EXAMPLE_PATTERN = r"(\n\s*Examples?(?:.*)?::?(?:\n|$))"  # захватывающая
+# группа нужна для ее сохранения после re.split и корректного отделения общей
+# части докстринги
+EXAMPLE_PATTERN_FOR_CLEANING_IN_TASK_DESC = r"Examples?|::?"
+REFERENCE_PATTERN = r"\n\s*References:"
+TRASH_SPHINX_DIRECTIVE_PATTERN = r"\n\s*\.\. plot::.*(?:\n\s+.*|\n\s*$)*"
 
 
 class DocstringProcessor(cst.CSTVisitor):
@@ -33,17 +41,24 @@ class DocstringProcessor(cst.CSTVisitor):
         fetched_examples (List[ExtractedExample]): Список извлеченных примеров.
         module_node (cst.Module): Корневой узел модуля
             (нужен для получения исходного кода узлов).
+        ignore_internal_functions (bool): Флаг, указывающий, нужно ли
+            игнорировать внутренние (приватные) функции.
     """
 
-    def __init__(self, module_node: cst.Module) -> None:
+    def __init__(
+        self, module_node: cst.Module, ignore_internal_functions: bool
+    ) -> None:
         """
         Инициализирует класс-посетитель.
 
         Args:
             module_node (cst.Module): Дерево модуля.
+            ignore_internal_functions (bool): Игнорировать ли внутренние
+                методы/функции.
         """
         self.fetched_examples: List[ExtractedExample] = []
         self.module_node = module_node
+        self.ignore_internal_functions = ignore_internal_functions
 
     def _extract_from_node(
         self,
@@ -60,109 +75,152 @@ class DocstringProcessor(cst.CSTVisitor):
                 ("function" или "class").
         """
         parsed_code_and_example = self._process_docstring_text(node)
-
         if parsed_code_and_example:
             node_source_code = self.module_node.code_for_node(node)
-            self.fetched_examples.append(
-                ExtractedExample(
-                    source_object_type=kind,
-                    source_object_name=node.name.value,
-                    source_object_path="",  # пока пустая, CST не знает о файле
-                    task_description=parsed_code_and_example[0],
-                    solution_code=parsed_code_and_example[1],
-                    metadata_source_code=node_source_code,
-                    references=parsed_code_and_example[-1],
+
+            # итерируемся по списку извлеченных примеров
+            for description, solution, references in parsed_code_and_example:
+                self.fetched_examples.append(
+                    ExtractedExample(
+                        source_object_type=kind,
+                        source_object_name=node.name.value,
+                        source_object_path="",
+                        task_description=description,
+                        solution_code=solution,
+                        metadata_source_code=node_source_code,
+                        references=references,
+                    )
                 )
-            )
 
     def _process_docstring_text(
-        self, node: cst.ClassDef | cst.FunctionDef
-    ) -> Optional[Tuple[str, str, str]]:
+        self,
+        node: cst.ClassDef | cst.FunctionDef,
+    ) -> Optional[List[Tuple[str, str, str]]]:
         """
-        Разбирает докстринг на описание задачи, код решения и ссылки.
-
-        Логика разделения основана на поиске ключевых слов "Example",
-        "Examples" или >>>.
+        Разбирает докстрингу на описание задачи, код решения и ссылки.
+        Ищет ключевые слова "Example", "Examples" или символы REPL (>>>).
+        Общее описание до первого примера добавляется к каждому найденному
+        примеру.
 
         Args:
             node (cst.ClassDef | cst.FunctionDef): Узел, у которого берется
                 докстринг.
 
         Returns:
-            Optional[Tuple[str, str, str]]: Кортеж (описание, код, ссылки)
-                или None, если пример не найден.
+            Optional[List[Tuple[str, str, str]]]]: Список кортежей
+                (описание, код, ссылки) или None, если примеры не найдены или
+                    узел должен быть проигнорирован.
         """
+        # не анализируем внутренние методы, если нам так указывает конфиг
+        if self.ignore_internal_functions and node.name.value.startswith("_"):
+            return
+
         docstring = node.get_docstring()
 
-        if not docstring:
+        # поскольку мы понимаем, что в докстринге есть примеры, по ключевым
+        # словам или символам REPL, то если их нет, работать нам не с чем
+        if not docstring or (
+            "Example" not in docstring and ">>>" not in docstring
+        ):
             return
 
-        if "Example" not in docstring and ">>>" not in docstring:
-            return
-
+        # сначала отделяем ссылки, потому что они, как правило,
+        # в конце докстринги
         references = ""
-        raw_code_block = ""
-
-        # 1-я попытка: делим по слову "Example: или "Examples:"
-        parts = re.split(r"\n\s*Example[s]?:\s*\n", docstring, maxsplit=1)
-        if len(parts) >= 2:
-            description = parts[0]
-            raw_code_block = parts[1]
+        docstring_body, sep, ref_part = docstring.rpartition(REFERENCE_PATTERN)
+        # если часть со ссылками не найдена, sep будет пустым
+        if sep:
+            references = ref_part.strip()
         else:
-            # 2-я попытка: если ничего не нашли, пробуем упрощенный
-            # вариант "в лоб"
-            parts_fallback = re.split(r"Example[s]?:", docstring, maxsplit=1)
-            if len(parts_fallback) >= 2:
-                description = parts_fallback[0]
-                raw_code_block = parts_fallback[1]
+            # если не нашли, оставляем весь докстринг для дальнейшей обработки
+            docstring_body = docstring
+
+        example_splitter = re.compile(EXAMPLE_PATTERN)
+        parts: List[str] = example_splitter.split(docstring_body)
+
+        # общее описание до первого примера. Включает описание задачи, args,
+        # returns и т.д. из докстринги
+        common_description = parts[0].strip()
+        valid_examples_found: List[Tuple[str, str, str]] = []
+
+        # parts выглядит как: [описание задачи, заголовок1 (чаще всего example)
+        # код1, заголовок2, код2 и т.д.]
+        for i in range(1, len(parts), 2):
+            specific_description = parts[i]
+            code_block = parts[i + 1]
+
+            # фильтрация: если в content нет символов REPL,
+            # значит, "Example:" был использован просто для описания формата
+            # данных (как в src/torchmetrics/text/squad.py)
+            if ">>>" not in code_block:
+                common_description += specific_description + code_block
             else:
-                # 3-я попытка: формат со скобками (в репе иногда встречается
-                # вот так: Example (preds is int tensor))
-                parts = re.split(
-                    r"\n\s*Example[s]?\s*\([^)]*\):", docstring, maxsplit=1
+                valid_examples_found.append(
+                    (common_description, specific_description, code_block)
                 )
-                if len(parts) >= 2:
-                    description = parts[0]
-                    raw_code_block = parts[1]
-                    raw_code_block = re.sub(r"^\s+", "", raw_code_block)
-                else:
-                    # 4-я попытка: если Example нет, ищем >>>
-                    if ">>>" in docstring:
-                        description, sep, code_part = docstring.partition(
-                            ">>>"
-                        )
-                        raw_code_block = sep + code_part
-                    else:
-                        # ничего не сработало...
-                        return None
 
-        # получаем ссылки на работы авторов (чтобы в дальнейшем их парсить)
-        # если нашли - делим, если нет - считаем все примером с кодом
-        get_references_and_code: List[str] = re.split(
-            r"\n\s*References:\s*\n", raw_code_block, maxsplit=1
-        )
+        if valid_examples_found:
+            results: List[Tuple[str, str, str]] = []
+            for common_desc, specific_desc, code_block in valid_examples_found:
+                cleaned_header = re.sub(
+                    r"Examples?|::?", "", specific_desc, flags=re.IGNORECASE
+                ).strip()
+                full_task_description = (
+                    common_desc + "\n" + cleaned_header
+                ).strip()
+                cleaned_description = self._clean_description(
+                    full_task_description
+                )
+                solution_code = (
+                    clean_code_lines_from_repl_symbols_and_doctest_comments(
+                        code_block
+                    )
+                )
+                if solution_code:
+                    results.append(
+                        (cleaned_description, solution_code, references)
+                    )
+            return results
 
-        if len(get_references_and_code) == 2:
-            raw_code_block = get_references_and_code[0]
-            references = get_references_and_code[1]
-        elif "References:" in raw_code_block:
-            # на всякий случай, если References не выделены переносами строк
-            ref_split = raw_code_block.split("References:", 1)
-            if len(ref_split) == 2:
-                raw_code_block = ref_split[0]
-                references = ref_split[1]
+        if ">>>" in docstring_body:
+            description, sep, code_part = docstring_body.partition(">>>")
 
-        # чистим код от символов >>>
-        solution_code = clean_code_lines_from_repl_symbols(raw_code_block)
-        if not solution_code:
-            return None
+            clean_desc_text = re.sub(
+                r"Examples?.*::?\s*$",
+                "",
+                description.strip(),
+                flags=re.IGNORECASE | re.DOTALL,
+            )
+            cleaned_description = self._clean_description(clean_desc_text)
+            solution_code = (
+                clean_code_lines_from_repl_symbols_and_doctest_comments(
+                    sep + code_part
+                )
+            )
+            if solution_code:
+                return [(cleaned_description, solution_code, references)]
 
-        return description, solution_code, references
+    def _clean_description(self, text: str) -> str:
+        """Очищает описание от мусора.
+
+        Args:
+            text (str): Текст описания, который нужно очистить.
+
+        Returns:
+            str: Очищенный текст описания."""
+        # чистим от директив сфинкса вида '.. <plot>::' и все
+        # последующие строки с отступом
+        sphinx_directive_pattern = re.compile(TRASH_SPHINX_DIRECTIVE_PATTERN)
+        cleaned_text = sphinx_directive_pattern.sub("", text)
+        return cleaned_text.strip()
 
     def visit_ClassDef(self, node: cst.ClassDef) -> None:
         """
         Метод cst, вызываемый при обходе дерева и входе в узел определения
         класса.
+
+        Args:
+            node (cst.ClassDef): Узел класса.
         """
         self._extract_from_node(node, kind="class")
 
@@ -170,6 +228,9 @@ class DocstringProcessor(cst.CSTVisitor):
         """
         Метод cst, вызываемый при обходе дерева и входе в узел определения
         функции.
+
+         Args:
+            node (cst.FunctionDef): Узел функции.
         """
         self._extract_from_node(node, kind="function")
 
@@ -180,7 +241,27 @@ class CSTCodeParser(BaseRepoParser):
 
     Отвечает за загрузку байтового содержимого файла, построение AST
     и запуск DocstringProcessor для извлечения примеров.
+
+    Attributes:
+        ignore_internal_functions (bool): Флаг игнорирования приватных методов.
     """
+
+    def __init__(
+        self,
+        ignore_internal_functions: bool,
+        min_code_length_for_analyzing: int,
+    ) -> None:
+        """
+        Инициализирует парсер.
+
+        Args:
+            ignore_internal_functions (bool): Флаг игнорирования приватных
+                методов.
+            min_code_length_for_analyzing (int): Минимальная длина строки кода
+                для анализа.
+        """
+        super().__init__(min_code_length_for_analyzing)
+        self.ignore_internal_functions = ignore_internal_functions
 
     def parse(
         self, file_content: bytes, file_path: str
@@ -188,7 +269,7 @@ class CSTCodeParser(BaseRepoParser):
         """
         Парсит содержимое файла и извлекает примеры из докстрингов.
 
-        Игнорирует файлы с расширениями .md и .rst.
+        Обрабатываются только файлы с расширением .py.
 
         Args:
             file_content (bytes): Содержимое файла в байтах.
@@ -207,7 +288,9 @@ class CSTCodeParser(BaseRepoParser):
                 file_path,
                 tree,
             )
-            docstring_processor = DocstringProcessor(tree)
+            docstring_processor = DocstringProcessor(
+                tree, self.ignore_internal_functions
+            )
             tree.visit(docstring_processor)
             results = docstring_processor.fetched_examples
             for example in results:
