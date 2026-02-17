@@ -17,6 +17,7 @@ class SimplePipeline(Pipeline):
                  filter: Filter = None, 
                  icl_block: ICLBlock = None,
                  context_assembler: ContextAssembler = None,
+                 enhancer: Agent = None,
                  top_k: int = 1):
         
 
@@ -40,10 +41,20 @@ class SimplePipeline(Pipeline):
         self.agent = agent
         self.context_assembler = context_assembler
         self.icl_block = icl_block
+        self.enhancer = enhancer
         self.top_k = top_k
             
     def run(self, task: str) -> str:
-        context = self.retriever.retrieve(query=task, k=self.top_k)
+
+        if self.enhancer:
+            tasks = self.enhancer.run(task)
+        else:
+            tasks = task
+
+        context = []
+        for query in tasks:
+            context.extend(self.retriever.retrieve(query=query, k=self.top_k))
+
         if self.icl_block:
             context = self.icl_block.apply(context)
 
