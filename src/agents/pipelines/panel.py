@@ -6,14 +6,17 @@ from langchain_core.messages import HumanMessage, ToolMessage
 
 
 class Panel(Agent):
-    def __init__(self, 
-                 name: str = "Panel", 
-                model_name: str = "Qwen/Qwen1.5-32B-Chat-AWQ",
-                openai_api_base_url="http://localhost:7215/v1"):
-        
+    def __init__(
+        self,
+        name: str = "Panel",
+        model_name: str = "Qwen/Qwen1.5-32B-Chat-AWQ",
+        openai_api_base_url="http://localhost:7215/v1",
+        temperature: float = 0.6,
+        num_candidates: int = 5,
+    ):
         super().__init__(name)
-        self.temperature = 0.6
-        self.num_candidates = 5
+        self.temperature = temperature
+        self.num_candidates = num_candidates
         self.llm_model = ChatOpenAI(
             model=model_name,
             openai_api_base=openai_api_base_url,
@@ -122,9 +125,7 @@ Return only the index number (0-based) of the selected candidate:"""
 
         return prompt
 
-    def _extract_candidate_index(
-        self, selection_response: str
-    ) -> int:
+    def _extract_candidate_index(self, selection_response: str) -> int:
         prompt = f"""You are a Python programmer. You are given a reasoning about the index of the best candidate. 
                     You should return only one integer (the index of the best candidate) (without any other words) from this reasoning.
                     I will have to insert it into int(index). Reasoning : {selection_response}"""
@@ -140,9 +141,7 @@ Return only the index number (0-based) of the selected candidate:"""
 
         selection_prompt = self._create_selection_prompt(candidates, critiques)
         selection_response = self.llm(selection_prompt)
-        selected_index = self._extract_candidate_index(
-            selection_response
-        )
+        selected_index = self._extract_candidate_index(selection_response)
 
         return candidates[selected_index]
 
