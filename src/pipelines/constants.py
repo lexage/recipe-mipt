@@ -51,6 +51,9 @@ class ComponentNames(Enum):
     RAPTOR_QA_AGENT = "src.agents.rag.RaptorQAAgent"
     RAPTOR_SUMM_AGENT = "src.agents.rag.RaptorSummarizationAgent"
 
+    # ===== Agents: Generation =====
+    QUERY_GENERATOR = "src.agents.generation.QueryGenerator"
+
     # ===== Agents: Reasoning =====
     AUTO_COT_REASONING = "src.agents.reasoning.AutoCoT"
     CONTRASTIVE_COT_REASONING = "src.agents.reasoning.ContrastiveCoT"
