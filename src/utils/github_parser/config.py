@@ -1,10 +1,10 @@
 """
 Данный модуль определяет структуры полученных данных в результате обхода
-GitHub-репозитория
+GitHub-репозитория через Pydantic-модели.
 """
 
 from pathlib import Path
-from typing import Iterator, Literal, Optional, Tuple
+from typing import Iterator, List, Literal, Optional, Tuple
 
 from github.Repository import Repository
 from pydantic import BaseModel, Field
@@ -32,7 +32,10 @@ class RepoWalkResult(BaseModel):
     Определяет результат обхода репозитория
     """
 
-    readme: str = Field(description="Текстовое содержимое файла README")
+    readme_content: str = Field(
+        description="Текстовое содержимое файла README"
+    )
+    readme_path: str = Field(description="Путь к файлу README")
     target_repo: Repository = Field(
         description="Анализируемый объект репозитория GitHub"
     )
@@ -47,7 +50,7 @@ class RepoWalkResult(BaseModel):
 
 class ExtractedExample(BaseModel):
     """
-    Определяет структуру данных для загрузки в БД
+    Определяет финальную структуру данных для загрузки в БД
     """
 
     source_object_type: Literal[
@@ -55,8 +58,10 @@ class ExtractedExample(BaseModel):
         "class",
         "markdown_example",
         "rst_example",
-        "torchmetrics_example",
-    ] = Field(description="Тип исходного объекта: функция или класс")
+    ] = Field(
+        description="Тип исходного объекта: функция, класс, пример из "
+        "файла формата .md и т.д."
+    )
     source_object_name: str = Field(
         description="Имя извлеченного класса или функции"
     )
@@ -95,10 +100,10 @@ class GitHubLoaderConfig(BaseModel):
         "обрабатывать. На текущий момент это питоновские и текстовые файлы",
     )
     skip_file_patterns: Tuple[str, ...] = Field(
-        default=("init", "test"),
+        default=("test",),
         description="Список подстрок. Если они встречаются в пути файла, файл "
-        "пропускается. На текущий момент это инициализационные и тестовые "
-        "файлы, поскольку в них обычно нет явных примеров",
+        "пропускается. На текущий момент это тестовые файлы, поскольку в "
+        "них обычно нет явных примеров",
     )  # TODO: в будущем на подумать: Лёша предложил проанализировать и как-то
     # обработать тесты, т.к. в них могут быть примеры использования
 
@@ -111,7 +116,8 @@ class GitHubExampleFetcherConfig(BaseModel):
 
     repo_for_analyzing: str = Field(
         default="Lightning-AI/torchmetrics",
-        description="Идентификатор репозитория в формате 'владелец/название'",
+        description="Идентификатор репозитория, который нужно "
+        "проанализировать, в формате 'владелец/название'",
     )
     specific_folder_for_analyzing: str = Field(
         default="",
@@ -121,6 +127,56 @@ class GitHubExampleFetcherConfig(BaseModel):
     config_for_github_loader: GitHubLoaderConfig = Field(
         default=GitHubLoaderConfig(),
         description="Конфигурация загрузчика файлов репозитория",
+    )
+    min_code_length_for_analyzing: int = Field(
+        default=7,
+        description="Строчка кода должна иметь минимум столько символов, "
+        "чтобы ее обрабатывать и добавлять в итоговой результат. Все, что "
+        "обладает меньшей длиной, будет отсекаться. Данный параметр "
+        "необходим, поскольку много примеров в репозитории torchmetrics "
+        "нацелены на REPL - некоторые строки кода могут представлять из себя "
+        "только название переменной для вывода ее значения в консоли. Для LLM "
+        "это будет мусором",
+    )
+    extract_examples_from_root_readme: bool = Field(
+        default=True,
+        description="Требуется ли обрабатывать (извлекать примеры) из "
+        "корневого README.md файла",
+    )
+    readme_root_target_sections: List[str] = Field(
+        default=[
+            "Module metrics",
+            "Example using DDP",
+            "Implementing your own Module metric",
+            "Functional metrics",
+            "Plotting",
+        ],
+        description="Необходимые секции (Markdown-заголовки), которые будут "
+        "парситься в корневом README.md файле. Остальные будут пропускаться. "
+        "Данный параметр необходим, поскольку в корневом README.md файле "
+        "репозитория torchmetrics есть 'мусорные' секции типа 'license', в "
+        "которых нет примеров",
+    )
+    rst_skip_code_lines_patterns: Tuple[str, ...] = Field(
+        default=(
+            ".. testcode::",
+            ".. code-block::",
+            ".. code::",
+            ".. plot::",
+            ".. testsetup::",
+            ".. _",
+            "import ",
+        ),
+        description="Строки, паттерны которых перечислены в этом списке, "
+        "будут пропускаться в файлах формата .rst",
+    )
+    ignore_internal_functions: bool = Field(
+        default=True,
+        description="Требуется ли игнорировать при извлечении примеров из "
+        "питоновских файлов внутренние (приватные) методы. Рекомендуется "
+        "использовать значение True, поскольку докстринги внутренних методов "
+        "в torchmetrics не такие расширенные, как в публичных, и результат "
+        "парсинга может быть неадекватным",
     )
 
 

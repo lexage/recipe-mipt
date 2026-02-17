@@ -1,5 +1,5 @@
 import logging
-from time import time
+from time import perf_counter
 
 from src.utils.github_parser.config import load_config_file
 from src.utils.github_parser.cst_parser import CSTCodeParser
@@ -13,7 +13,8 @@ logger = logging.getLogger(__file__)
 
 if __name__ == "__main__":
     """
-    Точка входа для запуска процесса сборки датасета.
+    Точка входа для запуска процесса сборки датасета пар "задача-решение"
+    с репозитория torchmetrics.
     """
     logging.basicConfig(
         level=logging.INFO,
@@ -28,10 +29,20 @@ if __name__ == "__main__":
     )  # TODO: перед PR удалить, чтобы не перезаписать конфигурацию!
     config = load_config_file()
     loader = TorchGitHubLoader(config.config_for_github_loader)
-    code_parser = CSTCodeParser()
-    md_parser = MarkdownParser()
-    rst_parser = RSTParser()
-    pipeline = DatasetBuilder(loader, code_parser, md_parser, rst_parser)
+    code_parser = CSTCodeParser(
+        config.ignore_internal_functions, config.min_code_length_for_analyzing
+    )
+    md_parser = MarkdownParser(config.min_code_length_for_analyzing)
+    rst_parser = RSTParser(
+        config.rst_skip_code_lines_patterns,
+        config.min_code_length_for_analyzing,
+    )
+    pipeline = DatasetBuilder(
+        loader,
+        code_parser,
+        md_parser,
+        rst_parser,
+    )
     try:
         logger.info("Репозиторий: %s", config.repo_for_analyzing)
         logger.info(
@@ -46,11 +57,18 @@ if __name__ == "__main__":
             "Пропускаемые паттерны: %s",
             config.config_for_github_loader.skip_file_patterns,
         )
-        start_time = time()
-        dataset = pipeline.run(
-            config.repo_for_analyzing, config.specific_folder_for_analyzing
+        logger.info(
+            "Целевые секции для парсинга в корневом README файле: %s",
+            config.readme_root_target_sections,
         )
-        processing_time = round(time() - start_time, 2)
+        start_time = perf_counter()
+        dataset = pipeline.run(
+            config.repo_for_analyzing,
+            config.specific_folder_for_analyzing,
+            config.extract_examples_from_root_readme,
+            config.readme_root_target_sections,
+        )
+        processing_time = round(perf_counter() - start_time, 2)
         logger.info("=" * 70)
         logger.info("АНАЛИЗ ЗАВЕРШЕН")
         logger.info("=" * 70)
@@ -63,12 +81,10 @@ if __name__ == "__main__":
                 logger.info("Тип объекта: %s", example.source_object_type)
                 logger.info("Описание задачи:\n%s", example.task_description)
                 logger.info("Код:\n%s", example.solution_code)
-                logger.info(
-                    "Метаданные (исходный код):\n%s",
-                    example.metadata_source_code,
-                )
+                # logger.info(
+                #     "Метаданные (исходный код):\n%s",
+                #     example.metadata_source_code,
+                # )
                 logger.info("Ссылки: %s", example.references)
     except Exception as e:
-        logger.critical(
-            "Ошибка при выполнении пайплайна! %s", e, exc_info=True
-        )
+        logger.error("Ошибка при выполнении пайплайна! %s", e, exc_info=True)

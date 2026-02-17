@@ -1,5 +1,26 @@
 repo_for_analyzing: Lightning-AI/torchmetrics
-specific_folder_for_analyzing: docs/source/pages/plotting.rst
+specific_folder_for_analyzing: src/torchmetrics/wrappers/tracker.py
 config_for_github_loader:
   allowed_file_extensions: [".py", ".md", ".rst"]
-  skip_file_patterns: ["init", "test", "pycache", "git"]
+  skip_file_patterns: ["test", "pycache", "github", "CHANGELOG", "dockers"]
+min_code_length_for_analyzing: 7
+extract_examples_from_root_readme: False
+readme_root_target_sections: [
+    # "installation",
+    "Module metrics",
+    "Example using DDP",
+    "Implementing your own Module metric",
+    "Functional metrics",
+    "Plotting",
+  ]
+rst_skip_code_lines_patterns:
+  [
+    ".. testcode::",
+    ".. code-block::",
+    ".. code::",
+    ".. plot::",
+    ".. testsetup::",
+    ".. _",
+    "import ",
+  ]
+ignore_internal_functions: True
