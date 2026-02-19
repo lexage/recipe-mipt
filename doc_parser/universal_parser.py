@@ -37,8 +37,9 @@ class ObjectInfo:
     type: DocType  # Тип объекта
     name: str  # Название класса/функции/метода
     filepath: str  # Полный путь к файлу
-    signature: Optional[str] = None  # Сигнатура функции/метода
+    signature: str  # Полная сигнатура из кода (с def/class и до :)
     parent_class: Optional[str] = None  # Только для методов
+    return_info: Optional[str] = None  # Строка(и) с return/yield из тела функции
 
 
 @dataclass
@@ -47,6 +48,35 @@ class String:
     information: ObjectInfo
     string: str  # Сам docstring
     examples: List[str] = None # Примеры, которые относятся к docstrings
+
+
+class ReturnStatementVisitor(cst.CSTVisitor):
+    """Посетитель для поиска return и yield операторов."""
+
+    def __init__(self):
+        self.return_statements: List[str] = []
+
+    def visit_Return(self, node: cst.Return) -> None:
+        """Посещает return операторы."""
+        try:
+            if node.value:
+                code = cst.Module([]).code_for_node(node.value).strip()
+                self.return_statements.append(f"return {code}")
+            else:
+                self.return_statements.append("return")
+        except:
+            pass
+
+    def visit_Yield(self, node: cst.Yield) -> None:
+        """Посещает yield операторы."""
+        try:
+            if node.value:
+                code = cst.Module([]).code_for_node(node.value).strip()
+                self.return_statements.append(f"yield {code}")
+            else:
+                self.return_statements.append("yield")
+        except:
+            pass
 
 
 class LibCSTDocstringExtractor:
@@ -82,85 +112,209 @@ class LibCSTDocstringExtractor:
 
                 # Убираем кавычки
                 if raw_string.startswith(('"""', "'''")):
-                    # Тройные кавычки
                     content = raw_string[3:-3] if raw_string.endswith(raw_string[:3]) else raw_string[3:]
                 else:
-                    # Одинарные/двойные кавычки
                     content = raw_string[1:-1]
 
                 return content.strip()
 
         return None
 
-    def _get_signature(self, node: cst.FunctionDef) -> str:
-        """Извлекает сигнатуру функции."""
+    def _format_parameter(self, param: cst.Param) -> str:
+        """Форматирует отдельный параметр с полной аннотацией типа."""
         try:
-            # Начинаем с имени функции
-            signature = node.name.value + "("
+            param_str = param.name.value
 
-            # Обрабатываем обычные параметры
-            param_strings = []
+            # Добавляем аннотацию типа если есть
+            if param.annotation:
+                try:
+                    # Получаем узел аннотации и конвертируем в код
+                    annotation_node = param.annotation.annotation
+                    if annotation_node:
+                        annotation = cst.Module([]).code_for_node(annotation_node).strip()
+                        if annotation:
+                            param_str += f": {annotation}"
+                except Exception:
+                    pass
+
+            # Добавляем значение по умолчанию если есть
+            if param.default:
+                try:
+                    default = cst.Module([]).code_for_node(param.default).strip()
+                    if default:
+                        param_str += f" = {default}"
+                except Exception:
+                    pass
+
+            return param_str
+        except Exception:
+            return "..."
+
+    def _get_param_name(self, param) -> Optional[str]:
+        """Безопасно извлекает имя параметра."""
+        try:
+            if hasattr(param, 'name'):
+                if hasattr(param.name, 'value'):
+                    return param.name.value
+            return None
+        except:
+            return None
+
+    def _get_function_signature(self, node: cst.FunctionDef) -> str:
+        """Извлекает полную сигнатуру функции с аннотациями типов."""
+        try:
+            # Определяем префикс async
+            prefix = "async " if self._is_async_function(node) else ""
+
+            # Получаем все параметры
+            params = []
+
+            # Обычные параметры
             for param in node.params.params:
-                param_str = param.name.value
-                param_strings.append(param_str)
+                param_str = self._format_parameter(param)
+                params.append(param_str)
 
-            # Обрабатываем *args
-            if node.params.star_arg:
-                param_str = "*" + node.params.star_arg.name.value
-                param_strings.append(param_str)
+            # *args параметр или разделитель
+            if node.params.star_arg != cst.MaybeSentinel.DEFAULT:
+                if isinstance(node.params.star_arg, cst.Param):
+                    # Это *args параметр
+                    param_name = node.params.star_arg.name.value
+                    param_str = f"*{param_name}"
 
-            # Обрабатываем keyword-only параметры
+                    # Добавляем аннотацию если есть
+                    if node.params.star_arg.annotation:
+                        try:
+                            annotation_node = node.params.star_arg.annotation.annotation
+                            if annotation_node:
+                                annotation = cst.Module([]).code_for_node(annotation_node).strip()
+                                if annotation:
+                                    param_str += f": {annotation}"
+                        except Exception:
+                            pass
+
+                    params.append(param_str)
+                else:
+                    # Это просто звездочка-разделитель
+                    params.append("*")
+
+            # Keyword-only параметры
             for param in node.params.kwonly_params:
-                param_str = param.name.value
-                param_strings.append(param_str)
+                param_str = self._format_parameter(param)
+                params.append(param_str)
 
-            # Обрабатываем **kwargs
-            if node.params.star_kwarg:
-                param_str = "**" + node.params.star_kwarg.name.value
-                param_strings.append(param_str)
+            # **kwargs параметр
+            if node.params.star_kwarg != cst.MaybeSentinel.DEFAULT and isinstance(node.params.star_kwarg, cst.Param):
+                param_name = node.params.star_kwarg.name.value
+                param_str = f"**{param_name}"
 
-            # Собираем все параметры
-            signature += ", ".join(param_strings)
-            signature += ")"
+                # Добавляем аннотацию если есть
+                if node.params.star_kwarg.annotation:
+                    try:
+                        annotation_node = node.params.star_kwarg.annotation.annotation
+                        if annotation_node:
+                            annotation = cst.Module([]).code_for_node(annotation_node).strip()
+                            if annotation:
+                                param_str += f": {annotation}"
+                    except Exception:
+                        pass
+
+                params.append(param_str)
+
+            # Формируем базовую сигнатуру
+            if params:
+                signature = f"{prefix}def {node.name.value}(" + ", ".join(params) + ")"
+            else:
+                signature = f"{prefix}def {node.name.value}()"
 
             # Добавляем возвращаемый тип если есть
             if node.returns:
-                returns_str = self._node_to_code(node.returns)
-                signature += f" -> {returns_str}"
+                try:
+                    # Получаем узел возвращаемого типа
+                    if hasattr(node.returns, 'annotation'):
+                        returns_node = node.returns.annotation
+                    else:
+                        returns_node = node.returns
+
+                    returns = cst.Module([]).code_for_node(returns_node).strip()
+                    if returns:
+                        signature += f" -> {returns}"
+                except Exception:
+                    pass
+
+            # Добавляем двоеточие в конце
+            signature += ":"
 
             return signature
 
-        except Exception as e:
-            # В случае ошибки пытаемся получить хотя бы имена параметров
-            logger.debug(f"Ошибка при извлечении детальной сигнатуры для {node.name.value}: {e}")
+        except Exception:
+            # Возвращаем упрощенную сигнатуру в случае ошибки
+            prefix = "async " if self._is_async_function(node) else ""
+            return f"{prefix}def {node.name.value}(...):"
 
-            # Пробуем более простой способ
-            try:
-                signature = node.name.value + "("
-                param_names = []
+    def _get_class_signature(self, node: cst.ClassDef) -> str:
+        """Извлекает полную сигнатуру класса."""
+        try:
+            signature = f"class {node.name.value}"
 
-                # Просто собираем имена параметров
-                for param in node.params.params:
-                    param_names.append(param.name.value)
+            # Добавляем базовые классы если есть
+            if node.bases:
+                bases = []
+                for base in node.bases:
+                    try:
+                        base_str = cst.Module([]).code_for_node(base.value).strip()
+                        if base_str:
+                            bases.append(base_str)
+                    except:
+                        pass
 
-                if node.params.star_arg:
-                    param_names.append(f"*{node.params.star_arg.name.value}")
+                if bases:
+                    signature += "(" + ", ".join(bases) + ")"
 
-                for param in node.params.kwonly_params:
-                    param_names.append(param.name.value)
+            # Добавляем двоеточие
+            signature += ":"
 
-                if node.params.star_kwarg:
-                    param_names.append(f"**{node.params.star_kwarg.name.value}")
+            return signature
 
-                signature += ", ".join(param_names)
-                signature += ")"
+        except Exception:
+            return f"class {node.name.value}:"
 
-                return signature
+    def _get_signature_from_node(self, node: cst.CSTNode) -> str:
+        """
+        Извлекает сигнатуру непосредственно из узла CST.
+        """
+        try:
+            if isinstance(node, cst.FunctionDef):
+                return self._get_function_signature(node)
+            elif isinstance(node, cst.ClassDef):
+                return self._get_class_signature(node)
+            elif isinstance(node, cst.Module):
+                return "<module>"
+            else:
+                if hasattr(node, 'name') and hasattr(node.name, 'value'):
+                    return f"{node.name.value}"
+                return f"<{type(node).__name__}>"
 
-            except Exception as e2:
-                # Если и это не получилось, возвращаем хотя бы имя функции
-                logger.debug(f"Не удалось извлечь параметры для {node.name.value}: {e2}")
-                return f"{node.name.value}(...)"
+        except Exception:
+            if hasattr(node, 'name') and hasattr(node.name, 'value'):
+                return f"{node.name.value}"
+            return "<unknown>"
+
+    def _get_return_statements(self, node: cst.FunctionDef) -> Optional[str]:
+        """
+        Извлекает все return и yield операторы из тела функции.
+        Возвращает их в виде строки, разделенной переносами строк.
+        """
+        try:
+            visitor = ReturnStatementVisitor()
+            node.body.visit(visitor)
+
+            if visitor.return_statements:
+                return '\n'.join(visitor.return_statements)
+
+            return None  # Нет явных return/yield операторов
+
+        except Exception:
+            return None
 
     def _node_to_code(self, node: cst.CSTNode) -> str:
         """Конвертирует узел CST в строку с кодом."""
@@ -171,15 +325,10 @@ class LibCSTDocstringExtractor:
 
     def _is_async_function(self, node: cst.CSTNode) -> bool:
         """Проверяет, является ли функция асинхронной."""
-        # Проверяем разные способы определения async функции в зависимости от версии LibCST
         try:
-            # Способ 1: Проверяем наличие атрибута async
             if hasattr(node, 'asynchronous') and node.asynchronous:
                 return True
-
-            # Способ 2: Проверяем по имени класса
             return type(node).__name__ == 'AsyncFunctionDef'
-
         except:
             return False
 
@@ -203,10 +352,13 @@ class LibCSTDocstringExtractor:
             else:
                 node_type = DocType.ASYNC_METHOD
 
-        # Получаем сигнатуру для функций/методов
-        signature = None
+        # Получаем сигнатуру из узла
+        signature = self._get_signature_from_node(node)
+
+        # Получаем return/yield операторы ТОЛЬКО для функций/методов
+        return_info = None
         if is_function_node and isinstance(node, cst.FunctionDef):
-            signature = self._get_signature(node)
+            return_info = self._get_return_statements(node)
 
         # Создаем информацию об объекте
         info = ObjectInfo(
@@ -216,6 +368,7 @@ class LibCSTDocstringExtractor:
             filepath=self.current_filepath,
             signature=signature,
             parent_class=self.current_class,
+            return_info=return_info  # Для классов останется None
         )
 
         return String(information=info, string=content)
@@ -258,6 +411,21 @@ class LibCSTDocstringExtractor:
             if func_doc:
                 self.docstrings.append(func_doc)
 
+        # Обработка асинхронной функции
+        elif hasattr(cst, 'AsyncFunctionDef') and isinstance(node, cst.AsyncFunctionDef):
+            func_name = node.name.value
+
+            # Определяем тип
+            if self.current_class is not None:
+                doc_type = DocType.ASYNC_METHOD
+            else:
+                doc_type = DocType.ASYNC_FUNCTION
+
+            # Извлекаем docstring
+            func_doc = self._create_docstring(node, doc_type, func_name, is_function_node=True)
+            if func_doc:
+                self.docstrings.append(func_doc)
+
         # Рекурсивная обработка дочерних узлов
         elif hasattr(node, 'body'):
             body = node.body
@@ -294,8 +462,8 @@ class LibCSTDocstringExtractor:
             logger.error(f"Невозможно прочитать файл: {filepath}")
         except cst.ParserSyntaxError as e:
             logger.error(f"Синтаксическая ошибка в {filepath}: {e}")
-        except Exception as e:
-            logger.error(f"Ошибка при обработке {filepath}: {type(e).__name__}: {e}")
+        except Exception:
+            logger.error(f"Ошибка при обработке {filepath}")
 
     # def extract_from_chunk(self, chunk: Chunk) -> None:
     #     """Извлекает docstrings из одного чанка."""
@@ -361,12 +529,11 @@ class LibCSTDocstringExtractor:
 
     def extract_from_directory(self, directory_path: Path, library_name: str) -> List[String]:
         """Извлекает docstrings из директории."""
-        # Рекурсивно обходим все Python файлы
         for root, dirs, files in os.walk(directory_path):
             # Пропускаем служебные директории
             dirs[:] = [
-                d for d in dirs 
-                if not d.startswith('.') 
+                d for d in dirs
+                if not d.startswith('.')
                 and d != '__pycache__'
                 and d != 'tests'
                 and d != 'test'
@@ -374,7 +541,6 @@ class LibCSTDocstringExtractor:
 
             for file in files:
                 if file.endswith('.py'):
-                    # Пропускаем тестовые файлы
                     if file.startswith('test_') or file.endswith('_test.py'):
                         continue
 
@@ -389,34 +555,27 @@ class LibCSTDocstringExtractor:
 
     def _is_venv_directory(self, directory_path: Path) -> bool:
         """Проверяет, является ли директория venv."""
-        # Проверяем стандартные признаки venv
         venv_indicators = [
             directory_path / 'pyvenv.cfg',
             directory_path / 'Scripts',
             directory_path / 'bin',
         ]
-
         return any(indicator.exists() for indicator in venv_indicators)
 
     def _find_libraries_in_venv(self, venv_path: Path) -> List[Path]:
-        """Находит библиотеки в venv - ищет только в папке lib."""
+        """Находит библиотеки в venv."""
         libraries = []
 
-        # Ищем папку lib
         lib_path = venv_path / 'lib'
         if not lib_path.exists():
             logger.error(f"Папка lib не найдена в {venv_path}")
             return libraries
 
-        # Ищем site-packages в lib
         site_packages_paths = []
-
-        # Проверяем возможные пути внутри lib
         possible_paths = [
             lib_path / 'site-packages',
         ]
 
-        # Добавляем пути с версиями Python (python3.*/site-packages)
         if lib_path.exists():
             for item in lib_path.iterdir():
                 if item.is_dir() and item.name.startswith('python'):
@@ -424,17 +583,14 @@ class LibCSTDocstringExtractor:
                     if site_packages.exists():
                         possible_paths.append(site_packages)
 
-        # Проверяем все возможные пути
         for site_packages_path in possible_paths:
             if site_packages_path.exists() and site_packages_path.is_dir():
                 logger.info(f"Найдена папка site-packages: {site_packages_path}")
 
-                # Добавляем все директории как библиотеки
                 for item in site_packages_path.iterdir():
                     if item.is_dir() and not item.name.startswith('.'):
                         libraries.append(item)
 
-                # Если нашли библиотеки, прекращаем поиск
                 if libraries:
                     break
 
@@ -463,40 +619,48 @@ def extract_docstrings(path: str = None, chunks: List[Chunk] = None) -> List[Str
             logger.error(f"Директория не найдена: {path}")
             return []
 
-        if extractor._is_venv_directory(directory_path):
-            # Если это venv, ищем библиотеки ТОЛЬКО в папке lib
-            logger.info(f"Обнаружен venv: {path}")
-            libraries = extractor._find_libraries_in_venv(directory_path)
+    if extractor._is_venv_directory(directory_path):
+        logger.info(f"Обнаружен venv: {path}")
+        libraries = extractor._find_libraries_in_venv(directory_path)
 
             if not libraries:
                 logger.error("Не найдены библиотеки в папке lib venv")
                 return []
 
-            for library_path in libraries:
-                logger.info(f"Обработка библиотеки: {library_path.name}")
-                extractor.extract_from_directory(library_path, library_path.name)
-        else:
-            # Если это обычная директория, обрабатываем как одну библиотеку
-            logger.info(f"Обнаружена директория с библиотекой: {path}")
-            library_name = directory_path.name
-            extractor.extract_from_directory(directory_path, library_name)
-
+        for library_path in libraries:
+            logger.info(f"Обработка библиотеки: {library_path.name}")
+            extractor.extract_from_directory(library_path, library_path.name)
     else:
-        logger.info("Директория не указана, docstrings извлекаются из чанков")
-        for chunk in chunks:
-            extractor.extract_from_chunk(chunk)
+        # Если это обычная директория, обрабатываем как одну библиотеку
+        logger.info(f"Обнаружена директория с библиотекой: {path}")
+        library_name = directory_path.name
+        extractor.extract_from_directory(directory_path, library_name)
 
-    # Фильтруем пустые строки (на всякий случай еще раз)
     result = [ds for ds in extractor.docstrings if ds.string and ds.string.strip()]
-
     logger.info(f"Всего извлечено: {len(result)} docstrings")
     return result
 
+
 # Пример использования
 if __name__ == "__main__":
-    # Пример 1: Извлечение из venv
-    # docstrings = extract_docstrings("/workspace/venv/lib/python3.11/site-packages/numpy")
-    # docstrings = extract_docstrings("/workspace/venv/lib/python3.11/site-packages/matplotlib")
-    docstrings = extract_docstrings("/workspace/venv/lib/python3.11/site-packages/tensorflow")
+    docstrings = extract_docstrings("./venv/lib/python3.12/site-packages/pandas")
 
-    print(docstrings[10])
+    # for i, ds in enumerate(docstrings[:5]):
+    #     logger.info(f"\n--- Docstring {i+1} ---")
+    #     logger.info(f"Library: {ds.information.library}")
+    #     logger.info(f"Type: {ds.information.type}")
+    #     logger.info(f"Name: {ds.information.name}")
+    #     if ds.information.parent_class:
+    #         logger.info(f"Parent class: {ds.information.parent_class}")
+    #     logger.info(f"Signature: {ds.information.signature}")
+    #     if ds.information.return_info is not None:
+    #         logger.info(f"Return info: {ds.information.return_info}")
+    #     logger.info(f"File: {ds.information.filepath}")
+    #     logger.info(f"Docstring preview: {ds.string[:100]}...")
+
+    for i, ds in enumerate(docstrings):
+        logger.info(f"\n--- Docstring {i+1} ---")
+        # logger.info(f"Type: {ds.information.type}")
+        logger.info(f"Signature: {ds.information.signature}")
+        if ds.information.return_info is not None:
+            logger.info(f"Return info: {ds.information.return_info}")
