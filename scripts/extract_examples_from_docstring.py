@@ -302,22 +302,24 @@ def main(
 
             new_text, _ = parser.replace(original_text, extracted_blocks)
             doc.string = new_text
-
-            parser.logger.info(f"ПРИМЕР {examples_found_count}\n")
-            parser.logger.info("_" * 10 + "\n")
-
-            parser.logger.info(f"ИСХОДНАЯ DOCSTRING:\n {original_text}\n\n")
-            parser.logger.info("_" * 10 + "\n")
-
-            parser.logger.info(f"ОБНОВЛЕННАЯ DOCSTRING:\n {doc.string}\n\n")
-            parser.logger.info("_" * 10 + "\n")
+            
             cleaned_examples = parser.clean_docstring_examples(extracted_blocks)
             doc.examples = cleaned_examples
 
-            parser.logger.info("ИЗВЛЕЧЕННЫЕ ПРИМЕРЫ КОДА:\n\n")
-            for idx, example in enumerate(doc.examples):
-                parser.logger.info(f"ПРИМЕР КОДА {idx}:\n{example}\n\n")
-            parser.logger.info("_" * 10 + "\n")
+            if examples_found_count < 10:
+                parser.logger.info(f"ПРИМЕР {examples_found_count}\n")
+                parser.logger.info("_" * 10 + "\n")
+
+                parser.logger.info(f"ИСХОДНАЯ DOCSTRING:\n {original_text}\n\n")
+                parser.logger.info("_" * 10 + "\n")
+
+                parser.logger.info(f"ОБНОВЛЕННАЯ DOCSTRING:\n {doc.string}\n\n")
+                parser.logger.info("_" * 10 + "\n")
+     
+                parser.logger.info("ИЗВЛЕЧЕННЫЕ ПРИМЕРЫ КОДА:\n\n")
+                for idx, example in enumerate(doc.examples):
+                    parser.logger.info(f"ПРИМЕР КОДА {idx}:\n{example}\n\n")
+                parser.logger.info("_" * 10 + "\n")
 
         else:
             doc.examples = []
