@@ -316,7 +316,7 @@ def main(
 
             parser.logger.info("ИЗВЛЕЧЕННЫЕ ПРИМЕРЫ КОДА:\n\n")
             for idx, example in enumerate(doc.examples):
-                parser.logger.info(f"ПРИМЕР КОДА {idx+1}:\n{example}\n\n")
+                parser.logger.info(f"ПРИМЕР КОДА {idx}:\n{example}\n\n")
             parser.logger.info("_" * 10 + "\n")
 
         else:
@@ -337,6 +337,7 @@ if __name__ == "__main__":
         "scipy",
         "matplotlib",
         "sklearn",
+        "torch",
         "tensorflow",
     ]
 
@@ -352,7 +353,7 @@ if __name__ == "__main__":
             enable_free=True,
         )
 
-        if lib != "tensorflow":
+        if lib == "tensorflow":
             parser._SECTION_PATTERN = re.compile(
                 r"^\s*(?:Example|Examples|Some examples)\s*:{0,2}\s*\n"
                 r"(?:\s*[-=]{4,}\s*\n)?"

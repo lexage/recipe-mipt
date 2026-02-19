@@ -1,15 +1,9 @@
-import sys
 import libcst as cst
 from dataclasses import dataclass
 from typing import List, Optional
 import logging
 from pathlib import Path
 import os
-
-project_root = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(project_root))
-
-from src.agent_constructor.core import Chunk
 
 
 # Настройка логирования
@@ -441,7 +435,7 @@ class LibCSTDocstringExtractor:
         try:
             with open(filepath, 'r', encoding='utf-8') as f:
                 code = f.read()
-                
+
             # Парсим модуль
             module = cst.parse_module(code)
 
@@ -464,68 +458,6 @@ class LibCSTDocstringExtractor:
             logger.error(f"Синтаксическая ошибка в {filepath}: {e}")
         except Exception:
             logger.error(f"Ошибка при обработке {filepath}")
-
-    # def extract_from_chunk(self, chunk: Chunk) -> None:
-    #     """Извлекает docstrings из одного чанка."""
-    #     try:
-    #         # Парсим модуль
-    #         module = cst.parse_module(chunk.text)
-
-    #         # Сохраняем текущий контекст
-    #         self.current_library = chunk.metadata["library_name"]
-    #         self.current_filepath = None
-
-    #         # Извлекаем docstring модуля
-    #         module_doc = self._create_docstring(module, DocType.MODULE, "")
-    #         if module_doc:
-    #             self.docstrings.append(module_doc)
-
-    #         # Рекурсивно обрабатываем все узлы
-    #         for node in module.body:
-    #             self._process_node(node)
-
-    #     except Exception as e:
-    #         logger.error(f"Ошибка при обработке чанка: {chunk}. {type(e).__name__}: {e}")
-
-    def extract_from_chunk(self, chunk: Chunk) -> None:
-        """Извлекает docstrings из одного чанка БЕЗ парсинга кода."""
-        content = chunk.text.strip()
-        if not content:
-            return
-
-        # Эвристическое определение типа объекта и имени из первой строки
-        first_line = content.split('\n')[0].strip()
-        
-        # Определяем тип объекта
-        doc_type = DocType.MODULE
-        if '(' in first_line and ')' in first_line:
-            # Похоже на функцию/метод (есть скобки сигнатуры)
-            doc_type = DocType.METHOD if self.current_class else DocType.FUNCTION
-        
-        # Извлекаем имя объекта (последний элемент до скобок/пробела)
-        name = ""
-        if first_line:
-            # Убираем комментарии после '#'
-            clean_line = first_line.split('#')[0].strip()
-            # Берём последний элемент пути (после точки)
-            parts = [p for p in clean_line.split('.') if p]
-            if parts:
-                candidate = parts[-1].split('(')[0].split()[0].strip()
-                if candidate and not candidate.startswith((' ', '#', '[', ']')):
-                    name = candidate
-
-        # Создаём объект информации
-        info = ObjectInfo(
-            library=chunk.metadata.get("library_name", "unknown"),
-            type=doc_type,
-            name=name,
-            filepath=None,
-            signature=None,  # Сигнатура недоступна в чистом тексте
-            parent_class=self.current_class,
-        )
-
-        docstring = String(information=info, string=content)
-        self.docstrings.append(docstring)
 
     def extract_from_directory(self, directory_path: Path, library_name: str) -> List[String]:
         """Извлекает docstrings из директории."""
@@ -600,38 +532,35 @@ class LibCSTDocstringExtractor:
         return libraries
 
 
-def extract_docstrings(path: str = None, chunks: List[Chunk] = None) -> List[String]:
+def extract_docstrings(path: str) -> List[String]:
     """
     Извлекает docstrings из указанного пути.
 
     Args:
-        path: Путь к venv или к директории с библиотекой, если путь None, то docstrings извлекаются из чанков
+        path: Путь к venv или к директории с библиотекой
 
     Returns:
         List[String]: Список извлеченных docstrings
     """
     extractor = LibCSTDocstringExtractor()
+    directory_path = Path(path)
 
-    if path:
-        directory_path = Path(path)
-
-        if not directory_path.exists():
-            logger.error(f"Директория не найдена: {path}")
-            return []
+    if not directory_path.exists():
+        logger.error(f"Директория не найдена: {path}")
+        return []
 
     if extractor._is_venv_directory(directory_path):
         logger.info(f"Обнаружен venv: {path}")
         libraries = extractor._find_libraries_in_venv(directory_path)
 
-            if not libraries:
-                logger.error("Не найдены библиотеки в папке lib venv")
-                return []
+        if not libraries:
+            logger.error("Не найдены библиотеки в папке lib venv")
+            return []
 
         for library_path in libraries:
             logger.info(f"Обработка библиотеки: {library_path.name}")
             extractor.extract_from_directory(library_path, library_path.name)
     else:
-        # Если это обычная директория, обрабатываем как одну библиотеку
         logger.info(f"Обнаружена директория с библиотекой: {path}")
         library_name = directory_path.name
         extractor.extract_from_directory(directory_path, library_name)
