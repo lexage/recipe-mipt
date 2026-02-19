@@ -13,7 +13,7 @@ logging.getLogger("httpx").setLevel(logging.ERROR)
 logging.getLogger("httpcore").setLevel(logging.ERROR)
 
 pipeline_config = PipelineConfig(
-    type=PipelinesNames.REACT, 
+    type=PipelinesNames.REACT,
     components={
         "embedder": ComponentConfig(
             type=ComponentNames.EMBEDDING_AGENT,
