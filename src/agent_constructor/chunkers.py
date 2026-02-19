@@ -80,12 +80,19 @@ class RecursiveChunker(Chunker):
         self.separators = separators
 
     def chunk(self, doc: Document) -> List[Chunk]:
+        
+        metadata = {
+            **doc.metadata,
+            "source" : doc.source,
+        }
+
         if doc.source == DOCUMENT_SRC_EXAMPLES:
+
             return [Chunk(
                 id=str(doc.id) + "_0",
                 doc_id=doc.id,
                 text=doc.text,
-                metadata=doc.metadata
+                metadata=metadata
             )]
 
         text_splits = self._split(doc.text)
@@ -99,7 +106,7 @@ class RecursiveChunker(Chunker):
                     id=str(doc.id) + "_" + str(i),
                     doc_id=doc.id,
                     text=text,
-                    metadata=doc.metadata
+                    metadata=metadata
                 )
             )
 
