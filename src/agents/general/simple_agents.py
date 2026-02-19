@@ -12,7 +12,12 @@ class DummyAgent(Agent):
 
 
 class SimpleAgent(Agent):
-    def __init__(self, url: str = None, model_name: str = None):
+    def __init__(
+            self, url: str = None, 
+            model_name: str = None,
+            temperature=0.2, top_p=0.95, max_tokens=1024,
+            stop_tokens=["</code>", "# SOLUTION END"]):
+        
         super().__init__("simple_agent")
         self.dummy_mode = not (url and model_name)
         
@@ -23,6 +28,10 @@ class SimpleAgent(Agent):
             )
 
         self.model_name = model_name
+        self.temperature=temperature
+        self.top_p=top_p
+        self.max_tokens=max_tokens
+        self.stop_tokens=stop_tokens
 
     def run(self, task: Text, context: Text) -> Text:
 
@@ -34,10 +43,10 @@ class SimpleAgent(Agent):
         response = self.client.completions.create(
             model=self.model_name,
             prompt=prompt,
-            temperature=0.2,
-            top_p=0.95,
-            max_tokens=1024,
-            stop=["</code>", "# SOLUTION END"],
+            temperature=self.temperature,
+            top_p=self.top_p,
+            max_tokens=self.max_tokens,
+            stop=self.stop_tokens,
         )
 
         return response.choices[0].text
