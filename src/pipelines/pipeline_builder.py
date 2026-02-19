@@ -45,9 +45,15 @@ class PipelineBuilder:
                 raise ValueError(f"Missing '{name}' component for '{config.type.value}'")
 
     def build(self, pipeline_config: PipelineConfig) -> Pipeline:
-
-        modules = [component.type for component in pipeline_config.components.values()]
+        
+        modules = []
+        for item in pipeline_config.components.values():
+            if isinstance(item, list):
+                modules.extend(cfg.type for cfg in item)
+            else:
+                modules.append(item.type)
         modules.append(pipeline_config.type)
+        
 
         self.registry.load_modules(modules)
         self._check_config(config=pipeline_config)
@@ -57,18 +63,26 @@ class PipelineBuilder:
 
         for component_name in build_order:
             
-            component_config = pipeline_config.components.get(component_name)
+            raw_config = pipeline_config.components.get(component_name)
             
-            component_info = self.registry.get_component_info(component_config.type)
-
-            component = self.factory.create_component(
-                component_info=component_info, 
-                available_dependencies=components,
-                deps_mapping=component_config.deps_mapping,
-                config_params=component_config.params,
-            )
-
-            components[component_name] = component
+            component_config = raw_config if isinstance(raw_config, list) else [raw_config]
+                
+            components_list = []
+                
+            for item_config in component_config:
+                
+                component_info = self.registry.get_component_info(item_config.type)
+                
+                component = self.factory.create_component(
+                    component_info=component_info, 
+                    available_dependencies=components,
+                    deps_mapping=item_config.deps_mapping,
+                    config_params=item_config.params,
+                )
+                
+                components_list.append(component)
+                
+            components[component_name] = components_list if isinstance(raw_config, list) else components_list[0]
 
         pipeline = self.factory.create_component(
             component_info=self.registry.get_component_info(pipeline_config.type),
