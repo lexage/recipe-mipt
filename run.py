@@ -48,6 +48,10 @@ pipeline_config = PipelineConfig(
             type=ComponentNames.ICCL_ICL,
             params={"url": "http://localhost:7215/v1", "model_name": "Qwen/Qwen1.5-32B-Chat-AWQ"},
         ),
+        "generator": ComponentConfig(
+            type=ComponentNames.CODE_EVAL_GENERATOR,
+            params={"url": "http://localhost:7215/v1", "model_name": "Qwen/Qwen1.5-32B-Chat-AWQ"}
+        ),
         "agent": ComponentConfig(
             type=ComponentNames.SIMPLE_AGENT,
             params={"name": "simple_agent", "url": "http://localhost:7215/v1", "model_name": "Qwen/Qwen1.5-32B-Chat-AWQ"}
