@@ -98,3 +98,7 @@ class ComponentNames(Enum):
     RANDOM_TOPIC_GENERATOR = "src.generation.random_topic.RandomTopicGenerator"
     ZERO_SHOT_GENERATOR = "src.generation.zero_shot.ZeroShotGenerator"
     ONE_SHOT_GENERATOR = "src.generation.one_shot.OneShotGenerator"
+
+    # ===== TOOLS =====
+    DB_SEARCH_TOOL = "src.tools.DBSearchTool"
+    ACTION_EXECUTOR_TOOL = "src.tools.ActionExecutorTool"
