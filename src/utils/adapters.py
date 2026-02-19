@@ -78,7 +78,18 @@ class SQLiteDocsDBAdapter:
 
 class ChromaDocsAdapter:
     
-    def __init__(self, embedder, collection_name: str, path_to_db: str, batch_size: int = 10):
+    def __init__(
+            self, embedder, 
+            collection_name: str, 
+            path_to_db: str, 
+            batch_size: int = 32,
+            hnsw_space: str = "cosine",
+            hnsw_m: int = 16,
+            hnsw_construction_ef: int = 400,
+            hnsw_search_ef: int = 200,
+            search_filter: dict = {}):
+        
+        self.filter = search_filter if search_filter != {} else None
         self.collection_name = collection_name
         self.path_to_db = path_to_db
         self.batch_size = batch_size
@@ -87,7 +98,13 @@ class ChromaDocsAdapter:
         
         self.collection = client.get_or_create_collection(
             self.collection_name, 
-            embedding_function=EmbeddingFunctionWrapper(embedder)
+            embedding_function=EmbeddingFunctionWrapper(embedder),
+            metadata={
+                "hnsw:space": hnsw_space,
+                "hnsw:M": hnsw_m,
+                "hnsw:construction_ef": hnsw_construction_ef,
+                "hnsw:search_ef": hnsw_search_ef,
+            }
         )
 
     def _get_existing_ids(self) -> set:
@@ -107,15 +124,27 @@ class ChromaDocsAdapter:
         for i in tqdm(range(0, len(new_chunks), self.batch_size), desc="Vectorizing"):
             batch = new_chunks[i:i + self.batch_size]
             
-            batch_docs = [chunk.text for chunk in batch]
-            batch_ids = [chunk.id for chunk in batch]
-            batch_metadatas = [chunk.metadata for chunk in batch]
-            
-            self.collection.add(
-                documents=batch_docs,
-                ids=batch_ids,
-                metadatas=batch_metadatas
-            )
+            batch_docs = []
+            batch_ids = []
+            batch_metadatas = []
+
+            for chunk in batch:
+                batch_docs.append(chunk.text)
+                batch_ids.append(chunk.id)
+
+                batch_metadatas.append({
+                    **chunk.metadata,
+                    "doc_id" : chunk.doc_id,
+                })
+
+            try:
+                self.collection.add(
+                    documents=batch_docs,
+                    ids=batch_ids,
+                    metadatas=batch_metadatas
+                )
+            except Exception as e:
+                print(f" - error adding batch : {batch_ids}, {batch_metadatas}\n - error msg : {e}")
 
     def get_chunks(self, ids: Optional[List[str]] = None) -> List[Chunk]:
         if ids:
@@ -145,7 +174,11 @@ class ChromaDocsAdapter:
 
     def search(self, queries: List[Text], top_k: int) -> List[List[Chunk]]:
 
-        results = self.collection.query(query_texts=queries, n_results=top_k)
+        results = self.collection.query(
+            query_texts=queries, 
+            n_results=top_k,
+            where=self.filter,
+            )
     
         all_query_results = []
         
