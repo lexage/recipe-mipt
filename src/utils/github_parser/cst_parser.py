@@ -22,9 +22,7 @@ from src.utils.github_parser.helping_functions import (
 logger = logging.getLogger(__file__)
 
 
-EXAMPLE_PATTERN = r"(\n\s*Examples?(?:.*)?::?(?:\n|$))"  # захватывающая
-# группа нужна для ее сохранения после re.split и корректного отделения общей
-# части докстринги
+EXAMPLE_PATTERN = r"(\n\s*(?:(?:Legacy|Legcy)\s+)?Examples?.*?::?(?:\n|$))"
 EXAMPLE_PATTERN_FOR_CLEANING_IN_TASK_DESC = r"Examples?|::?"
 REFERENCE_PATTERN = r"\n\s*References:"
 TRASH_SPHINX_DIRECTIVE_PATTERN = r"\n\s*\.\. plot::.*(?:\n\s+.*|\n\s*$)*"
@@ -127,10 +125,12 @@ class DocstringProcessor(cst.CSTVisitor):
         # сначала отделяем ссылки, потому что они, как правило,
         # в конце докстринги
         references = ""
-        docstring_body, sep, ref_part = docstring.rpartition(REFERENCE_PATTERN)
-        # если часть со ссылками не найдена, sep будет пустым
-        if sep:
-            references = ref_part.strip()
+        split_result = re.split(
+            REFERENCE_PATTERN, docstring, maxsplit=1, flags=re.IGNORECASE
+        )
+        docstring_body = split_result[0]
+        if len(split_result) > 1:
+            references = split_result[1].strip()
         else:
             # если не нашли, оставляем весь докстринг для дальнейшей обработки
             docstring_body = docstring
@@ -163,7 +163,10 @@ class DocstringProcessor(cst.CSTVisitor):
             results: List[Tuple[str, str, str]] = []
             for common_desc, specific_desc, code_block in valid_examples_found:
                 cleaned_header = re.sub(
-                    r"Examples?|::?", "", specific_desc, flags=re.IGNORECASE
+                    r"(?:(?:Legacy|Legcy)\s+)?Examples?|::?",
+                    "",
+                    specific_desc,
+                    flags=re.IGNORECASE,
                 ).strip()
                 full_task_description = (
                     common_desc + "\n" + cleaned_header
@@ -186,10 +189,10 @@ class DocstringProcessor(cst.CSTVisitor):
             description, sep, code_part = docstring_body.partition(">>>")
 
             clean_desc_text = re.sub(
-                r"Examples?.*::?\s*$",
+                r"\n\s*(?:(?:Legacy|Legcy)\s+)?Examples?.*::?\s*$",
                 "",
                 description.strip(),
-                flags=re.IGNORECASE | re.DOTALL,
+                flags=re.IGNORECASE,
             )
             cleaned_description = self._clean_description(clean_desc_text)
             solution_code = (
