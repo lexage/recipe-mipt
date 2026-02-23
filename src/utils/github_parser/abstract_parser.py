@@ -168,7 +168,7 @@ class BaseRepoParser(ABC):
         last_match_end = 0
 
         for i, match in enumerate(unique_matches, 1):
-            code_block = match.group(1).strip()
+            code_block = match.group(1)
 
             cleaned_code = (
                 clean_code_lines_from_repl_symbols_and_doctest_comments(

@@ -22,7 +22,13 @@ from src.utils.github_parser.helping_functions import (
 logger = logging.getLogger(__file__)
 
 
-EXAMPLE_PATTERN = r"(\n\s*(?:(?:Legacy|Legcy)\s+)?Examples?.*?::?(?:\n|$))"
+EXAMPLE_PATTERN = (
+    r"("
+    r"\n\s*(?:(?:Legacy|Legcy)\s+)?Examples?.*?(?:[:\n]|::)"
+    r"|"
+    r"\n\s*\.\.\s+(?:plot|code-block|testcode|sourcecode).*?::"
+    r")"
+)
 EXAMPLE_PATTERN_FOR_CLEANING_IN_TASK_DESC = r"Examples?|::?"
 REFERENCE_PATTERN = r"\n\s*References:"
 TRASH_SPHINX_DIRECTIVE_PATTERN = r"\n\s*\.\. plot::.*(?:\n\s+.*|\n\s*$)*"
@@ -163,7 +169,7 @@ class DocstringProcessor(cst.CSTVisitor):
             results: List[Tuple[str, str, str]] = []
             for common_desc, specific_desc, code_block in valid_examples_found:
                 cleaned_header = re.sub(
-                    r"(?:(?:Legacy|Legcy)\s+)?Examples?|::?",
+                    r"(?:(?:Legacy|Legcy)\s+)?Examples?|::?|\.\.\s+(?:plot)(?:.*?)?",
                     "",
                     specific_desc,
                     flags=re.IGNORECASE,

@@ -113,4 +113,4 @@ def clean_code_lines_from_repl_symbols_and_doctest_comments(
     if not is_repl_block:
         result = textwrap.dedent(result)
 
-    return "\n".join(cleaned_code_lines)
+    return result
