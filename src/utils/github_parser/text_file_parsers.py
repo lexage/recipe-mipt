@@ -10,12 +10,14 @@ ReStructuredText (.rst). Модуль предоставляет инструм�
 
 import logging
 import re
-from typing import List, Optional, Tuple
+from pathlib import Path
+from typing import List, Literal, Optional, Tuple
 
 from src.utils.github_parser.abstract_parser import BaseRepoParser
 from src.utils.github_parser.config import ExtractedExample
 from src.utils.github_parser.helping_functions import (
     decode_file_content,
+    clean_code_lines_from_repl_symbols_and_doctest_comments,
 )
 
 
@@ -32,16 +34,12 @@ MARKDOWN_TRASH_PATTERN_HTML_COMMENTS = r"<!--.*?-->"  # в корневом READ
 # удаляет
 
 # паттерны извлечения нужных сущностей из файлов формата Markdown
-MARKDOWN_ROOT_README_HEADER_PATTERN = (
-    r"^(?:(#+)\s+(.*)|<summary>(.*)</summary>)"
-)
+MARKDOWN_ROOT_README_HEADER_PATTERN = r"^(?:(#+)\s+(.*)|<summary>(.*)</summary>)"
 MARKDOWN_ROOT_README_CODE_FENCE_PATTERN = r"^\s*```"  # находит начало блока
 # кода, которое может быть с отступом
 MARKDOWN_CODE_BLOCK_PATTERN = r"\s*```(?:\w+)?\s+(.*?)\s*```"  # находит
 # содержимое блока кода
-MARKDOWN_DOCTEST_PATTERN = (
-    r"(?:>>>|\.\.\.)\s+(.*?)(?=\n(?:>>>|\.\.\.)|\n\s*\n|\Z)"
-)
+MARKDOWN_DOCTEST_PATTERN = r"(?:>>>|\.\.\.)\s+(.*?)(?=\n(?:>>>|\.\.\.)|\n\s*\n|\Z)"
 MARKDOWN_EXAMPLE_SECTION_PATTERN = (
     r"\n\s*(?:Example|Usage|Quick\s*Start)"
     r"[s]?:?\s*\n\s*(?:```python\s*\n)?(.*?)(?:```\s*\n)?(?=\n\s*\n|\Z)"
@@ -54,9 +52,7 @@ RST_CODE_BLOCK_PATTERN = (
     r"((?:^[\t ]+[^\n]*\n|^[\t ]*\n)+)"
 )
 RST_DOCTEST_PATTERN = (
-    r"(?m)"
-    r"(?:^[\t ]*>>>\s+[^\n]*\n"
-    r"(?:^[\t ]*(?:>>>|\.\.\.)\s+[^\n]*\n)*)"
+    r"(?m)" r"(?:^[\t ]*>>>\s+[^\n]*\n" r"(?:^[\t ]*(?:>>>|\.\.\.)\s+[^\n]*\n)*)"
 )
 RST_EXAMPLE_SECTION_PATTERN = (
     r"(?m)" r"^[\t ]*Examples?::\s*\n" r"((?:^[\t ]+[^\n]*\n|^[\t ]*\n)+)"
@@ -125,9 +121,7 @@ class MarkdownParser(BaseRepoParser):
             MARKDOWN_DOCTEST_PATTERN,
             MARKDOWN_EXAMPLE_SECTION_PATTERN,
         ]
-        found_matches = self.process_regex_matches(
-            patterns_list, str_file_content
-        )
+        found_matches = self.process_regex_matches(patterns_list, str_file_content)
         examples = self.clean_and_extract_task_description(
             found_matches,
             str_file_content,
@@ -190,22 +184,15 @@ class MarkdownParser(BaseRepoParser):
             logger.info("Обрабатываем целевую секцию: %s", title)
             last_match_end = 0
             code_matches = list(
-                re.finditer(
-                    MARKDOWN_CODE_BLOCK_PATTERN, block_content, re.DOTALL
-                )
+                re.finditer(MARKDOWN_CODE_BLOCK_PATTERN, block_content, re.DOTALL)
             )
 
             for i, match in enumerate(code_matches, 1):
                 raw_code = match.group(1).strip()
-                if (
-                    len(raw_code) < self.min_code_length_for_analyzing
-                    or not raw_code
-                ):
+                if len(raw_code) < self.min_code_length_for_analyzing or not raw_code:
                     continue
 
-                preceding_text = block_content[
-                    last_match_end: match.start()
-                ].strip()
+                preceding_text = block_content[last_match_end : match.start()].strip()
                 source_object_name = (
                     f"README_{title.replace(' ', '_').replace(':', '')}_{i}"
                 )
@@ -223,10 +210,7 @@ class MarkdownParser(BaseRepoParser):
                 )
 
                 if clean_context:
-                    if (
-                        title.lower()
-                        in clean_context.lower()[: len(title) + 5]
-                    ):
+                    if title.lower() in clean_context.lower()[: len(title) + 5]:
                         task_desc = clean_context
                     else:
                         task_desc = f"{title}\n{clean_context}"
@@ -258,9 +242,7 @@ class MarkdownParser(BaseRepoParser):
 
         current_buffer: List[str] = []
         header_pattern = re.compile(MARKDOWN_ROOT_README_HEADER_PATTERN)
-        code_fence_pattern = re.compile(
-            MARKDOWN_ROOT_README_CODE_FENCE_PATTERN
-        )
+        code_fence_pattern = re.compile(MARKDOWN_ROOT_README_CODE_FENCE_PATTERN)
 
         in_code_block = False
 
@@ -364,7 +346,145 @@ class RSTParser(BaseRepoParser):
         ):
             return True
 
+        # фильтруем строки, состоящие только из разделителей заголовков.
+        # Нужно, чтобы убрать мусор вида ***, ===, ---- и т.д.
+        if re.match(r"^[-=~*#^]{3,}$", line.strip()):
+            return True
+
         return False
+
+    def _find_start_of_last_rst_section(self, text: str) -> int:
+        """
+        Ищет начало последнего заголовка в тексте.
+        Это помогает отделить описание текущей задачи от пояснений
+        предыдущего примера.
+
+        Args:
+            text (str): Текст для поиска последнего заголовка.
+
+        Returns:
+            int: Начало последнего заголовка в тексте.
+        """
+        pattern = r"(?m)(?:^[-=~*#^]{3,}\s*\n)?^[^\n]+\n[-=~*#^]{3,}\s*$"
+
+        matches = list(re.finditer(pattern, text))
+
+        if matches:
+            return matches[-1].start()
+
+        return 0
+
+    def _clean_text_lines(self, text_chunk: str) -> str:
+        """Вспомогательная функция для очистки текста от служебных строк."""
+        raw_lines = text_chunk.split("\n")
+        cleaned_lines: List[str] = []
+        for line in raw_lines:
+            if self._should_skip_line(line):
+                continue
+            cleaned_lines.append(line)
+        return "\n".join(cleaned_lines).strip()
+
+    def _extract_task_description(
+        self,
+        content: str,
+        start_pos: int,
+        end_pos: int,
+        file_path: str,
+    ) -> str:
+        """
+        Переопределенный метод извлечения описания абстрактного парсера.
+        Сначала находит "грязный" чанк текста между блоками кода,
+        затем ищет в нем последний заголовок RST и обрезает все, что до него,
+        затем передает результат на стандартную очистку строк.
+        """
+        raw_chunk = content[start_pos:end_pos]
+
+        # находим точку, где начинается последний заголовок
+        cut_index = self._find_start_of_last_rst_section(raw_chunk)
+
+        # если заголовок найден, описание начинается с него.
+        # все, что выше - это пояснения к предыдущему примеру
+        relevant_chunk = raw_chunk[cut_index:]
+
+        raw_lines = relevant_chunk.split("\n")
+        cleaned_lines: List[str] = []
+
+        for line in raw_lines:
+            if self._should_skip_line(line):
+                continue
+            cleaned_lines.append(line)
+
+        task_description = "\n".join(cleaned_lines).strip()
+
+        if not task_description:
+            return f"Пример из {file_path}"
+
+        return task_description
+
+    # TODO: поправить докстрингу! Args и т.д.
+    def clean_and_extract_task_description(
+        self,
+        unique_matches: List[re.Match[str]],
+        content: str,
+        file_path: str,
+        obj_type: Literal["rst_example"],
+    ) -> List[ExtractedExample]:
+        """
+        Переопределенный метод для RST: реализует логику "умного" разделения
+        по заголовкам и сохранения контекста предыдущего примера.
+        """
+        examples: List[ExtractedExample] = []
+        last_match_end = 0
+
+        for i, match in enumerate(unique_matches, 1):
+            code_block = match.group(1)
+
+            cleaned_code = clean_code_lines_from_repl_symbols_and_doctest_comments(
+                code_block
+            ).strip()
+
+            if len(cleaned_code) < self.min_code_length_for_analyzing:
+                last_match_end = match.end()
+                continue
+
+            raw_gap_text = content[last_match_end: match.start()]
+
+            split_idx = self._find_start_of_last_rst_section(raw_gap_text)
+
+            pre_header_text = raw_gap_text[:split_idx]
+            post_header_text = raw_gap_text[split_idx:]
+
+            cleaned_pre_text = self._clean_text_lines(pre_header_text)
+            cleaned_post_text = self._clean_text_lines(post_header_text)
+
+            task_description = cleaned_post_text
+            if i > 1 and examples and cleaned_pre_text:
+                examples[-1].solution_code += f'\n\n"""\n{cleaned_pre_text}\n"""'
+
+            elif i == 1:
+                # Объединяем введение и описание секции
+                full_desc = (cleaned_pre_text + "\n\n" + cleaned_post_text).strip()
+                task_description = full_desc if full_desc else f"Пример из {file_path}"
+
+            if not task_description:
+                task_description = f"Пример из {file_path}"
+
+            example_name = f"{Path(file_path).name}_ex_{i}"
+
+            examples.append(
+                ExtractedExample(
+                    source_object_type=obj_type,
+                    source_object_name=example_name,
+                    source_object_path=file_path,
+                    task_description=task_description,
+                    solution_code=cleaned_code,
+                    metadata_source_code=content,
+                    references="",
+                )
+            )
+
+            last_match_end = match.end()
+        return examples
 
     def parse(
         self, file_content: bytes | str, file_path: str
@@ -388,9 +508,7 @@ class RSTParser(BaseRepoParser):
             RST_EXAMPLE_SECTION_PATTERN,
         ]
 
-        found_matches = self.process_regex_matches(
-            patterns_list, str_file_content
-        )
+        found_matches = self.process_regex_matches(patterns_list, str_file_content)
         examples = self.clean_and_extract_task_description(
             found_matches,
             str_file_content,

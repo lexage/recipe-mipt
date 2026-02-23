@@ -4,9 +4,8 @@ GitHub-репозитория через Pydantic-модели.
 """
 
 from pathlib import Path
-from typing import Iterator, List, Literal, Optional, Tuple
+from typing import Any, Iterator, List, Literal, Optional, Tuple
 
-from github.Repository import Repository
 from pydantic import BaseModel, Field
 import yaml
 
@@ -36,9 +35,10 @@ class RepoWalkResult(BaseModel):
         description="Текстовое содержимое файла README"
     )
     readme_path: str = Field(description="Путь к файлу README")
-    target_repo: Repository = Field(
-        description="Анализируемый объект репозитория GitHub"
-    )
+    target_repo: Any = Field(
+        description="Анализируемый объект репозитория GitHub"  # точный тип
+    )  # Repository.Repository выдавал ошибку цикличного импорта на стороне
+    # PyGitHub
     files_iterator: Iterator[RepoFile] = Field(
         description="Итератор, возвращающий объекты типа RepoFile для "
         "обработки большого количества файлов в репозитории"
