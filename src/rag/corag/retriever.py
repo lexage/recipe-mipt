@@ -34,7 +34,6 @@ class CoRAGRetriever(Retriever):
             
             ):
         
-        
         super().__init__(name)
 
         vllm_client = VllmClient(
@@ -48,7 +47,6 @@ class CoRAGRetriever(Retriever):
 
         self.corag_agent = CoRagAgent(
             vllm_client=vllm_client, 
-            corpus=None,
             data_base=data_base
             )
         
