@@ -27,6 +27,10 @@ class BaseRepoParser(ABC):
     Абстрактный базовый класс для парсеров файлов репозитория.
     Предоставляет общую логику извлечения структурированных примеров
     из исходных файлов.
+
+    Attributes:
+        min_code_length_for_analyzing (int): Минимальная длина строки кода в
+            символах для анализа.
     """
 
     def __init__(self, min_code_length_for_analyzing: int) -> None:
@@ -69,9 +73,6 @@ class BaseRepoParser(ABC):
             end_pos (int): Конечная позиция извлекаемого фрагмента.
             file_path (str): Путь к исходному файлу (используется
                 для формирования fallback-описания).
-            rst_skip_code_lines_patterns (Tuple[str, ...]): Кортеж строковых
-                префиксов, по которым определяются строки RST, подлежащие
-                    удалению.
 
         Returns:
             str: Очищенное описание задачи.

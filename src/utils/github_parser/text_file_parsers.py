@@ -192,7 +192,7 @@ class MarkdownParser(BaseRepoParser):
                 if len(raw_code) < self.min_code_length_for_analyzing or not raw_code:
                     continue
 
-                preceding_text = block_content[last_match_end : match.start()].strip()
+                preceding_text = block_content[last_match_end: match.start()].strip()
                 source_object_name = (
                     f"README_{title.replace(' ', '_').replace(':', '')}_{i}"
                 )
@@ -347,7 +347,8 @@ class RSTParser(BaseRepoParser):
             return True
 
         # фильтруем строки, состоящие только из разделителей заголовков.
-        # Нужно, чтобы убрать мусор вида ***, ===, ---- и т.д.
+        # Нужно, чтобы убрать мусор вида ***, ===, ---- и т.д, его часто
+        # используют в torchmetrics для разделения смысловых блоков
         if re.match(r"^[-=~*#^]{3,}$", line.strip()):
             return True
 
@@ -363,7 +364,7 @@ class RSTParser(BaseRepoParser):
             text (str): Текст для поиска последнего заголовка.
 
         Returns:
-            int: Начало последнего заголовка в тексте.
+            int: Начало заголовка в тексте.
         """
         pattern = r"(?m)(?:^[-=~*#^]{3,}\s*\n)?^[^\n]+\n[-=~*#^]{3,}\s*$"
 
@@ -375,7 +376,14 @@ class RSTParser(BaseRepoParser):
         return 0
 
     def _clean_text_lines(self, text_chunk: str) -> str:
-        """Вспомогательная функция для очистки текста от служебных строк."""
+        """Вспомогательная функция для очистки текста от служебных строк.
+
+        Args:
+            text_chunk (str): Текст для поиска последнего заголовка.
+
+        Returns:
+            int: Начало заголовка в тексте.
+        """
         raw_lines = text_chunk.split("\n")
         cleaned_lines: List[str] = []
         for line in raw_lines:
@@ -396,6 +404,16 @@ class RSTParser(BaseRepoParser):
         Сначала находит "грязный" чанк текста между блоками кода,
         затем ищет в нем последний заголовок RST и обрезает все, что до него,
         затем передает результат на стандартную очистку строк.
+
+        Args:
+            content (str): Полное текстовое содержимое файла.
+            start_pos (int): Начальная позиция извлекаемого фрагмента.
+            end_pos (int): Конечная позиция извлекаемого фрагмента.
+            file_path (str): Путь к исходному файлу (используется
+                для формирования fallback-описания).
+
+        Returns:
+            str: Очищенное описание задачи.
         """
         raw_chunk = content[start_pos:end_pos]
 
@@ -421,7 +439,6 @@ class RSTParser(BaseRepoParser):
 
         return task_description
 
-    # TODO: поправить докстрингу! Args и т.д.
     def clean_and_extract_task_description(
         self,
         unique_matches: List[re.Match[str]],
@@ -432,6 +449,17 @@ class RSTParser(BaseRepoParser):
         """
         Переопределенный метод для RST: реализует логику "умного" разделения
         по заголовкам и сохранения контекста предыдущего примера.
+
+        Args:
+            unique_matches (List[re.Match[str]]): Список непересекающихся
+                совпадений.
+            content (str): Полное текстовое содержимое файла.
+            file_path (str): Путь к исходному файлу.
+            obj_type (Literal ["rst_example"]: Тип исходного объекта.
+
+        Returns:
+            List[ExtractedExample]: Список объектов `ExtractedExample`,
+                содержащих описание задачи и очищенный код решения.
         """
         examples: List[ExtractedExample] = []
         last_match_end = 0
@@ -462,7 +490,7 @@ class RSTParser(BaseRepoParser):
                 examples[-1].solution_code += f'\n\n"""\n{cleaned_pre_text}\n"""'
 
             elif i == 1:
-                # Объединяем введение и описание секции
+                # объединяем введение и описание секции
                 full_desc = (cleaned_pre_text + "\n\n" + cleaned_post_text).strip()
                 task_description = full_desc if full_desc else f"Пример из {file_path}"
 
