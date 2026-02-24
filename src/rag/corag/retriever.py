@@ -1,19 +1,12 @@
 from typing import List, Tuple
-from enum import Enum, auto
 
 from src.agent_constructor.context_engine import Retriever
 from src.agent_constructor.db import IDB
-from src.agent_constructor.core import Chunk, Document
+from src.agent_constructor.core import Chunk
 
 from .src.vllm_client import VllmClient, get_vllm_model_id
 from .src.agent import CoRagAgent
-from .src.agent.agent_utils import RagPath
-
-
-class CoRAGSearchTypes(Enum):
-    SAMPLE_SEARCH = auto()
-    TREE_SEARCH = auto()
-    BEST_OF_N_SEARCH = auto()
+from .constants import CoRAGSearchTypes
 
 
 class CoRAGRetriever(Retriever):
