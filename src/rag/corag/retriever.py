@@ -17,8 +17,8 @@ class CoRAGSearchTypes(Enum):
 
 class CoRAGRetriever(Retriever):
     def __init__(
-            self, name: str, data_base: IDB, 
-            url: str, model_name: str,
+            self, name: str, url: str,
+            data_base: IDB, 
             search_type: CoRAGSearchTypes,
 
             max_path_length: int = 3,
@@ -37,12 +37,8 @@ class CoRAGRetriever(Retriever):
         super().__init__(name)
 
         vllm_client = VllmClient(
-            model=get_vllm_model_id(
-                host="localhost",
-                port="7215",
-            ),
-            host="localhost",
-            port="7215",
+            model = get_vllm_model_id(url=url),
+            url = url
         )
 
         self.corag_agent = CoRagAgent(

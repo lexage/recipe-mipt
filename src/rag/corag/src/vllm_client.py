@@ -7,12 +7,11 @@ from openai.types import Completion
 from .utils import AtomicCounter
 
 
-def get_vllm_model_id(host: str = "localhost", port: int = 8000, api_key: str = "token-123") -> str:
-    openai_api_base = f"http://{host}:{port}/v1"
+def get_vllm_model_id(url: str, api_key: str = "token-123") -> str:
 
     client = OpenAI(
         api_key=api_key,
-        base_url=openai_api_base,
+        base_url=url,
     )
 
     models = client.models.list()
@@ -21,11 +20,11 @@ def get_vllm_model_id(host: str = "localhost", port: int = 8000, api_key: str = 
 
 class VllmClient:
 
-    def __init__(self, model: str, host: str = 'localhost', port: int = 8000, api_key: str = 'token-123'):
+    def __init__(self, model: str, url: str, api_key: str = 'token-123'):
         super().__init__()
         self.model = model
         self.client: OpenAI = OpenAI(
-            base_url=f"http://{host}:{port}/v1",
+            base_url=url,
             api_key=api_key,
         )
         self.token_consumed: AtomicCounter = AtomicCounter()
