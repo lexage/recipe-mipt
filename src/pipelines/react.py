@@ -53,6 +53,7 @@ class ReActAgent(Agent):
         self.tools_schema = [t.get_schema() for t in tools]
         
         logger.info(f"TOOLS_SCHEMA: {self.tools_schema}")
+        logger.info(f"\n{'_'*20}\n")
         
         self.memory = []
         
@@ -61,7 +62,7 @@ class ReActAgent(Agent):
         self.model_name = model_name
         
         logger.info(f"SYSTEM_PROMPT: {self.instruction}")
-        logger.info("\n_____________________________\n")
+        logger.info(f"\n{'_'*20}\n")
         
     def _format_tools_for_prompt(self) -> str:
         """Formatting information about tools in a readable format for industrial purposes."""
@@ -213,7 +214,7 @@ class ReActAgent(Agent):
         """Run the ReAct agent to solve the programming task."""
         
         logger.info(f"TASK: {task}")
-        logger.info("\n_____________________________\n")
+        logger.info(f"\n{'_'*20}\n")
         
         self.memory = [
             {"role": "system", "content": self.instruction},
@@ -221,8 +222,12 @@ class ReActAgent(Agent):
         ]
         
         for idx in range(self.max_iterations):
-            logger.info(f"STEP {idx+1}:\n")            
-            logger.info(f"INSTRUCTION: {task}\n")
+            logger.info(f"STEP {idx+1}:")
+            logger.info(f"\n{'_'*20}\n")
+            
+            logger.info(f"INSTRUCTION: {task}")
+            logger.info(f"\n{'_'*20}\n")
+
 
             message = self.llm(self.memory)
             
@@ -233,7 +238,9 @@ class ReActAgent(Agent):
             think = self._parse_think(message.content)
             parsed = self._parse_tool_call_from_content(message.content)
             
-            logger.info(f"Think: {think}")
+            logger.info(f"THINK: {think}")
+            logger.info(f"\n{'_'*20}\n")
+
             
             if parsed:
                 tool_call_data = {
@@ -247,10 +254,12 @@ class ReActAgent(Agent):
                 tool_args = tool_call_data["arguments"]
                 
                 logger.info(f"DECISION: Calling tool '{tool_name}' with args {tool_args}")
-                
+                logger.info(f"\n{'_'*20}\n")
+
                 observation = self.execute_tool(tool_name, tool_args)
                 
                 logger.info(f"OBSERVATION: {observation}")
+                logger.info(f"\n{'_'*20}\n")
                 
                 self.memory.append({
                     "role": "user",
@@ -260,9 +269,10 @@ class ReActAgent(Agent):
                 continue
             
             else:
-                logger.info(f"Content: {message.content}")
                 final_answer = self._parse_final_answer(message.content)
-                logger.info(f"FINAL_ANSWER: {final_answer}\n")
+                logger.info(f"FINAL_ANSWER: {final_answer}")
+                logger.info(f"\n{'_'*20}\n")
+
                 return final_answer or message.content
             
         last_message = self.memory[-1].get("content", "") if self.memory else ""
