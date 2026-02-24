@@ -205,8 +205,9 @@ class TorchGitHubLoader:
             specific_folder_for_search (str): Стартовая папка/файл для поиска.
 
         Returns:
-            RepoWalkResult: Структура данных, содержащая строку README,
-                объект репозитория и итератор файлов.
+            RepoWalkResult: Структура данных, содержащая путь и строковое
+                содержимое корневого README, объект репозитория и итератор
+                файлов.
         """
         target_repo = self._get_specific_repo(target_repo_name)
         readme_content, readme_path = self.get_readme_content(target_repo)
