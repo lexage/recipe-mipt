@@ -14,24 +14,53 @@ class PipelineBuilder:
         self.registry = ComponentRegistry()
         self.factory = ComponentFactory()
         
+    # def _get_build_order_v0(self, config: PipelineConfig) -> List[str]:
+        
+    #     graph = nx.DiGraph()
+    #     for component_name, component_config in config.components.items():
+    #         if not self.registry.component_exist(component_config.type):
+    #             raise ValueError(f"Unregistied component: '{component_config.type}'")
+            
+    #         graph.add_node(component_name)
+
+    #         deps = self.registry.get_component_deps(component_config.type)
+
+    #         for dep_name in deps:
+    #             dep_name = component_config.deps_mapping.get(dep_name, dep_name)
+    #             if dep_name in config.components:
+    #                 graph.add_edge(dep_name, component_name)
+    #             elif not deps[dep_name].has_default:
+    #                 raise ValueError(f"Missing '{dep_name}' for '{component_name}'")
+        
+    #     if not nx.is_directed_acyclic_graph(graph):
+    #         raise ValueError("Cyclic dependencies have been discovered")
+        
+    #     return list(nx.topological_sort(graph))
+    
     def _get_build_order(self, config: PipelineConfig) -> List[str]:
         
         graph = nx.DiGraph()
         for component_name, component_config in config.components.items():
-            if not self.registry.component_exist(component_config.type):
-                raise ValueError(f"Unregistied component: '{component_config.type}'")
             
+            configs_list = component_config if isinstance(component_config, list) else [component_config]
+            
+            for cfg in configs_list:
+                if not self.registry.component_exist(cfg.type):
+                    raise ValueError(f"Unregistered component: '{cfg.type}'")
+
             graph.add_node(component_name)
-
-            deps = self.registry.get_component_deps(component_config.type)
-
-            for dep_name in deps:
-                dep_name = component_config.deps_mapping.get(dep_name, dep_name)
-                if dep_name in config.components:
-                    graph.add_edge(dep_name, component_name)
-                elif not deps[dep_name].has_default:
-                    raise ValueError(f"Missing '{dep_name}' for '{component_name}'")
-        
+            
+            for cfg in configs_list:
+            
+                deps = self.registry.get_component_deps(cfg.type)
+                
+                for dep_name in deps:
+                    dep_name = cfg.deps_mapping.get(dep_name, dep_name)
+                    if dep_name in config.components:
+                        graph.add_edge(dep_name, component_name)
+                    elif not deps[dep_name].has_default:
+                        raise ValueError(f"Missing '{dep_name}' for '{component_name}'")
+            
         if not nx.is_directed_acyclic_graph(graph):
             raise ValueError("Cyclic dependencies have been discovered")
         

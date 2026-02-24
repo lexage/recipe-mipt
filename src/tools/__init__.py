@@ -1,5 +1,5 @@
-from .action_executor import (
-    ActionExecutorTool
+from .base_tool import (
+    BaseTool
 )
 
 from .db_search import (
@@ -7,6 +7,7 @@ from .db_search import (
 )
 
 __all__ = [
+    "BaseTool"
     "ActionExecutorTool",
     "DBSearchTool"
 ]

@@ -31,6 +31,12 @@ pipeline_config = PipelineConfig(
             type = ComponentNames.SIMPLE_CONTEXT_ASSEMBLER,
             params={"name": "SimpleContext"}
         ),
+        "tools": [
+            ComponentConfig(
+                type=ComponentNames.DB_SEARCH_TOOL,
+                params={}
+            )
+        ],
         "agent": ComponentConfig(
             type=ComponentNames.REACT_AGENT,
             params={"name": "ReActAgent", "url": "http://team_recipe-dev-ssh:7215/v1", "model_name": "Qwen/Qwen1.5-32B-Chat-AWQ"}
@@ -41,7 +47,7 @@ pipeline_config = PipelineConfig(
 
 def main():
     pipeline = PipelineBuilder().build(pipeline_config)
-    result = pipeline.run("What is pandas?")
+    result = pipeline.run("What is numpy?")
     print("RESULT: ", result)
 
 
