@@ -44,17 +44,18 @@ class SimpleContextAssembler(ContextAssembler):
 
 
 class CoRAGContextAssembler(ContextAssembler):
-    def assemble(self, data: Tuple):
-        prev_qna, retrived_chunks = data
-        context = ""
-        for chunk in retrived_chunks:
-            context += chunk.text + "\n"
+    def assemble(self, chunks: List[Chunk]):
+        
+        documnets = "##Documents"
+        inter_steps = ""
+        
+        for chunk in chunks:
+            if chunk.id == "corag_intermediate_steps":
+                inter_steps = chunk.text
+            else:
+                documnets+=f"\n{chunk.text}\n"
 
-        prev_qna_data = ""
-        for i, (q,a) in enumerate(prev_qna):
-            prev_qna_data += f"Sub-query {i+1}: {q}\nSub-answer {i+1}: {a}\n"
-
-        return f"##Documents\n{context}\n\n## Intermediate queries and answers\n{prev_qna_data}"
+        return documnets + "\n" + inter_steps
 
 
 class InstructRAGContextAssembler(ContextAssembler):

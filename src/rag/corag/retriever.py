@@ -3,10 +3,11 @@ from enum import Enum, auto
 
 from src.agent_constructor.context_engine import Retriever
 from src.agent_constructor.db import IDB
-from src.agent_constructor.core import Chunk
+from src.agent_constructor.core import Chunk, Document
 
 from .src.vllm_client import VllmClient, get_vllm_model_id
 from .src.agent import CoRagAgent
+from .src.agent.agent_utils import RagPath
 
 
 class CoRAGSearchTypes(Enum):
@@ -46,6 +47,8 @@ class CoRAGRetriever(Retriever):
             data_base=data_base
             )
         
+        self.data_base = data_base
+
         self.search_type = search_type
 
         self.max_path_length = max_path_length
@@ -94,4 +97,46 @@ class CoRAGRetriever(Retriever):
                     top_k=k,
                 )
 
-        return results
+        chunks = [self._create_path_chunk(
+            past_subqueries=results.past_subqueries,
+            past_subanswers=results.past_subanswers,
+            task_desc=self.task_description,
+        )]
+
+        doc_ids = list(set([item for sublist in results.past_doc_ids for item in sublist]))
+
+        chunks.extend([
+            Chunk(
+                id=doc.id,
+                doc_id=doc.id,
+                text=doc.text,
+                metadata=doc.metadata
+            ) for doc in self.data_base.get_documents(doc_ids)
+        ])
+
+        return chunks
+
+    def _create_path_chunk(self,
+        past_subqueries: List[str], past_subanswers: List[str], task_desc: str) -> Chunk:
+
+        assert len(past_subqueries) == len(past_subanswers)
+        past = ''
+        for idx in range(len(past_subqueries)):
+            past += f"""Intermediate query {idx+1}: {past_subqueries[idx]}
+    Intermediate answer {idx+1}: {past_subanswers[idx]}\n"""
+        past = past.strip()
+
+        text = f"""## Intermediate queries and answers
+    {past or 'Nothing yet'}
+
+## Task description
+    {task_desc}"""
+        
+        return Chunk(
+            id="corag_intermediate_steps",
+            doc_id=None,
+            text=text,
+            metadata={
+                "source": "corag"
+            }
+        )
