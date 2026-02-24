@@ -1,7 +1,8 @@
-from abc import ABC, abstractmethod
+from abc import abstractmethod
+from src.agent_constructor.core import Block
 
 
-class AbstractTool(ABC):
+class BaseTool(Block):
 
     """Абстрактный класс тула"""
 

@@ -3,7 +3,7 @@ import yaml
 import importlib
 
 from dataclasses import dataclass
-from typing import Dict, Type, List
+from typing import Dict, Type, List, get_origin, get_args
 from pathlib import Path
 
 from src.pipelines.constants import ComponentNames, PipelinesNames, PIPELINES_IMPORT_PATH
@@ -49,7 +49,7 @@ class ComponentRegistry:
             )
     
     @staticmethod
-    def _extract_params(component_class: Type) -> List[str]:
+    def _extract_params(component_class: Type) -> Dict[str, ParamInfo]:
         sig = inspect.signature(component_class.__init__)
         
         params = {}
@@ -58,11 +58,13 @@ class ComponentRegistry:
             if param.name == 'self':
                 continue
             
-            param_is_dep = (
-                param.annotation != inspect.Parameter.empty 
-                and inspect.isclass(param.annotation) 
-                and issubclass(param.annotation, Block)
-            )
+            # param_is_dep = (
+            #     param.annotation != inspect.Parameter.empty 
+            #     and inspect.isclass(param.annotation) 
+            #     and issubclass(param.annotation, Block)
+            # )
+            
+            param_is_dep = ComponentRegistry._is_dependency_annotation(param.annotation)
             
             param_has_default = param.default != inspect.Parameter.empty
 
@@ -72,6 +74,23 @@ class ComponentRegistry:
             )
 
         return params
+    
+    @staticmethod
+    def _is_dependency_annotation(annotation) -> bool:
+        if annotation == inspect.Parameter.empty:
+            return False
+        
+        if inspect.isclass(annotation) and issubclass(annotation, Block):
+            return True
+        
+        origin = get_origin(annotation)
+        if origin is not None:
+            args = get_args(annotation)
+            for arg in args:
+                if ComponentRegistry._is_dependency_annotation(arg):
+                    return True
+        
+        return False
 
     def get_component_info(self, component_type: ComponentNames|PipelinesNames) -> ComponentInfo:
         return self._registry.get(component_type, None)
@@ -79,7 +98,7 @@ class ComponentRegistry:
     def get_component_deps(self, component_type: ComponentNames|PipelinesNames) -> Dict[str, ParamInfo]:
         component_info = self._registry.get(component_type, None)
         if component_info is None or not hasattr(component_info, "params"):
-            return []
+            return {}
         return {
             param_name: param_info
             for param_name, param_info in component_info.params.items()

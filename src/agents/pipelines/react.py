@@ -1,10 +1,11 @@
 import re
 import logging
+import json
 from openai import OpenAI
 from pathlib import Path
-from src.agent_constructor.context_engine import ContextAssembler
-from src.agent_constructor.db import IDB
+from typing import List, Dict, Any
 from src.agent_constructor.agent import Agent
+from src.tools import BaseTool
 
 
 class PlainFormatter(logging.Formatter):
@@ -38,189 +39,231 @@ class ReActAgent(Agent):
         model_name: str = None,
         name: str = "ReActAgent", 
         instruction: str = None, 
-        examples: list = None, 
+        examples: list = None,
         max_iterations: int = 10, 
-        db: IDB = None, 
-        context_assembler: ContextAssembler = None
+        tools: List[BaseTool] = None,
     ):
         super().__init__(name)
-        self.instruction = instruction or self._get_default_instruction()
         self.examples = examples or []
         self.max_iterations = max_iterations
-        self.db = db
-        self.context_assembler = context_assembler
+        
+        tools = tools or []
+        self.tools = tools
+        self.tools_dict = {t.name: t for t in tools}
+        self.tools_schema = [t.get_schema() for t in tools]
+        
+        logger.info(f"TOOLS_SCHEMA: {self.tools_schema}")
+        
         self.memory = []
         
+        self.instruction = instruction or self._build_system_prompt()
         self.client = OpenAI(base_url=url, api_key="vllm")
         self.model_name = model_name
         
         logger.info(f"SYSTEM_PROMPT: {self.instruction}")
         logger.info("\n_____________________________\n")
-
         
-    def _get_default_instruction(self):
-        """Return default instruction for the ReAct agent."""
-        return """You are an AI programming assistant that solves coding tasks using the ReAct (Reasoning-Action) framework.
+    def _format_tools_for_prompt(self) -> str:
+        """Formatting information about tools in a readable format for industrial purposes."""
+        formatted_tools = []
+        
+        for tool in self.tools_schema:
+            func = tool['function']
+            name = func['name']
+            description = func['description']
+            params = func.get('parameters', {})
+            properties = params.get('properties', {})
+            required = params.get('required', [])
+            
+            params_block = []
+            for param_name, param_info in properties.items():
+                param_type = param_info.get('type', 'string')
+                param_desc = param_info.get('description', '')
+                is_required = param_name in required
+                req_mark = "REQUIRED" if is_required else "optional"
+                
+                params_block.append(
+                    f"      - {param_name} ({param_type}, {req_mark}): {param_desc}"
+                )
+            
+            params_str = "\n".join(params_block) if params_block else "      No parameters"
+            
+            tool_str = f"""  - {name}: {description}
+                Parameters:
+            {params_str}"""
+            formatted_tools.append(tool_str)
+        
+        return "\n\n".join(formatted_tools)
 
-You must generate responses in the following format:
+    def _build_system_prompt(self) -> str:
+        """Formation of a system prompt."""
+        
+        tools_formatted = self._format_tools_for_prompt()
+        tool_names = ", ".join([t['function']['name'] for t in self.tools_schema])
+        
+        base_prompt = f"""You are an autonomous AI agent using the ReAct (Reasoning + Acting) framework.
+        You have access to the following tools: {tool_names}.
 
-Think: [Your step-by-step reasoning about what to do next to make progress on the task]
-Action: [The specific action to take at this step]
+        ### STRICT OUTPUT FORMAT
+        You must output your response in exactly one of the following two formats. Do not add any extra text, markdown, or explanations outside this format.
 
-Available actions include but are not limited to:
-- retrieve_context: Retrieve relevant context or examples from the database
-- Any other action you deem necessary to solve the programming task
+        FORMAT 1 (If you need to use a tool):
+        Think: <your reasoning about what to do next>
+        Action: <exact tool name from the list above>
+        Action Input: <valid JSON object with arguments>
 
-After each action, you will receive an observation with the result. Use these observations to inform your next steps.
+        FORMAT 2 (If you have the final answer):
+        Think: <reasoning that you are done>
+        Final Answer: <your direct response to the user>
 
-Work through the problem systematically, breaking it down into manageable steps."""
+        ### AVAILABLE TOOLS
+        {tools_formatted}
+
+        ### EXAMPLES
+
+        User: Find the user with ID 123.
+        Assistant:
+        Think: I need to search the database for a user with ID 123.
+        Action: db_search
+        Action Input: {{"user_id": 123}}
+
+        User: What is the result?
+        Assistant:
+        Think: The tool returned the user data, so I can now answer.
+        Final Answer: The user with ID 123 is John Doe.
+
+        ### RULES
+        1. ALWAYS start with "Think:".
+        2. If you don't know the answer, you MUST use an Action. Do not guess.
+        3. "Action Input" must be raw JSON. Do NOT wrap it in markdown code blocks (no ```json).
+        4. Use only the exact tool names listed above.
+        5. Stop immediately after generating "Final Answer".
+        """
+        return base_prompt
     
-    def make_prompt(self, task: str) -> str:
-        """Create the prompt for the LLM."""
-
-        prompt = f"Task: {task}\n\n"
-        
-        # Add history
-        if len(self.memory) > 0:
-            prompt += f"Memory Content:\n"
-        for item_type, content in self.memory:
-            prompt += f"{item_type}: {content}\n"
-        
-        prompt += "\nPlease respond in the format:\nThink: [your reasoning]\nAction: [action_name]"
-        
-        # Add few-shot examples
-        if self.examples:
-            prompt += "Examples:\n"
-            for example in self.examples:
-                prompt += example + "\n\n"
-        
-        return prompt
-    
-    def llm(self, prompt: str, history: list = []) -> str:
-        """Сalling the llm to get a response."""
+    def llm(self, messages: List[Dict[str, Any]]) -> Any:
+        """Calling the llm to get a response."""
         response = self.client.chat.completions.create(
             model=self.model_name,
-            messages=history + [{"role": "user", "content": prompt},],
+            messages=messages,
             temperature=0,
         )
-        return response.choices[0].message.content
+        return response.choices[0].message
     
-    def _extract_thought_and_action(self, response: str) -> tuple:
-        """Extract thought and action from the model response."""
-        thought = ""
-        action = ""
+    def _parse_final_answer(self, content: str) -> str | None:
+        """Parsing the final response."""
+        if not content:
+            return None
         
-        thought_match = re.search(r'Think:\s*(.*?)(?=\nAction:|\n*$)', response, re.DOTALL)
-        if thought_match:
-            thought = thought_match.group(1).strip()
-        
-        action_match = re.search(r"Action:.*?(?=\n|$)", response, re.DOTALL)
-        if action_match:
-            action_text = action_match.group(0).strip()
-            action = action_text.replace("Action:", "").strip()
-        
-        return thought, action
+        final_match = re.search(r'Final Answer:\s*(.*)', content, re.DOTALL)
+        if not final_match:
+            return None
+        return final_match.group(1).strip()
     
-    def retrieve_context(self, task: str, top_k: int = 10) -> str:
-        """Retrieve context from the database."""
-        if self.db and self.context_assembler:
-            retrieved = self.db.query(task, top_k)
-            retrieved_context = self.context_assembler.assemble(retrieved)
-            # return task + "\n\n" + retrieved_context
-            return f'query: {task}\n\nretrieved context: {retrieved_context}'
-        return "No database or context assembler available."
-    
-    def _make_action_prompt(self, task: str, action: str, thought: str, items_num: int = 6) -> str:
-        """Create a prompt for arbitrary actions."""
-        prompt = f"""Task: {task}
+    def _parse_think(self, content: str) -> str | None:
+        """Parsing the 'Think' field."""
+        if not content:
+            return None
         
-Current reasoning: {thought}
+        think_match = re.search(r'Think:\s*(.*)', content)
+        if not think_match:
+            return None
+        return think_match.group(1).strip()
 
-Action to perform: {action}
-
-Based on the task and reasoning above, please perform the requested action. Provide a helpful response that moves us closer to solving the programming task. 
-
-After your response, please indicate if the task is complete by adding:
-Finish: True
-or if more work is needed:
-Finish: False"""
+    def _parse_tool_call_from_content(self, content: str) -> Dict[str, Any] | None:
+        """Parsing the selected tool and the arguments for them."""
+        if not content:
+            return None
         
-        # Add relevant history context
-        if self.memory:
-            prompt += "\n\nRelevant history:\n"
-            for item_type, content in self.memory[-items_num:-2]:  # Last items_num items for context
-                prompt += f"{item_type}: {content}\n"
+        action_match = re.search(r'Action:\s*([a-zA-Z_][a-zA-Z0-9_]*)', content)
+        if not action_match:
+            return None
         
-        return prompt
-    
-    def _extract_finish_flag(self, response: str) -> bool:
-        """Extract finish flag from the model response."""
-        finish_match = re.search(r'Finish:\s*(True|False)', response, re.IGNORECASE)
-        if finish_match:
-            return finish_match.group(1).lower() == 'true'
-        return False
-    
-    def _remove_finish_flag(self, response: str) -> str:
-        """Remove finish flag from the response to get clean observation."""
-        cleaned_response = re.sub(r'Finish:\s*(True|False)[\.,]?\s*', '', response, flags=re.IGNORECASE)
-        cleaned_response = cleaned_response.strip()
-        return cleaned_response
-    
-    def _execute_action(self, action: str, task: str, thought: str) -> tuple:
-        """Execute the specified action and return observation and finish flag."""
-        if action == "retrieve_context":
-            observation = self.retrieve_context(task)
-            return observation, False
-        
+        json_str = None
+        input_match = re.search(r'Action Input:\s*(\{.*\})', content, re.DOTALL)
+        if input_match:
+            json_str = input_match.group(1)
         else:
-            # For any other action, call LLM with a prompt based on task, action, and memory
-            prompt = self._make_action_prompt(task, action, thought)
-            logger.info(f"ACTION PROMPT: {prompt}\n")
-            response = self.llm(prompt)
+            json_matches = re.findall(r'\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}', content)
+            json_str = json_matches[-1] if json_matches else None
+        
+        if not json_str:
+            return None
             
-            # Extract finish flag and clean observation
-            is_finish = self._extract_finish_flag(response)
-            observation = self._remove_finish_flag(response)
-            
-            return observation, is_finish
+        try:
+            return {"name": action_match.group(1), "arguments": json.loads(json_str)}
+        except json.JSONDecodeError:
+            return None
+        
+    def execute_tool(self, tool_name: str, arguments: Dict[str, Any]) -> str:
+        """Calling the tool."""
+        if tool_name not in self.tools_dict:
+            available = ", ".join(self.tools_dict.keys())
+            raise ValueError(f"Unknown tool '{tool_name}'. Available tools: {available}")
+
+        tool_instance = self.tools_dict[tool_name]
+        
+        try:
+            result = tool_instance.run(**arguments)
+            return result
+        except Exception as e:
+            return f"Error executing tool {tool_name}: {str(e)}"
     
     def run(self, task: str) -> str:
         """Run the ReAct agent to solve the programming task."""
+        
         logger.info(f"TASK: {task}")
         logger.info("\n_____________________________\n")
         
-        self.memory = []
+        self.memory = [
+            {"role": "system", "content": self.instruction},
+            {"role": "user", "content": task}
+        ]
         
         for idx in range(self.max_iterations):
-            logger.info(f"STEP {idx+1}:\n")
+            logger.info(f"STEP {idx+1}:\n")            
+            logger.info(f"INSTRUCTION: {task}\n")
 
-            prompt = self.make_prompt(task)
-            logger.info(f"INSTRUCTION: {prompt}\n")
+            message = self.llm(self.memory)
             
-            response = self.llm(prompt, history=[{"role": "system", "content": self.instruction}])
-            thought, action = self._extract_thought_and_action(response)
-
-            if not thought or not action:
-                thought = "Unable to parse response. Considering what to do next."
-                action = "analyze_task"
+            self.memory.append({"role": "assistant", "content": message.content})
+            
+            tool_call_data = None
+            
+            think = self._parse_think(message.content)
+            parsed = self._parse_tool_call_from_content(message.content)
+            
+            logger.info(f"Think: {think}")
+            
+            if parsed:
+                tool_call_data = {
+                    "name": parsed["name"],
+                    "arguments": parsed["arguments"],
+                    "id": None
+                }
                 
-            logger.info(f"THOUGHT: {thought}\n")
-            logger.info(f"ACTION: {action}\n")
+            if tool_call_data:
+                tool_name = tool_call_data["name"]
+                tool_args = tool_call_data["arguments"]
+                
+                logger.info(f"DECISION: Calling tool '{tool_name}' with args {tool_args}")
+                
+                observation = self.execute_tool(tool_name, tool_args)
+                
+                logger.info(f"OBSERVATION: {observation}")
+                
+                self.memory.append({
+                    "role": "user",
+                    "content": f"Observation from {tool_name}: {observation}"
+                })
+                
+                continue
             
-            self.memory.append(("Thought", thought))
-            self.memory.append(("Action", action))
+            else:
+                logger.info(f"Content: {message.content}")
+                final_answer = self._parse_final_answer(message.content)
+                logger.info(f"FINAL_ANSWER: {final_answer}\n")
+                return final_answer or message.content
             
-            observation, is_finish = self._execute_action(action, task, thought)
-            logger.info(f"OBSERVATION: {observation}\n")
-            logger.info(f"IS_FINISH: {is_finish}")
-            logger.info("\n_____________________________\n")
-
-            self.memory.append(("Observation", observation))
-            
-            if is_finish:
-                logger.info(f"FINAL_ANSWER: {observation}\n")
-                logger.info("\n_____________________________\n")
-                return observation
-        
-        # If max iterations reached, return the last observation
-        return self.memory[-1][1] if self.memory else "Maximum iterations reached without solution."
+        last_message = self.memory[-1].get("content", "") if self.memory else ""
+        return last_message or "Maximum iterations reached without solution."
