@@ -43,9 +43,11 @@ class CoRagAgent:
     ) -> RagPath:
         past_subqueries: List[str] = kwargs.pop('past_subqueries', [])
         past_subanswers: List[str] = kwargs.pop('past_subanswers', [])
-        past_doc_ids: List[List[str]] = kwargs.pop('past_doc_ids', [])
+        past_docs: List[List[Document]] = kwargs.pop('past_docs', [])
+        past_chunks: List[List[Chunk]] = kwargs.pop('past_chunks', [])
         top_k: int = kwargs.pop('top_k', 1)
-        assert len(past_subqueries) == len(past_subanswers) == len(past_doc_ids)
+
+        assert len(past_subqueries) == len(past_subanswers) == len(past_docs) == len(past_chunks)
 
         subquery_temp: float = temperature
         num_llm_calls: int = 0
@@ -68,19 +70,21 @@ class CoRagAgent:
                 continue
 
             subquery_temp = temperature
-            subanswer, doc_ids = self._get_subanswer_and_doc_ids(
+            subanswer, documents, chunks = self._get_subanswer_and_doc_ids(
                 subquery=subquery, max_message_length=max_message_length, top_k=top_k
             )
 
             past_subqueries.append(subquery)
             past_subanswers.append(subanswer)
-            past_doc_ids.append(doc_ids)
+            past_docs.append(documents)
+            past_chunks.append(chunks)
 
         return RagPath(
             query=query,
             past_subqueries=past_subqueries,
             past_subanswers=past_subanswers,
-            past_doc_ids=past_doc_ids,
+            past_docs=past_docs,
+            past_chunks=past_chunks,
         )
 
     def generate_final_answer(
@@ -132,20 +136,14 @@ class CoRagAgent:
     # TODO: переписать эту функцию на использование IDB
     def _get_subanswer_and_doc_ids(
             self, subquery: str, max_message_length: int = 4096, top_k: int =  1
-    ) -> Tuple[str, List]:
+    ) -> Tuple[str, List, List]:
         
-        # TODO: допустим заменить search_by_http на chunks = database.search(query)
-
-        #retriever_results: List[Dict] = search_by_http(query=subquery)
         retrieve_results: List[Chunk] = self.data_base.query(query_text=subquery, top_k=top_k)
 
         doc_ids : List[int] = list(set([int(chunk.doc_id) for chunk in retrieve_results]))
-        
-        # doc_ids: List[str] = [res['doc_id'] for res in retriever_results]
-        
         documents : List[Document] = self.data_base.get_documents(doc_ids)
+
         doc_texts = [doc.text for doc in documents]
-        # documents: List[str] = [format_input_context(self.corpus[int(doc_id)]) for doc_id in doc_ids][::-1]
 
         messages: List[Dict] = get_generate_intermediate_answer_prompt(
             subquery=subquery,
@@ -156,7 +154,7 @@ class CoRagAgent:
         self._truncate_long_messages(messages, max_length=max_message_length)
 
         subanswer: str = self.vllm_client.call_chat(messages=messages, temperature=0., max_tokens=128)
-        return subanswer, doc_ids
+        return subanswer, documents, retrieve_results
 
     def tree_search(
             self, query: str, task_desc: str,
@@ -205,7 +203,7 @@ class CoRagAgent:
             expand_size: int = 4, num_rollouts: int = 2, beam_size: int = 1,
             **kwargs
     ) -> RagPath:
-        candidates: List[RagPath] = [RagPath(query=query, past_subqueries=[], past_subanswers=[], past_doc_ids=[])]
+        candidates: List[RagPath] = [RagPath(query=query, past_subqueries=[], past_subanswers=[], past_docs=[], past_chunks=[])]
         top_k: int = kwargs.pop('top_k', 1)
         for step in range(max_path_length):
             new_candidates: List[RagPath] = []
@@ -219,11 +217,12 @@ class CoRagAgent:
                 for subquery in new_subqueries:
                     new_candidate: RagPath = deepcopy(candidate)
                     new_candidate.past_subqueries.append(subquery)
-                    subanswer, doc_ids = self._get_subanswer_and_doc_ids(
+                    subanswer, documents, chunks = self._get_subanswer_and_doc_ids(
                         subquery=subquery, max_message_length=max_message_length
                     )
                     new_candidate.past_subanswers.append(subanswer)
-                    new_candidate.past_doc_ids.append(doc_ids)
+                    new_candidate.past_docs.append(documents)
+                    new_candidate.past_chunks.append(chunks)
                     new_candidates.append(new_candidate)
 
             if len(new_candidates) > beam_size:
@@ -315,7 +314,8 @@ class CoRagAgent:
                 temperature=temperature, max_message_length=max_message_length,
                 past_subqueries=deepcopy(path.past_subqueries),
                 past_subanswers=deepcopy(path.past_subanswers),
-                past_doc_ids=deepcopy(path.past_doc_ids),
+                past_docs=deepcopy(path.past_docs),
+                past_chunks=deepcopy(path.past_chunks),
                 top_k=top_k,
             )
             rollout_paths.append(rollout_path)

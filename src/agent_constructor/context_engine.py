@@ -46,14 +46,14 @@ class SimpleContextAssembler(ContextAssembler):
 class CoRAGContextAssembler(ContextAssembler):
     def assemble(self, chunks: List[Chunk]):
         
-        documnets = "##Documents"
+        documnets = "##Document\n"
         inter_steps = ""
         
         for chunk in chunks:
             if chunk.id == "corag_intermediate_steps":
                 inter_steps = chunk.text
             else:
-                documnets+=f"\n{chunk.text}\n"
+                documnets+=f"""Doc {chunk.id}: {chunk.text.strip()}\n\n"""
 
         return documnets + "\n" + inter_steps
 

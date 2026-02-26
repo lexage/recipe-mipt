@@ -49,7 +49,7 @@ class SimplePipeline(Pipeline):
         if self.enhancer:
             tasks = self.enhancer.run(task)
         else:
-            tasks = task
+            tasks = [task]
 
         context = []
         for query in tasks:

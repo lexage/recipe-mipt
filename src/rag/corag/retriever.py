@@ -2,7 +2,7 @@ from typing import List, Tuple
 
 from src.agent_constructor.context_engine import Retriever
 from src.agent_constructor.db import IDB
-from src.agent_constructor.core import Chunk
+from src.agent_constructor.core import Chunk, Document
 
 from .src.vllm_client import VllmClient, get_vllm_model_id
 from .src.agent import CoRagAgent
@@ -15,6 +15,8 @@ class CoRAGRetriever(Retriever):
             data_base: IDB, 
             search_type: CoRAGSearchTypes,
 
+            return_docs_as_chunks: bool = False,
+
             max_path_length: int = 3,
             max_message_length: int = 4096,
             temperature: float = 0.7,
@@ -24,7 +26,7 @@ class CoRAGRetriever(Retriever):
             num_rollouts: int = 2, 
             beam_size: int = 1,
 
-            n: int = 4,
+            n: int = 2,
             
             ):
         
@@ -52,6 +54,8 @@ class CoRAGRetriever(Retriever):
         self.expand_size = expand_size
         self.num_rollouts = num_rollouts
         self.beam_size = beam_size
+
+        self.return_docs_as_chunks = return_docs_as_chunks
 
         self.n = n
 
@@ -96,16 +100,10 @@ class CoRAGRetriever(Retriever):
             task_desc=self.task_description,
         )]
 
-        doc_ids = list(set([item for sublist in results.past_doc_ids for item in sublist]))
-
-        chunks.extend([
-            Chunk(
-                id=doc.id,
-                doc_id=doc.id,
-                text=doc.text,
-                metadata=doc.metadata
-            ) for doc in self.data_base.get_documents(doc_ids)
-        ])
+        if self.return_docs_as_chunks:
+            chunks.extend(self._unique_chunks_from_docs(past_docs=results.past_docs))
+        else:
+            chunks.extend(self._unique_chunks(past_chunks=results.past_chunks))
 
         return chunks
 
@@ -133,3 +131,25 @@ class CoRAGRetriever(Retriever):
                 "source": "corag"
             }
         )
+
+    def _unique_chunks_from_docs(self, past_docs: List[List[Document]]) -> List[Chunk]:
+        unique = {}
+        for sub in past_docs:
+            for doc in sub:
+                unique.setdefault(
+                    doc.id, 
+                    Chunk(
+                        id=doc.id,
+                        doc_id=doc.id,
+                        text=doc.text,
+                        metadata=doc.metadata
+                    ),
+                )
+        return list(unique.values())
+
+    def _unique_chunks(self, past_chunks: List[List[Chunk]]) -> List[Chunk]:
+        unique = {}
+        for sub in past_chunks:
+            for chunk in sub:
+                unique.setdefault(chunk.id, chunk)
+        return list(unique.values())
