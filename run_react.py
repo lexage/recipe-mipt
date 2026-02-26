@@ -19,7 +19,7 @@ pipeline_config = PipelineConfig(
             type=ComponentNames.EMBEDDING_AGENT,
             params={
                 "name": "embedder",
-                "url": "http://team_recipe-dev-ssh:7216/v1",
+                "url": "http://localhost:7216/v1",
                 "model_name": "Qwen/Qwen3-Embedding-4B",
             },
         ),
@@ -42,7 +42,7 @@ pipeline_config = PipelineConfig(
             type=ComponentNames.REACT_AGENT,
             params={
                 "name": "ReActAgent",
-                "url": "http://team_recipe-dev-ssh:7215/v1",
+                "url": "http://localhost:7215/v1",
                 "model_name": "Qwen/Qwen1.5-32B-Chat-AWQ",
                 "temperature": 0.5,
             },
@@ -54,8 +54,6 @@ pipeline_config = PipelineConfig(
 def main():
     pipeline = PipelineBuilder().build(pipeline_config)
     result = pipeline.run("How to create dataframe in pandas?")
-    # result = pipeline.run("What is numpy?")
-
     print("RESULT: ", result)
 
 
