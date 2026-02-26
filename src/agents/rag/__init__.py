@@ -1,7 +1,5 @@
 from .corag_agents import(
     CoRAGFinalSolver,
-    CoRAGSubQueryGeneratorAgent,
-    CoRAGSubSolver,
 )
 
 from .raptor_agents import(
@@ -11,8 +9,6 @@ from .raptor_agents import(
 
 __all__ = [
     "CoRAGFinalSolver",
-    "CoRAGSubQueryGeneratorAgent",
-    "CoRAGSubSolver",
     "RaptorQAAgent",
     "RaptorSummarizationAgent",
 ]

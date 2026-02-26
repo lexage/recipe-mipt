@@ -45,8 +45,6 @@ class ComponentNames(Enum):
     MPC_SAMPLE_AGENT = "src.agents.planning.MPCSampleAgent"
 
     # ===== Agents: RAG =====
-    CORAG_SUB_GENERATOR = "src.agents.rag.CoRAGSubQueryGeneratorAgent"
-    CORAG_SUB_SOLVER = "src.agents.rag.CoRAGSubSolver"
     CORAG_FINAL_SOLVER = "src.agents.rag.CoRAGFinalSolver"
     RAPTOR_QA_AGENT = "src.agents.rag.RaptorQAAgent"
     RAPTOR_SUMM_AGENT = "src.agents.rag.RaptorSummarizationAgent"
