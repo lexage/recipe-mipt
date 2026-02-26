@@ -98,3 +98,4 @@ class ComponentNames(Enum):
 
     # ===== TOOLS =====
     DB_SEARCH_TOOL = "src.tools.DBSearchTool"
+    LLM_TOOL = "src.tools.LLMTool"
