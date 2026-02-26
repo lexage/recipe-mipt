@@ -5,13 +5,6 @@ from src.pipelines.configs import (
 
 from src.pipelines.constants import ComponentNames, PipelinesNames
 
-from src.pipelines.pipeline_builder import PipelineBuilder
-import logging
-
-logging.getLogger("openai").setLevel(logging.ERROR)
-logging.getLogger("httpx").setLevel(logging.ERROR)
-logging.getLogger("httpcore").setLevel(logging.ERROR)
-
 pipeline_config = PipelineConfig(
     type=PipelinesNames.REACT,
     components={
@@ -26,8 +19,8 @@ pipeline_config = PipelineConfig(
         "db": ComponentConfig(
             type=ComponentNames.LOCAL_DB,
             params={
-                "path_to_db": "/workspace/data/docs_database_examples.db",
-                "path_to_vector_db": "/workspace/data/docs_vector_database_qwen_4b",
+                "path_to_db": "data/docs_database_examples.db",
+                "path_to_vector_db": "data/docs_vector_database",
                 "collection_name": "docs",
             },
         ),
@@ -49,13 +42,3 @@ pipeline_config = PipelineConfig(
         ),
     },
 )
-
-
-def main():
-    pipeline = PipelineBuilder().build(pipeline_config)
-    result = pipeline.run("How to create dataframe in pandas?")
-    print("RESULT: ", result)
-
-
-if __name__ == "__main__":
-    main()

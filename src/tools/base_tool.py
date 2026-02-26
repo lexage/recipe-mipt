@@ -1,5 +1,6 @@
 from abc import abstractmethod
 from typing import Any
+
 from src.agent_constructor.core import Block
 
 
