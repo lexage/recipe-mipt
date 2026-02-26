@@ -6,7 +6,11 @@ from dataclasses import dataclass
 from typing import Dict, Type, List, get_origin, get_args
 from pathlib import Path
 
-from src.pipelines.constants import ComponentNames, PipelinesNames, PIPELINES_IMPORT_PATH
+from src.pipelines.constants import (
+    ComponentNames,
+    PipelinesNames,
+    PIPELINES_IMPORT_PATH,
+)
 from src.agent_constructor.core import Block
 
 
@@ -14,7 +18,7 @@ from src.agent_constructor.core import Block
 class ParamInfo:
     is_dependency: bool
     has_default: bool
-    
+
 
 @dataclass
 class ComponentInfo:
@@ -23,11 +27,13 @@ class ComponentInfo:
 
 
 class ComponentRegistry:
-    _registry: Dict[ComponentNames|PipelinesNames, ComponentInfo] = {}
+    _registry: Dict[ComponentNames | PipelinesNames, ComponentInfo] = {}
 
-    def load_modules(self, components_names: List[ComponentNames|PipelinesNames]) -> None:
+    def load_modules(
+        self, components_names: List[ComponentNames | PipelinesNames]
+    ) -> None:
         for component_name in components_names:
-            
+
             if component_name in self._registry:
                 continue
 
@@ -47,55 +53,53 @@ class ComponentRegistry:
                 class_=component_class,
                 params=params,
             )
-    
+
     @staticmethod
     def _extract_params(component_class: Type) -> Dict[str, ParamInfo]:
         sig = inspect.signature(component_class.__init__)
-        
+
         params = {}
         for param in sig.parameters.values():
-            
-            if param.name == 'self':
+
+            if param.name == "self":
                 continue
-            
-            # param_is_dep = (
-            #     param.annotation != inspect.Parameter.empty 
-            #     and inspect.isclass(param.annotation) 
-            #     and issubclass(param.annotation, Block)
-            # )
-            
+
             param_is_dep = ComponentRegistry._is_dependency_annotation(param.annotation)
-            
+
             param_has_default = param.default != inspect.Parameter.empty
 
             params[param.name] = ParamInfo(
-                is_dependency=param_is_dep, 
-                has_default=param_has_default, 
+                is_dependency=param_is_dep,
+                has_default=param_has_default,
             )
 
         return params
-    
+
     @staticmethod
     def _is_dependency_annotation(annotation) -> bool:
         if annotation == inspect.Parameter.empty:
             return False
-        
+
         if inspect.isclass(annotation) and issubclass(annotation, Block):
             return True
-        
+
         origin = get_origin(annotation)
         if origin is not None:
             args = get_args(annotation)
             for arg in args:
                 if ComponentRegistry._is_dependency_annotation(arg):
                     return True
-        
+
         return False
 
-    def get_component_info(self, component_type: ComponentNames|PipelinesNames) -> ComponentInfo:
+    def get_component_info(
+        self, component_type: ComponentNames | PipelinesNames
+    ) -> ComponentInfo:
         return self._registry.get(component_type, None)
 
-    def get_component_deps(self, component_type: ComponentNames|PipelinesNames) -> Dict[str, ParamInfo]:
+    def get_component_deps(
+        self, component_type: ComponentNames | PipelinesNames
+    ) -> Dict[str, ParamInfo]:
         component_info = self._registry.get(component_type, None)
         if component_info is None or not hasattr(component_info, "params"):
             return {}

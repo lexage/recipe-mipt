@@ -8,6 +8,5 @@ from .db_search import (
 
 __all__ = [
     "BaseTool"
-    "ActionExecutorTool",
     "DBSearchTool"
 ]

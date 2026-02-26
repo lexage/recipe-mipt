@@ -101,4 +101,3 @@ class ComponentNames(Enum):
 
     # ===== TOOLS =====
     DB_SEARCH_TOOL = "src.tools.DBSearchTool"
-    ACTION_EXECUTOR_TOOL = "src.tools.ActionExecutorTool"

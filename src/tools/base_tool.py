@@ -1,17 +1,15 @@
 from abc import abstractmethod
+from typing import Any
 from src.agent_constructor.core import Block
 
 
 class BaseTool(Block):
+    """Абстрактный класс инструмента"""
 
-    """Абстрактный класс тула"""
-
-    def __init__(self):
-        self.desctiption = ""
+    def __init__(self, name: str = "", description: str = ""):
+        self.name = name
+        self.description = description
 
     @abstractmethod
-    def run(self):
+    def __call__(self, *args: Any, **kwargs: Any) -> Any:
         pass
-    
-    def call_tool(self, tool_name: str, **tool_kwargs):
-        return self.tools[tool_name](**tool_kwargs)
