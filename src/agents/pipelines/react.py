@@ -7,7 +7,7 @@ from typing import List, Dict, Any, Optional, Tuple
 from openai import OpenAI
 
 from src.agent_constructor.agent import Agent
-from src.tools import BaseTool
+from src.tools import BaseTool, LLMTool
 
 
 REACT_SYSTEM_PROMPT = """You are an autonomous AI agent using the ReAct (Reasoning + Acting) framework.
@@ -97,13 +97,15 @@ class ReActAgent(Agent):
         super().__init__(name)
         self.examples = examples or []
         self.max_iterations = max_iterations
-
-        tools = tools or []
         self.tools = tools
+        
+        if not self.tools:
+            self.tools = [LLMTool(url=url, model_name=model_name)]
+        
         self.tool_names = ", ".join(tool.name for tool in self.tools)
-        self.tools_dict = {t.name: t for t in tools}
-        self.tools_schema = [t.get_schema() for t in tools]
-        self.tools_prompt = self._format_tools_for_prompt()
+        self.tools_dict = {t.name: t for t in self.tools}
+        self.tools_prompt = "\n\n".join([t.get_prompt_description() for t in self.tools])
+        
         self.memory = []
 
         self.instruction = instruction or REACT_SYSTEM_PROMPT.format(
@@ -114,44 +116,8 @@ class ReActAgent(Agent):
         self.model_name = model_name
         self.temperature = temperature
 
-        logger.info(f"TOOLS SCHEMA: {json.dumps(self.tools_schema, indent=4)}")
-        logger.info(_LOG_SEPARATOR)
         logger.info(f"SYSTEM PROMPT: {self.instruction}")
         logger.info(_LOG_SEPARATOR)
-
-    def _format_tools_for_prompt(self) -> str:
-        """Formatting information about tools in a readable format for industrial purposes."""
-        formatted_tools = []
-
-        for tool in self.tools_schema:
-            func = tool["function"]
-            name = func["name"]
-            description = func["description"]
-            params = func.get("parameters", {})
-            properties = params.get("properties", {})
-            required = params.get("required", [])
-
-            params_block = []
-            for param_name, param_info in properties.items():
-                param_type = param_info.get("type", "string")
-                param_desc = param_info.get("description", "")
-                is_required = param_name in required
-                req_mark = "REQUIRED" if is_required else "optional"
-
-                params_block.append(
-                    f"      - {param_name} ({param_type}, {req_mark}): {param_desc}"
-                )
-
-            params_str = (
-                "\n".join(params_block) if params_block else "      No parameters"
-            )
-
-            tool_str = (
-                f"  - {name}: {description}\n" f"    Parameters:\n" f"{params_str}"
-            )
-            formatted_tools.append(tool_str)
-
-        return "\n\n".join(formatted_tools)
 
     def llm(self, messages: List[Dict[str, Any]]) -> Any:
         """Calling the llm to get a response."""
