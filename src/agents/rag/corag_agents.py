@@ -39,8 +39,6 @@ class CoRAGFinalSolver(Agent):
 
 Respond with an appropriate answer only, do not explain yourself or output anything else."""
 
-        print(prompt)
-
         response = self.client.chat.completions.create(
             model=self.model_name,
             messages=[
