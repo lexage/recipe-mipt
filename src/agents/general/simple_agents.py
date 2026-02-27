@@ -12,7 +12,12 @@ class DummyAgent(Agent):
 
 
 class SimpleAgent(Agent):
-    def __init__(self, url: str = None, model_name: str = None):
+    def __init__(
+            self, url: str = None, 
+            model_name: str = None,
+            temperature=0.2, top_p=0.95, max_tokens=1024,
+            stop_tokens=["</code>", "# SOLUTION END"]):
+        
         super().__init__("simple_agent")
         self.dummy_mode = not (url and model_name)
         
@@ -23,18 +28,25 @@ class SimpleAgent(Agent):
             )
 
         self.model_name = model_name
+        self.temperature=temperature
+        self.top_p=top_p
+        self.max_tokens=max_tokens
+        self.stop_tokens=stop_tokens
 
-    def run(self, context: Text, task: Text) -> Text:
+    def run(self, task: Text, context: Text) -> Text:
 
         if self.dummy_mode:
             return f"Answer on {task} using context:\n\n{context}"
 
-        user_prompt = f"""Using context: \n{context}\n\nAnswer on qestion: {task}"""
+        prompt = f"[CONTEXT]:\n{context}\n[TASK]:\n{task}"
 
-        response = self.client.chat.completions.create(
+        response = self.client.completions.create(
             model=self.model_name,
-            messages=[{"role": "user", "content": user_prompt}],
-            temperature=0,
+            prompt=prompt,
+            temperature=self.temperature,
+            top_p=self.top_p,
+            max_tokens=self.max_tokens,
+            stop=self.stop_tokens,
         )
 
-        return response.choices[0].message.content
+        return response.choices[0].text

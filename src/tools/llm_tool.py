@@ -12,7 +12,7 @@ class LLMTool(BaseTool):
         description: str = "A tool for invoking llm. Use llm[<query>].",
         url: str = None,
         model_name: str = None,
-        temperature: float = 0.0
+        temperature: float = 0.0,
     ):
         super().__init__(name=name, description=description)
         self.client = OpenAI(base_url=url, api_key="vllm")
@@ -49,6 +49,6 @@ class LLMTool(BaseTool):
             temperature=self.temperature,
         )
         return response.choices[0].message.content
-    
+
     def __call__(self, query: str) -> str:
         return self.llm(query)

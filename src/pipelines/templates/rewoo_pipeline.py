@@ -3,11 +3,12 @@ from src.agent_constructor.pipeline import Pipeline
 from src.agent_constructor.core import Text
 
 
+
 class REWOOPipeline(Pipeline):
 
     def __init__(self, planner: Agent, worker: Agent, solver: Agent):
         super().__init__("rewoo_pipeline")
-        self.planer = planner
+        self.planner = planner
         self.worker = worker
         self.solver = solver
 

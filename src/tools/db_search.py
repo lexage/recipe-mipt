@@ -1,8 +1,8 @@
 from typing import Dict, Any
 
+from src.tools.base_tool import BaseTool
 from src.agent_constructor.db import IDB
 from src.agent_constructor.context_engine import ContextAssembler
-from src.tools.base_tool import BaseTool
 
 
 class DBSearchTool(BaseTool):

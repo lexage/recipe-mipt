@@ -1,17 +1,20 @@
+# See: docs/icl/iccl.md
+
 import numpy as np
 
 from typing import List
 from openai import OpenAI
 
 from src.agent_constructor.core import Text
+from src.agent_constructor.context_engine import Chunk
+from src.agent_constructor.icl import ICLBlock
 
 
-class ICCL:
+class ICCL(ICLBlock):
 
     def __init__(self, url: str, model_name: str) -> None:
         self.model_name = model_name
         self.client = OpenAI(base_url=url, api_key='vllm')
-        pass
 
     def _eval_example(self, example: Text):
         response = self.client.completions.create(
@@ -25,7 +28,11 @@ class ICCL:
         entropy = -np.mean(all_probs)
         return np.exp(entropy)
 
-    def run(self, examples: List[Text]):
-        complexity = [self._eval_example(e) for e in examples]
-        sorted_examples = [(ex, comp) for ex, comp in zip(examples, complexity) if comp is not None and comp > 0]
-        return sorted_examples
+    def apply(self, chunks: List[Chunk]) -> List[Chunk]:
+        valid = [
+            (chunk, comp)
+            for chunk in chunks
+            if (comp := self._eval_example(chunk.text)) is not None and comp > 0
+        ]
+
+        return [chunk for chunk, _ in sorted(valid, key=lambda x: x[1])]
