@@ -1,0 +1,64 @@
+type: SIMPLE
+
+params:
+  top_k: 3
+
+components:
+  
+  embedder:
+    type: EMBEDDING_AGENT
+    params:
+      name: embedder
+      url: "http://localhost:7216/v1"
+      model_name: "Qwen/Qwen3-Embedding-4B"
+  
+  data_base:
+    type: LOCAL_DB
+    params:
+      path_to_db: "data/docs_database_examples.db"
+      path_to_vector_db: "data/docs_vector_database"
+      collection_name: "docs"
+      
+      hnsw_space: "cosine"
+      hnsw_m: 16
+      hnsw_construction_ef: 400
+      hnsw_search_ef: 200
+      batch_size: 16
+      
+      search_filter:
+        source: "documents"
+  
+  chunker:
+    type: RECURSIVE_CHUNKER
+    params:
+      name: chunker
+      max_chunk_size: 1000
+  
+  filter:
+    type: LENGTH_FILTER
+    params:
+      name: filter
+      min_len: 100
+  
+  context_assembler:
+    type: SIMPLE_CONTEXT_ASSEMBLER
+    params:
+      name: simple_assembler
+  
+  retriever:
+    type: SIMPLE_RETRIEVER
+    params:
+      name: simple_retriever
+  
+  agent:
+    type: SIMPLE_AGENT
+    params:
+      name: simple_agent
+
+      url: "http://localhost:7215/v1"
+      model_name: "Qwen/Qwen1.5-32B-Chat-AWQ"
+      
+      temperature: 0.2
+      top_p: 0.95
+      max_tokens: 1024
+      stop_tokens: ["</code>", "# SOLUTION END"]
