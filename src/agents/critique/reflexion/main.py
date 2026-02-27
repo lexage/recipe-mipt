@@ -1,12 +1,17 @@
 from abc import ABC, abstractmethod
 from .prompts_code import *
 from src.agent_constructor.agent import Agent
+from langchain_openai import ChatOpenAI
+from langchain_core.messages import HumanMessage
 
 
 class Reflexion(Agent):
     """
     Agent that implements Reflexion: Language Agents
     with Verbal Reinforcement Learning.
+    Agent generate criticism of the implementation of the problem.
+    At the first stage agent generate an evaluation of the implementation. (Evaluation is an integer an integer between one and five)
+    Then the agent generates a criticism of the implementation using this evaluation.
     """
 
     # Prompts in original paper are task-specific.
@@ -14,72 +19,48 @@ class Reflexion(Agent):
     def __init__(
         self,
         name: str = "Reflexion",
-        do_eval: bool = False,
-        is_chat: bool = False,
-        chat_few_shot: bool = False,
+        model_name: str = "Qwen/Qwen1.5-32B-Chat-AWQ",
+        openai_api_base_url="http://localhost:7215/v1",
     ):
         super().__init__(name)
-        self.do_eval = do_eval
-        self.is_chat = is_chat
-        self.chat_few_shot = chat_few_shot
+        self.llm_model = ChatOpenAI(
+            model=model_name,
+            openai_api_base=openai_api_base_url,
+            openai_api_key="fake-key",
+            temperature=0.7,
+        )
 
-    def llm(self, prompt: str | list[dict]) -> str:
-        # TODO: implement actual LLM call
-        return ""
+    def llm(self, message) -> str:
 
-    def make_prompt(
+        messages = [HumanMessage(content=message)]
+
+        response = self.llm_model.invoke(messages)
+        return response.content
+
+    def make_evaluate_prompt(
+        self,
+        question: str,
+        answer: str,
+    ) -> str | list[dict]:
+        prompt = rf"""{PY_EVALUATE_INSTRUCTION}\n{PY_EVALUATE_FEW_SHOT}\n  Problem: {question}\n\n Implementation: {answer}\n\n\Evaluation: """
+        return prompt
+
+    def make_reflect_prompt(
         self, question: str, answer: str, evaluation: str
     ) -> str | list[dict]:
-
-        if self.is_chat:
-            if self.chat_few_shot is not None:
-                messages = [
-                    dict(
-                        role="system",
-                        content=PY_SELF_REFLECTION_CHAT_INSTRUCTION,
-                    ),
-                    dict(
-                        role="user",
-                        content=f"{PY_SELF_REFLECTION_FEW_SHOT}\n\n"
-                        f"[task]:\n{question}\n\n[function impl]:\n{answer}\n\n"
-                        f"[unit test results]:\n{evaluation}\n\n[self-reflection]:",
-                    ),
-                ]
-                return messages
-            else:
-                messages = [
-                    dict(
-                        role="system",
-                        content=PY_SELF_REFLECTION_CHAT_INSTRUCTION,
-                    ),
-                    dict(
-                        role="user",
-                        content=f"[task]:\n{question}\n\n[function impl]:\n{answer}\n\n"
-                        f"[unit test results]:\n{evaluation}\n\n[self-reflection]:",
-                    ),
-                ]
-                return messages
-        else:
-            prompt = (
-                f"{PY_SELF_REFLECTION_COMPLETION_INSTRUCTION}\n"
-                f"{question}\n\n{answer}\n\n{evaluation}\n\nExplanation:"
-            )
-            return prompt  # type: ignore
+        prompt = rf"""{PY_SELF_REFLECTION_INSTRUCTION}\n{PY_SELF_REFLECTION_FEW_SHOT}\n  Problem: {question}\n\n Implementation: {answer}\n\n Evaluation: {evaluation}\n\Reflection:"""
+        return prompt
 
     def reflect(self, question: str, answer: str, evaluation: str) -> str:
-        prompt = self.make_prompt(question, answer, evaluation)
+        prompt = self.make_reflect_prompt(question, answer, evaluation)
         result = self.llm(prompt)
         return result
 
     def evaluate(self, question: str, answer: str) -> str:
-        # TODO: implement tests/judge/etc.
-
-        if self.do_eval:
-            pass
-
-        return ""
+        prompt = self.make_evaluate_prompt(question, answer)
+        result = self.llm(prompt)
+        return result
 
     def run(self, question: str, answer: str):
-        evaluation = self.evaluate(question, answer)
-        feedback = self.reflect(question, answer, evaluation)
-        return feedback
+        feedback = self.evaluate(question, answer)
+        return self.reflect(question, answer, feedback)

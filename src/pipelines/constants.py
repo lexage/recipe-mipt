@@ -8,6 +8,7 @@ class PipelinesNames(Enum):
     SIMPLE = "SimplePipeline"
     REWOO = "REWOOPipeline"
     MAPS = "MAPSPipeline"
+    REACT = "REACTPipeline"
 
 
 class ComponentNames(Enum):
@@ -96,3 +97,7 @@ class ComponentNames(Enum):
     RANDOM_TOPIC_GENERATOR = "src.generation.random_topic.RandomTopicGenerator"
     ZERO_SHOT_GENERATOR = "src.generation.zero_shot.ZeroShotGenerator"
     ONE_SHOT_GENERATOR = "src.generation.one_shot.OneShotGenerator"
+
+    # ===== TOOLS =====
+    DB_SEARCH_TOOL = "src.tools.DBSearchTool"
+    LLM_TOOL = "src.tools.LLMTool"
