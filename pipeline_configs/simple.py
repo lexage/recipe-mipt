@@ -7,10 +7,10 @@ from src.pipelines.constants import ComponentNames, PipelinesNames
 
 pipeline_config = PipelineConfig(
     type=PipelinesNames.SIMPLE,
-    params={"top_k": 10},
+    params={"top_k": 3},
     components={
         "embedder": ComponentConfig(
-            type=ComponentNames.TFIDF_EMBEDDING,
+            type=ComponentNames.EMBEDDING_AGENT,
             params={
                 "name": "embedder",
                 "url": "http://localhost:7216/v1",
@@ -23,13 +23,22 @@ pipeline_config = PipelineConfig(
                 "path_to_db": "data/docs_database_examples.db",
                 "path_to_vector_db": "data/docs_vector_database",
                 "collection_name": "docs",
+                "search_filter": {"source": "documents"}
             },
         ),
         "chunker": ComponentConfig(
-            type=ComponentNames.DUMMY_CHUNKER, params={"name": "chunker"}
+            type=ComponentNames.RECURSIVE_CHUNKER, 
+            params={
+                "name": "chunker",
+                "max_chunk_size": 1000
+            },
         ),
         "filter": ComponentConfig(
-            type=ComponentNames.LENGTH_FILTER, params={"name": "filter", "min_len": 100}
+            type=ComponentNames.LENGTH_FILTER, 
+            params={
+                "name": "filter", 
+                "min_len": 100
+            }
         ),
         "context_assembler": ComponentConfig(
             type=ComponentNames.SIMPLE_CONTEXT_ASSEMBLER,
@@ -38,20 +47,6 @@ pipeline_config = PipelineConfig(
         "retriever": ComponentConfig(
             type=ComponentNames.SIMPLE_RETRIEVER,
             params={"name": "simple_retriever"},
-        ),
-        "icl_block": ComponentConfig(
-            type=ComponentNames.ICCL_ICL,
-            params={
-                "url": "http://localhost:7215/v1",
-                "model_name": "Qwen/Qwen1.5-32B-Chat-AWQ",
-            },
-        ),
-        "generator": ComponentConfig(
-            type=ComponentNames.CODE_EVAL_GENERATOR,
-            params={
-                "url": "http://localhost:7215/v1",
-                "model_name": "Qwen/Qwen1.5-32B-Chat-AWQ",
-            },
         ),
         "agent": ComponentConfig(
             type=ComponentNames.SIMPLE_AGENT,

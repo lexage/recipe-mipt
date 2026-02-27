@@ -10,5 +10,5 @@ class LengthFilter(Filter):
         self.min_len = min_len
 
     def apply(self, chunks: List[Chunk]) -> List[Chunk]:
-        result = [chunk for chunk in chunks if len(chunk.text.strip()) < self.min_len]
+        result = [chunk for chunk in chunks if len(chunk.text.strip()) >= self.min_len]
         return result

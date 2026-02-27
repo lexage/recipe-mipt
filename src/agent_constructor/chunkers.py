@@ -4,8 +4,8 @@ from typing import (
 )
 import uuid
 
-from src.agent_constructor.core import Block, Document, Chunk
-
+from src.agent_constructor.core import Block, Document, Chunk, Text
+from src.utils.adapters import DOCUMENT_SRC_EXAMPLES
 
 class Chunker(Block):
     """Break a Document into a sequence of Chunks.
@@ -67,3 +67,81 @@ class DSIRChunker(Chunker):
             chunks.append(chunk)
         
         return chunks
+
+
+class RecursiveChunker(Chunker):
+    def __init__(
+            self, 
+            max_chunk_size: int = 1000, 
+            separators: list = ['\n\n', '\n', '.', ',', ' ']
+            ):
+        
+        self.max_chunk_size = max_chunk_size
+        self.separators = separators
+
+    def chunk(self, doc: Document) -> List[Chunk]:
+        
+        metadata = {
+            **doc.metadata,
+            "source" : doc.source,
+        }
+
+        if doc.source == DOCUMENT_SRC_EXAMPLES:
+
+            return [Chunk(
+                id=str(doc.id) + "_0",
+                doc_id=doc.id,
+                text=doc.text,
+                metadata=metadata
+            )]
+
+        text_splits = self._split(doc.text)
+        text_splits = self._merge(text_splits)
+
+        chunks = []
+
+        for i, text in enumerate(text_splits):
+            chunks.append(
+                Chunk(
+                    id=str(doc.id) + "_" + str(i),
+                    doc_id=doc.id,
+                    text=text,
+                    metadata=metadata
+                )
+            )
+
+        return chunks
+    
+    def _split(self, text: Text, separator_lvl: int = 0) -> List[Text]:
+        if len(text) < self.max_chunk_size:
+            return [text]
+        
+        if separator_lvl >= len(self.separators):
+            return []
+        
+        result = []
+        
+        splits = text.split(self.separators[separator_lvl])
+
+        for split in splits:
+
+            result.extend(self._split(split, separator_lvl+1))
+
+        return result
+    
+    def _merge(self, text_splits: List[Text]) -> List[Text]:
+        merged_splits = []
+        current_split = ""
+
+        for text in text_splits:
+
+            if len(current_split) + len(text) < self.max_chunk_size:
+                current_split += text
+            else:
+                merged_splits.append(current_split)
+                current_split = text
+
+        merged_splits.append(current_split)
+
+        return merged_splits
+
