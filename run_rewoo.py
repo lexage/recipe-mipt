@@ -42,8 +42,8 @@ pipeline_config = PipelineConfig(
         "db": ComponentConfig(
             type=ComponentNames.LOCAL_DB,
             params={
-                "path_to_db": "grant/db/docs_database_examples.db",
-                "path_to_vector_db": "grant/db/docs_vector_database_qwen_4b",
+                "path_to_db": "/workspace/data/docs_database_examples.db",
+                "path_to_vector_db": "/workspace/data/docs_vector_database_qwen_4b",
                 "collection_name": "docs"
                 },
         ),
@@ -51,12 +51,51 @@ pipeline_config = PipelineConfig(
             type = ComponentNames.SIMPLE_CONTEXT_ASSEMBLER,
             params={"name": "SimpleContext"}
         ),
+        "tools": [
+            ComponentConfig(type=ComponentNames.DB_SEARCH_TOOL, 
+                            params={
+                                "description": """
+                                    Use this tool when you need to:
+                                    - Find specific facts, definitions, or records from the database
+                                    - Retrieve examples, documentation, or structured data
+                                    - Answer questions about 'what', 'who', 'when', 'where' with concrete answers
+                                    
+                                    Avoid full sentences or reasoning questions.
+                                                                        
+                                    Do NOT use for: calculations, multi-step reasoning, or open-ended creative tasks.
+                                """.strip(),
+                                "top_k": 5
+                            }
+                        ),
+            ComponentConfig(type=ComponentNames.LLM_TOOL, 
+                            params={
+                                "description": """
+                                    Use this tool ONLY for:
+                                    - Reasoning, logical deduction, or step-by-step problem solving
+                                    - Summarizing, paraphrasing, or synthesizing information from #E variables
+                                    - Handling ambiguous questions that require common sense or world knowledge
+                                    - Final answer generation after evidence has been collected
+                                    
+                                    Input format: Clear instruction, optionally referencing prior evidence (e.g., 'Based on #E1, explain...').
+                                    
+                                    Do NOT use for:
+                                    - Retrieving facts that exist in the database (use db_search first)
+                                    - Mathematical calculations (use a calculator tool if available)
+                                    - Questions that can be answered with a simple lookup
+                                    
+                                    This is a reasoning tool, not a knowledge base. Always prefer specialized tools when applicable.
+                                """.strip(),
+                                "url": "http://team_recipe-dev-ssh:7215/v1", 
+                                "model_name": "Qwen/Qwen1.5-32B-Chat-AWQ"
+                            }
+                        )
+        ],
         "planner": ComponentConfig(
             type=ComponentNames.REWOO_PLANNER,
             params={
                 "name": "PlannerREWOO",
                 "url": "http://team_recipe-dev-ssh:7215/v1",
-                "model_name": "Qwen/Qwen1.5-32B-Chat-AWQ"
+                "model_name": "Qwen/Qwen1.5-32B-Chat-AWQ",
             }
         ),
         "worker": ComponentConfig(
@@ -81,7 +120,8 @@ pipeline_config = PipelineConfig(
 
 def main():
     pipeline = PipelineBuilder().build(pipeline_config)
-    result = pipeline.run("What is pandas?")
+    # result = pipeline.run("What is pandas?")
+    result = pipeline.run("How to create dataframe in pandas?")
     print(result)
 
 
