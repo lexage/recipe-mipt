@@ -86,3 +86,7 @@ class ComponentNames(Enum):
     # ===== Context Assemblers =====
     CORAG_CONTEXT_ASSEMBLER = "src.agent_constructor.context_engine.CoRAGContextAssembler"
     SIMPLE_CONTEXT_ASSEMBLER = "src.agent_constructor.context_engine.SimpleContextAssembler"
+
+    # ===== TOOLS =====
+    DB_SEARCH_TOOL = "src.tools.DBSearchTool"
+    LLM_TOOL = "src.tools.LLMTool"

@@ -1,4 +1,4 @@
-from typing import Dict, Any
+from typing import Dict, Any, List, Union
 
 from pydantic import BaseModel
 
@@ -13,5 +13,5 @@ class ComponentConfig(BaseModel):
 
 class PipelineConfig(BaseModel):
     type: PipelinesNames
-    components: Dict[str, ComponentConfig]
+    components: Dict[str, Union[ComponentConfig, List[ComponentConfig]]]
     params: Dict[str, Any] = {}
