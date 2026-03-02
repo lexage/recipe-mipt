@@ -44,6 +44,18 @@ class CoRAGRetriever(Retriever):
         
         self.data_base = data_base
 
+        available_types = (
+            CoRAGSearchTypes.SAMPLE_SEARCH.value,
+            CoRAGSearchTypes.TREE_SEARCH.value,
+            CoRAGSearchTypes.BEST_OF_N_SEARCH.value,
+        )
+
+        if not search_type in available_types:
+            raise ValueError(
+                f"Invalid search type: {search_type}. "
+                f"Available search types are {available_types}"
+            )
+
         self.search_type = search_type
 
         self.max_path_length = max_path_length
@@ -62,7 +74,7 @@ class CoRAGRetriever(Retriever):
     def retrieve(self, query: str, k: int = 1) -> Tuple[List, List[Chunk]]:
         
         match self.search_type:
-            case CoRAGSearchTypes.SAMPLE_SEARCH:
+            case CoRAGSearchTypes.SAMPLE_SEARCH.value:
                 results = self.corag_agent.sample_path(
                     query=query,
                     task_desc=self.task_description,
@@ -71,7 +83,7 @@ class CoRAGRetriever(Retriever):
                     temperature=self.temperature,
                     top_k=k,
                 )
-            case CoRAGSearchTypes.TREE_SEARCH:
+            case CoRAGSearchTypes.TREE_SEARCH.value:
                 results = self.corag_agent.tree_search(
                     query=query,
                     task_desc=self.task_description,
@@ -83,7 +95,7 @@ class CoRAGRetriever(Retriever):
                     beam_size=self.beam_size,
                     top_k=k,
                 )
-            case CoRAGSearchTypes.BEST_OF_N_SEARCH:
+            case CoRAGSearchTypes.BEST_OF_N_SEARCH.value:
                 results = self.corag_agent.best_of_n(
                     query=query,
                     task_desc=self.task_description,

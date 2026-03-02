@@ -1,0 +1,33 @@
+type: REACT
+components:
+  embedder:
+    type: EMBEDDING_AGENT
+    params:
+      name: embedder
+      url: "http://localhost:7216/v1"
+      model_name: "Qwen/Qwen3-Embedding-4B"
+  
+  db:
+    type: LOCAL_DB
+    params:
+      path_to_db: "data/docs_database_examples.db"
+      path_to_vector_db: "data/docs_vector_database"
+      collection_name: "docs"
+  
+  context_assembler:
+    type: SIMPLE_CONTEXT_ASSEMBLER
+    params:
+      name: "SimpleContext"
+  
+  tools:
+    - type: DB_SEARCH_TOOL
+      params:
+        top_k: 6
+  
+  agent:
+    type: REACT_AGENT
+    params:
+      name: "ReActAgent"
+      url: "http://localhost:7215/v1"
+      model_name: "Qwen/Qwen1.5-32B-Chat-AWQ"
+      temperature: 0.5
