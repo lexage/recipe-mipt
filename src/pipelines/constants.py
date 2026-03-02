@@ -46,6 +46,7 @@ class ComponentNames(Enum):
     MPC_SAMPLE_AGENT = "src.agents.planning.MPCSampleAgent"
 
     # ===== Agents: RAG =====
+    INSTRUCT_RATIONALITY_AGENT = "src.agents.rag.InstructRationalityAgent"
     CORAG_FINAL_SOLVER = "src.agents.rag.CoRAGFinalSolver"
     RAPTOR_QA_AGENT = "src.agents.rag.RaptorQAAgent"
     RAPTOR_SUMM_AGENT = "src.agents.rag.RaptorSummarizationAgent"
@@ -83,6 +84,7 @@ class ComponentNames(Enum):
     # ===== Context Assemblers =====
     CORAG_CONTEXT_ASSEMBLER = "src.agent_constructor.context_engine.CoRAGContextAssembler"
     SIMPLE_CONTEXT_ASSEMBLER = "src.agent_constructor.context_engine.SimpleContextAssembler"
+    INSTRUCT_CONTEXT_ASSEMBLER = "src.agent_constructor.context_engine.InstructRAGContextAssembler"
 
     # ===== ICL =====
     ICCL_ICL = "src.icl.iccl.ICCL"
