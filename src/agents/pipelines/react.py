@@ -9,7 +9,6 @@ from openai import OpenAI
 from src.agent_constructor.agent import Agent
 from src.tools import BaseTool, LLMTool
 
-
 REACT_SYSTEM_PROMPT = """You are an autonomous AI agent using the ReAct (Reasoning + Acting) framework.
         
         ### CRITICAL RULES
@@ -53,31 +52,7 @@ REACT_SYSTEM_PROMPT = """You are an autonomous AI agent using the ReAct (Reasoni
 
 REACT_FINISH_PROMPT = """Based on the information provided, generate only the final answer for the task without Thought and Action, only final text: {task}"""
 
-
 _LOG_SEPARATOR = f"\n{'_' * 20}\n"
-
-
-class PlainFormatter(logging.Formatter):
-    def format(self, record):
-        return record.getMessage()
-
-
-def setup_logger(log_file) -> logging.Logger:
-    logger = logging.getLogger("agent")
-    logger.setLevel(logging.INFO)
-    logger.handlers.clear()
-    logger.propagate = False
-
-    Path(log_file).parent.mkdir(parents=True, exist_ok=True)
-
-    file_handler = logging.FileHandler(log_file, encoding="utf-8")
-    file_handler.setFormatter(PlainFormatter())
-    logger.addHandler(file_handler)
-
-    return logger
-
-
-logger = setup_logger("/workspace/data/react.log")
 
 
 class ReActAgent(Agent):
@@ -98,14 +73,16 @@ class ReActAgent(Agent):
         self.examples = examples or []
         self.max_iterations = max_iterations
         self.tools = tools
-        
+
         if not self.tools:
             self.tools = [LLMTool(url=url, model_name=model_name)]
-        
+
         self.tool_names = ", ".join(tool.name for tool in self.tools)
         self.tools_dict = {t.name: t for t in self.tools}
-        self.tools_prompt = "\n\n".join([t.get_prompt_description() for t in self.tools])
-        
+        self.tools_prompt = "\n\n".join(
+            [t.get_prompt_description() for t in self.tools]
+        )
+
         self.memory = []
 
         self.instruction = instruction or REACT_SYSTEM_PROMPT.format(
@@ -116,8 +93,8 @@ class ReActAgent(Agent):
         self.model_name = model_name
         self.temperature = temperature
 
-        logger.info(f"SYSTEM PROMPT: {self.instruction}")
-        logger.info(_LOG_SEPARATOR)
+        logging.info(f"SYSTEM PROMPT: {self.instruction}")
+        logging.info(_LOG_SEPARATOR)
 
     def llm(self, messages: List[Dict[str, Any]]) -> Any:
         """Calling the llm to get a response."""
@@ -203,8 +180,8 @@ class ReActAgent(Agent):
     def run(self, task: str) -> str:
         """Run the ReAct agent to solve the programming task."""
 
-        logger.info(f"TASK: {task}")
-        logger.info(_LOG_SEPARATOR)
+        logging.info(f"TASK: {task}")
+        logging.info(_LOG_SEPARATOR)
 
         self.memory = [
             {"role": "system", "content": self.instruction},
@@ -217,24 +194,24 @@ class ReActAgent(Agent):
             self.memory.append({"role": "assistant", "content": message.content})
             thought, action, action_input = self._parse(message.content)
 
-            logger.info(f"STEP {idx+1}:")
-            logger.info(_LOG_SEPARATOR)
-            logger.info(f"THOUGHT: {thought}")
-            logger.info(_LOG_SEPARATOR)
-            logger.info(f"ACTION: {action}")
-            logger.info(_LOG_SEPARATOR)
-            logger.info(f"ACTION INPUT: {action_input}")
-            logger.info(_LOG_SEPARATOR)
+            logging.info(f"STEP {idx+1}:")
+            logging.info(_LOG_SEPARATOR)
+            logging.info(f"THOUGHT: {thought}")
+            logging.info(_LOG_SEPARATOR)
+            logging.info(f"ACTION: {action}")
+            logging.info(_LOG_SEPARATOR)
+            logging.info(f"ACTION INPUT: {action_input}")
+            logging.info(_LOG_SEPARATOR)
 
             if action == "Finish":
                 self.memory.append(
                     {"role": "user", "content": REACT_FINISH_PROMPT.format(task=task)}
                 )
-                logger.info(f"FINISH PROMPT: {REACT_FINISH_PROMPT.format(task=task)}")
-                logger.info(_LOG_SEPARATOR)
+                logging.info(f"FINISH PROMPT: {REACT_FINISH_PROMPT.format(task=task)}")
+                logging.info(_LOG_SEPARATOR)
                 answer = self._finish(self.memory)
-                logger.info(f"FINAL ANSWER: {answer}")
-                logger.info(_LOG_SEPARATOR)
+                logging.info(f"FINAL ANSWER: {answer}")
+                logging.info(_LOG_SEPARATOR)
                 return answer
 
             else:
@@ -248,8 +225,8 @@ class ReActAgent(Agent):
                     }
                 )
 
-                logger.info(f"OBSERVATION: {observation}")
-                logger.info(_LOG_SEPARATOR)
+                logging.info(f"OBSERVATION: {observation}")
+                logging.info(_LOG_SEPARATOR)
 
                 continue
 
