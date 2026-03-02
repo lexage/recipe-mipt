@@ -13,7 +13,7 @@ class REWOOPipeline(Pipeline):
         self.solver = solver
 
     def run(self, task: Text):
-        plan = self.planer.run(task)
+        plan = self.planner.run(task)
         evidencies = self.worker.run(plan)
         final_answer = self.solver.run(task, plan, evidencies)
         return final_answer
