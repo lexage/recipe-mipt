@@ -4,14 +4,14 @@ components:
     type: EMBEDDING_AGENT
     params:
       name: embedder
-      url: "http://team_recipe-dev-ssh:7216/v1"
+      url: "http://localhost:7216/v1"
       model_name: "Qwen/Qwen3-Embedding-4B"
   
   db:
     type: LOCAL_DB
     params:
-      path_to_db: "/workspace/data/docs_database_examples.db"
-      path_to_vector_db: "/workspace/data/docs_vector_database_qwen_4b"
+      path_to_db: "data/docs_database_examples.db"
+      path_to_vector_db: "data/docs_vector_database"
       collection_name: "docs"
   
   context_assembler:
@@ -22,19 +22,23 @@ components:
   tools:
     - type: DB_SEARCH_TOOL
       params:
-        description: "Use this tool when you need to:
+        description: |
+
+          Use this tool when you need to:
           - Find specific facts, definitions, or records from the database
           - Retrieve examples, documentation, or structured data
           - Answer questions about 'what', 'who', 'when', 'where' with concrete answers
 
           Avoid full sentences or reasoning questions.
                                               
-          Do NOT use for: calculations, multi-step reasoning, or open-ended creative tasks."
+          Do NOT use for: calculations, multi-step reasoning, or open-ended creative tasks.
         top_k: 5
 
     - type: LLM_TOOL
       params:
-        description: "Use this tool ONLY for:
+        description: |
+
+          Use this tool ONLY for:
           - Reasoning, logical deduction, or step-by-step problem solving
           - Summarizing, paraphrasing, or synthesizing information from #E variables
           - Handling ambiguous questions that require common sense or world knowledge
@@ -47,29 +51,31 @@ components:
           - Mathematical calculations (use a calculator tool if available)
           - Questions that can be answered with a simple lookup
           
-          This is a reasoning tool, not a knowledge base. Always prefer specialized tools when applicable."
-        url: "http://team_recipe-dev-ssh:7215/v1"
+          This is a reasoning tool, not a knowledge base. Always prefer specialized tools when applicable.
+        url: "http://localhost:7215/v1"
         model_name: "Qwen/Qwen1.5-32B-Chat-AWQ"
 
   planner:
     type: REWOO_PLANNER
     params:
       name: "PlannerREWOO"
-      url: "http://team_recipe-dev-ssh:7215/v1"
+      url: "http://localhost:7215/v1"
       model_name: "Qwen/Qwen1.5-32B-Chat-AWQ"
+      temperature: 0.5
 
   worker:
     type: REWOO_WORKER
     params:
       name: "WorkerREWOO"
-      url: "http://team_recipe-dev-ssh:7215/v1"
+      url: "http://localhost:7215/v1"
       model_name: "Qwen/Qwen1.5-32B-Chat-AWQ"
 
   solver:
     type: REWOO_SOLVER
     params:
       name: "SolverREWOO"
-      url: "http://team_recipe-dev-ssh:7215/v1"
+      url: "http://localhost:7215/v1"
       model_name: "Qwen/Qwen1.5-32B-Chat-AWQ"
+      temperature: 0.5
 
 logs_path: "data/rewoo.log"
