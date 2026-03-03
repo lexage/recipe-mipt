@@ -1,268 +1,85 @@
+"""
+Адаптеры для работы с базами данных.
+
+"""
+
 import sqlite3
-import chromadb
 import json
 import hashlib
-
+import time
+import os
 from typing import List, Dict, Any, Optional
-from tqdm import tqdm
 from pathlib import Path
-from chromadb.config import Settings
-
-from src.utils import DOCUMENT_SRC_DOCUMENTS, DOCUMENT_SRC_EXAMPLES
-from src.agent_constructor.core import Document, Text, Chunk
-from src.utils.queries import GET_DOCUMENTS_QUERY, GET_EXAMPLES_QUERY
-from src.utils.wrappers import EmbeddingFunctionWrapper
-
-from ..config import ExtractedExample
-
-
-class SQLiteDocsDBAdapter:
-    def __init__(self, path_to_db: str):
-        self.path_to_db = path_to_db
-
-    def get_docs(self, ids: Optional[List[int]] = None) -> List[Document]:
-        
-        documents = []
-        with sqlite3.connect(self.path_to_db) as conn:
-            conn.row_factory = sqlite3.Row
-            cursor = conn.cursor()
-            
-            if ids:
-                placeholders = ','.join('?' * len(ids))
-                query = f"{GET_DOCUMENTS_QUERY} WHERE d.id IN ({placeholders})"
-                cursor.execute(query, ids)
-            else:
-                cursor.execute(GET_DOCUMENTS_QUERY)
-            
-            for row in cursor.fetchall():
-                documents.append(
-                    Document(
-                        id=row['id'], 
-                        source=DOCUMENT_SRC_DOCUMENTS, 
-                        text=row['content'], metadata={
-                            "library": row['library'],
-                            "section": row['section'],
-                            "doc_name": row['name'],
-                        }
-                    )
-                )
-        
-        return documents
-    
-    def get_examples(self, ids: Optional[List[int]] = None) -> List[Document]:
-        documents = []
-        with sqlite3.connect(self.path_to_db) as conn:
-            conn.row_factory = sqlite3.Row
-            cursor = conn.cursor()
-            
-            cursor.execute("SELECT COUNT(*) FROM documents")
-            id_offset = cursor.fetchone()[0]
-            
-            if ids:
-                placeholders = ','.join('?' * len(ids))
-                query = f"{GET_EXAMPLES_QUERY} WHERE e.id IN ({placeholders})"
-                cursor.execute(query, ids)
-            else:
-                cursor.execute(GET_EXAMPLES_QUERY)
-            
-            for row in cursor.fetchall():
-                documents.append(
-                    Document(
-                        id=row['id'] + id_offset, 
-                        source=DOCUMENT_SRC_EXAMPLES, 
-                        text=row['content'], 
-                        metadata={
-                            "doc_id": row['doc_id'],
-                            "order_id": row['order_id'],
-                        }
-                    )
-                )
-        
-        return documents
-    
-
-class ChromaDocsAdapter:
-    
-    def __init__(self, embedder, collection_name: str, path_to_db: str, batch_size: int = 10):
-        self.collection_name = collection_name
-        self.path_to_db = path_to_db
-        self.batch_size = batch_size
-
-        client = chromadb.PersistentClient(path=path_to_db, settings=Settings(anonymized_telemetry=False))
-        
-        self.collection = client.get_or_create_collection(
-            self.collection_name, 
-            embedding_function=EmbeddingFunctionWrapper(embedder)
-        )
-
-    def _get_existing_ids(self) -> set:
-        existing = self.collection.get(include=[])
-        return set(existing['ids']) if existing['ids'] else set()
-
-    def _filter_new_chunks(self, chunks: List[Chunk], existing_ids: set) -> List[Chunk]:
-        return [chunk for chunk in chunks if chunk.id not in existing_ids]
-
-    def add(self, chunks: List[Chunk]):
-        existing_ids = self._get_existing_ids()
-        new_chunks = self._filter_new_chunks(chunks, existing_ids)
-        
-        if not new_chunks:
-            return
-        
-        for i in tqdm(range(0, len(new_chunks), self.batch_size), desc="Vectorizing"):
-            batch = new_chunks[i:i + self.batch_size]
-            
-            batch_docs = [chunk.text for chunk in batch]
-            batch_ids = [chunk.id for chunk in batch]
-            batch_metadatas = [chunk.metadata for chunk in batch]
-            
-            self.collection.add(
-                documents=batch_docs,
-                ids=batch_ids,
-                metadatas=batch_metadatas
-            )
-
-    def get_chunks(self, ids: Optional[List[str]] = None) -> List[Chunk]:
-        if ids:
-            results = self.collection.get(ids=ids, include=['documents', 'metadatas'])
-        else:
-            results = self.collection.get(include=['documents', 'metadatas'])
-        
-        chunks = []
-        result_ids = results['ids'] if results['ids'] else []
-        documents = results['documents'] if results['documents'] else []
-        metadatas = results['metadatas'] if results['metadatas'] else []
-        
-        for i, chunk_id in enumerate(result_ids):
-            doc_id = metadatas[i].get('doc_id', None) if i < len(metadatas) else None
-            
-            chunks.append(
-                Chunk(
-                    id=chunk_id,
-                    doc_id=doc_id,
-                    text=documents[i] if i < len(documents) else '',
-                    tokens=None,
-                    metadata=metadatas[i] if i < len(metadatas) else {}
-                )
-            )
-        
-        return chunks
-
-    def search(self, queries: List[Text], top_k: int) -> List[List[Chunk]]:
-
-        results = self.collection.query(query_texts=queries, n_results=top_k)
-    
-        all_query_results = []
-        
-        for query_idx in range(len(results['ids'])):
-            query_chunks = []
-            ids = results['ids'][query_idx]
-            documents = results['documents'][query_idx]
-            metadatas = results['metadatas'][query_idx] if results['metadatas'] else [{}] * len(ids)
-            
-            for i, chunk_id in enumerate(ids):
-                doc_id = metadatas[i].get('doc_id', None) if i < len(metadatas) else None
-                
-                query_chunks.append(
-                    Chunk(
-                        id=chunk_id,
-                        doc_id=doc_id,
-                        text=documents[i] if i < len(documents) else '',
-                        tokens=None,
-                        metadata=metadatas[i] if i < len(metadatas) else {}
-                    )
-                )
-            
-            all_query_results.append(query_chunks)
-        
-        return all_query_results
-
-"""
-SQLite адаптер для хранения GitHub примеров.
-Конвертирует ExtractedExample в Chunk и обратно.
-"""
-
+from src.utils.github_parser.config import ExtractedExample
 
 class GitHubSQLiteAdapter:
-    """Адаптер для работы с SQLite БД GitHub примеров."""
+    """
+    Адаптер для работы с существующей SQLite БД.
     
-    def __init__(self, db_path: str = "data/github_examples.db"):
+    """
+    
+    def __init__(self, db_path: str = "data/docs_database.db"):
+        """
+        Инициализация адаптера с существующей БД.
+        
+        Args:
+            db_path: Путь к существующей SQLite базе данных
+        """
         self.db_path = db_path
-        # Создаем папку data, если её нет
-        Path("data").mkdir(exist_ok=True)
-        self._init_database()
-    
-    def _init_database(self):
-        """Инициализирует БД с нужными таблицами."""
-        with sqlite3.connect(self.db_path) as conn:
-            cursor = conn.cursor()
-            
-            # Таблица для chunks
-            cursor.execute("""
-            CREATE TABLE IF NOT EXISTS chunks (
-                id TEXT PRIMARY KEY,
-                text TEXT NOT NULL,
-                metadata TEXT,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            )
-            """)
-            
-            # Таблица для сырых ExtractedExample (на всякий случай)
-            cursor.execute("""
-            CREATE TABLE IF NOT EXISTS raw_examples (
-                id TEXT PRIMARY KEY,
-                source_object_type TEXT NOT NULL,
-                source_object_name TEXT NOT NULL,
-                source_object_path TEXT NOT NULL,
-                task_description TEXT,
-                solution_code TEXT NOT NULL,
-                metadata_source_code TEXT,
-                references TEXT,
-                repository_name TEXT NOT NULL,
-                chunk_index INTEGER DEFAULT 0,
-                total_chunks INTEGER DEFAULT 1,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            )
-            """)
-            
-            # Индексы для поиска
-            cursor.execute("CREATE INDEX IF NOT EXISTS idx_chunks_text ON chunks(text)")
-            cursor.execute("CREATE INDEX IF NOT EXISTS idx_raw_type ON raw_examples(source_object_type)")
-            cursor.execute("CREATE INDEX IF NOT EXISTS idx_raw_repo ON raw_examples(repository_name)")
-            
-            conn.commit()
-    
-    def _generate_chunk_id(self, example: ExtractedExample, repo_name: str) -> str:
-        """Генерирует ID для чанка."""
-        content = f"{repo_name}:{example.source_object_path}:{example.source_object_name}:{example.solution_code}"
-        return hashlib.md5(content.encode()).hexdigest()
-    
-    def example_to_chunk(self, example: ExtractedExample, repo_name: str) -> Chunk:
-        """Конвертирует ExtractedExample в Chunk."""
-        metadata = {
-            'source_object_type': example.source_object_type,
-            'source_object_name': example.source_object_name,
-            'source_object_path': example.source_object_path,
-            'task_description': example.task_description,
-            'repository_name': repo_name,
-            'references': example.references,
-            'metadata_source_code': example.metadata_source_code[:200] if example.metadata_source_code else ""  # обрезаем для метаданных
-        }
+        self._connections = []
         
-        return Chunk(
-            id=self._generate_chunk_id(example, repo_name),
-            text=example.solution_code,
-            metadata=metadata
-        )
+        # Проверяем, что файл существует
+        if not os.path.exists(db_path):
+            raise FileNotFoundError(f"База данных не найдена: {db_path}")
+        
+        print(f"Подключено к существующей БД: {db_path}")
     
-    def add_example(self, example: ExtractedExample, repo_name: str) -> str:
-        """Добавляет пример в БД (и в chunks, и в raw_examples)."""
+    def _get_connection(self):
+        """Создаёт соединение с БД."""
+        conn = sqlite3.connect(self.db_path)
+        conn.row_factory = sqlite3.Row
+        self._connections.append(conn)
+        return conn
+    
+    def close_all_connections(self):
+        """Закрывает все соединения."""
+        for conn in self._connections:
+            try:
+                conn.close()
+            except:
+                pass
+        self._connections.clear()
+    
+    def table_exists(self, table_name: str) -> bool:
+        """
+        Проверяет, существует ли таблица в БД.
+        
+        Args:
+            table_name: Имя таблицы
+            
+        Returns:
+            bool: True если таблица существует
+        """
+        conn = self._get_connection()
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT name FROM sqlite_master 
+            WHERE type='table' AND name=?
+        """, (table_name,))
+        exists = cursor.fetchone() is not None
+        return exists
+    
+    def add_example(self, example, repo_name: str) -> str:
+        """
+        Добавляет пример в существующую БД.
+        Если таблиц нет - использует то, что есть.
+        """
         chunk_id = self._generate_chunk_id(example, repo_name)
+        conn = self._get_connection()
+        cursor = conn.cursor()
         
-        with sqlite3.connect(self.db_path) as conn:
-            cursor = conn.cursor()
-            
-            # Сохраняем в chunks
+        # Проверяем, есть ли таблица chunks
+        if self.table_exists('chunks'):
             cursor.execute("""
             INSERT OR IGNORE INTO chunks (id, text, metadata)
             VALUES (?, ?, ?)
@@ -273,36 +90,19 @@ class GitHubSQLiteAdapter:
                     'source_object_type': example.source_object_type,
                     'source_object_name': example.source_object_name,
                     'source_object_path': example.source_object_path,
-                    'task_description': example.task_description,
-                    'repository_name': repo_name,
-                    'references': example.references
+                    'repository_name': repo_name
                 }, ensure_ascii=False)
             ))
-            
-            # Сохраняем в raw_examples
-            cursor.execute("""
-            INSERT OR IGNORE INTO raw_examples (
-                id, source_object_type, source_object_name, source_object_path,
-                task_description, solution_code, metadata_source_code, references,
-                repository_name, chunk_index, total_chunks
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """, (
-                chunk_id,
-                example.source_object_type,
-                example.source_object_name,
-                example.source_object_path,
-                example.task_description or "",
-                example.solution_code,
-                example.metadata_source_code or "",
-                example.references or "",
-                repo_name,
-                0, 1
-            ))
-            
-            conn.commit()
-            return chunk_id
+        
+        conn.commit()
+        return chunk_id
     
-    def add_examples_batch(self, examples: List[ExtractedExample], repo_name: str) -> int:
+    def _generate_chunk_id(self, example, repo_name: str) -> str:
+        """Генерирует ID."""
+        content = f"{repo_name}:{example.source_object_path}:{example.source_object_name}:{example.solution_code}"
+        return hashlib.md5(content.encode()).hexdigest()
+    
+    def add_examples_batch(self, examples, repo_name: str) -> int:
         """Добавляет несколько примеров."""
         added = 0
         for example in examples:
@@ -310,13 +110,18 @@ class GitHubSQLiteAdapter:
                 self.add_example(example, repo_name)
                 added += 1
             except Exception as e:
-                print(f"Ошибка при добавлении {example.source_object_name}: {e}")
+                print(f"Ошибка: {e}")
         return added
     
-    def search(self, query: str, limit: int = 10) -> List[Chunk]:
-        """Поиск по тексту чанков."""
-        with sqlite3.connect(self.db_path) as conn:
-            cursor = conn.cursor()
+    def search(self, query: str, limit: int = 10) -> List:
+        """Поиск по существующей БД."""
+        from src.agent_constructor.core import Chunk
+        
+        conn = self._get_connection()
+        cursor = conn.cursor()
+        
+        # Пробуем поиск в chunks если есть
+        if self.table_exists('chunks'):
             cursor.execute("""
             SELECT id, text, metadata FROM chunks
             WHERE text LIKE ? OR metadata LIKE ?
@@ -332,65 +137,331 @@ class GitHubSQLiteAdapter:
                 )
                 chunks.append(chunk)
             return chunks
+        
+        return []
     
-    def get_all_chunks(self) -> List[Chunk]:
-        """Возвращает все чанки."""
-        with sqlite3.connect(self.db_path) as conn:
-            cursor = conn.cursor()
-            cursor.execute("SELECT id, text, metadata FROM chunks")
+    def get_stats(self) -> Dict:
+        """Статистика по существующей БД."""
+        stats = {
+            'database_path': str(self.db_path),
+            'tables': []
+        }
+        
+        conn = self._get_connection()
+        cursor = conn.cursor()
+        
+        # Получаем список таблиц
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='table'")
+        tables = cursor.fetchall()
+        stats['tables'] = [t[0] for t in tables]
+        
+        # Считаем записи в каждой таблице
+        for table in stats['tables']:
+            try:
+                cursor.execute(f"SELECT COUNT(*) FROM {table}")
+                count = cursor.fetchone()[0]
+                stats[f'{table}_count'] = count
+            except:
+                pass
+        
+        return stats
+    
+
+class SQLiteDocsDBAdapter:
+    """
+    Адаптер для работы с SQLite документами.
+    Соответствует тому, что ожидает agent_constructor.
+    """
+    
+    def __init__(self, path_to_db: str = "data/docs_database.db"):
+        """
+        Инициализация адаптера.
+        
+        Args:
+            path_to_db: Путь к SQLite базе данных
+        """
+        self.path_to_db = path_to_db
+        self._init_database()
+        print(f"SQLiteDocsDBAdapter подключен к {path_to_db}")
+    
+    def _init_database(self):
+        """Инициализация таблиц, если их нет."""
+        conn = sqlite3.connect(self.path_to_db)
+        cursor = conn.cursor()
+        
+        cursor.execute("""
+        CREATE TABLE IF NOT EXISTS documents (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            title TEXT,
+            content TEXT,
+            metadata TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+        """)
+        
+        cursor.execute("""
+        CREATE TABLE IF NOT EXISTS examples (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT,
+            code TEXT,
+            description TEXT,
+            metadata TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+        """)
+        
+        conn.commit()
+        conn.close()
+    
+    def get_docs(self, ids: Optional[List[int]] = None) -> List:
+        """Получает документы."""
+        from src.agent_constructor.core import Document
+        
+        conn = sqlite3.connect(self.path_to_db)
+        cursor = conn.cursor()
+        
+        if ids:
+            placeholders = ','.join(['?'] * len(ids))
+            cursor.execute(f"SELECT * FROM documents WHERE id IN ({placeholders})", ids)
+        else:
+            cursor.execute("SELECT * FROM documents")
+        
+        docs = []
+        for row in cursor.fetchall():
+            # Создаем Document объект
+            doc = Document(
+                id=str(row[0]),
+                title=row[1] or "",
+                content=row[2] or "",
+                metadata=json.loads(row[3]) if row[3] else {}
+            )
+            docs.append(doc)
+        
+        conn.close()
+        return docs
+    
+    def get_examples(self) -> List:
+        """Получает примеры."""
+        conn = sqlite3.connect(self.path_to_db)
+        cursor = conn.cursor()
+        
+        cursor.execute("SELECT * FROM examples")
+        
+        examples = []
+        for row in cursor.fetchall():
+            examples.append({
+                'id': row[0],
+                'name': row[1],
+                'code': row[2],
+                'description': row[3],
+                'metadata': json.loads(row[4]) if row[4] else {}
+            })
+        
+        conn.close()
+        return examples
+
+
+class ChromaDocsAdapter:
+    """
+    Адаптер для работы с векторной БД Chroma.
+    Реализация с ChromaDB.
+    """
+    
+    def __init__(self, embedder=None, collection_name: str = "docs", path_to_db: str = "data/docs_vector_database"):
+        """
+        Инициализация адаптера.
+        
+        Args:
+            embedder: Модель для создания эмбеддингов
+            collection_name: Название коллекции
+            path_to_db: Путь к векторной БД
+        """
+        self.embedder = embedder
+        self.collection_name = collection_name
+        self.path_to_db = path_to_db
+        self.client = None
+        self.collection = None
+        self._chunks = []
+        
+        self._init_chroma()
+        print(f"ChromaDocsAdapter инициализирован: {path_to_db}")
+    
+    def _init_chroma(self):
+        """Инициализация подключения к ChromaDB."""
+        try:
+            import chromadb
+            from chromadb.config import Settings
+            
+            # Создаём клиент
+            self.client = chromadb.PersistentClient(path=self.path_to_db)
+            
+            # Получаем или создаём коллекцию
+            try:
+                self.collection = self.client.get_collection(self.collection_name)
+                print(f"   Коллекция '{self.collection_name}' найдена, элементов: {self.collection.count()}")
+            except:
+                self.collection = self.client.create_collection(
+                    name=self.collection_name,
+                    metadata={"hnsw:space": "cosine"}
+                )
+                print(f"   Создана новая коллекция '{self.collection_name}'")
+                
+        except ImportError:
+            print("chromadb не установлен. Установите: pip install chromadb")
+        except Exception as e:
+            print(f"Ошибка при инициализации Chroma: {e}")
+    
+    def add(self, chunks):
+        """
+        Добавляет чанки в векторную БД.
+        
+        Args:
+            chunks: Список чанков для добавления
+        """
+        if not chunks:
+            return
+        
+        if not self.collection:
+            print("Коллекция Chroma не инициализирована")
+            self._chunks.extend(chunks)
+            return
+        
+        try:
+            # Подготавливаем данные для Chroma
+            ids = []
+            embeddings = []
+            metadatas = []
+            documents = []
+            
+            for chunk in chunks:
+                ids.append(chunk.id)
+                
+                # Получаем эмбеддинг через embedder
+                if self.embedder:
+                    embedding = self.embedder(chunk.text)
+                    embeddings.append(embedding)
+                else:
+                    print(f"Нет embedder'а, пропускаем чанк {chunk.id}")
+                    continue
+                
+                metadatas.append(chunk.metadata or {})
+                documents.append(chunk.text)
+            
+            if not embeddings:
+                print("Нет эмбеддингов для добавления")
+                return
+            
+            # Добавляем в коллекцию
+            self.collection.add(
+                ids=ids,
+                embeddings=embeddings,
+                metadatas=metadatas,
+                documents=documents
+            )
+            
+            # Сохраняем в локальном кэше
+            self._chunks.extend(chunks)
+            print(f"Добавлено {len(chunks)} чанков в ChromaDocsAdapter")
+            
+        except Exception as e:
+            print(f"Ошибка при добавлении в Chroma: {e}")
+            import traceback
+            traceback.print_exc()
+            # На всякий случай сохраняем в локальном кэше
+            self._chunks.extend(chunks)
+    
+    def search(self, queries=None, top_k: int = 10) -> List[List]:
+        """
+        Поиск по векторной БД.
+        
+        Args:
+            queries: Список запросов
+            top_k: Количество результатов
+            
+        Returns:
+            List[List]: Список результатов для каждого запроса
+        """
+        from src.agent_constructor.core import Chunk
+        
+        if not queries:
+            return [[]]
+        
+        if not self.collection:
+            print("Коллекция Chroma не инициализирована, возвращаем пустые результаты")
+            return [[] for _ in queries]
+        
+        try:
+            results_list = []
+            
+            for query in queries:
+                # Получаем эмбеддинг запроса
+                if not self.embedder:
+                    print("Нет embedder'а для поиска")
+                    results_list.append([])
+                    continue
+                
+                query_embedding = self.embedder(query)
+                
+                # Ищем в коллекции
+                try:
+                    results = self.collection.query(
+                        query_embeddings=[query_embedding],
+                        n_results=min(top_k, self.collection.count())
+                    )
+                    
+                    chunks = []
+                    if results['ids'] and len(results['ids'][0]) > 0:
+                        for i, doc_id in enumerate(results['ids'][0]):
+                            chunk = Chunk(
+                                id=doc_id,
+                                doc_id=doc_id,
+                                text=results['documents'][0][i] if results['documents'] else "",
+                                metadata=results['metadatas'][0][i] if results['metadatas'] else {}
+                            )
+                            # Добавляем score если есть (конвертируем расстояние в сходство)
+                            if results.get('distances'):
+                                # distance = 0 (близко) -> score = 1
+                                # distance = 2 (далеко) -> score = 0
+                                chunk.score = 1 - (results['distances'][0][i] / 2)
+                            chunks.append(chunk)
+                    
+                    results_list.append(chunks)
+                    
+                except Exception as e:
+                    print(f"Ошибка при поиске запроса '{query}': {e}")
+                    results_list.append([])
+            
+            return results_list
+            
+        except Exception as e:
+            print(f"Ошибка при поиске: {e}")
+            return [[] for _ in queries]
+    
+    def get_chunks(self) -> List:
+        """Получает все чанки из локального кэша."""
+        return self._chunks
+    
+    def get_all_from_chroma(self) -> List:
+        """Получает все чанки напрямую из Chroma."""
+        from src.agent_constructor.core import Chunk
+        
+        if not self.collection:
+            return []
+        
+        try:
+            results = self.collection.get()
             
             chunks = []
-            for row in cursor.fetchall():
+            for i, doc_id in enumerate(results['ids']):
                 chunk = Chunk(
-                    id=row[0],
-                    text=row[1],
-                    metadata=json.loads(row[2]) if row[2] else None
+                    id=doc_id,
+                    doc_id=doc_id,
+                    text=results['documents'][i] if results['documents'] else "",
+                    metadata=results['metadatas'][i] if results['metadatas'] else {}
                 )
                 chunks.append(chunk)
+            
             return chunks
-    
-    def get_examples_by_repo(self, repo_name: str, limit: int = 100) -> List[Dict]:
-        """Получает сырые примеры по репозиторию."""
-        with sqlite3.connect(self.db_path) as conn:
-            conn.row_factory = sqlite3.Row
-            cursor = conn.cursor()
-            cursor.execute("""
-            SELECT * FROM raw_examples 
-            WHERE repository_name = ?
-            ORDER BY created_at DESC
-            LIMIT ?
-            """, (repo_name, limit))
-            return [dict(row) for row in cursor.fetchall()]
-    
-    def get_stats(self) -> Dict[str, Any]:
-        """Статистика по БД."""
-        with sqlite3.connect(self.db_path) as conn:
-            cursor = conn.cursor()
-            
-            cursor.execute("SELECT COUNT(*) FROM chunks")
-            total_chunks = cursor.fetchone()[0]
-            
-            cursor.execute("SELECT COUNT(*) FROM raw_examples")
-            total_examples = cursor.fetchone()[0]
-            
-            cursor.execute("""
-            SELECT repository_name, COUNT(*) 
-            FROM raw_examples 
-            GROUP BY repository_name
-            """)
-            repo_stats = {row[0]: row[1] for row in cursor.fetchall()}
-            
-            cursor.execute("""
-            SELECT source_object_type, COUNT(*) 
-            FROM raw_examples 
-            GROUP BY source_object_type
-            """)
-            type_stats = {row[0]: row[1] for row in cursor.fetchall()}
-            
-            return {
-                'total_chunks': total_chunks,
-                'total_examples': total_examples,
-                'by_repository': repo_stats,
-                'by_type': type_stats,
-                'database_path': str(self.db_path)
-            }
+        except Exception as e:
+            print(f"Ошибка при получении данных из Chroma: {e}")
+            return []
