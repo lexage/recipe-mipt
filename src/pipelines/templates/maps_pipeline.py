@@ -1,3 +1,6 @@
+import logging
+import json
+
 from dataclasses import dataclass, field
 from typing import Optional, List
 from enum import Enum, auto
@@ -6,6 +9,9 @@ from src.agent_constructor.core import Text
 from src.agent_constructor.agent import Agent
 from src.agent_constructor.pipeline import Pipeline
 from src.agent_constructor.context_engine import Retriever
+
+
+_LOG_SEPARATOR = f"\n{'_' * 20}\n"
 
 
 class MAPSAgents(Enum):
@@ -34,8 +40,8 @@ class MAPSPipeline(Pipeline):
     def __init__(self, aligner: Agent, scholar: Agent, solver: Agent, critic: Agent, retriever: Retriever = None, max_iterations: int = 1):
         super().__init__("maps_pipeline")
         self.retriever = retriever
-        self.aligner = aligner 
-        self.scholar = scholar 
+        self.aligner = aligner
+        self.scholar = scholar
         self.solver = solver
         self.critic = critic
         self.max_iterations = max_iterations
@@ -45,6 +51,9 @@ class MAPSPipeline(Pipeline):
         context = ""
         if self.retriever:
             context = self.retriever.retrieve(task)
+            
+        logging.info(f"CONTEXT:\n\n{context}")
+        logging.info(_LOG_SEPARATOR)
         
         state = MAPSPipelineState(
             task=task,
@@ -62,6 +71,9 @@ class MAPSPipeline(Pipeline):
                     state.aligned_info = self.aligner.run(
                         self._aligner_prompt(state)
                     )
+                    
+                    logging.info(f"ALIGNER RETURN:\n\n{state.aligned_info}")
+                    logging.info(_LOG_SEPARATOR)
 
                     next_agent = MAPSAgents.SCHOLAR
 
@@ -70,6 +82,9 @@ class MAPSPipeline(Pipeline):
                     state.research = self.scholar.run(
                         self._scholar_prompt(state)
                     )
+                    
+                    logging.info(f"SCHOLAR RETURN:\n\n{state.research}")
+                    logging.info(_LOG_SEPARATOR)
 
                     next_agent = MAPSAgents.SOLVER
 
@@ -79,6 +94,9 @@ class MAPSPipeline(Pipeline):
                         self._solver_prompt(state)
                     )
 
+                    logging.info(f"SOLVER RETURN:\n\n{state.solution}")
+                    logging.info(_LOG_SEPARATOR)
+
                     next_agent = MAPSAgents.CRITIC
 
                 case MAPSAgents.CRITIC:
@@ -87,13 +105,23 @@ class MAPSPipeline(Pipeline):
                         self._critic_prompt(state)
                     )
 
+                    logging.info(f"CRITIC SCORES RETURN:\n\n{state.scores}")
+                    logging.info(_LOG_SEPARATOR)
+                    logging.info(f"CRITIC FEEDBACK RETURN:\n\n{state.feedback}")
+                    logging.info(_LOG_SEPARATOR)
+
                     if min(state.scores) >= 5:
                         break
                     
                     agent_id = state.scores.index(min(state.scores))
                     next_agent = [MAPSAgents.ALIGNER, MAPSAgents.SCHOLAR, MAPSAgents.SOLVER][agent_id]
                     i += 1
+        
+        logging.info(f"FINAL SOLUTION:\n\n{state.solution}")
+        logging.info(f"TYPE SOLUTION:\n\n{type(state.solution)}")
 
+        logging.info(_LOG_SEPARATOR)
+  
         return state.solution
 
     @staticmethod
