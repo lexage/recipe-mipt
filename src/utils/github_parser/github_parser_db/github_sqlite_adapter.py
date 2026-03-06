@@ -47,7 +47,7 @@ class GitHubSQLiteAdapter:
                 task_description TEXT,
                 solution_code TEXT NOT NULL,
                 metadata_source_code TEXT,
-                references TEXT,
+                refs TEXT,
                 repository_name TEXT NOT NULL,
                 chunk_index INTEGER DEFAULT 0,
                 total_chunks INTEGER DEFAULT 1,
@@ -113,7 +113,7 @@ class GitHubSQLiteAdapter:
             cursor.execute("""
             INSERT OR IGNORE INTO raw_examples (
                 id, source_object_type, source_object_name, source_object_path,
-                task_description, solution_code, metadata_source_code, references,
+                task_description, solution_code, metadata_source_code, refs,
                 repository_name, chunk_index, total_chunks
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, (

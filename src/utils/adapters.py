@@ -13,7 +13,7 @@ from src.agent_constructor.core import Document, Text, Chunk
 from src.utils.queries import GET_DOCUMENTS_QUERY, GET_EXAMPLES_QUERY
 from src.utils.wrappers import EmbeddingFunctionWrapper
 
-from ..config import ExtractedExample
+from src.utils.github_parser.config import ExtractedExample
 
 
 class SQLiteDocsDBAdapter:
