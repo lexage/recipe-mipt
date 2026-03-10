@@ -23,6 +23,7 @@ class DS1000Solver(Agent):
             temperature=0.2, 
             top_p=0.95, 
             max_tokens=1024,
+            max_context_lenght: int = 24000,
             stop_tokens=["</code>", "# SOLUTION END"]):
         
         super().__init__("ds_1000_solver")
@@ -44,6 +45,7 @@ class DS1000Solver(Agent):
         self.top_p=top_p
         self.max_tokens=max_tokens
         self.stop_tokens=stop_tokens
+        self.max_context_lenght = max_context_lenght
 
         self.context_after_task = context_after_task
 
@@ -51,6 +53,11 @@ class DS1000Solver(Agent):
 
 
     def run(self, task: Text, context: Text) -> Text:
+
+        tokens = self.tokenizer.encode(context, add_special_tokens=False)
+
+        if len(tokens) > self.max_context_lenght:
+            context = self.tokenizer.decode(tokens[:self.max_context_lenght])
 
         prompt = self._create_prompt(task, context)
 
@@ -72,8 +79,6 @@ class DS1000Solver(Agent):
             max_tokens=self.max_tokens,
             stop=self.stop_tokens
         )
-
-        print(prompt)
 
         return completions.choices[0].text
 
