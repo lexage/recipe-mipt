@@ -487,12 +487,10 @@ class LibCSTDocstringExtractor:
 
     def _is_venv_directory(self, directory_path: Path) -> bool:
         """Проверяет, является ли директория venv."""
-        venv_indicators = [
-            directory_path / 'pyvenv.cfg',
-            directory_path / 'Scripts',
-            directory_path / 'bin',
-        ]
-        return any(indicator.exists() for indicator in venv_indicators)
+        # Считаем venv только директорию, где есть pyvenv.cfg.
+        # Это защищает от ложных срабатываний для библиотек,
+        # у которых есть подпапки bin или Scripts (например, torch).
+        return (directory_path / 'pyvenv.cfg').exists()
 
     def _find_libraries_in_venv(self, venv_path: Path) -> List[Path]:
         """Находит библиотеки в venv."""
