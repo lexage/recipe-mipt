@@ -22,6 +22,7 @@ class ComponentNames(Enum):
     SELFREFINE_AGENT = "src.agents.critique.SelfRefine"
 
     # ===== Agents: General =====
+    DS1000_SOLVER_AGENT = "src.agents.general.DS1000Solver"
     DUMMY_AGENT = "src.agents.general.DummyAgent"
     TFIDF_EMBEDDING = "src.agents.general.TFIDFEmbedding"
     EMBEDDING_AGENT = "src.agents.general.EmbeddingAgent"

@@ -9,6 +9,7 @@ from src.agent_constructor.context_engine import ContextAssembler
 from src.agent_constructor.icl import ICLBlock
 
 class SimplePipeline(Pipeline):
+
     def __init__(self, 
                  data_base: IDB, 
                  retriever: Retriever, 

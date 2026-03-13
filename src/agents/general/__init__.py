@@ -3,6 +3,10 @@ from .embedding_agents import (
     EmbeddingAgent,
 )
 
+from .ds1000_solver import (
+    DS1000Solver,
+)
+
 from .simple_agents import (
     SimpleAgent,
     DummyAgent,
@@ -13,4 +17,5 @@ __all__ = [
     "EmbeddingAgent",
     "SimpleAgent",
     "DummyAgent",
+    "DS1000Solver",
 ]
