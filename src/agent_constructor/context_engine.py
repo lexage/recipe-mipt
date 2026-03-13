@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 from typing import (
     List,
     Sequence,
-    Tuple,
+    Dict,
 )
 
 from src.agent_constructor.core import Block, Chunk, Text
@@ -59,14 +59,21 @@ class CoRAGContextAssembler(ContextAssembler):
 
 
 class InstructRAGContextAssembler(ContextAssembler):
-    def assemble(self, data: Tuple[List[Text], List[Chunk]]):
-        rationalities, chunks = data
+    def assemble(self, data: List[Chunk]):
+        
+        original_chunks: Dict[str: Chunk] = {}
+        rationalities_chunks: List[Chunk] = []
+
+        for chunk in data:
+            if chunk.metadata.get("source", None) == "instruct_rag":
+                rationalities_chunks.append(chunk)
+            else:
+                original_chunks[chunk.id] = chunk
+        
         context = ""
-        for i, chunk in enumerate(chunks):
-            rationality = rationalities[i] if i < len(rationalities) else ""
-            context += f"[CHUNK {chunk.id} | doc={chunk.doc_id}]\n"
-            if rationality:
-                context += f"Rationality: {rationality}\n"
-            context += f"{chunk.text}\n\n"
+
+        for idx, chunk in enumerate(rationalities_chunks):
+            context+=f"# Document [{idx}]:\n{original_chunks[chunk.doc_id].text}\n"
+            context+=f"# Rationale [{idx}]:\n{chunk.text}\n\n"
 
         return context.strip()
