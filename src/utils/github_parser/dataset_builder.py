@@ -113,31 +113,44 @@ class DatasetBuilder:
             )
             if readme_examples:
                 all_data.extend(readme_examples)
+            
 
         # итерируемся по файлам репозитория
         for file in files_from_repo.files_iterator:
+            # Пропускаем README, так как он уже обработан отдельно
             if file.path == files_from_repo.readme_path:
                 continue
+                
             logger.debug("Обрабатываем файл %s", file.path)
-            if file.path.endswith(".py") and "examples" not in file.path:
+            
+            fetched_examples = None
+            
+            # Python файлы (обрабатываем ВСЕ .py файлы, включая examples!)
+            if file.path.endswith(".py"):
                 fetched_examples = self.code_parser.parse(
                     file.content, file.path
                 )
+            
+            # Markdown файлы
             elif file.path.endswith(".md"):
                 fetched_examples = self.md_parser.parse(
                     file.content, file.path
                 )
+            
+            # RST файлы
             elif file.path.endswith(".rst"):
                 fetched_examples = self.rst_parser.parse(
                     file.content, file.path
                 )
+            
+            # Если файл с неподдерживаемым расширением - просто пропускаем
             else:
-                logger.error(
-                    "Не поддерживается файл формата %s", Path(file.path).suffix
+                logger.debug(
+                    "Пропускаем файл с неподдерживаемым расширением: %s", 
+                    file.path
                 )
-                raise NotImplementedError(
-                    f"Не поддерживается файл формата {Path(file.path).suffix}"
-                )
+                continue
+            
             if fetched_examples:
                 logger.info(
                     "Получили %s примера (-ов) in %s",
