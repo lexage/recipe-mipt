@@ -1,11 +1,13 @@
 import logging
 from time import perf_counter
+import hashlib
 
 from src.utils.github_parser.config import load_config_file
 from src.utils.github_parser.cst_parser import CSTCodeParser
 from src.utils.github_parser.dataset_builder import DatasetBuilder
 from src.utils.github_parser.github_repo_loader import TorchGitHubLoader
 from src.utils.github_parser.text_file_parsers import MarkdownParser, RSTParser
+from src.agent_constructor.core import Chunk
 
 
 logger = logging.getLogger(__file__)
@@ -69,23 +71,104 @@ if __name__ == "__main__":
             config.readme_root_target_sections,
         )
         processing_time = round(perf_counter() - start_time, 2)
-        logger.info("=" * 70)
-        logger.info("АНАЛИЗ ЗАВЕРШЕН")
-        logger.info("=" * 70)
+        
         logger.info("Время анализа в секундах: %s", processing_time)
-        # TODO: добавить LLM для фильтрации
+        
+        # ========== СОХРАНЕНИЕ ДАННЫХ В БАЗУ ДАННЫХ ==========
         if dataset:
-            for example in dataset:
+           
+            logger.info("Всего извлечено примеров: %s", len(dataset))
+            
+            try:
+                # Импортируем необходимые классы
+                from src.utils.github_parser.github_parser_db.github_docs_db import GitHubDocsDB
+                from src.agents.general.embedding_agents import EmbeddingAgent
+                
+                # Создаём эмбеддер
+                logger.info("Создание EmbeddingAgent...")
+                embedder = EmbeddingAgent(
+                    url="http://localhost:7216/v1",
+                    model_name="Qwen/Qwen3-Embedding-4B",
+                )
+                logger.info("EmbeddingAgent создан")
+                
+                # Создаём подключение к БД
+                logger.info("Подключение к базе данных...")
+                db = GitHubDocsDB(
+                    embedder=embedder,
+                    db_path="data/github_example.db",
+                    vector_db_path="data/github_vector_db",
+                    collection_name="docs"
+                )
+                logger.info("GitHubDocsDB создана")
+                
+                # Конвертируем примеры в чанки с проверкой дубликатов
+                logger.info("Конвертация примеров в чанки...")
+                chunks = []
+                seen_ids = set()  # множество для отслеживания уникальных ID
+                duplicates = 0
+                
+                for i, example in enumerate(dataset):
+                    # Генерируем уникальный ID
+                    chunk_id = hashlib.md5(
+                        f"{config.repo_for_analyzing}:{example.source_object_path}:{example.source_object_name}:{example.solution_code}".encode()
+                    ).hexdigest()
+                    
+                    # Проверяем на дубликаты
+                    if chunk_id in seen_ids:
+                        duplicates += 1
+                        continue  # пропускаем дубликат
+                    
+                    seen_ids.add(chunk_id)
+                    
+                    # Создаём чанк
+                    chunk = Chunk(
+                        id=chunk_id,
+                        doc_id=chunk_id,
+                        text=example.solution_code,
+                        metadata={
+                            'name': example.source_object_name,
+                            'type': example.source_object_type,
+                            'path': example.source_object_path,
+                            'description': example.task_description[:200] if example.task_description else '',
+                            'repo': config.repo_for_analyzing
+                        }
+                    )
+                    chunks.append(chunk)
+                    
+                    if (i + 1) % 100 == 0:
+                        logger.info(f"   Обработано {i+1}/{len(dataset)} примеров")
+                
+                logger.info("Создано %s уникальных чанков", len(chunks))
+                if duplicates > 0:
+                    logger.info("Пропущено дубликатов: %s", duplicates)
+                
+                # Добавляем чанки в векторную БД
+                if chunks:
+                    logger.info("Добавление чанков в векторную БД...")
+                    db.add_chunks(chunks)
+                    logger.info("Добавлено %s чанков в БД", len(chunks))
+                else:
+                    logger.warning("Нет чанков для добавления")
+                
+                # Статистика
+                #stats = db.get_stats()
+                #logger.info("Статистика БД:")
+                #logger.info("Всего чанков: %s", stats.get('total_chunks', 0))
+                
+            except Exception as e:
+                logger.error("Ошибка при сохранении в БД: %s", e, exc_info=True)
+        else:
+            logger.warning("Нет данных для сохранения в БД")
+        
+        # ========== ВЫВОД ПРИМЕРОВ В ЛОГ ==========
+        if dataset:
+            for i, example in enumerate(dataset[:5]):  # Показываем первые 5 примеров
                 logger.info("-" * 50)
+                logger.info("Пример %d:", i+1)
                 logger.info("Файл: %s", example.source_object_path)
                 logger.info("Объект: %s", example.source_object_name)
                 logger.info("Тип объекта: %s", example.source_object_type)
-                logger.info("Описание задачи:\n%s", example.task_description)
-                logger.info("Код:\n%s", example.solution_code)
-                # logger.info(
-                #     "Метаданные (исходный код):\n%s",
-                #     example.metadata_source_code,
-                # )
-                logger.info("Ссылки: %s", example.references)
+                logger.info("Код:\n%s", example.solution_code[:200] + "..." if len(example.solution_code) > 200 else example.solution_code)
     except Exception as e:
         logger.error("Ошибка при выполнении пайплайна! %s", e, exc_info=True)
