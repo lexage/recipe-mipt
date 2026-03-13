@@ -67,6 +67,8 @@ class LocalDB(IDB):
             hnsw_construction_ef: int = 400,
             hnsw_search_ef: int = 200,
             batch_size: int = 16,
+
+            similarity_threshold: float = 0.1,
             
             search_filter: dict = {}):
 
@@ -84,6 +86,7 @@ class LocalDB(IDB):
             hnsw_search_ef=hnsw_search_ef,
             batch_size=batch_size,
             search_filter=search_filter,
+            threshold=similarity_threshold,
         )
     
     def get_documents(self, ids: List[int] = None) -> List[Document]:

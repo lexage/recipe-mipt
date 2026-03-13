@@ -25,6 +25,8 @@ components:
       hnsw_search_ef: 200
       batch_size: 16
       
+      similarity_threshold: 0.1
+
       search_filter:
         source: "documents"
   
@@ -64,9 +66,13 @@ components:
       max_tokens: 1024
   
   agent:
-    type: SIMPLE_AGENT
+    type: DS1000_SOLVER_AGENT
     params:
+      
       name: simple_agent
+
+      api: chat
+      context_after_task: False
 
       url: "http://localhost:7215/v1"
       model_name: "Qwen/Qwen1.5-32B-Chat-AWQ"

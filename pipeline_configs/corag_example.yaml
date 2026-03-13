@@ -16,7 +16,7 @@ components:
     type: LOCAL_DB
     params:
       path_to_db: "data/docs_database_examples.db"
-      path_to_vector_db: "data/docs_vector_database"
+      path_to_vector_db: "data/docs_vdb_rc_1000_meta_ml500"
       collection_name: "docs"
       
       hnsw_space: "cosine"
@@ -24,6 +24,8 @@ components:
       hnsw_construction_ef: 400
       hnsw_search_ef: 200
       batch_size: 16
+
+      similarity_threshold: 0.1
       
       search_filter:
         source: "documents"
@@ -58,6 +60,8 @@ components:
       max_message_length: 4096
       temperature: 0.7
       task_description: answer multihop question
+
+      return_only_path: True
 
       expand_size: 4 
       num_rollouts: 2 
