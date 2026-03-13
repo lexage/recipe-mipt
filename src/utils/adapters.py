@@ -87,12 +87,14 @@ class ChromaDocsAdapter:
             hnsw_m: int = 16,
             hnsw_construction_ef: int = 400,
             hnsw_search_ef: int = 200,
+            threshold: float = 0.1,
             search_filter: dict = {}):
         
         self.filter = search_filter if search_filter != {} else None
         self.collection_name = collection_name
         self.path_to_db = path_to_db
         self.batch_size = batch_size
+        self.threshold = threshold
 
         client = chromadb.PersistentClient(path=path_to_db, settings=Settings(anonymized_telemetry=False))
         
@@ -185,10 +187,14 @@ class ChromaDocsAdapter:
         for query_idx in range(len(results['ids'])):
             query_chunks = []
             ids = results['ids'][query_idx]
+            distances = results['distances'][query_idx]
             documents = results['documents'][query_idx]
             metadatas = results['metadatas'][query_idx] if results['metadatas'] else [{}] * len(ids)
             
             for i, chunk_id in enumerate(ids):
+                if distances[i] < self.threshold:
+                    continue
+
                 doc_id = metadatas[i].get('doc_id', None) if i < len(metadatas) else None
                 
                 query_chunks.append(
