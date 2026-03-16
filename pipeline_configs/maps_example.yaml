@@ -1,0 +1,58 @@
+type: MAPS
+components:
+  embedder:
+    type: EMBEDDING_AGENT
+    params:
+      name: embedder
+      url: "http://team_recipe-dev-ssh:7216/v1"
+      model_name: "Qwen/Qwen3-Embedding-4B"
+  
+  data_base:
+    type: LOCAL_DB
+    params:
+      path_to_db: "/workspace/data/docs_database_examples.db"
+      path_to_vector_db: "/workspace/data/docs_vector_database_qwen_4b"
+      collection_name: "docs"
+  
+  context_assembler:
+    type: SIMPLE_CONTEXT_ASSEMBLER
+    params:
+      name: "SimpleContext"
+
+  retriever:
+    type: SIMPLE_RETRIEVER
+    params:
+      name: simple_retriever
+
+  aligner:
+    type: MAPS_ALIGNER
+    params:
+      name: "AlignerMAPS"
+      url: "http://team_recipe-dev-ssh:7215/v1"
+      model_name: "Qwen/Qwen1.5-32B-Chat-AWQ"
+
+  scholar:
+    type: MAPS_SCHOLAR
+    params:
+      name: "ScholarMAPS"
+      url: "http://team_recipe-dev-ssh:7215/v1"
+      model_name: "Qwen/Qwen1.5-32B-Chat-AWQ"
+      temperature: 0.2
+
+  solver:
+    type: MAPS_SOLVER
+    params:
+      name: "SolverMAPS"
+      url: "http://team_recipe-dev-ssh:7215/v1"
+      model_name: "Qwen/Qwen1.5-32B-Chat-AWQ"
+      temperature: 0.2
+
+  critic:
+    type: MAPS_CRITIC
+    params:
+      name: "CriticMAPS"
+      url: "http://team_recipe-dev-ssh:7215/v1"
+      model_name: "Qwen/Qwen1.5-32B-Chat-AWQ"
+      temperature: 0.2
+
+logs_path: "/workspace/proj/grant/data/exps_react/maps.log"

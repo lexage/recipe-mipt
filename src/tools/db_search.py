@@ -1,12 +1,19 @@
 from typing import Dict, Any
+from pydantic import BaseModel, Field
 
 from src.tools.base_tool import BaseTool
 from src.agent_constructor.db import IDB
 from src.agent_constructor.context_engine import ContextAssembler
 
 
+class DBSearchArgs(BaseModel):
+    query: str = Field(..., description="The text of the query to be searched in the database.")
+
+
 class DBSearchTool(BaseTool):
 
+    arg_schema = DBSearchArgs
+    
     def __init__(
         self,
         name: str = "db_search",
@@ -22,21 +29,14 @@ class DBSearchTool(BaseTool):
 
     def get_schema(self) -> Dict[str, Any]:
         """Возвращает описание инструмента в формате OpenAI Tools API."""
+        schema = self.arg_schema.model_json_schema()
+        
         return {
             "type": "function",
             "function": {
                 "name": self.name,
                 "description": self.description,
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "query": {
-                            "type": "string",
-                            "description": "The text of the query to be searched in the database.",
-                        }
-                    },
-                    "required": ["query"],
-                },
+                "parameters": schema,
             },
         }
 

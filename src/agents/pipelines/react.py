@@ -15,7 +15,6 @@ REACT_SYSTEM_PROMPT = """You are an autonomous AI agent using the ReAct (Reasoni
         1. You may ONLY use tools listed under "### AVAILABLE TOOLS" below.
         2. Tool names are CASE-SENSITIVE and must match EXACTLY.
         3. NEVER invent, guess, or modify tool names.
-        4. If no tool fits → explain in Thought, then Action: Finish.
         
         Available tool names only: {tool_names}
 
@@ -50,7 +49,40 @@ REACT_SYSTEM_PROMPT = """You are an autonomous AI agent using the ReAct (Reasoni
         5. One action per response. Stop after outputting Action.
     """
 
-REACT_FINISH_PROMPT = """Based on the information provided, generate only the final answer for the task without Thought and Action, only final text: {task}"""
+# REACT_FINISH_PROMPT = """Based on the information provided, generate only the final answer for the task without Thought and Action, only final text: {task}"""
+
+REACT_SYSTEM_FINISH_PROMPT = """You are in FINAL ANSWER MODE.
+Output ONLY the final answer text.
+No prefixes, no explanations, no markdown unless requested.
+End output after the answer.
+"""
+
+REACT_FINISH_PROMPT = """### OUTPUT REQUIREMENTS
+- Provide ONLY the final answer
+- No "Thought:", "Action:", "Observation:" markers
+- No reasoning or explanations
+- No code blocks unless explicitly requested
+
+### EXAMPLES
+Task: What is 2 + 2 * 3?
+History: [Observation]: calculator returned 8
+Output: 8
+
+Task: Load data and show first 3 rows
+History: [Observation]: DataFrame loaded with 150 rows
+Output: 
+   A  B  C
+0  1  2  3
+1  4  5  6
+2  7  8  9
+
+### YOUR TASK
+Task: {task}
+History: {history}
+
+Output:"""
+
+
 
 _LOG_SEPARATOR = f"\n{'_' * 20}\n"
 
@@ -160,6 +192,24 @@ class ReActAgent(Agent):
         action, action_input = self._parse_action_info(content)
 
         return thought, action, action_input
+        
+    def _format_history(self) -> str:
+        """Format history"""
+        lines = []
+        for m in self.memory:
+            if m["role"] == "system" or not m.get("content"):
+                continue
+            
+            role_label = {
+                "user": "[User]",
+                "assistant": "[Agent]",
+            }.get(m["role"], f"[{m['role']}]")
+            
+            # Обрезаем длинные сообщения
+            content = m["content"][:500] + "..." if len(m["content"]) > 500 else m["content"]
+            lines.append(f"{role_label}: {content}")
+        
+        return '\n'.join(lines)
 
     def execute_tool(self, tool_name: str, argument: str) -> str:
         """Calling the tool."""
@@ -180,7 +230,7 @@ class ReActAgent(Agent):
     def run(self, task: str) -> str:
         """Run the ReAct agent to solve the programming task."""
 
-        logging.info(f"TASK: {task}")
+        logging.info(f"TASK:\n{task}")
         logging.info(_LOG_SEPARATOR)
 
         self.memory = [
@@ -196,6 +246,8 @@ class ReActAgent(Agent):
 
             logging.info(f"STEP {idx+1}:")
             logging.info(_LOG_SEPARATOR)
+            logging.info(f"MESSAGE CONTENT: {message.content}") # позже убрать, пока это нужно, чтобы отследить баги с извлечением
+            logging.info(_LOG_SEPARATOR)
             logging.info(f"THOUGHT: {thought}")
             logging.info(_LOG_SEPARATOR)
             logging.info(f"ACTION: {action}")
@@ -204,12 +256,14 @@ class ReActAgent(Agent):
             logging.info(_LOG_SEPARATOR)
 
             if action == "Finish":
-                self.memory.append(
-                    {"role": "user", "content": REACT_FINISH_PROMPT.format(task=task)}
+                history = self._format_history()
+                messages = (
+                    {"role": "system", "content": REACT_SYSTEM_FINISH_PROMPT},
+                    {"role": "user", "content": REACT_FINISH_PROMPT.format(task=task, history=history)}
                 )
-                logging.info(f"FINISH PROMPT: {REACT_FINISH_PROMPT.format(task=task)}")
+                logging.info(f"FINISH PROMPT: {REACT_FINISH_PROMPT.format(task=task, history=history)}")
                 logging.info(_LOG_SEPARATOR)
-                answer = self._finish(self.memory)
+                answer = self._finish(messages)
                 logging.info(f"FINAL ANSWER: {answer}")
                 logging.info(_LOG_SEPARATOR)
                 return answer

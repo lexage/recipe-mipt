@@ -1,10 +1,14 @@
 import json
+import logging
 
 from typing import List, Tuple
 from openai import OpenAI
 
 from src.agent_constructor.agent import Agent
 from src.agent_constructor.core import Text
+
+
+_LOG_SEPARATOR = f"\n{'_' * 20}\n"
 
 
 class AlignerMAPS(Agent):
@@ -47,6 +51,12 @@ d) Omission patterns (mutually exclusive missing elements)”
             ],
             temperature=0,
         )
+        
+        logging.info(f"ALIGNER SYSTEM PROMPT:\n\n{system_prompt}")
+        logging.info(_LOG_SEPARATOR)
+        logging.info(f"ALIGNER USER PROMPT:\n\n{task}")
+        logging.info(_LOG_SEPARATOR)
+
 
         return response.choices[0].message.content
 
@@ -97,6 +107,11 @@ Output as: 1) Knowledge Inventory Table (Concept-Definition-SourceAnchor)
             temperature=0,
         )
 
+        logging.info(f"SCHOLAR SYSTEM PROMPT:\n\n{system_prompt}")
+        logging.info(_LOG_SEPARATOR)
+        logging.info(f"SCHOLAR USER PROMPT:\n\n{task}")
+        logging.info(_LOG_SEPARATOR)
+        
         return response.choices[0].message.content
 
  
@@ -146,6 +161,11 @@ Output JSON structured as:
             ],
             temperature=0,
         )
+
+        logging.info(f"SOLVER SYSTEM PROMPT:\n\n{system_prompt}")
+        logging.info(_LOG_SEPARATOR)
+        logging.info(f"SOLVER USER PROMPT:\n\n{task}")
+        logging.info(_LOG_SEPARATOR)
 
         return response.choices[0].message.content
 
@@ -219,6 +239,11 @@ For solution: ”What inference leap lacks isomorphic mapping?”
             scores = self._parse_results(answer)
         except:
             scores = [-1, -1, -1]
+            
+        logging.info(f"CRITIC SYSTEM PROMPT:\n\n{system_prompt}")
+        logging.info(_LOG_SEPARATOR)
+        logging.info(f"CRITIC USER PROMPT:\n\n{user_prompt}")
+        logging.info(_LOG_SEPARATOR)
 
         return scores, answer
     

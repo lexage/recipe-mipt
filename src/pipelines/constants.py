@@ -39,6 +39,11 @@ class ComponentNames(Enum):
     MAPS_CRITIC = "src.agents.pipelines.CriticMAPS"
     MAPS_USER_PROXY = "src.agents.pipelines.UserProxyMAPS"
     REACT_AGENT = "src.agents.pipelines.ReActAgent"
+    REACT_AGENT_LLM = "src.agents.pipelines.ReActAgentLLM"
+    REACT_AGENT_INFO = "src.agents.pipelines.ReActAgentInfo"
+    REACT_AGENT_OBS = "src.agents.pipelines.ReActAgentObs"
+    REACT_AGENT_SGR = "src.agents.pipelines.ReActAgentSGR"
+
 
     # ===== Agents: Planning =====
     LEAST_TO_MOST_PLANNER = "src.agents.planning.LeastToMostPlanner"

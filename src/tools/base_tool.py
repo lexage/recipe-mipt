@@ -17,14 +17,8 @@ class BaseTool(Block):
 
     @abstractmethod
     def get_schema(self) -> Dict[str, Any]:
-        return {
-            "type": "function",
-            "function": {
-                "name": self.name,
-                "description": self.description,
-                "parameters": {},
-            },
-        }
+        """Возвращает описание инструмента в формате OpenAI Tools API."""
+        pass
 
     def get_prompt_description(self) -> str:
         """Возвращает описание инструмента в виде промпта."""

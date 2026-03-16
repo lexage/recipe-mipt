@@ -1,11 +1,18 @@
 from typing import Dict, Any
+from pydantic import BaseModel, Field
 from openai import OpenAI
 
 from src.tools.base_tool import BaseTool
 
 
+class LLMArgs(BaseModel):
+    query: str = Field(..., description="The text of the llm request.")
+
+
 class LLMTool(BaseTool):
 
+    arg_schema = LLMArgs
+    
     def __init__(
         self,
         name: str = "llm",
@@ -21,21 +28,15 @@ class LLMTool(BaseTool):
 
     def get_schema(self) -> Dict[str, Any]:
         """Возвращает описание инструмента в формате OpenAI Tools API."""
+        # Автоматическая генерация JSON Schema из Pydantic модели
+        schema = self.arg_schema.model_json_schema()
+        
         return {
             "type": "function",
             "function": {
                 "name": self.name,
                 "description": self.description,
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "query": {
-                            "type": "string",
-                            "description": "The text of the llm request.",
-                        }
-                    },
-                    "required": ["query"],
-                },
+                "parameters": schema,
             },
         }
 

@@ -33,12 +33,13 @@ class SimpleAgent(Agent):
         self.max_tokens=max_tokens
         self.stop_tokens=stop_tokens
 
-    def run(self, task: Text, context: Text) -> Text:
+    def run(self, task: Text) -> Text:
 
-        if self.dummy_mode:
-            return f"Answer on {task} using context:\n\n{context}"
+        # if self.dummy_mode:
+        #     return f"Answer on {task} using context:\n\n{context}"
 
-        prompt = f"[CONTEXT]:\n{context}\n[TASK]:\n{task}"
+        # prompt = f"[CONTEXT]:\n{context}\n[TASK]:\n{task}"
+        prompt = task
 
         response = self.client.completions.create(
             model=self.model_name,
