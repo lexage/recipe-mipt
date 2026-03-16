@@ -16,7 +16,7 @@ from .react import (
 )
 
 from .panel import (
-    Panel,
+    PanelAgent,
 )
 
 __all__ = [
@@ -28,5 +28,5 @@ __all__ = [
     "WorkerREWOO",
     "SolverREWOO",
     "ReActAgent",
-    "Panel",
+    "PanelAgent",
 ]

@@ -1,3 +1,4 @@
+import logging
 import random
 from typing import List
 from src.agent_constructor.agent import Agent
@@ -5,12 +6,15 @@ from langchain_openai import ChatOpenAI
 from langchain_core.messages import HumanMessage, ToolMessage
 
 
-class Panel(Agent):
+_LOG_SEPARATOR = f"\n{'_' * 20}\n"
+
+
+class PanelAgent(Agent):
     def __init__(
         self,
         name: str = "Panel",
         model_name: str = "Qwen/Qwen1.5-32B-Chat-AWQ",
-        openai_api_base_url="http://localhost:7215/v1",
+        url="http://localhost:7215/v1",
         temperature: float = 0.6,
         num_candidates: int = 5,
     ):
@@ -19,7 +23,7 @@ class Panel(Agent):
         self.num_candidates = num_candidates
         self.llm_model = ChatOpenAI(
             model=model_name,
-            openai_api_base=openai_api_base_url,
+            openai_api_base=url,
             openai_api_key="fake-key",
             temperature=self.temperature,
         )
@@ -156,8 +160,21 @@ Return only the index number (0-based) of the selected candidate:"""
         """
         candidates = self._sample_candidates(task, current_context)
 
+        logging.info(_LOG_SEPARATOR)
+        logging.info(_LOG_SEPARATOR)
+        
+        logging.info(f"CANDIDATES: {candidates}")
+        logging.info(_LOG_SEPARATOR)
+
         critiques = self._generate_critiques(candidates, task, current_context)
 
+        logging.info(f"CRITIQUES: {critiques}")
+        logging.info(_LOG_SEPARATOR)
+
         selected_candidate = self._select_best_candidate(candidates, critiques)
+
+        logging.info(f"SELECTED CANDIDATE: {selected_candidate}")
+        logging.info(_LOG_SEPARATOR)
+        logging.info(_LOG_SEPARATOR)
 
         return selected_candidate
