@@ -22,6 +22,7 @@ class ComponentNames(Enum):
     SELFREFINE_AGENT = "src.agents.critique.SelfRefine"
 
     # ===== Agents: General =====
+    DS1000_SOLVER_AGENT = "src.agents.general.DS1000Solver"
     DUMMY_AGENT = "src.agents.general.DummyAgent"
     TFIDF_EMBEDDING = "src.agents.general.TFIDFEmbedding"
     EMBEDDING_AGENT = "src.agents.general.EmbeddingAgent"
@@ -51,6 +52,7 @@ class ComponentNames(Enum):
     MPC_SAMPLE_AGENT = "src.agents.planning.MPCSampleAgent"
 
     # ===== Agents: RAG =====
+    INSTRUCT_RATIONALITY_AGENT = "src.agents.rag.InstructRationalityAgent"
     CORAG_FINAL_SOLVER = "src.agents.rag.CoRAGFinalSolver"
     RAPTOR_QA_AGENT = "src.agents.rag.RaptorQAAgent"
     RAPTOR_SUMM_AGENT = "src.agents.rag.RaptorSummarizationAgent"
@@ -88,6 +90,7 @@ class ComponentNames(Enum):
     # ===== Context Assemblers =====
     CORAG_CONTEXT_ASSEMBLER = "src.agent_constructor.context_engine.CoRAGContextAssembler"
     SIMPLE_CONTEXT_ASSEMBLER = "src.agent_constructor.context_engine.SimpleContextAssembler"
+    INSTRUCT_CONTEXT_ASSEMBLER = "src.agent_constructor.context_engine.InstructRAGContextAssembler"
 
     # ===== ICL =====
     ICCL_ICL = "src.icl.iccl.ICCL"

@@ -16,6 +16,7 @@ class CoRAGRetriever(Retriever):
             search_type: CoRAGSearchTypes,
 
             return_docs_as_chunks: bool = False,
+            return_only_path: bool = False,
 
             max_path_length: int = 3,
             max_message_length: int = 4096,
@@ -68,6 +69,7 @@ class CoRAGRetriever(Retriever):
         self.beam_size = beam_size
 
         self.return_docs_as_chunks = return_docs_as_chunks
+        self.return_only_path = return_only_path
 
         self.n = n
 
@@ -111,6 +113,9 @@ class CoRAGRetriever(Retriever):
             past_subanswers=results.past_subanswers,
             task_desc=self.task_description,
         )]
+
+        if self.return_only_path:
+            return chunks
 
         if self.return_docs_as_chunks:
             chunks.extend(self._unique_chunks_from_docs(past_docs=results.past_docs))
