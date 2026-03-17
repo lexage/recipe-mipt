@@ -7,7 +7,7 @@ from typing import Iterable, List, Optional
 
 from src.agent_constructor.core import Chunk, Document, Text
 from src.utils.adapters import ChromaDocsAdapter
-from .base_idb import IDB
+from src.agent_constructor.db import IDB
 from .github_sqlite_adapter import GitHubSQLiteAdapter
 from ..config import ExtractedExample
 
