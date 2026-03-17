@@ -160,9 +160,9 @@ Return only the index number (0-based) of the selected candidate:"""
         """
         candidates = self._sample_candidates(task, current_context)
 
+        logging.info(f"TASK: {task}")
         logging.info(_LOG_SEPARATOR)
-        logging.info(_LOG_SEPARATOR)
-        
+
         logging.info(f"CANDIDATES: {candidates}")
         logging.info(_LOG_SEPARATOR)
 
@@ -174,7 +174,6 @@ Return only the index number (0-based) of the selected candidate:"""
         selected_candidate = self._select_best_candidate(candidates, critiques)
 
         logging.info(f"SELECTED CANDIDATE: {selected_candidate}")
-        logging.info(_LOG_SEPARATOR)
         logging.info(_LOG_SEPARATOR)
 
         return selected_candidate
