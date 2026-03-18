@@ -9,6 +9,7 @@ class PipelinesNames(Enum):
     REWOO = "REWOOPipeline"
     MAPS = "MAPSPipeline"
     REACT = "REACTPipeline"
+    MARS = "MARSPipeline"
 
 
 class ComponentNames(Enum):
@@ -40,6 +41,11 @@ class ComponentNames(Enum):
     MAPS_CRITIC = "src.agents.pipelines.CriticMAPS"
     MAPS_USER_PROXY = "src.agents.pipelines.UserProxyMAPS"
     REACT_AGENT = "src.agents.pipelines.ReActAgent"
+    MARS_PLANNER = "src.agents.pipelines.PlannerMARS"
+    MARS_TEACHER = "src.agents.pipelines.TeacherMARS"
+    MARS_CRITIC = "src.agents.pipelines.CriticMARS"
+    MARS_STUDENT = "src.agents.pipelines.StudentMARS"
+
 
     # ===== Agents: Planning =====
     LEAST_TO_MOST_PLANNER = "src.agents.planning.LeastToMostPlanner"

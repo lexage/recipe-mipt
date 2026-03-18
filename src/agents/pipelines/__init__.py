@@ -19,6 +19,13 @@ from .panel import (
     Panel,
 )
 
+from .mars import (
+    PlannerMARS,
+    TeacherMARS,
+    CriticMARS,
+    StudentMARS
+)
+
 __all__ = [
     "ScholarMAPS",
     "SolverMAPS",
@@ -29,4 +36,8 @@ __all__ = [
     "SolverREWOO",
     "ReActAgent",
     "Panel",
+    "PlannerMARS",
+    "TeacherMARS",
+    "CriticMARS",
+    "StudentMARS"
 ]
