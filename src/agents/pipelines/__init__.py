@@ -26,6 +26,10 @@ from .mars import (
     StudentMARS
 )
 
+from .mars_critic import (
+    CriticMARSUpd
+)
+
 __all__ = [
     "ScholarMAPS",
     "SolverMAPS",
@@ -39,5 +43,6 @@ __all__ = [
     "PlannerMARS",
     "TeacherMARS",
     "CriticMARS",
-    "StudentMARS"
+    "StudentMARS",
+    "CriticMARSUpd"
 ]

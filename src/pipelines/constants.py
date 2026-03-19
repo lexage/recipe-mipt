@@ -10,6 +10,7 @@ class PipelinesNames(Enum):
     MAPS = "MAPSPipeline"
     REACT = "REACTPipeline"
     MARS = "MARSPipeline"
+    MARS_CRITIC_EDIT = "MARSPipelineCritic"
 
 
 class ComponentNames(Enum):
@@ -45,6 +46,7 @@ class ComponentNames(Enum):
     MARS_TEACHER = "src.agents.pipelines.TeacherMARS"
     MARS_CRITIC = "src.agents.pipelines.CriticMARS"
     MARS_STUDENT = "src.agents.pipelines.StudentMARS"
+    MARS_CRITIC_UPD = "src.agents.pipelines.CriticMARSUpd"
 
 
     # ===== Agents: Planning =====

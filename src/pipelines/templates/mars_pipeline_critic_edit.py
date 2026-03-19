@@ -12,10 +12,10 @@ from src.agent_constructor.context_engine import Retriever
 _LOG_SEPARATOR = f"\n{'_' * 20}\n"
 
 
-class MARSPipeline(Pipeline):
+class MARSPipelineCritic(Pipeline):
 
     def __init__(self, planner: Agent, teacher: Agent, critic: Agent, student: Agent, max_critic_attempts: int = 3):
-        super().__init__("mars_pipeline")
+        super().__init__("mars_pipeline_critic")
         self.planner = planner
         self.teacher = teacher
         self.critic = critic
@@ -52,7 +52,7 @@ class MARSPipeline(Pipeline):
             
             while not score and attempt < max_attempts:
                 
-                if critic_feedback:
+                if attempt > 0 and critic_feedback:
                     questions = self.teacher.run(task, step, final_answer, critic_feedback, mode="regenerate")
                     logging.info(f"REGENERATE QUESTIONS: {questions}")
                     logging.info(_LOG_SEPARATOR)
@@ -61,7 +61,7 @@ class MARSPipeline(Pipeline):
                     logging.info(f"QUESTIONS: {questions}")
                     logging.info(_LOG_SEPARATOR)
                     
-                critic_response = self.critic.run(questions) # пока сделала как в статье, в идеале передавать еще решение задачи и саму задачу
+                critic_response = self.critic.run(task, final_answer, questions) # пока сделала как в статье, в идеале передавать еще решение задачи и саму задачу
                 
                 logging.info(f"CRITIC: {critic_response}")
                 logging.info(_LOG_SEPARATOR)
