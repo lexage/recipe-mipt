@@ -55,7 +55,10 @@ def main():
         )
         
         if pipeline_config.logs_path:
-            create_logging(log_filename=pipeline_config.logs_path)
+            create_logging(
+                log_filename=pipeline_config.logs_path,
+                tag=config_path.stem
+                )
 
         pipeline = PipelineBuilder().build(pipeline_config)
     
