@@ -1,159 +1,211 @@
+from typing import List
+from pathlib import Path
+import logging
+import json
+import re
+
 from openai import OpenAI
 
 from src.agent_constructor.agent import Agent
 from src.agent_constructor.core import Text
+from src.tools import BaseTool, LLMTool
+
+PLANNER_PROMPT = """For the following task, make plans that can solve the problem step by step. For each plan, indicate \
+which external tool together with tool input to retrieve evidence. You can store the evidence into a \
+variable #E that can be called by later tools. (Plan, #E1, Plan, #E2, Plan, ...)
+
+Available tool names only: {tool_names}
+
+{tools_formatted}
+
+For example,
+Task: Thomas, Toby, and Rebecca worked a total of 157 hours in one week. Thomas worked x
+hours. Toby worked 10 hours less than twice what Thomas worked, and Rebecca worked 8 hours
+less than Toby. How many hours did Rebecca work?
+Plan: Given Thomas worked x hours, translate the problem into algebraic expressions and solve
+with Wolfram Alpha. #E1 = WolframAlpha[Solve x + (2x − 10) + ((2x − 10) − 8) = 157]
+Plan: Find out the number of hours Thomas worked. #E2 = llm[What is x, given #E1]
+Plan: Calculate the number of hours Rebecca worked. #E3 = calculator[(2 ∗ #E2 − 10) − 8]
+
+Begin!
+Describe your plans with rich details. Each Plan should be followed by only one #E.
+
+Task: {task}"""
+
+
+WORKER_PROMPT = """Respond in short directly with no extra words.\n\n{request}"""
+
+
+SOLVER_PROMPT = """Solve the following task or problem. To solve the problem, we have made step-by-step Plan and \
+retrieved corresponding Evidence to each Plan. Use them with caution since long evidence might \
+contain irrelevant information.
+
+{plan}
+
+Now solve the question or task according to provided Evidence above. Respond with the answer
+directly with no extra words.
+
+Task: {task}
+Response:"""
+
+_LOG_SEPARATOR = f"\n{'_' * 20}\n"
 
 
 class PlannerREWOO(Agent):
-    """
-    ReWOO Planner: given an initial task, produces a textual blueprint
-    """
 
     def __init__(
         self,
-        url: str,
-        model_name: str,
-        maximum_steps: int = 5,
+        url: str = None,
+        model_name: str = None,
+        temperature: float = 0.0,
         name: str = "rewoo_planner_agent",
+        maximum_steps: int = 5,
+        tools: List[BaseTool] = None,
     ):
         super().__init__(name)
-        self.maximum_steps = maximum_steps
-
         self.client = OpenAI(base_url=url, api_key="vllm")
         self.model_name = model_name
+        self.temperature = temperature
+        self.tools = tools
 
-    def run(self, task: Text, context: Text = "") -> Text:
-        """
-        Produce a textual plan for the given task (one or more lines).
-        """
+        if not self.tools:
+            self.tools = [LLMTool(url=url, model_name=model_name)]
 
-        system_prompt = (
-            "You are the Planner module in a ReWOO-style pipeline.\n"
-            "Given a complex task, you must break it down into a small number of "
-            "ordered plans (high-level sub-tasks).\n\n"
-            "Each plan should:\n"
-            "- be self-contained and understandable on its own;\n"
-            "- describe what information to retrieve or what to compute;\n"
-            "- be something that another agent (Worker) can execute independently.\n\n"
-            f"Output at most {self.maximum_steps} steps, one per line, in the form:\n"
-            "Step 1: ...\nStep 2: ...\n..."
+        self.tool_names = ", ".join(tool.name for tool in self.tools)
+        self.tools_dict = {t.name: t for t in self.tools}
+        self.tools_prompt = "\n\n".join(
+            [t.get_prompt_description() for t in self.tools]
         )
 
-        user_context = f"\n\nAdditional context:\n{context}" if context else ""
-        user_prompt = f"Task:\n{task}{user_context}\n\nProduce the plan steps now."
+        self.prompt = PLANNER_PROMPT.format(
+            tool_names=self.tool_names, tools_formatted=self.tools_prompt, task="{task}"
+        )
+        self.maximum_steps = maximum_steps
 
+    def llm(self, prompt: str) -> str:
+        """Сalling the llm to get a response."""
         response = self.client.chat.completions.create(
             model=self.model_name,
             messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_prompt},
+                {"role": "user", "content": prompt},
             ],
-            temperature=0,
+            temperature=self.temperature,
         )
+        return response.choices[0].message.content
 
-        content = response.choices[0].message.content
+    def get_step_by_step_plan(self, response):
+        regex_pattern = r"Plan:\s*(.+)\s*(#E\d+)\s*=\s*(\w+)\s*\[([^\]]+)\]"
+        matches = re.findall(regex_pattern, response)
+        return {"steps": matches, "plan_string": response}
 
-        lines = [line for line in content.splitlines() if line.strip()]
-        if len(lines) > self.maximum_steps:
-            lines = lines[: self.maximum_steps]
-        return "\n".join(lines)
+    def run(self, task: Text) -> List[Text]:
+        task_prompt = self.prompt.format(task=task)
+        response = self.llm(task_prompt).strip()
+        plan = self.get_step_by_step_plan(response)
+        logging.info(f"PLANNER TASK PROMPT:\n\n{task_prompt}")
+        logging.info(_LOG_SEPARATOR)
+        logging.info("STEP BY STEP PLAN:\n{plan}".format(plan=plan["plan_string"]))
+        logging.info(_LOG_SEPARATOR)
+        return plan
 
 
 class WorkerREWOO(Agent):
-    """
-    ReWOO Worker: for each single plan step, gathers/produces supporting evidence.
-    The pipeline can call this in parallel for different plan steps.
-    """
 
     def __init__(
         self,
-        url: str,
-        model_name: str,
+        url: str = None,
+        model_name: str = None,
         name: str = "rewoo_worker_agent",
+        tools: List[BaseTool] = None,
     ):
         super().__init__(name)
+        self.prompt = WORKER_PROMPT
+        self.tools = tools
 
-        self.client = OpenAI(base_url=url, api_key="vllm")
-        self.model_name = model_name
+        if not self.tools:
+            self.tools = [LLMTool(url=url, model_name=model_name)]
 
-    async def run(self, task: Text, context: Text = "") -> Text:
-        """
-        Given the original task and a single plan step, return concise textual evidence.
-        """
+        self.tools_dict = {t.name: t for t in self.tools}
+        self.worker_evidences = dict()
 
-        response = self.client.chat.completions.create(
-            model=self.model_name,
-            messages=[
-                {
-                    "role": "system",
-                    "content": (
-                        "You are the Worker module in a ReWOO-style pipeline. "
-                        "Given the current sub-task and optional context, you retrieve or infer "
-                        "concise evidence that helps solve the overall task. "
-                        "Return only the evidence text, without extra commentary."
-                    ),
-                },
-                {
-                    "role": "user",
-                    "content": (
-                        f"Sub-task:\n{task}\n\n"
-                        f"Context (may include the original task, prior steps, etc.):\n{context}\n\n"
-                        "Return the evidence for this sub-task."
-                    ),
-                },
-            ],
-            temperature=0,
+    def execute_tool(self, tool_name: str, argument: str) -> str:
+        """Calling the tool."""
+
+        if tool_name not in self.tools_dict:
+            return f"unknown tool: {tool_name}"
+
+        tool = self.tools_dict[tool_name]
+
+        try:
+            result = tool(argument)
+            return result.strip()
+        except Exception as e:
+            return f"Error executing tool {tool_name}: {str(e)}"
+
+    def run(self, plan: dict) -> dict:
+        # plan format: {"steps": matches, "plan_string": response}
+        for item in plan["steps"]:
+            descr, step, tool, task = item
+            tool_input = task.replace('"', "")
+            for var in re.findall(r"#E\d+", task):
+                if var in self.worker_evidences.keys():
+                    tool_input = tool_input.replace(
+                        var, "[" + self.worker_evidences[var]["tool_result"] + "]"
+                    )
+
+            tool_result = self.execute_tool(tool, tool_input)
+
+            self.worker_evidences[step] = {
+                "tool": tool,
+                "tool_input": tool_input,
+                "tool_result": tool_result,
+            }
+        logging.info(
+            "WORKER EVIDENCES:\n\n{evidences}".format(
+                evidences=json.dumps(self.worker_evidences, indent=4)
+            )
         )
-
-        return response.choices[0].message.content
+        logging.info(_LOG_SEPARATOR)
+        return self.worker_evidences
 
 
 class SolverREWOO(Agent):
-    """
-    ReWOO Solver: given the task, the full plan and all collected evidence,
-    synthesize the final answer.
-    """
 
     def __init__(
         self,
-        url: str,
-        model_name: str,
+        url: str = None,
+        model_name: str = None,
         name: str = "rewoo_solver_agent",
+        temperature: float = 0.0,
     ):
         super().__init__(name)
-
         self.client = OpenAI(base_url=url, api_key="vllm")
         self.model_name = model_name
+        self.temperature = temperature
+        self.prompt = SOLVER_PROMPT
 
-    def run(self, task: Text, context: Text = "") -> Text:
-        """
-        Combine the task and provided textual context (typically plans + evidences)
-        into a final answer.
-        """
-
-        system_prompt = (
-            "You are the Solver module in a ReWOO-style pipeline.\n"
-            "You are given:\n"
-            "- the original task,\n"
-            "- and a block of context that already combines plans and evidences.\n\n"
-            "Use this context carefully (it may contain irrelevant details) "
-            "to answer the task as accurately as possible.\n"
-            "Respond with the final answer only, without showing intermediate reasoning."
-        )
-
-        user_prompt = (
-            f"Task:\n{task}\n\n"
-            f"Context (plans + evidences):\n{context}\n\n"
-            "Now provide the final answer to the task."
-        )
-
+    def llm(self, prompt: str) -> str:
+        """Сalling the llm to get a response."""
         response = self.client.chat.completions.create(
             model=self.model_name,
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_prompt},
-            ],
-            temperature=0,
+            messages=[{"role": "user", "content": prompt}],
+            temperature=self.temperature,
         )
-
         return response.choices[0].message.content
+
+    def run(self, task, plan, evidencies):
+        # plan format: {"steps": matches, "plan_string": response}
+        # evidence format: {"tool": tool, "tool_input": tool_input,"tool_result": tool_result}
+        completed_plan = []
+        for item in plan["steps"]:
+            descr, step, _, _ = item
+            evidence = evidencies[step]["tool_result"]
+            completed_plan.append(f"\t- Plan: '{descr}'\n\t- Evidence: '{evidence}'")
+        completed_plan = "\n".join(completed_plan)
+        solve_prompt = self.prompt.format(plan=completed_plan, task=task)
+        final_answer = self.llm(solve_prompt).strip()
+        logging.info(f"SOLVE PROMPT:\n\n{solve_prompt}")
+        logging.info(_LOG_SEPARATOR)
+        logging.info(f"FINAL ANSWER:\n\n{final_answer}")
+        logging.info(_LOG_SEPARATOR)
+        return final_answer

@@ -8,6 +8,7 @@ class PipelinesNames(Enum):
     SIMPLE = "SimplePipeline"
     REWOO = "REWOOPipeline"
     MAPS = "MAPSPipeline"
+    REACT = "REACTPipeline"
 
 
 class ComponentNames(Enum):
@@ -21,6 +22,7 @@ class ComponentNames(Enum):
     SELFREFINE_AGENT = "src.agents.critique.SelfRefine"
 
     # ===== Agents: General =====
+    DS1000_SOLVER_AGENT = "src.agents.general.DS1000Solver"
     DUMMY_AGENT = "src.agents.general.DummyAgent"
     TFIDF_EMBEDDING = "src.agents.general.TFIDFEmbedding"
     EMBEDDING_AGENT = "src.agents.general.EmbeddingAgent"
@@ -45,11 +47,13 @@ class ComponentNames(Enum):
     MPC_SAMPLE_AGENT = "src.agents.planning.MPCSampleAgent"
 
     # ===== Agents: RAG =====
-    CORAG_SUB_GENERATOR = "src.agents.rag.CoRAGSubQueryGeneratorAgent"
-    CORAG_SUB_SOLVER = "src.agents.rag.CoRAGSubSolver"
+    INSTRUCT_RATIONALITY_AGENT = "src.agents.rag.InstructRationalityAgent"
     CORAG_FINAL_SOLVER = "src.agents.rag.CoRAGFinalSolver"
     RAPTOR_QA_AGENT = "src.agents.rag.RaptorQAAgent"
     RAPTOR_SUMM_AGENT = "src.agents.rag.RaptorSummarizationAgent"
+
+    # ===== Agents: Generation =====
+    QUERY_GENERATOR = "src.agents.generation.QueryGenerator"
 
     # ===== Agents: Reasoning =====
     AUTO_COT_REASONING = "src.agents.reasoning.AutoCoT"
@@ -77,10 +81,12 @@ class ComponentNames(Enum):
     # ===== Chunkers =====
     DUMMY_CHUNKER = "src.agent_constructor.chunkers.DummyChunker"
     SIMPLE_CHUNKER = "src.agent_constructor.chunkers.SimpleChunker"
+    RECURSIVE_CHUNKER = "src.agent_constructor.chunkers.RecursiveChunker"
 
     # ===== Context Assemblers =====
     CORAG_CONTEXT_ASSEMBLER = "src.agent_constructor.context_engine.CoRAGContextAssembler"
     SIMPLE_CONTEXT_ASSEMBLER = "src.agent_constructor.context_engine.SimpleContextAssembler"
+    INSTRUCT_CONTEXT_ASSEMBLER = "src.agent_constructor.context_engine.InstructRAGContextAssembler"
 
     # ===== ICL =====
     ICCL_ICL = "src.icl.iccl.ICCL"
@@ -95,3 +101,7 @@ class ComponentNames(Enum):
     RANDOM_TOPIC_GENERATOR = "src.generation.random_topic.RandomTopicGenerator"
     ZERO_SHOT_GENERATOR = "src.generation.zero_shot.ZeroShotGenerator"
     ONE_SHOT_GENERATOR = "src.generation.one_shot.OneShotGenerator"
+
+    # ===== TOOLS =====
+    DB_SEARCH_TOOL = "src.tools.DBSearchTool"
+    LLM_TOOL = "src.tools.LLMTool"

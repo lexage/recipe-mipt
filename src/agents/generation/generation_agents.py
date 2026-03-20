@@ -22,18 +22,20 @@ class QueryGenerator(Agent):
             model=self.model_name,
             messages=[
                 {"role": "system", "content":
-                    "You are search query generator"},
-                {"role": "user", "content": f"""
-                Given original query: `{task}`,
-                generate {self.options} variations of rewriting original query
+                    "You are search query generator. Using the task description, generate the required number of search queries to obtain information that will help solve the problem."},
+                {"role": "user", "content": f"""[TASK DESCRIPTION]:
+                {task}
 
+                [REQUIRED NUMBER OF SEARCH QUERIES]: {self.options}
+
+                [OUTPUT FORMAT]:
                 Yours output template (only options, nothing else!!!):
-                - "option 1"
-                - "option 2"
+                - <query 1>
+                - <query 2
                 .
                 .
                 .
-                - "option {self.options}"
+                - <query {self.options}>
                 """}
             ],
             temperature=0.2,

@@ -1,4 +1,5 @@
 from .retriever import CoRAGRetriever
+from .constants import CoRAGSearchTypes
 
-__all__ = ["CoRAGRetriever"]
+__all__ = ["CoRAGRetriever", "CoRAGSearchTypes"]
 

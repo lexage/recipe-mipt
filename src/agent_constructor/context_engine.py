@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 from typing import (
     List,
     Sequence,
-    Tuple,
+    Dict,
 )
 
 from src.agent_constructor.core import Block, Chunk, Text
@@ -44,28 +44,36 @@ class SimpleContextAssembler(ContextAssembler):
 
 
 class CoRAGContextAssembler(ContextAssembler):
-    def assemble(self, data: Tuple):
-        prev_qna, retrived_chunks = data
-        context = ""
-        for chunk in retrived_chunks:
-            context += chunk.text + "\n"
+    def assemble(self, chunks: List[Chunk]):
+        
+        documnets = "## Documents:\n"
+        inter_steps = ""
+        
+        for chunk in chunks:
+            if chunk.id == "corag_intermediate_steps":
+                inter_steps = chunk.text
+            else:
+                documnets+=f"""### Doc {chunk.id}:\n{chunk.text.strip()}\n\n"""
 
-        prev_qna_data = ""
-        for i, (q,a) in enumerate(prev_qna):
-            prev_qna_data += f"Sub-query {i+1}: {q}\nSub-answer {i+1}: {a}\n"
-
-        return f"##Documents\n{context}\n\n## Intermediate queries and answers\n{prev_qna_data}"
+        return documnets + "\n" + inter_steps
 
 
 class InstructRAGContextAssembler(ContextAssembler):
-    def assemble(self, data: Tuple[List[Text], List[Chunk]]):
-        rationalities, chunks = data
+    def assemble(self, data: List[Chunk]):
+        
+        original_chunks: Dict[str: Chunk] = {}
+        rationalities_chunks: List[Chunk] = []
+
+        for chunk in data:
+            if chunk.metadata.get("source", None) == "instruct_rag":
+                rationalities_chunks.append(chunk)
+            else:
+                original_chunks[chunk.id] = chunk
+        
         context = ""
-        for i, chunk in enumerate(chunks):
-            rationality = rationalities[i] if i < len(rationalities) else ""
-            context += f"[CHUNK {chunk.id} | doc={chunk.doc_id}]\n"
-            if rationality:
-                context += f"Rationality: {rationality}\n"
-            context += f"{chunk.text}\n\n"
+
+        for idx, chunk in enumerate(rationalities_chunks):
+            context+=f"# Document [{idx}]:\n{original_chunks[chunk.doc_id].text}\n"
+            context+=f"# Rationale [{idx}]:\n{chunk.text}\n\n"
 
         return context.strip()
