@@ -3,11 +3,11 @@
 """
 
 import logging
-from typing import List, Optional
+from typing import List
 
 from src.agent_constructor.core import Chunk
 
-from .github_docs_db import GitHubDocsDB
+from src.db.github_db import GitHubDocsDB
 from ..config import ExtractedExample
 
 logger = logging.getLogger(__name__)

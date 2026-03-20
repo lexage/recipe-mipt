@@ -58,8 +58,9 @@ class ComponentNames(Enum):
     SELECTION_INFERENCE_REASONING = "src.agents.reasoning.SelectionInference"
     
     # ===== DBs =====
-    LOCAL_DB = "src.agent_constructor.db.LocalDB"
-    LOCAL_RAPTOR_DB = "src.agent_constructor.db.LocalRaptorDB"
+    LOCAL_DB = "src.db.docs_db.LocalDB"
+    LOCAL_RAPTOR_DB = "src.db.raptor_db.LocalRaptorDB"
+    GITHUB_DB = "from src.db.github_db.GitHubDocsDB"
 
     # ===== Retrievers =====
     CORAG_RETRIEVER = "src.rag.corag.CoRAGRetriever"

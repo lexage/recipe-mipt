@@ -6,11 +6,11 @@ SQLite адаптер для хранения GitHub примеров.
 import sqlite3
 import json
 import hashlib
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any
 from pathlib import Path
 
 from src.agent_constructor.core import Chunk
-from ..config import ExtractedExample
+from src.utils.github_parser.config import ExtractedExample
 
 
 class GitHubSQLiteAdapter:

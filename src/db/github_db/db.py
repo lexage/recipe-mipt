@@ -5,11 +5,10 @@
 
 from typing import Iterable, List, Optional
 
-from src.agent_constructor.core import Chunk, Document, Text
+from src.agent_constructor.core import Chunk, Document
 from src.utils.adapters import ChromaDocsAdapter
 from src.agent_constructor.db import IDB
-from .github_sqlite_adapter import GitHubSQLiteAdapter
-from ..config import ExtractedExample
+from src.utils.github_parser.github_parser_db.github_sqlite_adapter import GitHubSQLiteAdapter
 
 
 class GitHubDocsDB(IDB):
