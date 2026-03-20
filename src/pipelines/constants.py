@@ -11,7 +11,7 @@ class PipelinesNames(Enum):
     REACT = "REACTPipeline"
     PANEL = "PANELPipeline"
     MARS = "MARSPipeline"
-    MARS_CRITIC_EDIT = "MARSPipelineCritic"
+    MARS_CRITIC_UPD = "MARSPipelineCriticUpd"
 
 
 class ComponentNames(Enum):
@@ -37,13 +37,11 @@ class ComponentNames(Enum):
     REWOO_PLANNER = "src.agents.pipelines.PlannerREWOO"
     MAPS_SOLVER = "src.agents.pipelines.SolverMAPS"
     MAPS_SCHOLAR = "src.agents.pipelines.ScholarMAPS"
-    MAPS_MANAGER = "src.agents.pipelines.ManagerMAPS"
     MAPS_ALIGNER = "src.agents.pipelines.AlignerMAPS"
     MAPS_CRITIC = "src.agents.pipelines.CriticMAPS"
-    MAPS_USER_PROXY = "src.agents.pipelines.UserProxyMAPS"
     REACT_AGENT = "src.agents.pipelines.ReActAgent"
+    REACT_AGENT_SGR = "src.agents.pipelines.ReActAgentSGR"
     PANEL_AGENT = "src.agents.pipelines.PanelAgent"
-
     MARS_PLANNER = "src.agents.pipelines.PlannerMARS"
     MARS_TEACHER = "src.agents.pipelines.TeacherMARS"
     MARS_CRITIC = "src.agents.pipelines.CriticMARS"

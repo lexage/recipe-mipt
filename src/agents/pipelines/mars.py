@@ -37,7 +37,7 @@ IMPORTANT:
 
 Please include only questions in your output and do not make answers for your students."""
 
-SYSTEM_CRITIC_PROMPT = """You are an evaluator responsible for judging the correctness of a given task. Your output must strictly follow these rules:
+SYSTEM_CRITIC_PROMPT_V1 = """You are an evaluator responsible for judging the correctness of a given task. Your output must strictly follow these rules:
 
 1. If the task is judged as correct, output only:
    [True]
@@ -47,6 +47,19 @@ SYSTEM_CRITIC_PROMPT = """You are an evaluator responsible for judging the corre
    [suggestion: <reason for the incorrect judgment>]
 
    Replace `<reason for the incorrect judgment>` with a clear and concise explanation of why the task is incorrect.
+
+Do not include any additional text, comments, or explanations beyond the specified format."""
+
+SYSTEM_CRITIC_PROMPT_V2 = """You are an evaluator responsible for judging the quality of teacher's heuristic questions. Your output must strictly follow these rules:
+
+1. If the questions are judged as HIGH-QUALITY (relevant, constructive, help improve the answer), output only:
+   [True]
+
+2. If the questions are judged as LOW-QUALITY (irrelevant, redundant, misleading, or already addressed), output:
+   [False]
+   [suggestion: <reason why the questions are inadequate>]
+
+   Replace `<reason why the questions are inadequate>` with a clear and concise explanation of why the questions fail to improve the student's answer.
 
 Do not include any additional text, comments, or explanations beyond the specified format."""
 
@@ -196,7 +209,7 @@ class CriticMARS(Agent):
         self.client = OpenAI(base_url=url, api_key="vllm")
         self.model_name = model_name
         self.temperature = temperature
-        self.system_prompt = SYSTEM_CRITIC_PROMPT
+        self.system_prompt = SYSTEM_CRITIC_PROMPT_V1
 
     def llm(self, prompt: str) -> str:
         """Сalling the llm to get a response."""
@@ -213,6 +226,62 @@ class CriticMARS(Agent):
     def run(self, teacher_message: str = None) -> Text:
 
         critic_prompt = f"{teacher_message}"
+        response = self.llm(critic_prompt).strip()
+        
+        return response
+
+
+class CriticMARSUpd(Agent):
+    """Agent evaluates the relevance of the questions."""
+
+    def __init__(
+        self,
+        url: str = None,
+        model_name: str = None,
+        temperature: float = 0.0,
+        name: str = "mars_critic_agent_upd",
+    ):
+        super().__init__(name)
+        self.client = OpenAI(base_url=url, api_key="vllm")
+        self.model_name = model_name
+        self.temperature = temperature
+        self.system_prompt = SYSTEM_CRITIC_PROMPT_V2
+
+    def llm(self, prompt: str) -> str:
+        """Сalling the llm to get a response."""
+        response = self.client.chat.completions.create(
+            model=self.model_name,
+            messages=[
+                {"role": "system", "content": self.system_prompt},
+                {"role": "user", "content": prompt}
+            ],
+            temperature=self.temperature,
+        )
+        return response.choices[0].message.content
+
+    def run(self, task: Text, final_answer: str, teacher_message: str = None) -> Text:
+
+        critic_prompt = f"""
+### Task Definition
+{task}
+
+### Student's Final Answer
+{final_answer}
+
+### Teacher's Questions to Evaluate
+{teacher_message}
+
+### Evaluation Criteria for HIGH-QUALITY Questions:
+1. Relevance: Questions address actual gaps/errors in the Student's Answer.
+2. Constructiveness: Questions guide toward concrete improvements, not just criticism.
+3. Non-redundancy: Questions are not already answered in the Student's Answer.
+4. Specificity: Questions are precise, not vague or overly broad.
+
+### Output Requirement
+Strictly follow your system instructions format:
+- If questions are high-quality: [True]
+- If questions are low-quality: [False] [suggestion: <concise reason>]
+"""
         response = self.llm(critic_prompt).strip()
         
         return response
@@ -262,3 +331,5 @@ Please base on the following question update your final answer, write ONLY FINAL
         
         response = self.llm(student_prompt).strip()
         return response
+
+

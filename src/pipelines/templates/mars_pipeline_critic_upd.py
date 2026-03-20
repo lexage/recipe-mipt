@@ -12,7 +12,7 @@ from src.agent_constructor.context_engine import Retriever
 _LOG_SEPARATOR = f"\n{'_' * 20}\n"
 
 
-class MARSPipelineCritic(Pipeline):
+class MARSPipelineCriticUpd(Pipeline):
 
     def __init__(self, planner: Agent, teacher: Agent, critic: Agent, student: Agent, max_critic_attempts: int = 3):
         super().__init__("mars_pipeline_critic")
