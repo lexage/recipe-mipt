@@ -9,6 +9,7 @@ class PipelinesNames(Enum):
     REWOO = "REWOOPipeline"
     MAPS = "MAPSPipeline"
     REACT = "REACTPipeline"
+    PANEL = "PANELPipeline"
     MARS = "MARSPipeline"
     MARS_CRITIC_EDIT = "MARSPipelineCritic"
 
@@ -18,7 +19,6 @@ class ComponentNames(Enum):
     # ===== Agents: Critique =====
     COMPLEX_CRITIC_AGENT = "src.agents.critique.ComplexCritic"
     CRITIC_AGENT = "src.agents.critique.Critic"
-    PANEL_AGENT = "src.agents.critique.Panel"
     DECRIM_AGENT = "src.agents.critique.Decrim"
     REFLEXION_AGENT = "src.agents.critique.Reflexion"
     SELFREFINE_AGENT = "src.agents.critique.SelfRefine"
@@ -42,6 +42,8 @@ class ComponentNames(Enum):
     MAPS_CRITIC = "src.agents.pipelines.CriticMAPS"
     MAPS_USER_PROXY = "src.agents.pipelines.UserProxyMAPS"
     REACT_AGENT = "src.agents.pipelines.ReActAgent"
+    PANEL_AGENT = "src.agents.pipelines.PanelAgent"
+
     MARS_PLANNER = "src.agents.pipelines.PlannerMARS"
     MARS_TEACHER = "src.agents.pipelines.TeacherMARS"
     MARS_CRITIC = "src.agents.pipelines.CriticMARS"

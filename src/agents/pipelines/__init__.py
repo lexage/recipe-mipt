@@ -16,7 +16,7 @@ from .react import (
 )
 
 from .panel import (
-    Panel,
+    PanelAgent,
 )
 
 from .mars import (
@@ -40,9 +40,4 @@ __all__ = [
     "SolverREWOO",
     "ReActAgent",
     "Panel",
-    "PlannerMARS",
-    "TeacherMARS",
-    "CriticMARS",
-    "StudentMARS",
-    "CriticMARSUpd"
 ]
