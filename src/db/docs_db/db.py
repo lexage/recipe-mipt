@@ -8,12 +8,21 @@ from src.utils.adapters import SQLiteDocsDBAdapter, ChromaDocsAdapter
 
 class LocalDB(IDB):
     def __init__(
-            self,
-            embedder: Agent,
+            self, embedder: Agent,
+
             path_to_db: str = 'data/docs_database.db', 
             path_to_vector_db: str = 'data/docs_vector_database', 
             collection_name: str = 'docs',
-            ):
+            
+            hnsw_space: str = "cosine",
+            hnsw_m: int = 16,
+            hnsw_construction_ef: int = 400,
+            hnsw_search_ef: int = 200,
+            batch_size: int = 16,
+
+            similarity_threshold: float = 0.1,
+            
+            search_filter: dict = {}):
 
         self.sqlite_adapter = SQLiteDocsDBAdapter(
             path_to_db=path_to_db
@@ -22,7 +31,14 @@ class LocalDB(IDB):
         self.vdb_adapter = ChromaDocsAdapter(
             embedder=embedder,
             collection_name=collection_name,
-            path_to_db=path_to_vector_db
+            path_to_db=path_to_vector_db,
+            hnsw_space=hnsw_space,
+            hnsw_m=hnsw_m,
+            hnsw_construction_ef=hnsw_construction_ef,
+            hnsw_search_ef=hnsw_search_ef,
+            batch_size=batch_size,
+            search_filter=search_filter,
+            threshold=similarity_threshold,
         )
     
     def get_documents(self, ids: List[int] = None) -> List[Document]:
