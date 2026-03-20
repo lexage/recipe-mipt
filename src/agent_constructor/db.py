@@ -7,11 +7,8 @@ from typing import (
     Optional,
 )
 
-from src.agent_constructor.core import Chunk, Document, Text, Block
-from src.agent_constructor.chunkers import Chunker
-from src.agent_constructor.agent import Agent
-from src.utils.adapters import SQLiteDocsDBAdapter, ChromaDocsAdapter
-
+from src.agent_constructor.core import Chunk, Document, Block
+from typing import Iterable, List, Optional
 
 class IDB(Block):
     """Minimal DB abstraction for storing and querying chunks."""
@@ -31,6 +28,7 @@ class IDB(Block):
     @abstractmethod
     def get_documents(ids: Optional[List[int]]) -> List[Document]:
         raise NotImplementedError
+    
     
 class InMemoryDB(IDB):
     def __init__(self):
@@ -52,94 +50,3 @@ class InMemoryDB(IDB):
 
     def all_chunks(self) -> List[Chunk]:
         return list(self._chunks.values())
-
-
-class LocalDB(IDB):
-    def __init__(
-            self, embedder: Agent,
-
-            path_to_db: str = 'data/docs_database.db', 
-            path_to_vector_db: str = 'data/docs_vector_database', 
-            collection_name: str = 'docs',
-            
-            hnsw_space: str = "cosine",
-            hnsw_m: int = 16,
-            hnsw_construction_ef: int = 400,
-            hnsw_search_ef: int = 200,
-            batch_size: int = 16,
-
-            similarity_threshold: float = 0.1,
-            
-            search_filter: dict = {}):
-
-        self.sqlite_adapter = SQLiteDocsDBAdapter(
-            path_to_db=path_to_db
-            )
-        
-        self.vdb_adapter = ChromaDocsAdapter(
-            embedder=embedder,
-            collection_name=collection_name,
-            path_to_db=path_to_vector_db,
-            hnsw_space=hnsw_space,
-            hnsw_m=hnsw_m,
-            hnsw_construction_ef=hnsw_construction_ef,
-            hnsw_search_ef=hnsw_search_ef,
-            batch_size=batch_size,
-            search_filter=search_filter,
-            threshold=similarity_threshold,
-        )
-    
-    def get_documents(self, ids: List[int] = None) -> List[Document]:
-        if not ids:
-            documents = self.sqlite_adapter.get_docs()
-            documents.extend(self.sqlite_adapter.get_examples())
-        else:
-            documents = self.sqlite_adapter.get_docs(ids)
-        return documents
-
-    def query(self, query_text: Text, top_k: int = 10) -> List[Chunk]:
-        chunks = self.vdb_adapter.search(queries=[query_text], top_k=top_k)[0]      
-        return chunks
-    
-    def all_chunks(self) -> List[Chunk]:
-        return self.vdb_adapter.get_chunks()
-    
-    def add_chunks(self, chunks: List[Chunk]):
-        self.vdb_adapter.add(chunks)
-
-
-class LocalRaptorDB(IDB):
-    def __init__(
-            self, 
-            chunker: Chunker, 
-            path_to_db: str = 'data/docs_database.db', 
-            ):
-
-        self.doc_data_base = SQLiteDocsDBAdapter(
-            path_to_db=path_to_db
-            )
-        
-        documents = self.doc_data_base.get_docs()
-        
-        self.chunks = {
-            chunk.id: chunk for chunk in self._get_chunks(
-                chunker=chunker, 
-                documents=documents
-                )
-            }
-
-    def _get_chunks(self, chunker: Chunker, documents: List[Document]):
-        chunks = []
-        for document in documents:
-            doc_chunks = chunker.chunk(document)
-            chunks.extend(doc_chunks)
-        return chunks
-    
-    def query(self, queries: Text, top_k: int):
-        pass
-
-    def all_chunks(self):
-        return list(self.chunks.values())
-    
-    def add_chunks(self, chunks):
-        pass
