@@ -2,7 +2,6 @@ from abc import ABC, abstractmethod
 from typing import (
     List,
     Sequence,
-    Dict,
 )
 
 from src.agent_constructor.core import Block, Chunk, Text
@@ -41,39 +40,3 @@ class SimpleContextAssembler(ContextAssembler):
         # naive concatenation with headers
         parts = [f"[CHUNK {c.id} | doc={c.doc_id}]\n{c.text}" for c in chunks]
         return "\n\n".join(parts)
-
-
-class CoRAGContextAssembler(ContextAssembler):
-    def assemble(self, chunks: List[Chunk]):
-        
-        documnets = "## Documents:\n"
-        inter_steps = ""
-        
-        for chunk in chunks:
-            if chunk.id == "corag_intermediate_steps":
-                inter_steps = chunk.text
-            else:
-                documnets+=f"""### Doc {chunk.id}:\n{chunk.text.strip()}\n\n"""
-
-        return documnets + "\n" + inter_steps
-
-
-class InstructRAGContextAssembler(ContextAssembler):
-    def assemble(self, data: List[Chunk]):
-        
-        original_chunks: Dict[str: Chunk] = {}
-        rationalities_chunks: List[Chunk] = []
-
-        for chunk in data:
-            if chunk.metadata.get("source", None) == "instruct_rag":
-                rationalities_chunks.append(chunk)
-            else:
-                original_chunks[chunk.id] = chunk
-        
-        context = ""
-
-        for idx, chunk in enumerate(rationalities_chunks):
-            context+=f"# Document [{idx}]:\n{original_chunks[chunk.doc_id].text}\n"
-            context+=f"# Rationale [{idx}]:\n{chunk.text}\n\n"
-
-        return context.strip()
