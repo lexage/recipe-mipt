@@ -14,6 +14,10 @@ from src.utils.wrappers import EmbeddingFunctionWrapper
 class SQLiteDocsDBAdapter:
     def __init__(self, path_to_db: str):
         self.path_to_db = path_to_db
+        with sqlite3.connect(self.path_to_db) as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT COUNT(*) FROM documents")
+            self.id_offset = cursor.fetchone()[0]
 
     def get_docs(self, ids: Optional[List[int]] = None) -> List[Document]:
         
@@ -50,9 +54,6 @@ class SQLiteDocsDBAdapter:
             conn.row_factory = sqlite3.Row
             cursor = conn.cursor()
             
-            cursor.execute("SELECT COUNT(*) FROM documents")
-            id_offset = cursor.fetchone()[0]
-            
             if ids:
                 placeholders = ','.join('?' * len(ids))
                 query = f"{GET_EXAMPLES_QUERY} WHERE e.id IN ({placeholders})"
@@ -63,7 +64,7 @@ class SQLiteDocsDBAdapter:
             for row in cursor.fetchall():
                 documents.append(
                     Chunk(
-                        id=row['id'] + id_offset, 
+                        id=row['id'] + self.id_offset, 
                         source=DOCUMENT_SRC_EXAMPLES, 
                         text=row['content'], 
                         metadata={
@@ -81,9 +82,6 @@ class SQLiteDocsDBAdapter:
             
             cursor = conn.cursor()
 
-            cursor.execute("SELECT COUNT(*) FROM documents")
-            id_offset = cursor.fetchone()[0]
-
             placeholders = ','.join('?' * len(order_ids))
             
             query = f"""SELECT e.id, e.order_id, e.doc_id, e.content
@@ -97,8 +95,8 @@ class SQLiteDocsDBAdapter:
             for row in cursor.fetchall():
                 examples.append(
                     Chunk(
-                        id=str(doc_id) + "_" + str(row[1]) + "_e",
-                        doc_id=doc_id,
+                        id=str(row[0] + self.id_offset)+"_0",
+                        doc_id=row[0] + self.id_offset,
                         text=row[3], 
                         metadata={
                             "doc_id": row[2],
