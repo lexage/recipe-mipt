@@ -1,3 +1,5 @@
+import re
+
 from typing import List
 
 from src.agent_constructor.agent import Agent
@@ -14,6 +16,8 @@ class LocalDB(IDB):
             path_to_vector_db: str = 'data/docs_vector_database', 
             collection_name: str = 'docs',
             
+            return_examples: bool = False,
+
             hnsw_space: str = "cosine",
             hnsw_m: int = 16,
             hnsw_construction_ef: int = 400,
@@ -40,6 +44,8 @@ class LocalDB(IDB):
             search_filter=search_filter,
             threshold=similarity_threshold,
         )
+
+        self.return_examples = return_examples
     
     def get_documents(self, ids: List[int] = None) -> List[Document]:
         if not ids:
@@ -50,7 +56,17 @@ class LocalDB(IDB):
         return documents
 
     def query(self, query_text: Text, top_k: int = 10) -> List[Chunk]:
-        chunks = self.vdb_adapter.search(queries=[query_text], top_k=top_k)[0]      
+        chunks = self.vdb_adapter.search(queries=[query_text], top_k=top_k)[0]
+
+        if self.return_examples:
+            examples = []
+
+            for chunk in chunks:
+                examples_ids = self._extract_example_numbers(chunk.text)
+                examples.extend(self.sqlite_adapter.get_examples_by_doc_id(chunk.doc_id, examples_ids))
+
+            chunks.extend(examples)
+            
         return chunks
     
     def all_chunks(self) -> List[Chunk]:
@@ -58,3 +74,9 @@ class LocalDB(IDB):
     
     def add_chunks(self, chunks: List[Chunk]):
         self.vdb_adapter.add(chunks)
+
+    def _extract_example_numbers(self, text):
+        pattern = r'<example_(\d+)>'
+        matches = re.findall(pattern, text)
+        numbers = [int(match) for match in matches]
+        return numbers
