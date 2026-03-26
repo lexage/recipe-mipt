@@ -62,7 +62,7 @@ class SQLiteDocsDBAdapter:
             
             for row in cursor.fetchall():
                 documents.append(
-                    Document(
+                    Chunk(
                         id=row['id'] + id_offset, 
                         source=DOCUMENT_SRC_EXAMPLES, 
                         text=row['content'], 
@@ -75,6 +75,40 @@ class SQLiteDocsDBAdapter:
         
         return documents
     
+    def get_examples_by_doc_id(self, doc_id: str, order_ids: List[int]):
+        examples = []
+        with sqlite3.connect(self.path_to_db) as conn:
+            
+            cursor = conn.cursor()
+
+            cursor.execute("SELECT COUNT(*) FROM documents")
+            id_offset = cursor.fetchone()[0]
+
+            placeholders = ','.join('?' * len(order_ids))
+            
+            query = f"""SELECT e.id, e.order_id, e.doc_id, e.content
+            FROM examples e
+            WHERE e.doc_id == ?
+            AND e.order_id IN ({placeholders})"""
+            
+            params = (doc_id, *order_ids)
+            cursor.execute(query, params)
+
+            for row in cursor.fetchall():
+                examples.append(
+                    Chunk(
+                        id=str(doc_id) + "_" + str(row[1]) + "_e",
+                        doc_id=doc_id,
+                        text=row[3], 
+                        metadata={
+                            "doc_id": row[2],
+                            "order_id": row[1],
+                            "source": DOCUMENT_SRC_EXAMPLES,
+                        }
+                    )
+                )
+            return examples
+
 
 class ChromaDocsAdapter:
     
