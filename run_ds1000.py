@@ -32,7 +32,7 @@ def parse_args():
         "-s", "--save_path", default="results", help="Path to where to save results"
     )
     parser.add_argument(
-        "-n", "--num_workers", default=1, help="Number of workers"
+        "-n", "--num_workers", default=4, help="Number of workers"
     )
     return parser.parse_args()
 

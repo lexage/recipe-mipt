@@ -45,13 +45,17 @@ class MAPSPipeline(Pipeline):
         self.solver = solver
         self.critic = critic
         self.max_iterations = max_iterations
+        
 
     def run(self, task: Text) -> Text:
         
         context = ""
         if self.retriever:
             context = self.retriever.retrieve(task)
-            
+        
+        logging.info(f"TASK:\n\n{task}")
+        logging.info(_LOG_SEPARATOR)
+        
         logging.info(f"CONTEXT:\n\n{context}")
         logging.info(_LOG_SEPARATOR)
         
@@ -117,10 +121,22 @@ class MAPSPipeline(Pipeline):
                     next_agent = [MAPSAgents.ALIGNER, MAPSAgents.SCHOLAR, MAPSAgents.SOLVER][agent_id]
                     i += 1
         
+        try:
+            import json
+            data = json.loads(state.solution)
+            state.solution = data.get("final_answer", state.solution)
+        except:
+            try:
+                state.solution = state.solution.split('"final_answer":')[1].split("}")[0].strip('"')
+            except IndexError:
+                pass
+
+        logging.info(f"FINAL SOLUTION:\n\n{state.solution}")
         logging.info(f"FINAL SOLUTION:\n\n{state.solution}")
         logging.info(f"TYPE SOLUTION:\n\n{type(state.solution)}")
 
         logging.info(_LOG_SEPARATOR)
+        
   
         return state.solution
 

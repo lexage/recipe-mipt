@@ -38,23 +38,25 @@ class PanelAgent(Agent):
     ) -> str:
         """Create prompt for candidate generation."""
         base_prompt = f"""
-You are an expert programmer solving the following problem:
+You are an expert programmer solving the following task or problem:
 
-PROBLEM: {problem}
+PROBLEM/TASK: {problem}
 
 CURRENT CONTEXT: {context}
 
-Generate the next reasoning step or code snippet. Focus on:
+Generate the required code block.
+Focus on:
 1. Logical correctness
 2. Code quality and readability
 3. Progress towards solving the problem
 
-Next step:"""
+Respond with the answer
+directly with no extra words."""
 
         if sampling_type == "greedy":
-            base_prompt += "\n[Generate the most logical and correct next step]"
+            base_prompt += "\n[Generate the most logical and correct code snippet]"
         else:  # random sampling
-            base_prompt += "\n[Generate a diverse but valid next step]"
+            base_prompt += "\n[Generate a diverse but valid code snippet]"
 
         return base_prompt
 
@@ -162,13 +164,16 @@ Return only the index number (0-based) of the selected candidate:"""
 
         logging.info(f"TASK: {task}")
         logging.info(_LOG_SEPARATOR)
-
-        logging.info(f"CANDIDATES: {candidates}")
+        
+        for idx, candidate in enumerate(candidates):
+            logging.info(f"CANDIDATE {idx+1}: {candidate}\n")
+        
         logging.info(_LOG_SEPARATOR)
 
         critiques = self._generate_critiques(candidates, task, current_context)
 
-        logging.info(f"CRITIQUES: {critiques}")
+        for idx, critique in enumerate(critiques):
+            logging.info(f"CRITIQUE {idx+1}: {critique}\n")
         logging.info(_LOG_SEPARATOR)
 
         selected_candidate = self._select_best_candidate(candidates, critiques)
