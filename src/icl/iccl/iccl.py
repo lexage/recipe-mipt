@@ -8,7 +8,7 @@ from openai import OpenAI
 from src.agent_constructor.core import Text
 from src.agent_constructor.context_engine import Chunk
 from src.agent_constructor.icl import ICLBlock
-
+from src.utils import DOCUMENT_SRC_EXAMPLES
 
 class ICCL(ICLBlock):
 
@@ -29,9 +29,12 @@ class ICCL(ICLBlock):
         return np.exp(entropy)
 
     def apply(self, chunks: List[Chunk]) -> List[Chunk]:
+        
+        examples = [chunk for chunk in chunks if chunk.metadata.get("source") == DOCUMENT_SRC_EXAMPLES]
+        
         valid = [
             (chunk, comp)
-            for chunk in chunks
+            for chunk in examples
             if (comp := self._eval_example(chunk.text)) is not None and comp > 0
         ]
 

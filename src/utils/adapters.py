@@ -63,7 +63,7 @@ class SQLiteDocsDBAdapter:
             
             for row in cursor.fetchall():
                 documents.append(
-                    Chunk(
+                    Document(
                         id=row['id'] + self.id_offset, 
                         source=DOCUMENT_SRC_EXAMPLES, 
                         text=row['content'], 

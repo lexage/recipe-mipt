@@ -84,6 +84,7 @@ class ComponentNames(Enum):
     RECURSIVE_CHUNKER = "src.agent_constructor.chunkers.RecursiveChunker"
 
     # ===== Context Assemblers =====
+    EXAMPLES_CONTEXT_ASSEMBLER = "src.context_assemblers.examples_assembler.ExamplesAssembler"
     CORAG_CONTEXT_ASSEMBLER = "src.context_assemblers.corag_assembler.CoRAGContextAssembler"
     SIMPLE_CONTEXT_ASSEMBLER = "src.agent_constructor.context_engine.SimpleContextAssembler"
     INSTRUCT_CONTEXT_ASSEMBLER = "src.context_assemblers.instruct_assembler.InstructRAGContextAssembler"
