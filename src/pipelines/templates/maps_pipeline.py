@@ -127,11 +127,10 @@ class MAPSPipeline(Pipeline):
             state.solution = data.get("final_answer", state.solution)
         except:
             try:
-                state.solution = state.solution.split('"final_answer":')[1].split("}")[0].strip('"')
+                state.solution = state.solution.split('"final_answer":')[1].rsplit("}", 1)[0].strip().strip('"')
             except IndexError:
                 pass
 
-        logging.info(f"FINAL SOLUTION:\n\n{state.solution}")
         logging.info(f"FINAL SOLUTION:\n\n{state.solution}")
         logging.info(f"TYPE SOLUTION:\n\n{type(state.solution)}")
 
@@ -165,16 +164,23 @@ class MAPSPipeline(Pipeline):
             prompt += f"[previous knowledge]:\n{state.research}\n\n[feedback]:\n{state.feedback}"
 
         return prompt
-    
+
     @staticmethod
     def _solver_prompt(state: MAPSPipelineState):
-        prompt = f"[aligment]:\n{state.aligned_info}\n\n[knowledge]:\n{state.research}\n\n"
+        prompt = f"[task]:\n{state.task}\n\n" 
+        if state.context:
+            prompt += f"[context]:\n{state.context}\n\n"
+        
+        prompt += f"[aligment]:\n{state.aligned_info}\n\n[knowledge]:\n{state.research}\n\n"
         
         if state.feedback:
             prompt += f"[previous solution]:\n{state.solution}\n\n[feedback]:\n{state.feedback}"
 
         return prompt
 
-    def _critic_prompt(self, state: MAPSPipelineState):
-        return f"[alignment]: \n{state.aligned_info}\n\n[knowledge]: \n{state.research}\n\n[solution]: \n{state.solution}\n\n"
-    
+    @staticmethod
+    def _critic_prompt(state: MAPSPipelineState):
+        prompt = f"[task]:\n{state.task}\n\n"
+        prompt += f"[alignment]: \n{state.aligned_info}\n\n[knowledge]: \n{state.research}\n\n[solution]: \n{state.solution}\n\n"
+        
+        return prompt
