@@ -33,4 +33,4 @@ components:
       temperature: 0.2
 
 
-logs_path: "data/mars.log"
+logs_path: "mars/logs"
