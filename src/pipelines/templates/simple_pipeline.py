@@ -63,6 +63,4 @@ class SimplePipeline(Pipeline):
         if self.context_assembler:
             context = self.context_assembler.assemble(context)
         
-        print(context)
-
         return self.agent.run(task, context)
