@@ -3,7 +3,6 @@ from src.agent_constructor.pipeline import Pipeline
 from src.agent_constructor.core import Text
 
 
-
 class REWOOPipeline(Pipeline):
 
     def __init__(self, planner: Agent, worker: Agent, solver: Agent):

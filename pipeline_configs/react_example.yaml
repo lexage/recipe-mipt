@@ -32,4 +32,4 @@ components:
       model_name: "Qwen/Qwen1.5-32B-Chat-AWQ"
       temperature: 0.5
 
-logs_path: "data/react.log"
+logs_path: "react/logs"

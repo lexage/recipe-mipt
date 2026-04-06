@@ -8,36 +8,36 @@ from src.agent_constructor.pipeline import Pipeline
 from src.agent_constructor.context_engine import ContextAssembler
 from src.agent_constructor.icl import ICLBlock
 
+
 class SimplePipeline(Pipeline):
 
-    def __init__(self, 
-                 data_base: IDB, 
-                 retriever: Retriever, 
-                 agent: Agent, 
-                 chunker: Chunker,
-                 filter: Filter = None,
-                 icl_block: ICLBlock = None,
-                 generator: Generator = None,
-                 context_assembler: ContextAssembler = None,
-                 enhancer: Agent = None,
-                 top_k: int = 1):
-        
+    def __init__(
+        self,
+        data_base: IDB,
+        retriever: Retriever,
+        agent: Agent,
+        chunker: Chunker,
+        filter: Filter = None,
+        icl_block: ICLBlock = None,
+        generator: Generator = None,
+        context_assembler: ContextAssembler = None,
+        enhancer: Agent = None,
+        top_k: int = 1,
+    ):
 
         super().__init__("simple_pipeline")
 
         documents = data_base.get_documents()
         if generator:
-            synth_docs=generator.generate(documents=documents)
+            synth_docs = generator.generate(documents=documents)
             documents.extend(synth_docs)
-            
+
         chunks = []
         [chunks.extend(chunker.chunk(doc)) for doc in documents]
         if filter:
             chunks = filter.apply(chunks)
-            
+
         data_base.add_chunks(chunks)
-
-
 
         self.retriever = retriever
         self.agent = agent
@@ -45,7 +45,7 @@ class SimplePipeline(Pipeline):
         self.icl_block = icl_block
         self.enhancer = enhancer
         self.top_k = top_k
-            
+
     def run(self, task: str) -> str:
 
         if self.enhancer:
@@ -62,5 +62,5 @@ class SimplePipeline(Pipeline):
 
         if self.context_assembler:
             context = self.context_assembler.assemble(context)
-        
+
         return self.agent.run(task, context)

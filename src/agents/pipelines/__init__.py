@@ -15,9 +15,15 @@ from .react import (
     ReActAgent,
 )
 
-from .panel import (
-    Panel,
+from .react_sgr import (
+    ReActAgentSGR,
 )
+
+from .panel import (
+    PanelAgent,
+)
+
+from .mars import PlannerMARS, TeacherMARS, CriticMARS, CriticMARSUpd, StudentMARS
 
 __all__ = [
     "ScholarMAPS",
@@ -28,5 +34,11 @@ __all__ = [
     "WorkerREWOO",
     "SolverREWOO",
     "ReActAgent",
-    "Panel",
+    "ReActAgentSGR",
+    "PanelAgent",
+    "PlannerMARS",
+    "TeacherMARS",
+    "CriticMARS",
+    "CriticMARSUpd",
+    "StudentMARS",
 ]
