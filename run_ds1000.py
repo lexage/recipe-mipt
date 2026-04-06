@@ -26,7 +26,7 @@ def parse_args():
         help=f'Path to config dir',
     )
     parser.add_argument(
-        "-d", "--dataset", default="/workspace/proj/grant/recipe-mipt/data/ds1000/ds1000.jsonl.gz", help="Path to DS1000 dataset"
+        "-d", "--dataset", default="data/ds1000/ds1000.jsonl.gz", help="Path to DS1000 dataset"
     )
     parser.add_argument(
         "-s", "--save_path", default="results", help="Path to where to save results"
