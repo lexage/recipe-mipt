@@ -34,7 +34,7 @@ def replace_examples_in_chunks(chunks: List[Chunk]) -> List[Chunk]:
             doc_chunks.append(chunk)
     
     for key in examples_map:
-        examples_map[key] = " ".join(examples_map[key])
+        examples_map[key] = "\n".join(examples_map[key])
     
     result_chunks = []
     
@@ -54,7 +54,7 @@ def replace_examples_in_chunks(chunks: List[Chunk]) -> List[Chunk]:
             key = (doc_id, order_id)
             
             if key in examples_map:
-                return examples_map[key]
+                return "\n" + examples_map[key]
 
             return match.group(0)
         

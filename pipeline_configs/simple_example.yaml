@@ -1,7 +1,7 @@
 type: SIMPLE
 
 params:
-  top_k: 10
+  top_k: 5
 
 components:
   
@@ -20,6 +20,8 @@ components:
       collection_name: "docs"
       
       return_examples: True
+      return_full_docs: False
+      merge_examples: False
 
       hnsw_space: "cosine"
       hnsw_m: 16
@@ -51,7 +53,6 @@ components:
     type: SIMPLE_RETRIEVER
     params:
       name: simple_retriever
-      return_docs_as_chunks: False
   
   enchancer:
     type: QUERY_GENERATOR

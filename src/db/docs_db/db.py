@@ -6,6 +6,7 @@ from src.agent_constructor.agent import Agent
 from src.agent_constructor.db import IDB
 from src.agent_constructor.core import Chunk, Document, Text
 from src.utils.adapters import SQLiteDocsDBAdapter, ChromaDocsAdapter
+from src.utils.utils_functions import replace_examples_in_chunks
 
 
 class LocalDB(IDB):
@@ -16,7 +17,9 @@ class LocalDB(IDB):
             path_to_vector_db: str = 'data/docs_vector_database', 
             collection_name: str = 'docs',
             
+            return_full_docs: bool = False,
             return_examples: bool = False,
+            merge_examples: bool = False,
 
             hnsw_space: str = "cosine",
             hnsw_m: int = 16,
@@ -46,6 +49,8 @@ class LocalDB(IDB):
         )
 
         self.return_examples = return_examples
+        self.return_full_docs = return_full_docs
+        self.merge_examples = merge_examples
     
     def get_documents(self, ids: List[int] = None) -> List[Document]:
         if not ids:
@@ -58,6 +63,25 @@ class LocalDB(IDB):
     def query(self, query_text: Text, top_k: int = 10) -> List[Chunk]:
         chunks = self.vdb_adapter.search(queries=[query_text], top_k=top_k)[0]
 
+        if self.return_full_docs:
+            doc_ids = list(set([chunk.doc_id for chunk in chunks]))
+            documents : List[Document] = self.get_documents(doc_ids)
+            
+            chunks : List[Chunk] = []
+
+            for doc in documents:
+                metadata = doc.metadata.copy()
+                metadata["source"] = doc.source
+
+                chunks.append(
+                    Chunk(
+                        id=doc.id,
+                        doc_id=doc.id,
+                        text=doc.text,
+                        metadata=metadata,
+                    )
+                )
+        
         if self.return_examples:
             examples = []
 
@@ -66,7 +90,10 @@ class LocalDB(IDB):
                 examples.extend(self.sqlite_adapter.get_examples_by_doc_id(chunk.doc_id, examples_ids))
 
             chunks.extend(examples)
-            
+
+        if self.merge_examples:
+            chunks = replace_examples_in_chunks(chunks)
+
         return chunks
     
     def all_chunks(self) -> List[Chunk]:
