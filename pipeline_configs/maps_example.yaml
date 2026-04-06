@@ -1,0 +1,58 @@
+type: MAPS
+components:
+  embedder:
+    type: EMBEDDING_AGENT
+    params:
+      name: embedder
+      url: "http://localhost:7216/v1"
+      model_name: "Qwen/Qwen3-Embedding-4B"
+  
+  data_base:
+    type: LOCAL_DB
+    params:
+      path_to_db: "data/docs_database_examples.db"
+      path_to_vector_db: "data/docs_vector_database"
+      collection_name: "docs"
+  
+  context_assembler:
+    type: SIMPLE_CONTEXT_ASSEMBLER
+    params:
+      name: "SimpleContext"
+
+  retriever:
+    type: SIMPLE_RETRIEVER
+    params:
+      name: simple_retriever
+
+  aligner:
+    type: MAPS_ALIGNER
+    params:
+      name: "AlignerMAPS"
+      url: "http://localhost:7215/v1"
+      model_name: "Qwen/Qwen1.5-32B-Chat-AWQ"
+
+  scholar:
+    type: MAPS_SCHOLAR
+    params:
+      name: "ScholarMAPS"
+      url: "http://localhost:7215/v1"
+      model_name: "Qwen/Qwen1.5-32B-Chat-AWQ"
+      temperature: 0.5
+
+  solver:
+    type: MAPS_SOLVER
+    params:
+      name: "SolverMAPS"
+      url: "http://localhost:7215/v1"
+      model_name: "Qwen/Qwen1.5-32B-Chat-AWQ"
+      temperature: 0.5
+
+  critic:
+    type: MAPS_CRITIC
+    params:
+      name: "CriticMAPS"
+      url: "http://localhost:7215/v1"
+      model_name: "Qwen/Qwen1.5-32B-Chat-AWQ"
+      temperature: 0.5
+
+logs_path: "data/maps.log"

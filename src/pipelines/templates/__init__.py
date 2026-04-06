@@ -6,5 +6,12 @@ from .panel_pipeline import PANELPipeline
 from .mars_pipeline import MARSPipeline
 from .mars_pipeline_critic_upd import MARSPipelineCriticUpd
 
-
-__all__ = ["SimplePipeline", "REWOOPipeline", "MAPSPipeline", "REACTPipeline", "PANELPipeline", "MARSPipeline", "MARSPipelineCriticUpd"]
+__all__ = [
+    "SimplePipeline",
+    "REWOOPipeline",
+    "MAPSPipeline",
+    "REACTPipeline",
+    "PANELPipeline",
+    "MARSPipeline",
+    "MARSPipelineCriticUpd",
+]

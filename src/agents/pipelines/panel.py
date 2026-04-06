@@ -1,9 +1,10 @@
 import logging
-import random
 from typing import List
-from src.agent_constructor.agent import Agent
+
 from langchain_openai import ChatOpenAI
-from langchain_core.messages import HumanMessage, ToolMessage
+from langchain_core.messages import HumanMessage
+
+from src.agent_constructor.agent import Agent
 
 
 _LOG_SEPARATOR = f"\n{'_' * 20}\n"
@@ -164,10 +165,10 @@ Return only the index number (0-based) of the selected candidate:"""
 
         logging.info(f"TASK: {task}")
         logging.info(_LOG_SEPARATOR)
-        
+
         for idx, candidate in enumerate(candidates):
             logging.info(f"CANDIDATE {idx+1}: {candidate}\n")
-        
+
         logging.info(_LOG_SEPARATOR)
 
         critiques = self._generate_critiques(candidates, task, current_context)

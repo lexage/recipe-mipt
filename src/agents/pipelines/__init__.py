@@ -23,13 +23,7 @@ from .panel import (
     PanelAgent,
 )
 
-from .mars import (
-    PlannerMARS,
-    TeacherMARS,
-    CriticMARS,
-    CriticMARSUpd,
-    StudentMARS
-)
+from .mars import PlannerMARS, TeacherMARS, CriticMARS, CriticMARSUpd, StudentMARS
 
 __all__ = [
     "ScholarMAPS",
@@ -46,5 +40,5 @@ __all__ = [
     "TeacherMARS",
     "CriticMARS",
     "CriticMARSUpd",
-    "StudentMARS"
+    "StudentMARS",
 ]

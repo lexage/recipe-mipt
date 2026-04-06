@@ -1,13 +1,10 @@
-import json
 import re
-import logging
 
 from typing import List, Tuple
 from openai import OpenAI
 
 from src.agent_constructor.agent import Agent
 from src.agent_constructor.core import Text
-
 
 SYSTEM_PLANNER_PROMPT = """You are a task planning assistant. Your response must follow this exact template:
 
@@ -25,7 +22,7 @@ Step 3: Execute the plan.
 
 Please follow this format strictly."""
 
-SYSTEM_TEACHER_PROMPT =  """You are a teacher who asks questions in the Socratic manner based on objectives and student responses. 
+SYSTEM_TEACHER_PROMPT = """You are a teacher who asks questions in the Socratic manner based on objectives and student responses. 
 Please ask a total of two questions:
 The first one is for the problem that appeared in the prompt given by the students in the last round.
 The second one is an optimization solution based on the current steps of the task.
@@ -96,7 +93,7 @@ class PlannerMARS(Agent):
             model=self.model_name,
             messages=[
                 {"role": "system", "content": self.system_prompt},
-                {"role": "user", "content": prompt}
+                {"role": "user", "content": prompt},
             ],
             temperature=self.temperature,
         )
@@ -112,7 +109,7 @@ class PlannerMARS(Agent):
         # Extract the description of each step
         steps = []
         for i in range(1, total_steps + 1):
-            step_match = re.search(fr"Step {i}: (.+)", planner_response)
+            step_match = re.search(rf"Step {i}: (.+)", planner_response)
             if step_match:
                 steps.append(step_match.group(1).strip())
             else:
@@ -141,9 +138,9 @@ Step 2: Verify the completed code matches the required output format and variabl
 
         response = self.llm(planner_prompt).strip()
         total_steps, steps = self.extract_steps(response)
-        
+
         return steps
-    
+
 
 class TeacherMARS(Agent):
     """Agent asks questions based on the steps."""
@@ -162,19 +159,26 @@ class TeacherMARS(Agent):
         self.system_prompt = SYSTEM_TEACHER_PROMPT
 
     def llm(self, prompt: str) -> str:
-        """Сalling the llm to get a response."""        
+        """Сalling the llm to get a response."""
         response = self.client.chat.completions.create(
             model=self.model_name,
             messages=[
                 {"role": "system", "content": self.system_prompt},
-                {"role": "user", "content": prompt}
+                {"role": "user", "content": prompt},
             ],
             temperature=self.temperature,
         )
         return response.choices[0].message.content
 
-    def run(self, task: Text, step: str, final_answer: str, feedback: str = None, mode: str = "ask") -> Text:
-        
+    def run(
+        self,
+        task: Text,
+        step: str,
+        final_answer: str,
+        feedback: str = None,
+        mode: str = "ask",
+    ) -> Text:
+
         if mode == "regenerate":
             teacher_prompt = f"""Here is feedback on whether your output matches the Socratic questioning, please refer to the suggestion to regenerate the questioning:
 {feedback}
@@ -193,7 +197,7 @@ Ask heuristic questions based on the students' historical responses and the curr
 """
         response = self.llm(teacher_prompt).strip()
         return response
-        
+
 
 class CriticMARS(Agent):
     """Agent evaluates the relevance of the questions."""
@@ -217,7 +221,7 @@ class CriticMARS(Agent):
             model=self.model_name,
             messages=[
                 {"role": "system", "content": self.system_prompt},
-                {"role": "user", "content": prompt}
+                {"role": "user", "content": prompt},
             ],
             temperature=self.temperature,
         )
@@ -227,7 +231,7 @@ class CriticMARS(Agent):
 
         critic_prompt = f"{teacher_message}"
         response = self.llm(critic_prompt).strip()
-        
+
         return response
 
 
@@ -253,7 +257,7 @@ class CriticMARSUpd(Agent):
             model=self.model_name,
             messages=[
                 {"role": "system", "content": self.system_prompt},
-                {"role": "user", "content": prompt}
+                {"role": "user", "content": prompt},
             ],
             temperature=self.temperature,
         )
@@ -283,7 +287,7 @@ Strictly follow your system instructions format:
 - If questions are low-quality: [False] [suggestion: <concise reason>]
 """
         response = self.llm(critic_prompt).strip()
-        
+
         return response
 
 
@@ -309,13 +313,19 @@ class StudentMARS(Agent):
             model=self.model_name,
             messages=[
                 {"role": "system", "content": self.system_prompt},
-                {"role": "user", "content": prompt}
+                {"role": "user", "content": prompt},
             ],
             temperature=self.temperature,
         )
         return response.choices[0].message.content
 
-    def run(self, task: Text, final_answer: str = None, questions: str = None, mode: str = "update") -> Text:
+    def run(
+        self,
+        task: Text,
+        final_answer: str = None,
+        questions: str = None,
+        mode: str = "update",
+    ) -> Text:
 
         if mode == "init":
             student_prompt = f"""Here is the task definition:
@@ -328,8 +338,6 @@ Here is your last final answer:
 {final_answer}
 Please base on the following question update your final answer, write ONLY FINAL CODE:
 {questions}"""
-        
+
         response = self.llm(student_prompt).strip()
         return response
-
-

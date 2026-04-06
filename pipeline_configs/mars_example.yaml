@@ -33,4 +33,4 @@ components:
       temperature: 0.2
 
 
-logs_path: "data/rewoo.log"
+logs_path: "data/mars.log"

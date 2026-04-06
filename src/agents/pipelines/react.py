@@ -1,7 +1,5 @@
 import logging
 import re
-import json
-from pathlib import Path
 from typing import List, Dict, Any, Optional, Tuple
 
 from openai import OpenAI
@@ -113,7 +111,9 @@ class ReActAgent(Agent):
     def _parse_action_info(self, content: str) -> Tuple[str, Optional[str]]:
         """Parsing the final response."""
 
-        action_match = re.search(r"Action:\s*(.*?)(?=\s*Action Input:)", content, re.DOTALL)
+        action_match = re.search(
+            r"Action:\s*(.*?)(?=\s*Action Input:)", content, re.DOTALL
+        )
 
         if not action_match:
             raise ValueError(f"Could not parse LLM Output: {content}")
@@ -126,7 +126,7 @@ class ReActAgent(Agent):
         for word in stop_words:
             if word in action_input:
                 action_input = action_input.split(word)[0]
-        
+
         if "Finish" in action:
             action = "Finish"
             action_input = None
@@ -226,5 +226,3 @@ class ReActAgent(Agent):
 
         last_message = self.memory[-1].get("content", "") if self.memory else ""
         return last_message or "Maximum iterations reached without solution."
-
-

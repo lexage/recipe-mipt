@@ -7,24 +7,24 @@ from openai import OpenAI
 from src.agent_constructor.agent import Agent
 from src.agent_constructor.core import Text
 
-
 _LOG_SEPARATOR = f"\n{'_' * 20}\n"
 
 
 class AlignerMAPS(Agent):
     """Alignes the caption, context, and question to ensure the safe integration of these elements."""
 
-    def __init__(self, url: str = None, model_name: str = None, name: str = "maps_aligner"):
+    def __init__(
+        self, url: str = None, model_name: str = None, name: str = "maps_aligner"
+    ):
         super().__init__(name)
-        
+
         self.client = OpenAI(base_url=url, api_key="vllm")
 
         self.model_name = model_name
 
     def run(self, task: Text) -> Text:
 
-        system_prompt = (
-        """You are a code alignment specialist conducting structured analysis through Socratic interrogation. Your goal: ensure precise alignment between problem specification, provided context/code scaffolding, and the required code output format.
+        system_prompt = """You are a code alignment specialist conducting structured analysis through Socratic interrogation. Your goal: ensure precise alignment between problem specification, provided context/code scaffolding, and the required code output format.
 
         1. [Task Deconstruction]
         "What is the core computational objective? Identify:
@@ -57,8 +57,7 @@ class AlignerMAPS(Agent):
         - Flag format risks with [FormatRisk] and suggest corrective structure
         - Output alignment report as JSON: {task_core, input_contract, output_contract, format_requirements, identified_risks}
         """
-        )
-        
+
         response = self.client.chat.completions.create(
             model=self.model_name,
             messages=[
@@ -67,12 +66,11 @@ class AlignerMAPS(Agent):
             ],
             temperature=0,
         )
-        
+
         logging.info(f"ALIGNER SYSTEM PROMPT:\n\n{system_prompt}")
         logging.info(_LOG_SEPARATOR)
         logging.info(f"ALIGNER USER PROMPT:\n\n{task}")
         logging.info(_LOG_SEPARATOR)
-
 
         return response.choices[0].message.content
 
@@ -80,7 +78,9 @@ class AlignerMAPS(Agent):
 class ScholarMAPS(Agent):
     """Researches the professional knowledge required by problems and exploring various hypotheses"""
 
-    def __init__(self, url: str = None, model_name: str = None, name: str = "maps_scholar"):
+    def __init__(
+        self, url: str = None, model_name: str = None, name: str = "maps_scholar"
+    ):
         super().__init__(name)
 
         self.client = OpenAI(base_url=url, api_key="vllm")
@@ -89,8 +89,7 @@ class ScholarMAPS(Agent):
 
     def run(self, task: Text) -> Text:
 
-        system_prompt = (
-        """You are a programming knowledge retrieval system using Socratic questioning to ground implementation decisions in established software engineering principles.
+        system_prompt = """You are a programming knowledge retrieval system using Socratic questioning to ground implementation decisions in established software engineering principles.
 
         1. [Problem Decomposition]
         "Break down the coding demand:
@@ -132,8 +131,6 @@ class ScholarMAPS(Agent):
         2) Dependency List: [required_language_features, inferred_modules]
         3) Gap Report: [unverified_assumptions, optional_enhancements]
         """
-        )
-
 
         response = self.client.chat.completions.create(
             model=self.model_name,
@@ -148,14 +145,16 @@ class ScholarMAPS(Agent):
         logging.info(_LOG_SEPARATOR)
         logging.info(f"SCHOLAR USER PROMPT:\n\n{task}")
         logging.info(_LOG_SEPARATOR)
-        
+
         return response.choices[0].message.content
 
- 
+
 class SolverMAPS(Agent):
     """Gatheres all necessary information and resolving MSPs by selecting the most appropriate experimental approach"""
 
-    def __init__(self, url: str = None, model_name: str = None, name: str = "maps_solver"):
+    def __init__(
+        self, url: str = None, model_name: str = None, name: str = "maps_solver"
+    ):
         super().__init__(name)
         self.client = OpenAI(base_url=url, api_key="vllm")
 
@@ -163,8 +162,7 @@ class SolverMAPS(Agent):
 
     def run(self, task: Text) -> Text:
 
-        system_prompt = (
-        """You are a code generation system using Socratic dialectics to produce correct, formatted solutions.
+        system_prompt = """You are a code generation system using Socratic dialectics to produce correct, formatted solutions.
 
         1. [Problem Framing]
         "Extract the irreducible core:
@@ -209,8 +207,7 @@ class SolverMAPS(Agent):
         "final_answer": "Respond with the answer on task directly with no extra words."
         }
         """
-        )
-    
+
         response = self.client.chat.completions.create(
             model=self.model_name,
             messages=[
@@ -231,7 +228,9 @@ class SolverMAPS(Agent):
 class CriticMAPS(Agent):
     """Provides feedback and continuous correction throughout the solving process"""
 
-    def __init__(self, url: str = None, model_name: str = None, name: str = "maps_critic"):
+    def __init__(
+        self, url: str = None, model_name: str = None, name: str = "maps_critic"
+    ):
         super().__init__(name)
         self.client = OpenAI(base_url=url, api_key="vllm")
 
@@ -239,8 +238,7 @@ class CriticMAPS(Agent):
 
     def run(self, task: Text) -> Tuple[List[int], Text]:
 
-        system_prompt = (
-        """You are a Socratic code assessment engine evaluating solutions through dialectical protocol.
+        system_prompt = """You are a Socratic code assessment engine evaluating solutions through dialectical protocol.
 
         1. [Triadic Interrogation Framework]
         For each dimension (format_compliance/logical_correctness/code_quality):
@@ -300,11 +298,8 @@ class CriticMAPS(Agent):
         ]
         }
         """
-        )
 
-        user_prompt = (
-            f"[Data to Evaluate]:\n{task}"
-        )
+        user_prompt = f"[Data to Evaluate]:\n{task}"
 
         response = self.client.chat.completions.create(
             model=self.model_name,
@@ -320,14 +315,14 @@ class CriticMAPS(Agent):
             scores = self._parse_results(answer)
         except:
             scores = [-1, -1, -1]
-            
+
         logging.info(f"CRITIC SYSTEM PROMPT:\n\n{system_prompt}")
         logging.info(_LOG_SEPARATOR)
         logging.info(f"CRITIC USER PROMPT:\n\n{user_prompt}")
         logging.info(_LOG_SEPARATOR)
 
         return scores, answer
-    
+
     @staticmethod
     def _parse_results(answer: Text):
         data = json.loads(answer)
@@ -335,5 +330,5 @@ class CriticMAPS(Agent):
         return [
             score_dict["alignment"],
             score_dict["knowledge"],
-            score_dict["solution"]
+            score_dict["solution"],
         ]

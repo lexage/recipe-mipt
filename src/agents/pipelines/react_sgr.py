@@ -1,6 +1,5 @@
 import logging
 import json
-import re
 from typing import List, Dict, Any, Optional, Tuple, Union, TypedDict
 from pydantic import BaseModel, Field, ValidationError, ConfigDict
 
@@ -12,6 +11,7 @@ from src.tools import BaseTool, LLMTool
 
 class AgentConfig:
     """Configuration constants for ReActAgent to avoid magic numbers."""
+
     MAX_RETRY_COUNT: int = 5
     MAX_EXECUTION_HISTORY_SIZE: int = 10
     MIN_MEMORY_BASE_SIZE: int = 2  # system + initial task messages
@@ -23,7 +23,7 @@ class AgentConfig:
 
 _LOG_SEPARATOR = "\n" + "_" * 20 + "\n"
 
-MessageDict = TypedDict('MessageDict', {'role': str, 'content': str})
+MessageDict = TypedDict("MessageDict", {"role": str, "content": str})
 
 
 REACT_SYSTEM_PROMPT = """You are an autonomous ReAct agent. 
@@ -65,15 +65,19 @@ INSTRUCTIONS:
 
 class AgentStep(BaseModel):
     """Structured output model for a single ReAct agent step."""
+
     model_config = ConfigDict(extra="forbid")
-    
-    thought: str = Field(..., description="Step-by-step reasoning about what to do next")
+
+    thought: str = Field(
+        ..., description="Step-by-step reasoning about what to do next"
+    )
     action: str = Field(..., description="Tool name to call, or 'finish' to complete")
     action_input: Dict[str, Any] = Field(
-        default_factory=dict, 
-        description="Arguments for the tool as key-value pairs"
+        default_factory=dict, description="Arguments for the tool as key-value pairs"
     )
-    is_final: bool = Field(default=False, description="Whether this is the final answer")
+    is_final: bool = Field(
+        default=False, description="Whether this is the final answer"
+    )
 
 
 class ReActAgentSGR(Agent):
@@ -89,22 +93,22 @@ class ReActAgentSGR(Agent):
         examples: Optional[list] = None,
         max_iterations: int = AgentConfig.DEFAULT_MAX_ITERATIONS,
         tools: Optional[List[BaseTool]] = None,
-        history_context: int = AgentConfig.DEFAULT_HISTORY_CONTEXT
+        history_context: int = AgentConfig.DEFAULT_HISTORY_CONTEXT,
     ):
         super().__init__(name)
-        
+
         if not model_name:
             raise ValueError("model_name is required for LLM initialization")
-        
+
         self.examples = examples or []
         self.max_iterations = max_iterations
         self.history_context = history_context
-        
+
         # Initialize tool registry with fallback to default LLMTool
         self.tools = tools or [LLMTool(url=url, model_name=model_name)]
         self.tools_dict = {t.name: t for t in self.tools}
         self.tool_names = ", ".join(self.tools_dict.keys())
-        
+
         # Build tool descriptions for prompt injection
         self.tools_prompt = "\n\n".join(
             [t.get_prompt_description() for t in self.tools]
@@ -112,8 +116,7 @@ class ReActAgentSGR(Agent):
 
         # Compose system prompt with dynamic tool information
         self.instruction = instruction or REACT_SYSTEM_PROMPT.format(
-            tool_names=self.tool_names, 
-            tools_formatted=self.tools_prompt
+            tool_names=self.tool_names, tools_formatted=self.tools_prompt
         )
 
         # Initialize OpenAI client with vLLM-compatible configuration
@@ -123,7 +126,7 @@ class ReActAgentSGR(Agent):
 
         # Runtime state - reset on each run() call
         self._reset_runtime_state()
-        
+
         # Memory stores conversation history for context window management
         # self.memory: List[MessageDict] = []
 
@@ -137,50 +140,55 @@ class ReActAgentSGR(Agent):
         self._execution_history: List[Dict[str, Any]] = []
         self.memory: List[MessageDict] = []
 
-    def _get_structured_response(self, messages: List[MessageDict]) -> Optional[AgentStep]:
+    def _get_structured_response(
+        self, messages: List[MessageDict]
+    ) -> Optional[AgentStep]:
         """Call LLM with JSON output constraint and parse response via Pydantic."""
         try:
             response = self.client.chat.completions.parse(
                 model=self.model_name,
                 messages=messages,
                 temperature=self.temperature,
-                response_format=AgentStep
+                response_format=AgentStep,
             )
-            
+
             agent_step = response.choices[0].message.parsed
-            
+
             if agent_step is None:
                 return None
-            
+
             return agent_step
-                
+
         except Exception as e:
             return None
-
 
     def _get_sliding_window_messages(self) -> List[MessageDict]:
         """
         Get messages with sliding window to balance context vs token limits.
-        
+
         Why keep first 2 messages: system prompt + initial task are essential
         for maintaining agent behavior and task grounding throughout execution.
         """
         if len(self.memory) <= AgentConfig.MIN_MEMORY_BASE_SIZE:
             return self.memory.copy()
-        
+
         # Preserve system + task messages
-        base_messages = self.memory[:AgentConfig.MIN_MEMORY_BASE_SIZE]
-        
+        base_messages = self.memory[: AgentConfig.MIN_MEMORY_BASE_SIZE]
+
         # Take recent conversation turns within context window
-        recent_messages = self.memory[AgentConfig.MIN_MEMORY_BASE_SIZE:][-self.history_context:]
-        
+        recent_messages = self.memory[AgentConfig.MIN_MEMORY_BASE_SIZE :][
+            -self.history_context :
+        ]
+
         return base_messages + recent_messages
 
-    def _validate_tool_args(self, tool_name: str, action_input: Dict[str, Any]) -> Tuple[bool, Optional[str]]:
+    def _validate_tool_args(
+        self, tool_name: str, action_input: Dict[str, Any]
+    ) -> Tuple[bool, Optional[str]]:
         tool = self.tools_dict.get(tool_name)
         if not tool:
             return False, f"Tool '{tool_name}' not found"
-        if hasattr(tool, 'arg_schema') and tool.arg_schema:
+        if hasattr(tool, "arg_schema") and tool.arg_schema:
             try:
                 tool.arg_schema(**action_input)
                 return True, None
@@ -194,24 +202,26 @@ class ReActAgentSGR(Agent):
         """Detect execution loops by checking for repeated identical tool calls."""
         if len(self._execution_history) < AgentConfig.LOOP_DETECTION_WINDOW - 1:
             return False
-        
+
         # Check the last N-1 entries + current would make N total
-        recent_calls = self._execution_history[-(AgentConfig.LOOP_DETECTION_WINDOW - 1):]
+        recent_calls = self._execution_history[
+            -(AgentConfig.LOOP_DETECTION_WINDOW - 1) :
+        ]
         return all(
             entry["action"] == action and entry["action_input"] == action_input
             for entry in recent_calls
         )
 
     def _format_error_observation(
-        self, 
-        error_type: str, 
-        action: str = "", 
-        action_input: Union[Dict, str] = "", 
-        error_detail: str = ""
+        self,
+        error_type: str,
+        action: str = "",
+        action_input: Union[Dict, str] = "",
+        error_detail: str = "",
     ) -> str:
         """Format error messages for agent feedback using predefined templates."""
         available_tools = ", ".join(self.tools_dict.keys())
-        
+
         error_templates = {
             "json_parse": (
                 f"FORMAT ERROR: Invalid JSON response. "
@@ -232,9 +242,7 @@ class ReActAgentSGR(Agent):
                 f"with identical arguments. Breaking execution cycle. "
                 f"Please try a different approach or tool."
             ),
-            "execution": (
-                f"EXECUTION ERROR in tool '{action}': {error_detail}"
-            ),
+            "execution": (f"EXECUTION ERROR in tool '{action}': {error_detail}"),
         }
         return error_templates.get(error_type, f"ERROR: {error_detail}")
 
@@ -242,35 +250,41 @@ class ReActAgentSGR(Agent):
         """Execute tool and return observation or formatted error."""
         if tool_name not in self.tools_dict:
             return self._format_error_observation("unknown_tool", tool_name, arguments)
-        
+
         tool = self.tools_dict[tool_name]
         try:
             result = tool(**arguments)
             return str(result) if result is not None else ""
         except Exception as e:
             error_msg = f"{type(e).__name__}: {str(e)}"
-            return self._format_error_observation("execution", tool_name, arguments, error_msg)
+            return self._format_error_observation(
+                "execution", tool_name, arguments, error_msg
+            )
 
     def _generate_final_answer(self, task: str) -> str:
         """Synthesize final answer from conversation history."""
-        
-        recent = self.memory[AgentConfig.MIN_MEMORY_BASE_SIZE:][-self.history_context * 2:]
-        
+
+        recent = self.memory[AgentConfig.MIN_MEMORY_BASE_SIZE :][
+            -self.history_context * 2 :
+        ]
+
         history_text = "\n\n".join(
-            f"[{msg['role'].upper()}]: {msg['content']}" 
-            for msg in recent
+            f"[{msg['role'].upper()}]: {msg['content']}" for msg in recent
         )
-        
+
         prompt = FINISH_PROMPT_TEMPLATE.format(task=task, history_text=history_text)
 
         try:
             response = self.client.chat.completions.create(
                 model=self.model_name,
                 messages=[
-                    {"role": "system", "content": "Output ONLY the final answer, no explanations."},
-                    {"role": "user", "content": prompt}
+                    {
+                        "role": "system",
+                        "content": "Output ONLY the final answer, no explanations.",
+                    },
+                    {"role": "user", "content": prompt},
                 ],
-                temperature=self.temperature
+                temperature=self.temperature,
             )
             return response.choices[0].message.content.strip()
         except Exception as e:
@@ -280,7 +294,7 @@ class ReActAgentSGR(Agent):
         """Helper to create consistent error observation entries for memory."""
         return {
             "role": "user",
-            "content": f"Observation: {self._format_error_observation(error_type, **kwargs)}"
+            "content": f"Observation: {self._format_error_observation(error_type, **kwargs)}",
         }
 
     def _handle_invalid_response(self, iteration: int) -> None:
@@ -299,20 +313,19 @@ class ReActAgentSGR(Agent):
         error_obs = self._format_error_observation(
             "unknown_tool", agent_step.action, agent_step.action_input
         )
-        self.memory.append(self._build_error_memory_entry(
-            "unknown_tool", action=agent_step.action, action_input=agent_step.action_input
-        ))
-        self.error_history.append({
-            "type": "unknown_tool", 
-            "step": iteration, 
-            "tool": agent_step.action
-        })
+        self.memory.append(
+            self._build_error_memory_entry(
+                "unknown_tool",
+                action=agent_step.action,
+                action_input=agent_step.action_input,
+            )
+        )
+        self.error_history.append(
+            {"type": "unknown_tool", "step": iteration, "tool": agent_step.action}
+        )
 
     def _handle_validation_error(
-        self, 
-        agent_step: AgentStep, 
-        validation_error: str, 
-        iteration: int
+        self, agent_step: AgentStep, validation_error: str, iteration: int
     ) -> None:
         """Handle tool argument validation failure."""
         self._tool_call_retry_count += 1
@@ -330,34 +343,32 @@ class ReActAgentSGR(Agent):
         self.memory.append({"role": "user", "content": f"Observation: {error_obs}"})
 
     def _record_successful_execution(
-        self, 
-        agent_step: AgentStep, 
-        observation: str
+        self, agent_step: AgentStep, observation: str
     ) -> None:
         """Update state after successful tool execution."""
 
-        self._execution_history.append({
-            "action": agent_step.action,
-            "action_input": agent_step.action_input
-        })
+        self._execution_history.append(
+            {"action": agent_step.action, "action_input": agent_step.action_input}
+        )
         if len(self._execution_history) > AgentConfig.MAX_EXECUTION_HISTORY_SIZE:
             self._execution_history.pop(0)
 
         self._tool_call_retry_count = 0
 
-        self.memory.append({
-            "role": "user",
-            "content": f"Observation from {agent_step.action}: {observation}",
-        })
-        
+        self.memory.append(
+            {
+                "role": "user",
+                "content": f"Observation from {agent_step.action}: {observation}",
+            }
+        )
+
         logging.info(f"OBSERVATION: {observation}")
         logging.info(_LOG_SEPARATOR)
-
 
     def run(self, task: str) -> str:
         """Execute ReAct loop to solve the programming task."""
         self._reset_runtime_state()
-        
+
         logging.info(f"TASK:\n{task}")
         logging.info(_LOG_SEPARATOR)
 
@@ -378,9 +389,8 @@ class ReActAgentSGR(Agent):
 
             messages = self._get_sliding_window_messages()
 
-            
             agent_step = self._get_structured_response(messages)
-            
+
             if agent_step is None:
                 self._handle_invalid_response(iteration)
                 continue
@@ -393,17 +403,19 @@ class ReActAgentSGR(Agent):
             logging.info(f"IS_FINAL: {agent_step.is_final}")
             logging.info(_LOG_SEPARATOR)
 
-            self.memory.append({
-                "role": "assistant", 
-                "content": json.dumps(agent_step.model_dump(), ensure_ascii=False)
-            })
+            self.memory.append(
+                {
+                    "role": "assistant",
+                    "content": json.dumps(agent_step.model_dump(), ensure_ascii=False),
+                }
+            )
 
             if agent_step.is_final or agent_step.action.lower().strip() == "finish":
                 logging.info(f"AGENT DECIDED TO FINISH at step {iteration+1}")
                 logging.info(_LOG_SEPARATOR)
-                
+
                 final_answer = self._generate_final_answer(task)
-                
+
                 logging.info(f"FINAL ANSWER: {final_answer}")
                 logging.info(_LOG_SEPARATOR)
                 return final_answer
