@@ -1,0 +1,162 @@
+[
+  {
+    "id": "tm_core_001",
+    "name": "binary_accuracy",
+    "category": "classification",
+    "description": "Compute accuracy for binary classification. Convert probabilities to classes using threshold 0.5.",
+    "code": "def binary_accuracy(preds, target):\n    preds = (preds > 0.5).float()\n    return (preds == target).float().mean()",
+    "prompt": "Implement accuracy score for binary classification.\n\nTask: Write a function that takes predictions (probabilities) and targets (0/1) and returns accuracy.\n\nExample:\nInput: preds = torch.tensor([0.9, 0.1, 0.8, 0.2]), target = torch.tensor([1, 0, 1, 0])\nOutput: 0.5\n\nWrite your solution:"
+  },
+  {
+    "id": "tm_core_002",
+    "name": "multiclass_accuracy",
+    "category": "classification",
+    "description": "Compute accuracy for multiclass classification. Use argmax to get predicted classes.",
+    "code": "def multiclass_accuracy(preds, target):\n    preds = preds.argmax(dim=-1)\n    return (preds == target).float().mean()",
+    "prompt": "Implement accuracy score for multiclass classification.\n\nTask: Write a function that takes predictions (logits) and targets (class indices) and returns accuracy.\n\nExample:\nInput: preds = torch.tensor([[0.1, 0.9], [0.8, 0.2], [0.3, 0.7]]), target = torch.tensor([1, 0, 1])\nOutput: 1.0\n\nWrite your solution:"
+  },
+  {
+    "id": "tm_core_003",
+    "name": "precision",
+    "category": "classification",
+    "description": "Compute precision for binary classification: TP / (TP + FP)",
+    "code": "def precision(preds, target):\n    tp = ((preds == 1) & (target == 1)).sum().float()\n    fp = ((preds == 1) & (target == 0)).sum().float()\n    return tp / (tp + fp) if (tp + fp) > 0 else 0.0",
+    "prompt": "Implement precision score for binary classification.\n\nPrecision = TP / (TP + FP)\n\nTask: Write a function that computes precision given predictions and targets.\n\nExample:\nInput: preds = torch.tensor([1, 0, 1, 1]), target = torch.tensor([1, 0, 0, 1])\nOutput: 0.6667\n\nWrite your solution:"
+  },
+  {
+    "id": "tm_core_004",
+    "name": "recall",
+    "category": "classification",
+    "description": "Compute recall for binary classification: TP / (TP + FN)",
+    "code": "def recall(preds, target):\n    tp = ((preds == 1) & (target == 1)).sum().float()\n    fn = ((preds == 0) & (target == 1)).sum().float()\n    return tp / (tp + fn) if (tp + fn) > 0 else 0.0",
+    "prompt": "Implement recall score for binary classification.\n\nRecall = TP / (TP + FN)\n\nTask: Write a function that computes recall given predictions and targets.\n\nExample:\nInput: preds = torch.tensor([1, 0, 1, 1]), target = torch.tensor([1, 0, 0, 1])\nOutput: 0.6667\n\nWrite your solution:"
+  },
+  {
+    "id": "tm_core_005",
+    "name": "f1_score",
+    "category": "classification",
+    "description": "Compute F1 score: 2 * (precision * recall) / (precision + recall)",
+    "code": "def f1_score(preds, target):\n    p = precision(preds, target)\n    r = recall(preds, target)\n    return 2 * p * r / (p + r) if (p + r) > 0 else 0.0",
+    "prompt": "Implement F1 score for binary classification.\n\nF1 = 2 * (precision * recall) / (precision + recall)\n\nTask: Write a function that computes F1 score.\n\nExample:\nInput: preds = torch.tensor([1, 0, 1, 1]), target = torch.tensor([1, 0, 0, 1])\nOutput: 0.6667\n\nWrite your solution:"
+  },
+  {
+    "id": "tm_core_006",
+    "name": "mse",
+    "category": "regression",
+    "description": "Compute Mean Squared Error: mean((preds - target)^2)",
+    "code": "def mse(preds, target):\n    return ((preds - target) ** 2).mean()",
+    "prompt": "Implement Mean Squared Error (MSE).\n\nMSE = mean((preds - target)^2)\n\nTask: Write a function that computes MSE.\n\nExample:\nInput: preds = torch.tensor([3.0, -0.5, 2.0, 7.0]), target = torch.tensor([2.5, 0.0, 2.0, 8.0])\nOutput: 0.375\n\nWrite your solution:"
+  },
+  {
+    "id": "tm_core_007",
+    "name": "mae",
+    "category": "regression",
+    "description": "Compute Mean Absolute Error: mean(|preds - target|)",
+    "code": "def mae(preds, target):\n    return torch.abs(preds - target).mean()",
+    "prompt": "Implement Mean Absolute Error (MAE).\n\nMAE = mean(|preds - target|)\n\nTask: Write a function that computes MAE.\n\nExample:\nInput: preds = torch.tensor([3.0, -0.5, 2.0, 7.0]), target = torch.tensor([2.5, 0.0, 2.0, 8.0])\nOutput: 0.5\n\nWrite your solution:"
+  },
+  {
+    "id": "tm_core_008",
+    "name": "r2_score",
+    "category": "regression",
+    "description": "Compute R² coefficient: 1 - SS_res / SS_tot",
+    "code": "def r2_score(preds, target):\n    ss_res = ((preds - target) ** 2).sum()\n    ss_tot = ((target - target.mean()) ** 2).sum()\n    return 1 - ss_res / ss_tot",
+    "prompt": "Implement R² (coefficient of determination).\n\nR² = 1 - SS_res / SS_tot\nSS_res = sum((preds - target)^2)\nSS_tot = sum((target - target.mean())^2)\n\nTask: Write a function that computes R².\n\nExample:\nInput: preds = torch.tensor([3.0, -0.5, 2.0, 7.0]), target = torch.tensor([2.5, 0.0, 2.0, 8.0])\nOutput: 0.948\n\nWrite your solution:"
+  },
+  {
+    "id": "tm_core_009",
+    "name": "bleu_score",
+    "category": "text",
+    "description": "Compute BLEU score for text generation (using nltk)",
+    "code": "from nltk.translate.bleu_score import sentence_bleu\n\ndef bleu_score(candidate, reference):\n    candidate = candidate.split()\n    reference = [reference.split()]\n    return sentence_bleu(reference, candidate)",
+    "prompt": "Implement BLEU score for text generation.\n\nBLEU = brevity_penalty * exp(avg(ngram_precision))\n\nTask: Write a function that computes BLEU-2 (bigrams) for a single candidate.\n\nExample:\nInput: candidate = \"the cat is on the mat\", reference = \"there is a cat on the mat\"\nOutput: ~0.5\n\nWrite your solution (use nltk or implement manually):"
+  },
+  {
+    "id": "tm_core_010",
+    "name": "psnr",
+    "category": "image",
+    "description": "Compute Peak Signal-to-Noise Ratio for images",
+    "code": "def psnr(preds, target, max_val=1.0):\n    mse = ((preds - target) ** 2).mean()\n    return 20 * torch.log10(max_val) - 10 * torch.log10(mse)",
+    "prompt": "Implement Peak Signal-to-Noise Ratio (PSNR).\n\nPSNR = 20 * log10(MAX) - 10 * log10(MSE)\n\nTask: Write a function that computes PSNR for two images.\n\nExample:\nInput: preds = torch.randn(3, 32, 32), target = torch.randn(3, 32, 32)\nOutput: a positive number\n\nWrite your solution:"
+  },
+    {
+    "id": "tm_core_011",
+    "name": "pearson_correlation",
+    "category": "regression",
+    "type": "origin",
+    "code": "def pearson_corr(preds, target):\n    preds_mean = preds.mean()\n    target_mean = target.mean()\n    num = ((preds - preds_mean) * (target - target_mean)).sum()\n    den = torch.sqrt(((preds - preds_mean)**2).sum() * ((target - target_mean)**2).sum())\n    return num / den",
+    "prompt": "Implement Pearson correlation coefficient.\n\nTask: Write a function that computes correlation between predictions and targets.\n\nExample:\nInput: preds = torch.tensor([3.0, -0.5, 2.0, 7.0]), target = torch.tensor([2.5, 0.0, 2.0, 8.0])\nOutput: ~0.98\n\nWrite your solution:"
+  },
+  {
+    "id": "tm_core_012",
+    "name": "cosine_similarity",
+    "category": "pairwise",
+    "type": "origin",
+    "code": "def cosine_similarity(a, b):\n    dot = (a * b).sum()\n    norm_a = torch.sqrt((a * a).sum())\n    norm_b = torch.sqrt((b * b).sum())\n    return dot / (norm_a * norm_b)",
+    "prompt": "Implement cosine similarity between two vectors.\n\nTask: Write a function that computes cosine similarity.\n\nExample:\nInput: a = torch.tensor([1.0, 2.0, 3.0]), b = torch.tensor([4.0, 5.0, 6.0])\nOutput: ~0.97\n\nWrite your solution:"
+  },
+  {
+    "id": "tm_core_013",
+    "name": "mean_absolute_percentage_error",
+    "category": "regression",
+    "type": "origin",
+    "code": "def mape(preds, target, eps=1e-8):\n    return torch.abs((target - preds) / (target + eps)).mean() * 100",
+    "prompt": "Implement Mean Absolute Percentage Error (MAPE).\n\nMAPE = mean(|(target - preds)/target|) * 100\n\nExample:\nInput: preds = torch.tensor([3.0, -0.5, 2.0, 7.0]), target = torch.tensor([2.5, 0.0, 2.0, 8.0])\nOutput: ~35.0\n\nWrite your solution:"
+  },
+  {
+    "id": "tm_core_014",
+    "name": "wer",
+    "category": "text",
+    "type": "origin",
+    "code": "def word_error_rate(hypothesis, reference):\n    # Levenshtein distance\n    import numpy as np\n    hyp = hypothesis.split()\n    ref = reference.split()\n    n = len(hyp)\n    m = len(ref)\n    dp = np.zeros((n+1, m+1))\n    for i in range(n+1):\n        dp[i][0] = i\n    for j in range(m+1):\n        dp[0][j] = j\n    for i in range(1, n+1):\n        for j in range(1, m+1):\n            cost = 0 if hyp[i-1] == ref[j-1] else 1\n            dp[i][j] = min(dp[i-1][j] + 1, dp[i][j-1] + 1, dp[i-1][j-1] + cost)\n    return dp[n][m] / max(len(ref), 1)",
+    "prompt": "Implement Word Error Rate (WER) for ASR evaluation.\n\nWER = (S + D + I) / N\n\nExample:\nInput: hypothesis = \"this is the prediction\", reference = \"this is the reference\"\nOutput: 0.333 (one substitution)\n\nWrite your solution:"
+  },
+  {
+    "id": "tm_core_015",
+    "name": "ssim",
+    "category": "image",
+    "type": "origin",
+    "code": "def ssim(img1, img2, window_size=11, sigma=1.5):\n    # simplified version\n    mu1 = img1.mean()\n    mu2 = img2.mean()\n    sigma1_sq = ((img1 - mu1)**2).mean()\n    sigma2_sq = ((img2 - mu2)**2).mean()\n    sigma12 = ((img1 - mu1)*(img2 - mu2)).mean()\n    C1 = (0.01 * 255)**2\n    C2 = (0.03 * 255)**2\n    ssim_val = (2*mu1*mu2 + C1)*(2*sigma12 + C2) / ((mu1**2+mu2**2+C1)*(sigma1_sq+sigma2_sq+C2))\n    return ssim_val",
+    "prompt": "Implement Structural Similarity Index (SSIM) for image quality assessment.\n\nTask: Write a function that computes SSIM between two images.\n\nExample:\nInput: img1, img2 (same size tensors)\nOutput: value between -1 and 1\n\nWrite your solution:"
+  },
+  {
+    "id": "tm_core_016",
+    "name": "fid_score",
+    "category": "image",
+    "type": "origin",
+    "code": "def fid(mu1, sigma1, mu2, sigma2):\n    diff = mu1 - mu2\n    covmean = torch.sqrt(torch.mm(sigma1, sigma2))\n    return diff.dot(diff) + torch.trace(sigma1 + sigma2 - 2*covmean)",
+    "prompt": "Implement Fréchet Inception Distance (FID).\n\nFID = ||mu1 - mu2||^2 + Tr(Sigma1 + Sigma2 - 2*sqrt(Sigma1 Sigma2))\n\nWrite your solution given means and covariances:"
+  },
+  {
+    "id": "tm_core_017",
+    "name": "pixel_accuracy",
+    "category": "image",
+    "type": "origin",
+    "code": "def pixel_accuracy(preds, target):\n    return (preds == target).float().mean()",
+    "prompt": "Implement pixel accuracy for image segmentation.\n\nTask: Compute fraction of correctly classified pixels.\n\nExample:\nInput: preds = torch.tensor([[0,1],[1,0]]), target = torch.tensor([[0,0],[1,1]])\nOutput: 0.5\n\nWrite your solution:"
+  },
+  {
+    "id": "tm_core_018",
+    "name": "mean_iou",
+    "category": "image",
+    "type": "origin",
+    "code": "def mean_iou(preds, target, num_classes):\n    iou = []\n    for cls in range(num_classes):\n        intersection = ((preds == cls) & (target == cls)).sum().float()\n        union = ((preds == cls) | (target == cls)).sum().float()\n        iou.append(intersection / (union + 1e-8))\n    return torch.tensor(iou).mean()",
+    "prompt": "Implement mean Intersection over Union (mIoU) for segmentation.\n\nmIoU = mean over classes of (intersection / union)\n\nWrite your solution:"
+  },
+  {
+    "id": "tm_core_019",
+    "name": "aggregate_sum",
+    "category": "aggregation",
+    "type": "origin",
+    "code": "def sum_metric(values):\n    return torch.sum(values)",
+    "prompt": "Implement a simple sum metric that accumulates values.\n\nWrite your solution:"
+  },
+  {
+    "id": "tm_core_020",
+    "name": "aggregate_mean",
+    "category": "aggregation",
+    "type": "origin",
+    "code": "def mean_metric(values):\n    return torch.mean(values)",
+    "prompt": "Implement a simple mean metric that accumulates values.\n\nWrite your solution:"
+  }
+]
