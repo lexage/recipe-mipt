@@ -21,21 +21,20 @@ class QueryGenerator(Agent):
         response = self.client.chat.completions.create(
             model=self.model_name,
             messages=[
-                {"role": "system", "content":
-                    "You are search query generator. Using the task description, generate the required number of search queries to obtain information that will help solve the problem."},
-                {"role": "user", "content": f"""[TASK DESCRIPTION]:
+                {"role": "system", "content": f"""You are search query generator. Using the task description, generate the required number of different search queries to obtain information that will help solve the problem.
+                [OUTPUT FORMAT]:
+                Yours answer will be divided by lines and each line would be considered as search query and will be passed straight to the search engine.
+                So yours answer should consist of just {self.options} lines, each one containing search query. Do not write redundant phrases like "Here are search queries to help you solve the problem". 
+                I expect a response in this format containing only search queries:
+                
+                <query 1>
+                <query 2>
+                ...
+                 """},
+                {"role": "user", "content": f"""[PROBLEM DESCRIPTION]:
                 {task}
 
-                [REQUIRED NUMBER OF SEARCH QUERIES]: {self.options}
-
-                [OUTPUT FORMAT]:
-                Yours output template (only options, nothing else!!!):
-                - <query 1>
-                - <query 2
-                .
-                .
-                .
-                - <query {self.options}>
+                Provide {self.options} search queries!
                 """}
             ],
             temperature=0.2,

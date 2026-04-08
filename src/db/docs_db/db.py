@@ -5,7 +5,7 @@ from typing import List
 from src.agent_constructor.agent import Agent
 from src.agent_constructor.db import IDB
 from src.agent_constructor.core import Chunk, Document, Text
-from src.utils.adapters import SQLiteDocsDBAdapter, ChromaDocsAdapter
+from src.utils.adapters import SQLiteDocsDBAdapter, ChromaDocsAdapter, QdrantDocsAdapter
 from src.utils.utils_functions import replace_examples_in_chunks
 
 
@@ -35,17 +35,10 @@ class LocalDB(IDB):
             path_to_db=path_to_db
             )
         
-        self.vdb_adapter = ChromaDocsAdapter(
+        self.vdb_adapter = QdrantDocsAdapter(
             embedder=embedder,
             collection_name=collection_name,
             path_to_db=path_to_vector_db,
-            hnsw_space=hnsw_space,
-            hnsw_m=hnsw_m,
-            hnsw_construction_ef=hnsw_construction_ef,
-            hnsw_search_ef=hnsw_search_ef,
-            batch_size=batch_size,
-            search_filter=search_filter,
-            threshold=similarity_threshold,
         )
 
         self.return_examples = return_examples
@@ -55,13 +48,12 @@ class LocalDB(IDB):
     def get_documents(self, ids: List[int] = None) -> List[Document]:
         if not ids:
             documents = self.sqlite_adapter.get_docs()
-            documents.extend(self.sqlite_adapter.get_examples())
         else:
             documents = self.sqlite_adapter.get_docs(ids)
         return documents
 
     def query(self, query_text: Text, top_k: int = 10) -> List[Chunk]:
-        chunks = self.vdb_adapter.search(queries=[query_text], top_k=top_k)[0]
+        chunks = self.vdb_adapter.search(query=query_text, top_k=top_k)
 
         if self.return_full_docs:
             doc_ids = list(set([chunk.doc_id for chunk in chunks]))

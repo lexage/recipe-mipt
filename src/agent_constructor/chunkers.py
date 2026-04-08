@@ -5,7 +5,7 @@ from typing import (
 import uuid
 
 from src.agent_constructor.core import Block, Document, Chunk, Text
-from src.utils.adapters import DOCUMENT_SRC_EXAMPLES
+from src.utils import DOCUMENT_SRC_EXAMPLES
 
 class Chunker(Block):
     """Break a Document into a sequence of Chunks.

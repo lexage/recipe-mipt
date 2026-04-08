@@ -8,8 +8,6 @@ class CoRAGContextAssembler(ContextAssembler):
         
         documnets = "## Documents:\n"
         inter_steps = ""
-        
-        # chunks = replace_examples_in_chunks(chunks)
 
         for chunk in chunks:
             if chunk.id == "corag_intermediate_steps":

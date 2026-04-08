@@ -12,9 +12,9 @@ class SimplePipeline(Pipeline):
 
     def __init__(self, 
                  data_base: IDB, 
-                 retriever: Retriever, 
                  agent: Agent, 
                  chunker: Chunker,
+                 retriever: Retriever = None, 
                  filter: Filter = None,
                  icl_block: ICLBlock = None,
                  generator: Generator = None,
@@ -54,8 +54,9 @@ class SimplePipeline(Pipeline):
             tasks = [task]
 
         context = []
-        for query in tasks:
-            context.extend(self.retriever.retrieve(query=query, k=self.top_k))
+        if self.retriever:
+            for query in tasks:
+                context.extend(self.retriever.retrieve(query=query, k=self.top_k))
 
         if self.icl_block:
             context = self.icl_block.apply(context)
@@ -63,4 +64,7 @@ class SimplePipeline(Pipeline):
         if self.context_assembler:
             context = self.context_assembler.assemble(context)
         
-        return self.agent.run(task, context)
+        if context:
+            return self.agent.run(task, context)
+        
+        return self.agent.run(task, "")
