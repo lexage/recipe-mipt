@@ -1,3 +1,4 @@
+from .baseline_pipeline import BasePipeline
 from .simple_pipeline import SimplePipeline
 from .rewoo_pipeline import REWOOPipeline
 from .maps_pipeline import MAPSPipeline
@@ -7,6 +8,7 @@ from .mars_pipeline import MARSPipeline
 from .mars_pipeline_critic_upd import MARSPipelineCriticUpd
 
 __all__ = [
+    "BasePipeline",
     "SimplePipeline",
     "REWOOPipeline",
     "MAPSPipeline",

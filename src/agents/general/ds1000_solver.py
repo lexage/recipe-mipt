@@ -17,7 +17,7 @@ class DS1000Solver(Agent):
     def __init__(
             self, 
             url: str, 
-            context_after_task: bool,
+            context_after_task: bool = False,
             api: str = SOLVER_API.COMPLETIONS.value,
             system_prompt: str = DEFAULT_SYSTEM_PROMPT,
             temperature=0.2, 
@@ -52,14 +52,18 @@ class DS1000Solver(Agent):
         self.tokenizer: PreTrainedTokenizerFast = AutoTokenizer.from_pretrained(self.model_name)
 
 
-    def run(self, task: Text, context: Text) -> Text:
+    def run(self, task: Text, context: Text = None) -> Text:
 
-        tokens = self.tokenizer.encode(context, add_special_tokens=False)
+        if context:
+            tokens = self.tokenizer.encode(context, add_special_tokens=False)
 
-        if len(tokens) > self.max_context_lenght:
-            context = self.tokenizer.decode(tokens[:self.max_context_lenght])
+            if len(tokens) > self.max_context_lenght:
+                context = self.tokenizer.decode(tokens[:self.max_context_lenght])
 
-        prompt = self._create_prompt(task, context)
+            prompt = self._create_prompt(task, context)
+        
+        else:
+            prompt = self._create_prompt(task)
 
         match self.api:
             case SOLVER_API.COMPLETIONS.value:
@@ -100,8 +104,10 @@ class DS1000Solver(Agent):
 
         return completions.choices[0].message.content
 
-    def _create_prompt(self, task: Text, context: Text) -> Text:
-
-        if self.context_after_task:
-            return f"""Solve {task}\nUsing info from documentation:\n{context}"""
-        return f"""Using info from documentation:\n{context}\n\nSolve {task}"""
+    def _create_prompt(self, task: Text, context: Text = None) -> Text:
+        if context:
+            if self.context_after_task:
+                return f"""Solve {task}\nUsing info from documentation:\n{context}"""
+            return f"""Using info from documentation:\n{context}\n\nSolve {task}"""
+        else:
+            return f"""{task}"""

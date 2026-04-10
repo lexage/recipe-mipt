@@ -5,6 +5,7 @@ PIPELINES_IMPORT_PATH = "src.pipelines.templates"
 
 
 class PipelinesNames(Enum):
+    BASE = "BasePipeline"
     SIMPLE = "SimplePipeline"
     REWOO = "REWOOPipeline"
     MAPS = "MAPSPipeline"
