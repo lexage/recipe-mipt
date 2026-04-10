@@ -41,6 +41,7 @@ class ComponentNames(Enum):
     MAPS_CRITIC = "src.agents.pipelines.CriticMAPS"
     REACT_AGENT = "src.agents.pipelines.ReActAgent"
     REACT_AGENT_SGR = "src.agents.pipelines.ReActAgentSGR"
+    REACT_AGENT_MODIFY = "src.agents.pipelines.ReActAgentModify"
     PANEL_AGENT = "src.agents.pipelines.PanelAgent"
     MARS_PLANNER = "src.agents.pipelines.PlannerMARS"
     MARS_TEACHER = "src.agents.pipelines.TeacherMARS"
@@ -114,3 +115,4 @@ class ComponentNames(Enum):
     # ===== TOOLS =====
     DB_SEARCH_TOOL = "src.tools.DBSearchTool"
     LLM_TOOL = "src.tools.LLMTool"
+    CODE_TOOL = "src.tools.PythonReplTool"

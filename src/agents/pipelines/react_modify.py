@@ -315,7 +315,7 @@ Action Input 3: None
 _LOG_SEPARATOR = f"\n{'_' * 20}\n"
 
 
-class ReActAgent(Agent):
+class ReActAgentModify(Agent):
     """ReAct agent for automatic programming tasks."""
 
     def __init__(
@@ -323,7 +323,7 @@ class ReActAgent(Agent):
         url: str = None,
         model_name: str = None,
         temperature: float = 0.0,
-        name: str = "ReActAgent",
+        name: str = "ReActAgentModify",
         instruction: str = None,
         examples: list = None,
         max_iterations: int = 10,
@@ -418,12 +418,15 @@ class ReActAgent(Agent):
     def execute_tool(self, tool_name: str, argument: str) -> str:
         """Calling the tool."""
         if tool_name not in self.tools_dict:
-            available = ", ".join(self.tools_dict.keys())
-            raise ValueError(
-                f"Unknown tool '{tool_name}'. Available tools: {available}"
-            )
+            tool = self.tools_dict["llm"]
+            
+            # available = ", ".join(self.tools_dict.keys())
+            # raise ValueError(
+            #     f"Unknown tool '{tool_name}'. Available tools: {available}"
+            # )
 
-        tool = self.tools_dict[tool_name]
+        else:
+            tool = self.tools_dict[tool_name]
 
         try:
             result = tool(argument)
@@ -463,7 +466,7 @@ class ReActAgent(Agent):
                 )
                 logging.info(f"FINISH PROMPT: {REACT_FINISH_PROMPT.format(task=task)}")
                 logging.info(_LOG_SEPARATOR)
-                answer = self._finish(self.memory[2:])
+                answer = self._finish(self.memory[2:]) # убирается из memory system message и первый запрос
                 logging.info(f"FINAL ANSWER: {answer}")
                 logging.info(_LOG_SEPARATOR)
                 return answer

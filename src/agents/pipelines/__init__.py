@@ -19,6 +19,10 @@ from .react_sgr import (
     ReActAgentSGR,
 )
 
+from .react_modify import (
+    ReActAgentModify
+)
+
 from .panel import (
     PanelAgent,
 )
@@ -35,6 +39,7 @@ __all__ = [
     "SolverREWOO",
     "ReActAgent",
     "ReActAgentSGR",
+    "ReActAgentModify",
     "PanelAgent",
     "PlannerMARS",
     "TeacherMARS",
