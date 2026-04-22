@@ -24,7 +24,7 @@ def main():
     bench = DS1000(dataset_path="data/ds1000/ds1000.jsonl.gz")
     
     embedder = EmbeddingAgent(
-        url="http://0.0.0.0:7216/v1",
+        url="http://localhost:7216/v1",
         model_name="Qwen/Qwen3-Embedding-4B",
     )
 
@@ -43,7 +43,7 @@ def main():
     assembler = CoRAGContextAssembler(name="assembler")
 
     agent = DS1000Solver(
-        url="http://0.0.0.0:7215/v1",
+        url="http://localhost:7215/v1",
         context_after_task=False,
         api="chat",
     )
@@ -57,7 +57,7 @@ def main():
         for api in api_results:
             query = api.qualified
 
-            chunks.append(
+            chunks.extend(
                 db.query(
                     query_text=query,
                     top_k=1
@@ -76,7 +76,7 @@ def main():
     bench.eval(
         run_method=run_pipeline,
         save_path="results/bench_eval_base/",
-        num_workers=4
+        num_workers=1
         )
 
 
