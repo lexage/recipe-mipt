@@ -17,7 +17,6 @@ class DS1000Solver(Agent):
     def __init__(
             self, 
             url: str, 
-            context_after_task: bool,
             api: str = SOLVER_API.COMPLETIONS.value,
             system_prompt: str = DEFAULT_SYSTEM_PROMPT,
             temperature=0.2, 
@@ -47,17 +46,18 @@ class DS1000Solver(Agent):
         self.stop_tokens=stop_tokens
         self.max_context_lenght = max_context_lenght
 
-        self.context_after_task = context_after_task
-
         self.tokenizer: PreTrainedTokenizerFast = AutoTokenizer.from_pretrained(self.model_name)
 
 
     def run(self, task: Text, context: Text) -> Text:
 
-        tokens = self.tokenizer.encode(context, add_special_tokens=False)
+        task_tokens = len(self.tokenizer.encode(task, add_special_tokens=False))
+        budget = self.max_context_lenght - task_tokens
 
-        if len(tokens) > self.max_context_lenght:
-            context = self.tokenizer.decode(tokens[:self.max_context_lenght])
+        # Truncate whole chunks rather than cutting mid-text
+        context = self._truncate_context(context, budget)
+        prompt = self._create_prompt(task, context)
+
 
         prompt = self._create_prompt(task, context)
 
@@ -100,8 +100,17 @@ class DS1000Solver(Agent):
 
         return completions.choices[0].message.content
 
-    def _create_prompt(self, task: Text, context: Text) -> Text:
+    def _truncate_context(self, context: Text, token_budget: int) -> Text:
+        tokens = self.tokenizer.encode(context, add_special_tokens=False)
+        if len(tokens) <= token_budget:
+            return context
+        return self.tokenizer.decode(tokens[:token_budget], skip_special_tokens=True)
 
-        if self.context_after_task:
-            return f"""Solve {task}\nUsing info from documentation:\n{context}"""
-        return f"""Using info from documentation:\n{context}\n\nSolve {task}"""
+    def _create_prompt(self, task: Text, context: Text) -> Text:
+        if context.strip():
+            return (
+                f"{context}\n\n"
+                f"# Task\n\n"
+                f"{task}"
+            )
+        return task

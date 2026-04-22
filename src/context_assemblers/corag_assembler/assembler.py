@@ -5,14 +5,17 @@ from src.agent_constructor.core import Chunk
 
 class CoRAGContextAssembler(ContextAssembler):
     def assemble(self, chunks: List[Chunk]):
-        
-        documnets = "## Documents:\n"
+        doc_sections = []
         inter_steps = ""
 
         for chunk in chunks:
             if chunk.id == "corag_intermediate_steps":
                 inter_steps = chunk.text
             else:
-                documnets+=f"""### Doc {chunk.id}:\n{chunk.text.strip()}\n\n"""
+                doc_sections.append(chunk.text.strip())
 
-        return documnets + "\n" + inter_steps
+        if not doc_sections:
+            return inter_steps
+
+        docs = "# Relevant API Reference\n\n" + "\n\n---\n\n".join(doc_sections)
+        return docs + ("\n\n" + inter_steps if inter_steps else "")
