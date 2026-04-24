@@ -30,7 +30,7 @@
 ```
 from src.agents.resoning.cot.main import CoT
 
-reasoner = CoT(mode="few-shot", few_shot_examples="examples.txt")
+reasoner = CoT(mode="few-shot", few_shot_examples="examples.jsonl")
 solution = reasoner.run(task) # task: str - текстовое описание задачи 
 ```
 

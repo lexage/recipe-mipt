@@ -47,7 +47,7 @@ def main():
         
         print(f"- processing file {idx+1}/{len(config_files)}")
         print(f"\t - config: {config_path.name}")
-
+        
         pipleline_config = ConfigLoader().load_from_yaml(
             path_to_cfg=config_path
         )    
