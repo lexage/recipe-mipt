@@ -1,7 +1,11 @@
-import random
-# import spacy
+import os
+import sys
+sys.path.insert(0, os.getcwd())
+
+from openai import OpenAI
 from typing import List, Dict, Union, Optional
 import json
+import re
 from src.agent_constructor.agent import Agent
 
 
@@ -9,13 +13,26 @@ class ContrastiveCoT(Agent):
     def __init__(
         self,
         demonstrations: Union[str, List[Dict[str, str]]],
-        name: str = "ContrastiveCoT"
+        name: str = "ContrastiveCoT",
+        model_url: str = "http://localhost:7215/v1",
+        model_name: str = "Qwen/Qwen1.5-32B-Chat-AWQ",
+        temperature: float = 0.2,
+        top_p: float = 0.95, 
+        max_tokens: int = 1024,
+        stop_tokens: List[str] = ["</code>", "# SOLUTION END"]
     ):
         super().__init__(name)
         self.demonstrations = self.load_demonstrations(demonstrations)
-        # entity recognition model
-        # "en_core_web_trf" is used in the paper
-        # self.nlp = spacy.load("en_core_web_sm")
+        self.model_name = model_name
+        self.temperature = temperature
+        self.top_p=top_p
+        self.max_tokens=max_tokens
+        self.stop_tokens=stop_tokens
+        
+        self.client = OpenAI(
+            base_url=model_url,
+            api_key="vllm"
+        )
         
     def load_demonstrations(
         self, 
@@ -106,39 +123,70 @@ class ContrastiveCoT(Agent):
             "incorrect_explanation": incorrect_explanation,
             "incorrect_code": incorrect_code
         }
+        
+    def remove_problem_prefix(self, text: str) -> str:
+        return re.sub(r'^Problem:\s*', '', text, flags=re.IGNORECASE)
     
     def make_prompt(self, demonstrations: List[Dict], task: str) -> str:
         """
         Format prompt for programming tasks with contrastive examples.
         """
-        prompt = """Provide ONLY step-by-step reasoning for the following programming problem. Do NOT write final solution. Only output your reasoning process.
-        
-I'll show you both correct and incorrect approaches to help you avoid common mistakes.
+        prompt = """You are a programming assistant. For each problem, first reason step by step, then provide the solution code after the line 'Correct solution:'. Do not add any extra text after the code.
+
+Below are examples showing both correct and incorrect approaches, each with reasoning and the corresponding solution.
 
 """
         
         for i, demo in enumerate(demonstrations, 1):
-            prompt += f"Example {i}:\n"
-            prompt += f"Problem: {demo['problem']}\n\n"
+            prompt += f"Example {i}:\n\n"
+            clean_problem = self.remove_problem_prefix(demo['problem'])
+            prompt += f"Problem:\n{clean_problem}\n\n"
             
-            prompt += f"Correct reasoning: {demo['correct_explanation']}\n\n"
-            prompt += f"Correct answer: {demo['correct_code']}\n\n"
+            prompt += f"Correct reasoning:\n{demo['correct_explanation']}\n\n"
+            prompt += f"Correct solution:\n{demo['correct_code']}\n\n"
             
-            prompt += f"Incorrect reasoning: {demo['incorrect_explanation']}\n\n"
-            prompt += f"Incorrect answer: {demo['incorrect_code']}\n\n"
+            prompt += f"Incorrect reasoning:\n{demo['incorrect_explanation']}\n\n"
+            prompt += f"Incorrect solution:\n{demo['incorrect_code']}\n\n"
             prompt += "---\n\n"
-        
-        prompt += f"""Now analyze this programming problem. Think step by step but provide ONLY reasoning. Do NOT write final solution.
+            
+        clean_task = self.remove_problem_prefix(task)
+        prompt += f"""Now analyze the following problem. Remember to provide step‑by‑step reasoning, then write the solution code after the line 'Correct solution:'.
 
-Problem: {task}
+Problem:\n{clean_task}
 
-Reasoning:"""
+Correct reasoning:"""
         
         return prompt
     
-    def llm(self, prompt: str) -> str:
-        # TODO: Replace with actual LLM call
-        return ""
+    def generate(self, prompt: str) -> str:
+        system_prompt = (
+            "You are a helpful programming assistant. When given a problem, you should first think step by step "
+            "and then provide the solution code after the line 'Correct solution:'. "
+            "Make sure to include exactly 'Correct solution:' on its own line followed by the code. "
+            "Do not add any extra text after the code."
+        )
+        
+        response = self.client.chat.completions.create(
+            model=self.model_name,
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": prompt}
+            ],
+            temperature=self.temperature,
+            top_p=self.top_p,
+            max_tokens=self.max_tokens,
+            stop=self.stop_tokens
+        )
+        
+        return response.choices[0].message.content
+    
+    def extract_solution(self, response: str) -> str:
+        marker = "Correct solution:\n"
+        idx = response.find(marker)
+        if idx == -1:
+            return "Solution not found"
+
+        return response[idx + len(marker):]
     
     def run(self, task: str) -> str:
         """
@@ -157,6 +205,7 @@ Reasoning:"""
             contrastive_demos.append(contrastive_demo)
         
         prompt = self.make_prompt(contrastive_demos, task)
-        reasoning = self.llm(prompt)
+        response = self.generate(prompt)
+        solution = self.extract_solution(response)
         
-        return reasoning
+        return solution

@@ -1,9 +1,13 @@
+import os
+import sys
+sys.path.insert(0, os.getcwd())
+
 import json
 import numpy as np
+import re
+from openai import OpenAI
 from typing import List, Dict, Union, Optional
-from sentence_transformers import SentenceTransformer
 from sklearn.cluster import KMeans
-from sklearn.metrics.pairwise import cosine_similarity
 from src.agent_constructor.agent import Agent
 
 
@@ -12,13 +16,29 @@ class AutoCoT(Agent):
         self,
         problems: Union[str, List[Dict[str, str]]],
         name: str = "AutoCoT", 
-        encoder_name: str = "all-MiniLM-L6-v2" # is used in original implementation
+        model_url: str = "http://localhost:7215/v1",
+        model_name: str = "Qwen/Qwen1.5-32B-Chat-AWQ",
+        embed_url: str = "http://localhost:7216/v1",
+        embed_name: str = "Qwen/Qwen3-Embedding-4B",
+        temperature: str = 0
     ):
         super().__init__(name)
         self.cot_trigger = "Let's think step by step."
         self.direct_answer_trigger = "Therefore, the code is:"
         self.problems = self.load_problems(problems)
-        self.encoder = SentenceTransformer(encoder_name)
+        self.model_name = model_name
+        self.embed_name = embed_name
+        self.temperature = temperature
+        
+        self.model_client = OpenAI(
+            base_url=model_url,
+            api_key="vllm"
+        )
+        
+        self.embed_client = OpenAI(
+            base_url=embed_url,
+            api_key="vllm"
+        )
         
     def load_problems(
         self, 
@@ -42,27 +62,41 @@ class AutoCoT(Agent):
             print(f"Warning: Invalid problems type.")
             return []
         
-    def llm(self, prompt: str) -> str:
-        # TODO: Replace with actual LLM call
-        return ""
+    def generate(self, user_prompt: str, system_prompt: str = "You are a helpful assistant") -> str:
+        response = self.model_client.chat.completions.create(
+            model=self.model_name,
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt}
+            ],
+            temperature=self.temperature,
+        )
+        
+        return response.choices[0].message.content
         
     def generate_rationale_from_scratch(self, problem: str) -> str:
         """Generate reasoning chain from scratch for a problem."""
         reasoning_prompt = f"Problem:\n{problem}\n\nReasoning:\n{self.cot_trigger}"
-        return self.llm(reasoning_prompt)
+        return self.generate(reasoning_prompt)
     
     def generate_rationale_from_code(self, problem: str, reference_code: str) -> str:
         """Generate reasoning chain based on existing reference code."""
-        rationale_prompt = f"""Problem:\n{problem}\n\nReference code:\n{reference_code}
+        rationale_prompt = f"""Problem:
+{problem}
+
+Solution code:
+{reference_code}
+
+Explain the reasoning behind this solution step by step. Imagine you are solving the problem yourself and describe your thought process. Do not refer to the solution as given; focus on the logical steps and why they are taken."""
+
+        system_prompt = "You are an AI assistant that explains solutions to programming problems. When given a problem and a correct solution, you explain the reasoning behind the solution in a natural, step-by-step manner, as if you were the one solving it. Do not mention that the solution is provided; simply describe the thought process and the key steps that lead to the implementation."
         
-Explain the reasoning behind this code implementation:\n{self.cot_trigger}
-"""
-        return self.llm(rationale_prompt)
+        return self.generate(rationale_prompt, system_prompt=system_prompt)
     
     def generate_code_from_rationale(self, problem: str, rationale: str) -> str:
         """Generate code based on reasoning chain."""
         code_prompt = f"Problem:\n{problem}\n\nReasoning:\n{rationale}\n{self.direct_answer_trigger}"
-        return self.llm(code_prompt)
+        return self.generate(code_prompt)
     
     def generate_rationale_and_code(self, problem: str, reference_code: Optional[str] = None) -> Dict[str, str]:
         """
@@ -84,29 +118,41 @@ Explain the reasoning behind this code implementation:\n{self.cot_trigger}
             "rationale": rationale,
             "code": code
         }
+        
+    def remove_problem_prefix(self, text: str) -> str:
+        return re.sub(r'^Problem:\s*', '', text, flags=re.IGNORECASE)
     
     def create_demo_text(self, demos: List[Dict[str, str]]) -> str:
         """Create demonstration text for few-shot prompting."""
         demo_text = ""
-        for demo in demos:
+        for i, demo in enumerate(demos):
             question = demo["question"]
             rationale = demo["rationale"]
             code = demo["code"]
             
-            demo_text += f"Problem: {question}\n"
-            demo_text += f"Reasoning: {rationale}\n"
-            demo_text += f"Answer: {code}\n\n"
+            clean_question = self.remove_problem_prefix(question)
+            
+            demo_text += f"Example {i + 1}:\n\n"
+            demo_text += f"Problem:\n{clean_question}\n\n"
+            demo_text += f"Reasoning:\n{rationale}\n\n"
+            demo_text += f"Solution:\n{code}\n\n"
         
         return demo_text
+    
+    def get_embeddings(self, problems: List[str]):
+        response = self.embed_client.embeddings.create(
+            model=self.embed_name,
+            input=problems
+        )
+        
+        embeddings = [item.embedding for item in response.data]
+        return embeddings
     
     def cluster_problems(self, problems: List[str], num_clusters: int = 4) -> List[List[int]]:
         """
         Cluster programming problems by similarity using sentence transformers and K-means.
         """
-        if not problems:
-            return [[] for _ in range(num_clusters)]
-        
-        embeddings = self.encoder.encode(problems)
+        embeddings = self.get_embeddings(problems)
         
         kmeans = KMeans(n_clusters=num_clusters, random_state=42)
         cluster_labels = kmeans.fit_predict(embeddings)
@@ -161,14 +207,43 @@ Explain the reasoning behind this code implementation:\n{self.cot_trigger}
         demo_text = self.create_demo_text(demos)
         return demo_text
     
+    def extract_solution(self, response: str) -> str:
+        marker = "Solution:\n"
+        idx = response.find(marker)
+        if idx == -1:
+            return "Solution not found"
+
+        return response[idx + len(marker):]
+    
     def run(self, task: str, num_demos: int = 4) -> str:
         """
         Args:
             task: The programming problem to solve
             num_demos: Number of demonstrations to use
         """
-        demo_text = self.construct_demos(num_demos)
-        prompt = f"{demo_text}Problem:\n{task}\n\nReasoning:\n{self.cot_trigger}"
-        reasoning = self.llm(prompt)
+        demo_text = self.construct_demos(num_demos) 
         
-        return reasoning
+        clean_task = self.remove_problem_prefix(task)
+        
+        prompt = f""""Here are some examples of solving programming problems step by step:
+        
+{demo_text}
+Now analyze the following problem. Provide step-by-step reasoning. After your reasoning, write the solution code after the line 'Solution:'.
+
+Problem:
+{clean_task}
+
+Reasoning:
+"""
+        
+        system_prompt = (
+            "You are a helpful programming assistant. When given a problem, you should first think step by step "
+            "and then provide the solution code after the line 'Solution:'. "
+            "Make sure to include exactly 'Solution:' on its own line followed by the code. "
+            "Do not add any extra text after the code."
+        )
+        
+        response = self.generate(prompt, system_prompt=system_prompt)
+        solution = self.extract_solution(response)
+        
+        return solution

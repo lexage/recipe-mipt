@@ -30,6 +30,9 @@ class DatasetDS1000:
     def _load_data(self):
         with gzip.open(self.path, "rt") as f:
             for line in f:
+            # for idx, line in enumerate(f):
+            #     if idx > 2:
+            #         break
                 item = self._preprocess(line)
                 self._items.append(item)
                 self._pid_to_item[item.p_id] = item

@@ -1,16 +1,21 @@
-import random
+import logging
 from typing import List
-from src.agent_constructor.agent import Agent
+
 from langchain_openai import ChatOpenAI
-from langchain_core.messages import HumanMessage, ToolMessage
+from langchain_core.messages import HumanMessage
+
+from src.agent_constructor.agent import Agent
 
 
-class Panel(Agent):
+_LOG_SEPARATOR = f"\n{'_' * 20}\n"
+
+
+class PanelAgent(Agent):
     def __init__(
         self,
         name: str = "Panel",
         model_name: str = "Qwen/Qwen1.5-32B-Chat-AWQ",
-        openai_api_base_url="http://localhost:7215/v1",
+        url="http://localhost:7215/v1",
         temperature: float = 0.6,
         num_candidates: int = 5,
     ):
@@ -19,7 +24,7 @@ class Panel(Agent):
         self.num_candidates = num_candidates
         self.llm_model = ChatOpenAI(
             model=model_name,
-            openai_api_base=openai_api_base_url,
+            openai_api_base=url,
             openai_api_key="fake-key",
             temperature=self.temperature,
         )
@@ -34,23 +39,25 @@ class Panel(Agent):
     ) -> str:
         """Create prompt for candidate generation."""
         base_prompt = f"""
-You are an expert programmer solving the following problem:
+You are an expert programmer solving the following task or problem:
 
-PROBLEM: {problem}
+PROBLEM/TASK: {problem}
 
 CURRENT CONTEXT: {context}
 
-Generate the next reasoning step or code snippet. Focus on:
+Generate the required code block.
+Focus on:
 1. Logical correctness
 2. Code quality and readability
 3. Progress towards solving the problem
 
-Next step:"""
+Respond with the answer
+directly with no extra words."""
 
         if sampling_type == "greedy":
-            base_prompt += "\n[Generate the most logical and correct next step]"
+            base_prompt += "\n[Generate the most logical and correct code snippet]"
         else:  # random sampling
-            base_prompt += "\n[Generate a diverse but valid next step]"
+            base_prompt += "\n[Generate a diverse but valid code snippet]"
 
         return base_prompt
 
@@ -156,8 +163,23 @@ Return only the index number (0-based) of the selected candidate:"""
         """
         candidates = self._sample_candidates(task, current_context)
 
+        logging.info(f"TASK: {task}")
+        logging.info(_LOG_SEPARATOR)
+
+        for idx, candidate in enumerate(candidates):
+            logging.info(f"CANDIDATE {idx+1}: {candidate}\n")
+
+        logging.info(_LOG_SEPARATOR)
+
         critiques = self._generate_critiques(candidates, task, current_context)
 
+        for idx, critique in enumerate(critiques):
+            logging.info(f"CRITIQUE {idx+1}: {critique}\n")
+        logging.info(_LOG_SEPARATOR)
+
         selected_candidate = self._select_best_candidate(candidates, critiques)
+
+        logging.info(f"SELECTED CANDIDATE: {selected_candidate}")
+        logging.info(_LOG_SEPARATOR)
 
         return selected_candidate

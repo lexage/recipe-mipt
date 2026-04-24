@@ -9,6 +9,8 @@ class PipelinesNames(Enum):
     REWOO = "REWOOPipeline"
     MAPS = "MAPSPipeline"
     REACT = "REACTPipeline"
+    PANEL = "PANELPipeline"
+    REASONING = "REASONINGPipeline"
 
 
 class ComponentNames(Enum):
@@ -16,7 +18,6 @@ class ComponentNames(Enum):
     # ===== Agents: Critique =====
     COMPLEX_CRITIC_AGENT = "src.agents.critique.ComplexCritic"
     CRITIC_AGENT = "src.agents.critique.Critic"
-    PANEL_AGENT = "src.agents.critique.Panel"
     DECRIM_AGENT = "src.agents.critique.Decrim"
     REFLEXION_AGENT = "src.agents.critique.Reflexion"
     SELFREFINE_AGENT = "src.agents.critique.SelfRefine"
@@ -40,11 +41,12 @@ class ComponentNames(Enum):
     MAPS_CRITIC = "src.agents.pipelines.CriticMAPS"
     MAPS_USER_PROXY = "src.agents.pipelines.UserProxyMAPS"
     REACT_AGENT = "src.agents.pipelines.ReActAgent"
+    PANEL_AGENT = "src.agents.pipelines.PanelAgent"
 
     # ===== Agents: Planning =====
-    LEAST_TO_MOST_PLANNER = "src.agents.planning.LeastToMostPlanner"
-    PLAN_AND_SOLVE_AGENT = "src.agents.planning.PlanAndSolveAgent"
-    MPC_SAMPLE_AGENT = "src.agents.planning.MPCSampleAgent"
+    LEAST_TO_MOST_PLANNER = "src.agents.planning.LeastToMost"
+    PLAN_AND_SOLVE_PLANNER = "src.agents.planning.PlanAndSolve"
+    MPC_SAMPLE_PLANNER = "src.agents.planning.MPCSample"
 
     # ===== Agents: RAG =====
     INSTRUCT_RATIONALITY_AGENT = "src.agents.rag.InstructRationalityAgent"

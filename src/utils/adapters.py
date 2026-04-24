@@ -14,10 +14,10 @@ from src.utils.wrappers import EmbeddingFunctionWrapper
 class SQLiteDocsDBAdapter:
     def __init__(self, path_to_db: str):
         self.path_to_db = path_to_db
-        with sqlite3.connect(self.path_to_db) as conn:
-            cursor = conn.cursor()
-            cursor.execute("SELECT COUNT(*) FROM documents")
-            self.id_offset = cursor.fetchone()[0]
+        # with sqlite3.connect(self.path_to_db) as conn:
+        #     cursor = conn.cursor()
+        #     cursor.execute("SELECT COUNT(*) FROM documents")
+        #     self.id_offset = cursor.fetchone()[0]
 
     def get_docs(self, ids: Optional[List[int]] = None) -> List[Document]:
         

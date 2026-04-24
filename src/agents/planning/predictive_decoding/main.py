@@ -1,17 +1,24 @@
+import os
+import sys
+sys.path.insert(0, os.getcwd())
+
+from openai import OpenAI
+
 import json
 import torch
 import io
 import argparse
 import numpy as np
 from src.agent_constructor.agent import Agent
-from typing import Any, Optional
+from typing import Any, Optional, Union, List, Dict
 
 
-class MPCSampleAgent(Agent):  # the algorithm should be stateless, and generates a whole plan / code / chain of actions at once.
+class MPCSample(Agent):  # the algorithm should be stateless, and generates a whole plan / code / chain of actions at once.
     def __init__(
         self,
-        llm_model: Any,
-        name: str = "MPCSampleAgent",
+        model_url: str = "http://localhost:7215/v1",
+        model_name: str = "Qwen/Qwen1.5-32B-Chat-AWQ",
+        name: str = "MPCSample",
         prompt_path: Optional[str] = None,
         lookahead_thought_length: int = 3,
         lookahead_token_length: Optional[int] = None,    # the length of the lookahead token sequence, default use thought length as evaluation chunk
@@ -23,11 +30,17 @@ class MPCSampleAgent(Agent):  # the algorithm should be stateless, and generates
         value_type: str = "logp",
         do_sample: bool = True,
         use_memory: bool = True,
-        max_problem_size: int = 50
+        max_problem_size: int = 50,
+        examples: Optional[Union[str, List[Dict[str, str]]]] = None
     ):
         super().__init__(name)
         
-        self.llm_model = llm_model
+        self.model_name = model_name
+        
+        self.client = OpenAI(
+            base_url=model_url,
+            api_key="vllm"
+        )
         
         if prompt_path is not None:
             self.prompts = json.load(open(prompt_path, 'r'))
@@ -36,6 +49,8 @@ class MPCSampleAgent(Agent):  # the algorithm should be stateless, and generates
                 "prompt": "default_prompt_template",
                 "system_msg": "default_system_message" 
             }
+            
+        self.examples = self.load_examples(examples)
         
         self.problem_size = max_problem_size
         self.n_gram = self.problem_size
@@ -52,24 +67,52 @@ class MPCSampleAgent(Agent):  # the algorithm should be stateless, and generates
         self.value_type = value_type
         self.use_memory = use_memory
         
+    
+    def load_examples(
+        self, 
+        examples: Optional[Union[str, List[Dict[str, str]]]]
+    ) -> List[str]:
+        """Load few-shot examples from file or use provided examples."""
+        if isinstance(examples, str) and examples.endswith('.jsonl'):
+            examples_list = []
+            with open(examples, 'r', encoding='utf-8') as f:
+                for line in f:
+                    if line.strip():
+                        examples_list.append(json.loads(line))
+            return [example["example"] for example in examples_list]
+        elif isinstance(examples, list):
+            return [example["example"] for example in examples]
+        else:
+            print(f"Warning: Invalid examples type.")
+            return []
+        
         
     def make_prompt(self, prompt, question, memory=None):
         # may need to reimplement
         if memory is None:
             memory = self.memory
             
-        with io.StringIO() as f:
-            f.write(question)
-            model_input = f.getvalue()
+        user_content = ""
+        if self.examples:
+            user_content += "Here are some examples of problems and their solution plans in the desired format:\n\n"
+            for i, example in enumerate(self.examples, 1):
+                user_content += f"Example {i}:\n{example}\n\n"
+            user_content += "Now make a plan to solve the following problem. Provide only the plan in the same format, without code.\n\n"
+            
+        user_content += prompt
+            
+        # with io.StringIO() as f:
+        #     f.write(question)
+        #     model_input = f.getvalue()
 
         with io.StringIO() as f:    
-            f.write(prompt)
+            # f.write(prompt)
             for a in memory:
                 if a is not None:
                     f.write(f"{a}")
             answer_prefix = f.getvalue()
-                
-        return model_input, answer_prefix
+                    
+        return user_content, answer_prefix
         
         
     def update_trajectory_pool(self, outputs, reward=None, id=None, memory=None):
@@ -127,7 +170,7 @@ class MPCSampleAgent(Agent):  # the algorithm should be stateless, and generates
         
         prefix = parse_prefix
         
-        if type(action_output) == str: # no logprob information
+        if isinstance(action_output, str): # no logprob information
             
             if memory is None:
                 memory = self.memory[id] if id is not None else self.memory
@@ -136,11 +179,9 @@ class MPCSampleAgent(Agent):  # the algorithm should be stateless, and generates
             
             action = action_output
             
-            if "mistral" not in self.llm_model.engine.lower(): # mistral don't know when to stop and easily generate more than one prefix...
-                # actually this code is not quite useful for llama3 anyway, perhaps could remove it.
-                for prefix in all_prefix:
-                    if prefix in action: # added, in case there is repeat of prompt inside the generation
-                        action = action.split(prefix)[1]
+            for prefix in all_prefix:
+                if prefix in action: # added, in case there is repeat of prompt inside the generation
+                    action = action.split(prefix)[1]
                         
             action = action.lstrip('\n')
             
@@ -155,10 +196,12 @@ class MPCSampleAgent(Agent):  # the algorithm should be stateless, and generates
             
             first_action = all_actions[0] + '\n'
             action_chain = [a + '\n' for a in all_actions][: self.lookahead_decision_length] # only keep the first n actions
+            print(action_chain)
+            print()
             
             return {"action": first_action, "action_chain": action_chain}, first_action
         
-        elif type(action_output) == dict: # need logprob information
+        elif isinstance(action_output, dict): # need logprob information
             
             action_text_output = action_output["text"]
             action_logprobs = action_output["logprobs"]
@@ -172,11 +215,9 @@ class MPCSampleAgent(Agent):  # the algorithm should be stateless, and generates
             token_start, token_end = 0, -1
             action = action_text_output
             
-            if "mistral" not in self.llm_model.engine.lower(): # mistral don't know when to stop and easily generate more than one prefix...
-                # actually this code is not quite useful for llama3 anyway, perhaps could remove it.
-                for prefix in all_prefix:
-                    if prefix in action: # added, in case there is repeat of prompt inside the generation
-                        action = action.split(prefix)[1]
+            for prefix in all_prefix:
+                if prefix in action: # added, in case there is repeat of prompt inside the generation
+                    action = action.split(prefix)[1]
                     
              # remove all '\n' in the beginning
             action = action.lstrip('\n')
@@ -243,26 +284,8 @@ class MPCSampleAgent(Agent):  # the algorithm should be stateless, and generates
     
     
     def get_valid_actions(self, action_history, id=None):       
-        def is_valid_python(code):
-            with io.StringIO() as f:
-                # iterate through the state
-                for a  in self.memory:
-                    if a is not None:
-                        f.write(f"{a}\n")
-                f.write(code+"\n")
-                full_code = f.getvalue()
-            try:
-                # Try to compile the string of code.
-                # If the code compiles without raising a SyntaxError, it is valid Python code.
-                compile(code, "<string>", "exec")
-                return True
-            except SyntaxError:
-                try: 
-                    compile(full_code, "<string>", "exec")
-                    return True
-                except SyntaxError:
-                    pass
-                return False
+        def is_valid_action(action):
+            return action is not None and action.strip() != ""
         
         all_results = []
         
@@ -285,7 +308,7 @@ class MPCSampleAgent(Agent):  # the algorithm should be stateless, and generates
                 if match:
                     all_results.append((n_gram_list[-1], n_gram_reward))
                     
-        all_results = [item for item in all_results if is_valid_python(item[0])]
+        all_results = [item for item in all_results if is_valid_action(item[0])]
         return all_results
     
       
@@ -370,20 +393,12 @@ class MPCSampleAgent(Agent):  # the algorithm should be stateless, and generates
             "max_tokens": 500,# if self.lookahead_token_length is None else self.lookahead_token_length,
             "temperature": self.beam_temperature,
             "top_p": 1.0,
-            "stop": [],            
+            "stop": ["\n\n"],           
             "logprobs": (self.value_type == "logp"),
             "value_type": self.value_type
         }
         
         args = argparse.Namespace(**args)
-        
-        generation_config = {"n": args.n_generate_sample, 
-                            "stop": args.stop, 
-                            "top_p": args.top_p,
-                            "max_tokens": args.max_tokens, 
-                            "temperature": args.temperature,
-                            "do_sample": True,
-                            "logprobs": args.logprobs}
         
         iter = 0
         self.memory = [None] * self.problem_size
@@ -398,14 +413,55 @@ class MPCSampleAgent(Agent):  # the algorithm should be stateless, and generates
             
             input_prompt, answer_prefix = self.make_prompt(self.prompts["prompt"], question)
             system_message = self.prompts["system_msg"]
-            success, action_sequence_samples = self.llm_model.generate_with_config(system_message, input_prompt, generation_config, answer_prefix=answer_prefix)
+            
+            messages = []
+            if system_message:
+                messages.append({"role": "system", "content": system_message})
+            messages.append({"role": "user", "content": input_prompt})
+            if answer_prefix:
+                messages.append({"role": "assistant", "content": answer_prefix})
+            
+            try:
+                response = self.client.chat.completions.create(
+                    model=self.model_name,
+                    messages=messages,
+                    temperature=args.temperature,
+                    max_tokens=args.max_tokens,
+                    top_p=args.top_p,
+                    n=args.n_generate_sample,
+                    stop=args.stop if args.stop else None,
+                    logprobs=args.logprobs,
+                )
+                
+                action_sequence_samples = []
+                for choice in response.choices:
+                    if args.logprobs:
+                        logprobs_content = choice.logprobs.content if choice.logprobs else []
+                        logprobs_list = [token.logprob for token in logprobs_content]
+                        tokens_list = [token.token for token in logprobs_content]
+                        action_sequence_samples.append({
+                            "text": choice.message.content,
+                            "logprobs": logprobs_list,
+                            "tokens": tokens_list
+                        })
+                    else:
+                        action_sequence_samples.append(choice.message.content)
+                
+                success = True
+            except Exception as e:
+                print(f"OpenAI API error: {e}")
+                success = False
+                action_sequence_samples = []
+            
+            # success, action_sequence_samples = self.llm_model.generate_with_config(system_message, input_prompt, generation_config, answer_prefix=answer_prefix)
             
             if success:
                 for action_sequence in action_sequence_samples:
                     parse_prefix = self.prompts["prompt"]
                     processed_output, action = self.parse_action_sequence(action_sequence, parse_prefix=parse_prefix)
 
-                    if action is None: continue
+                    if action is None: 
+                        continue
                     reward = 0
                     if args.value_type == "logp":
                         reward = processed_output["action_prob"]
