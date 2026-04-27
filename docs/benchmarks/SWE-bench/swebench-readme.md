@@ -60,3 +60,6 @@ python -m swebench.harness.run_evaluation \
     # use --modal true to run on Modal
 ```
 
+## Для нашего случая
+
+Заготовки для получения предсказаний с помощью нашего агентского пайплайна есть в файле [run_agent_pipeline.py](../../../src/benchmarks/SWE-bench/swebench/inference/run_agent_pipeline.py). Однако там отсутствует код для настройки окружения (загрузка спецификации задачи, сборка docker-образа, запуск контейнера). Его можно взять из [run_evaluation.py](../../../src/benchmarks/SWE-bench/swebench/harness/run_evaluation.py).

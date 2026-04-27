@@ -19,7 +19,13 @@
 
 - `name: str = "CoT"` - имя агента;
 - `mode: str = "zero-shot"` - режим: `"zero-shot"` или `"few-shot"`;
-- `few_shot_examples: Optional[Union[str, List[Dict[str, str]]]] = None` - путь до файла с примерами в формате `jsonl` или список словарей с ключом `"example"`.  
+- `few_shot_examples: Optional[Union[str, List[Dict[str, str]]]] = None` - путь до файла с примерами в формате `jsonl` или список словарей с ключом `"example"`;
+- `model_url: str = "http://localhost:7215/v1"`;
+- `model_name: str = "Qwen/Qwen1.5-32B-Chat-AWQ"`;
+- `temperature: float = 0.2`;
+- `top_p: float = 0.95`;
+- `max_tokens: int = 1024`;
+- `stop_tokens: List[str] = ["</code>", "# SOLUTION END"]`.
 
 ---
 
@@ -28,10 +34,10 @@
 Является наследником класса Agent. Пример использования:
 
 ```
-from src.agents.resoning.cot.main import CoT
+from src.agents.reasoning.cot.main import CoT
 
-reasoner = CoT(mode="few-shot", few_shot_examples="examples.jsonl")
+reasoner = CoT(mode="few-shot", few_shot_examples="src/agents/reasoning/cot/examples.jsonl")
 solution = reasoner.run(task) # task: str - текстовое описание задачи 
 ```
 
-Основной метод - `run` - возвращает рассуждение (`str`).
+Основной метод - `run` - возвращает решение задачи (`str`).

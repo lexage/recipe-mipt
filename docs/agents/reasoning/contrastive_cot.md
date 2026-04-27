@@ -14,14 +14,20 @@
 
 ## Чего не хватает (TODO)
 
-Нужно добавить автоматическую генерацию неверных цепочек рассуждений. 
+Нужно добавить автоматическую генерацию неверных цепочек рассуждений. Обсуждали, что что-то подобное есть у Тимофея. 
 
 ---
 
 ## Параметры инициализации
 
 - `demonstrations: Union[str, List[Dict[str, str]]]` - путь до файла в формате `jsonl` с примерами или список словарей с ключами `"problem"` (текст вопроса), `"correct_explanation"` (верное рассуждение), `"correct_code"` (верное решение), `"incorrect_explanation"` (неверное рассуждение, опционально), `"incorrect_code"` (неверное решение, опционально);
-- `name: str = "ContrastiveCoT"` - имя агента.
+- `name: str = "ContrastiveCoT"` - имя агента; 
+- `model_url: str = "http://localhost:7215/v1"`;
+- `model_name: str = "Qwen/Qwen1.5-32B-Chat-AWQ"`;
+- `temperature: float = 0.2`;
+- `top_p: float = 0.95`;
+- `max_tokens: int = 1024`;
+- `stop_tokens: List[str] = ["</code>", "# SOLUTION END"]`.
 
 ---
 
@@ -30,10 +36,10 @@
 Является наследником класса Agent. Пример использования:
 
 ```
-from src.agents.resoning.contrastive_cot.main import ContrastiveCoT
+from src.agents.reasoning.contrastive_cot.main import ContrastiveCoT
 
-reasoner = ContrastiveCoT("demonstrations.jsonl")
+reasoner = ContrastiveCoT("src/agents/reasoning/contrastive_cot/examples.jsonl")
 solution = reasoner.run(task) # task: str - текстовое описание задачи 
 ```
 
-Основной метод - `run` - возвращает рассуждение (`str`).
+Основной метод - `run` - возвращает решение задачи (`str`).

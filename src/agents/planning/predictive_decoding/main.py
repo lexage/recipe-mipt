@@ -388,7 +388,7 @@ class MPCSample(Agent):  # the algorithm should be stateless, and generates a wh
         self.trajectory_pool = []
         
         args = {
-            "n_generate_sample":self.beam_size,
+            "n_generate_sample": self.beam_size,
             "max_iters": self.problem_size,
             "max_tokens": 500,# if self.lookahead_token_length is None else self.lookahead_token_length,
             "temperature": self.beam_temperature,

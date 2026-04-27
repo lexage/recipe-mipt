@@ -20,7 +20,7 @@ class AutoCoT(Agent):
         model_name: str = "Qwen/Qwen1.5-32B-Chat-AWQ",
         embed_url: str = "http://localhost:7216/v1",
         embed_name: str = "Qwen/Qwen3-Embedding-4B",
-        temperature: str = 0
+        temperature: float = 0
     ):
         super().__init__(name)
         self.cot_trigger = "Let's think step by step."

@@ -30,7 +30,11 @@
 
 - `problems: Union[str, List[Dict[str, str]]]` - путь до файла с вопросами (и ответами) в формате `jsonl` или список словарей с ключами `"question"` (текст вопроса) и `"code"` (верное решение, опционально); 
 - `name: str = "AutoCoT"` - имя агента;  
-- `encoder_name: str = "all-MiniLM-L6-v2"` - энкодер для получения эмбеддингов. 
+- `model_url: str = "http://localhost:7215/v1"`;
+- `model_name: str = "Qwen/Qwen1.5-32B-Chat-AWQ"`;
+- `embed_url: str = "http://localhost:7216/v1"`;
+- `embed_name: str = "Qwen/Qwen3-Embedding-4B"`;
+- `temperature: float = 0`.
 
 ---
 
@@ -39,12 +43,12 @@
 Является наследником класса Agent. Пример использования:
 
 ```
-from src.agents.resoning.autocot.main import AutoCoT
+from src.agents.reasoning.autocot.main import AutoCoT
 
-reasoner = AutoCoT("problems.jsonl")
+reasoner = AutoCoT("src/agents/reasoning/autocot/examples_with_code.jsonl")
 solution = reasoner.run(task, num_demos=5)
 ```
 
 Здесь `task: str` - текстовое описание задачи, `num_demos: int = 4` - количество демонстрационных примеров, которые будут получены. 
 
-Основной метод - `run` - возвращает рассуждение (`str`).
+Основной метод - `run` - возвращает решение задачи (`str`).

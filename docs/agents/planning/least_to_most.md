@@ -1,6 +1,6 @@
 # Least-to-Most Prompting
 
-- **Модуль**: [`LeastToMostPlanner`](../../../src/agents/planning/least_to_most/main.py)
+- **Модуль**: [`LeastToMost`](../../../src/agents/planning/least_to_most/main.py)
 - **Cтатья**: [LEAST-TO-MOST PROMPTING ENABLES COMPLEX REASONING IN LARGE LANGUAGE MODELS](https://arxiv.org/pdf/2205.10625)
 
 ---
@@ -11,14 +11,24 @@
 
 ---
 
+## Параметры инициализации
+
+- `examples: Optional[Union[str, List[Dict[str, str]]]]` - путь до файла с few-shot примерами в формате `jsonl` или список словарей с ключом `"example"`;
+- `name: str = "L2M_Planner"` - имя агента; 
+- `model_url: str = "http://localhost:7215/v1"`;
+- `model_name: str = "Qwen/Qwen1.5-32B-Chat-AWQ"`;
+- `temperature: float = 0` - температура для генерации плана.
+
+---
+
 ## Работа со скриптами
 
 Является наследником класса Agent. Пример использования:
  
 ```
-from src.agents.planning.least_to_most.main import LeastToMostPlanner
+from src.agents.planning.least_to_most.main import LeastToMost
 
-planner = LeastToMostPlanner() # передавать параметры инициализации не нужно
+planner = LeastToMost("src/agents/planning/least_to_most/examples.jsonl")
 plan = planner.run(task) # task: str - текстовое описание задачи 
 ```
 
