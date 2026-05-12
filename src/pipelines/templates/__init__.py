@@ -3,6 +3,7 @@ from .simple_pipeline import SimplePipeline
 from .rewoo_pipeline import REWOOPipeline
 from .maps_pipeline import MAPSPipeline
 from .react_pipeline import REACTPipeline
+from .react_add_critic_pipeline import REACTPipelineAddCritic
 from .panel_pipeline import PANELPipeline
 from .mars_pipeline import MARSPipeline
 from .mars_pipeline_critic_upd import MARSPipelineCriticUpd
@@ -13,6 +14,7 @@ __all__ = [
     "REWOOPipeline",
     "MAPSPipeline",
     "REACTPipeline",
+    "REACTPipelineAddCritic",
     "PANELPipeline",
     "MARSPipeline",
     "MARSPipelineCriticUpd",

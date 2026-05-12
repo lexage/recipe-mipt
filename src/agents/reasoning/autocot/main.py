@@ -4,17 +4,59 @@ from typing import List, Dict, Union, Optional
 from sentence_transformers import SentenceTransformer
 from sklearn.cluster import KMeans
 from sklearn.metrics.pairwise import cosine_similarity
+from langchain_openai import ChatOpenAI
+from langchain_core.messages import HumanMessage
+
 from src.agent_constructor.agent import Agent
 
+
+PROMPT_GET_REACT_TRAJECTORY = """You are an expert AI agent that solves problems by interleaving reasoning and tool use. 
+Follow the ReAct format EXACTLY. Do not add extra text, explanations, or markdown.
+
+Available tools:
+Available tools:
+- llm(query: str): Generates code, functions, or reasoning steps.
+- db_search(query: str): Retrieves concrete code snippets and usage examples from a codebase or documentation index. Outputs consist STRICTLY of code blocks, file paths, and minimal metadata (e.g., chunk IDs, line ranges). NEVER returns explanatory prose, tutorials, API descriptions, or conversational text.
+
+Trajectory format:
+Thought 1: [brief reasoning about next step]
+Action 1: [tool_name]
+Action Input 1: {"key": "value"}
+Observation 1: [realistic, concise tool output or simulated result]
+
+Thought 2: ...
+Action 2: ...
+Action Input 2: ...
+Observation 2: ...
+
+When the problem is fully solved, end with:
+Thought N: [confirmation that solution is ready]
+Action N: Finish
+Action Input N: {}
+
+Generate the COMPLETE trajectory in one response. Simulate observations realistically based on the tool's purpose.
+Problem: {problem}
+Reference code: {reference_code}
+Let's think step by step and use the tools when necessary.
+"""
 
 class AutoCoT(Agent):    
     def __init__(
         self,
         problems: Union[str, List[Dict[str, str]]],
         name: str = "AutoCoT", 
-        encoder_name: str = "all-MiniLM-L6-v2" # is used in original implementation
+        encoder_name: str = "all-MiniLM-L6-v2", # is used in original implementation
+        model_name: str = "Qwen/Qwen1.5-32B-Chat-AWQ",
+        openai_api_base_url="http://localhost:7215/v1",
     ):
         super().__init__(name)
+
+        self.llm_model = ChatOpenAI(
+            model=model_name,
+            openai_api_base=openai_api_base_url,
+            openai_api_key="fake-key",
+            temperature=0.7,
+        )
         self.cot_trigger = "Let's think step by step."
         self.direct_answer_trigger = "Therefore, the code is:"
         self.problems = self.load_problems(problems)
@@ -39,21 +81,35 @@ class AutoCoT(Agent):
             print(f"Warning: Invalid problems type.")
             return []
         
-    def llm(self, prompt: str) -> str:
-        # TODO: Replace with actual LLM call
-        return ""
+    # def llm(self, prompt: str) -> str:
+    #     # TODO: Replace with actual LLM call
+    #     return ""
         
+    def llm(self, prompt: str) -> str:
+
+        messages = [HumanMessage(content=prompt)]
+
+        response = self.llm_model.invoke(messages)
+        return response.content
+    
     def generate_rationale_from_scratch(self, problem: str) -> str:
         """Generate reasoning chain from scratch for a problem."""
         reasoning_prompt = f"Problem:\n{problem}\n\nReasoning:\n{self.cot_trigger}"
         return self.llm(reasoning_prompt)
     
+#     def generate_rationale_from_code(self, problem: str, reference_code: str) -> str:
+#         """Generate reasoning chain based on existing reference code."""
+#         rationale_prompt = f"""Problem:\n{problem}\n\nReference code:\n{reference_code}
+        
+# Explain the reasoning behind this code implementation:\n{self.cot_trigger}
+# """
+#         return self.llm(rationale_prompt)
+    
     def generate_rationale_from_code(self, problem: str, reference_code: str) -> str:
         """Generate reasoning chain based on existing reference code."""
-        rationale_prompt = f"""Problem:\n{problem}\n\nReference code:\n{reference_code}
-        
-Explain the reasoning behind this code implementation:\n{self.cot_trigger}
-"""
+
+        rationale_prompt = PROMPT_GET_REACT_TRAJECTORY.format(problem=problem, reference_code=reference_code)
+
         return self.llm(rationale_prompt)
     
     def generate_code_from_rationale(self, problem: str, rationale: str) -> str:
@@ -140,7 +196,7 @@ Explain the reasoning behind this code implementation:\n{self.cot_trigger}
         
         return problem_text, reference_code
     
-    def construct_demos(self, num_demos: int = 4) -> str:
+    def construct_demos(self, num_demos: int = 3) -> str:
         """
         Construct demonstrations using Auto-CoT method.
         Handles both scenarios: with and without reference code.
@@ -160,17 +216,40 @@ Explain the reasoning behind this code implementation:\n{self.cot_trigger}
         demo_text = self.create_demo_text(demos)
         return demo_text
     
-    def run(self, task: str, num_demos: int = 4) -> str:
+    # def run(self, task: str, num_demos: int = 4) -> str:
+    #     """
+    #     Args:
+    #         task: The programming problem to solve
+    #         num_demos: Number of demonstrations to use
+    #     """
+    #     demo_text = self.construct_demos(num_demos)
+    #     prompt = f"{demo_text}Problem:\n{task}\n\nReasoning:\n{self.cot_trigger}"
+    #     reasoning = self.llm(prompt)
+        
+    #     answer_prompt = f"{prompt}\n{reasoning}\n{self.direct_answer_trigger}"
+    #     code_solution = self.llm(answer_prompt)
+       
+    #     return code_solution
+
+    def run(self, num_demos: int = 4) -> str:
         """
         Args:
-            task: The programming problem to solve
             num_demos: Number of demonstrations to use
         """
         demo_text = self.construct_demos(num_demos)
-        prompt = f"{demo_text}Problem:\n{task}\n\nReasoning:\n{self.cot_trigger}"
-        reasoning = self.llm(prompt)
-        
-        answer_prompt = f"{prompt}\n{reasoning}\n{self.direct_answer_trigger}"
-        code_solution = self.llm(answer_prompt)
-       
-        return code_solution
+               
+        return demo_text
+
+
+if __name__=="""__main__""":
+
+    data_path = "/workspace/proj/grant/recipe-mipt/data/ds1000_auto_cot.json" 
+    auto_cot_agent = AutoCoT(problems=data_path,
+                             name="AutoCoT", 
+                             encoder_name="all-MiniLM-L6-v2", # is used in original implementation
+                             model_name = "Qwen/Qwen2.5-32B-Instruct",
+                             openai_api_base_url="http://172.18.0.1:7215/v1",
+                            )
+
+    demos = auto_cot_agent.run(num_demos=3)
+    print(demos)

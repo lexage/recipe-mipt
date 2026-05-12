@@ -28,8 +28,9 @@ class DS1000Solver(Agent):
         
         super().__init__("ds_1000_solver")
         
-        if not api in SOLVER_API:
-            raise ValueError(f"API: '{api}' is not a valid API! Use one of: {[item.value for item in SOLVER_API]}") 
+        
+        # if not api in SOLVER_API:
+        #     raise ValueError(f"API: '{api}' is not a valid API! Use one of: {[item.value for item in SOLVER_API]}") 
         
         self.client = OpenAI(
             base_url=url,

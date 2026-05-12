@@ -3,20 +3,29 @@ from .base_tool import (
 )
 
 from .db_search import (
-    DBSearchTool
+    DBSearchTool,
+    DBSearchToolArgs
 )
 
 from .llm_tool import (
-    LLMTool
+    LLMTool,
+    LLMToolArgs
 )
 
 from .python_repl_tool import (
     PythonReplTool
 )
 
+from .critic_tool import (
+    CriticTool
+)
+
 __all__ = [
     "BaseTool"
     "DBSearchTool"
+    "DBSearchToolArgs"
     "LLMTool"
+    "LLMToolArgs"
     "PythonReplTool"
+    "CriticTool"
 ]

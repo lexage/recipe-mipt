@@ -1,7 +1,12 @@
 from typing import Dict, Any
 from openai import OpenAI
+from pydantic import BaseModel, Field
 
 from src.tools.base_tool import BaseTool
+
+
+class LLMToolArgs(BaseModel):
+    query: str = Field(..., description="The text of the llm request.")
 
 
 class LLMTool(BaseTool):
@@ -18,26 +23,38 @@ class LLMTool(BaseTool):
         self.client = OpenAI(base_url=url, api_key="vllm")
         self.model_name = model_name
         self.temperature = temperature
+        self.args = LLMToolArgs
+
+    # def get_schema(self) -> Dict[str, Any]:
+    #     """Возвращает описание инструмента в формате OpenAI Tools API."""
+    #     return {
+    #         "type": "function",
+    #         "function": {
+    #             "name": self.name,
+    #             "description": self.description,
+    #             "parameters": {
+    #                 "type": "object",
+    #                 "properties": {
+    #                     "query": {
+    #                         "type": "string",
+    #                         "description": "The text of the llm request.",
+    #                     }
+    #                 },
+    #                 "required": ["query"],
+    #             },
+    #         },
+    #     }
 
     def get_schema(self) -> Dict[str, Any]:
-        """Возвращает описание инструмента в формате OpenAI Tools API."""
-        return {
-            "type": "function",
-            "function": {
-                "name": self.name,
-                "description": self.description,
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "query": {
-                            "type": "string",
-                            "description": "The text of the llm request.",
-                        }
-                    },
-                    "required": ["query"],
+            """Автоматическая генерация схемы из Pydantic модели."""
+            return {
+                "type": "function",
+                "function": {
+                    "name": self.name,
+                    "description": self.description,
+                    "parameters": LLMToolArgs.model_json_schema()
                 },
-            },
-        }
+            }
 
     def llm(self, prompt: str) -> str:
         """Вызов LLM"""

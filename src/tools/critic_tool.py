@@ -47,15 +47,15 @@ class CriticTool(BaseTool):
                             "type": "string",
                             "description": "The original task or question that needs to be solved.",
                         },
-                        "react_answer": {
+                        "answer": {
                             "type": "string",
-                            "description": "The full response from the ReAct agent. MUST include the generated code snippet, as the critic needs to analyze the code implementation to provide accurate feedback.",
+                            "description": "The full response from the agent. MUST include the generated code snippet, as the critic needs to analyze the code implementation to provide accurate feedback.",
                         }
                     },
-                    "required": ["task", "react_answer"],
+                    "required": ["task", "answer"],
                 },
             },
         }
 
-    def __call__(self, task: str, react_answer: str) -> str:
-        return self.critic_agent.run(task, react_answer)
+    def __call__(self, task: str, answer: str) -> str:
+        return self.critic_agent.run(task, answer)

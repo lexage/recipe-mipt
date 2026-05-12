@@ -1,9 +1,13 @@
 from typing import Dict, Any
+from pydantic import BaseModel, Field
 
 from src.tools.base_tool import BaseTool
 from src.agent_constructor.db import IDB
 from src.agent_constructor.context_engine import ContextAssembler
 
+
+class DBSearchToolArgs(BaseModel):
+    query: str = Field(..., description="The text of the query to be searched in the database.")
 
 class DBSearchTool(BaseTool):
 
@@ -19,26 +23,38 @@ class DBSearchTool(BaseTool):
         self.db = db
         self.top_k = top_k
         self.context_assembler = context_assembler
+        self.args = DBSearchToolArgs
+
+    # def get_schema(self) -> Dict[str, Any]:
+    #     """Возвращает описание инструмента в формате OpenAI Tools API."""
+    #     return {
+    #         "type": "function",
+    #         "function": {
+    #             "name": self.name,
+    #             "description": self.description,
+    #             "parameters": {
+    #                 "type": "object",
+    #                 "properties": {
+    #                     "query": {
+    #                         "type": "string",
+    #                         "description": "The text of the query to be searched in the database.",
+    #                     }
+    #                 },
+    #                 "required": ["query"],
+    #             },
+    #         },
+    #     }
 
     def get_schema(self) -> Dict[str, Any]:
-        """Возвращает описание инструмента в формате OpenAI Tools API."""
-        return {
-            "type": "function",
-            "function": {
-                "name": self.name,
-                "description": self.description,
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "query": {
-                            "type": "string",
-                            "description": "The text of the query to be searched in the database.",
-                        }
-                    },
-                    "required": ["query"],
+            """Автоматическая генерация схемы из Pydantic модели."""
+            return {
+                "type": "function",
+                "function": {
+                    "name": self.name,
+                    "description": self.description,
+                    "parameters": DBSearchToolArgs.model_json_schema()
                 },
-            },
-        }
+            }
 
     def __call__(self, query: str) -> str:
         """Извлекает контекст из базы данных"""
