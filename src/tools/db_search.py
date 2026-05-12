@@ -25,26 +25,6 @@ class DBSearchTool(BaseTool):
         self.context_assembler = context_assembler
         self.args = DBSearchToolArgs
 
-    # def get_schema(self) -> Dict[str, Any]:
-    #     """Возвращает описание инструмента в формате OpenAI Tools API."""
-    #     return {
-    #         "type": "function",
-    #         "function": {
-    #             "name": self.name,
-    #             "description": self.description,
-    #             "parameters": {
-    #                 "type": "object",
-    #                 "properties": {
-    #                     "query": {
-    #                         "type": "string",
-    #                         "description": "The text of the query to be searched in the database.",
-    #                     }
-    #                 },
-    #                 "required": ["query"],
-    #             },
-    #         },
-    #     }
-
     def get_schema(self) -> Dict[str, Any]:
             """Автоматическая генерация схемы из Pydantic модели."""
             return {

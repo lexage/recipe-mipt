@@ -25,26 +25,6 @@ class LLMTool(BaseTool):
         self.temperature = temperature
         self.args = LLMToolArgs
 
-    # def get_schema(self) -> Dict[str, Any]:
-    #     """Возвращает описание инструмента в формате OpenAI Tools API."""
-    #     return {
-    #         "type": "function",
-    #         "function": {
-    #             "name": self.name,
-    #             "description": self.description,
-    #             "parameters": {
-    #                 "type": "object",
-    #                 "properties": {
-    #                     "query": {
-    #                         "type": "string",
-    #                         "description": "The text of the llm request.",
-    #                     }
-    #                 },
-    #                 "required": ["query"],
-    #             },
-    #         },
-    #     }
-
     def get_schema(self) -> Dict[str, Any]:
             """Автоматическая генерация схемы из Pydantic модели."""
             return {

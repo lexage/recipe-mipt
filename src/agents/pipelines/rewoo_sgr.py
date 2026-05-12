@@ -162,8 +162,11 @@ class PlannerREWOOSGR(Agent):
         )
         parsed_response = self.llm(task_prompt)
         
-        logging.info(f"PARSED RESPONSE:\n\n{parsed_response}")
+        logging.info(f"TASK:\n\n{task}")
+        logging.info(_LOG_SEPARATOR)
         logging.info(f"PLANNER TASK PROMPT:\n\n{task_prompt}")
+        logging.info(_LOG_SEPARATOR)
+        logging.info(f"PLAN PARSED RESPONSE:\n\n{parsed_response}")
         logging.info(_LOG_SEPARATOR)
         
         return parsed_response
@@ -189,41 +192,59 @@ class WorkerREWOOSGR(Agent):
             return list(tool.args.__annotations__.keys())
         return []
 
-    #TODO нужно поменять тип arguments
-    def execute_tool(self, tool_name: str, arguments: str) -> str:
+    def execute_tool(self, tool_name: str, arguments:  Dict[str, Any]) -> str:
         """Execute a tool with given arguments."""
         if tool_name not in self.tools_dict:
             return f"unknown tool: {tool_name}"
 
         tool = self.tools_dict[tool_name]
         try:
-            if arguments.strip():
-                parsed_args = self._parse_tool_arguments(arguments, tool)
-                result = tool(**parsed_args)
-            else:
-                result = tool()
+            result = tool(**arguments)
             return str(result) if result is not None else ""
         except Exception as e:
             return f"Error executing tool {tool_name}: {str(e)}"
-
-    def _substitute_evidence_variables(self, tool_input: str) -> str:
-        """Replace evidence variables (#E1, #E2, etc.) with actual results."""
-        for var in re.findall(r"#E\d+", tool_input):
-            if var in self.worker_evidences:
-                tool_input = tool_input.replace(
-                    var, f"[{self.worker_evidences[var]['tool_result']}]"
-                )
+    
+    def _substitute_evidence_variables(self, tool_input: Union[Dict[str, Any], str], depends_on: List[str] = None) -> Union[Dict[str, Any], str]:
+        """Replace evidence variables (#E1, #E2, etc.) with actual tool_result values.
+        
+        If depends_on is provided, only substitute variables that are in the depends_on list.
+        This ensures that steps only access evidence they explicitly depend on.
+        """
+        if isinstance(tool_input, str):
+            for var in re.findall(r"#E\d+", tool_input):
+                if depends_on is None or var in depends_on:
+                    if var in self.worker_evidences:
+                        tool_input = tool_input.replace(
+                            var, f"[{self.worker_evidences[var]['tool_result']}]"
+                        )
+            return tool_input
+        elif isinstance(tool_input, dict):
+            return {
+                key: self._substitute_evidence_variables(value, depends_on) 
+                for key, value in tool_input.items()
+            }
         return tool_input
 
-    def run(self, plan: Plan) -> Dict[str, Any]:
-        """Execute the plan steps and collect evidence."""
-        for descr, step, tool, task in plan["steps"]:
-            tool_input = task.replace('"', "")
-            tool_input = self._substitute_evidence_variables(tool_input)
-            tool_result = self.execute_tool(tool, tool_input)
+    def run(self, plan) -> Dict[str, Any]:
+        """Execute the plan steps and collect evidence directly from Plan model."""
+        for step in plan.steps:
+            tool_name = step.tool
+            tool_input = step.args.model_dump() if hasattr(step.args, "model_dump") else step.args
+            
+            logging.info(f"STEP ARGS:\n\n{step.args}")
+            logging.info(_LOG_SEPARATOR)
 
-            self.worker_evidences[step] = {
-                "tool": tool,
+            evidence_tag = step.evidence_tag
+
+            tool_input = self._substitute_evidence_variables(tool_input, step.depends_on)
+            
+            logging.info(f"TOOL INPUT AFTER CALL:\n\n{tool_input}")
+            logging.info(_LOG_SEPARATOR)
+
+            tool_result = self.execute_tool(tool_name, tool_input)
+
+            self.worker_evidences[evidence_tag] = {
+                "tool": tool_name,
                 "tool_input": tool_input,
                 "tool_result": tool_result,
             }
@@ -261,13 +282,17 @@ class SolverREWOOSGR(Agent):
         # plan format: {"steps": matches, "plan_string": response}
         # evidence format: {"tool": tool, "tool_input": tool_input,"tool_result": tool_result}
         completed_plan = []
-        for item in plan["steps"]:
-            descr, step, _, _ = item
-            evidence = evidencies[step]["tool_result"]
-            completed_plan.append(f"\t- Plan: '{descr}'\n\t- Evidence: '{evidence}'")
-        completed_plan = "\n".join(completed_plan)
-        solve_prompt = self.prompt.format(plan=completed_plan, task=task)
+        for step in plan.steps:
+            step_descr = step.plan 
+            evidence_tag = step.evidence_tag
+            evidence_result = evidencies.get(evidence_tag, {}).get("tool_result", "No evidence available")
+            completed_plan.append(f"\t- Plan: '{step_descr}'\n\t- Evidence: '{evidence_result}'")
+            
+        completed_plan_str = "\n".join(completed_plan)
+        solve_prompt = self.prompt.format(plan=completed_plan_str, task=task)
+        
         final_answer = self.llm(solve_prompt).strip()
+        
         logging.info(f"SOLVE PROMPT:\n\n{solve_prompt}")
         logging.info(_LOG_SEPARATOR)
         logging.info(f"FINAL ANSWER:\n\n{final_answer}")
