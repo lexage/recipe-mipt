@@ -141,27 +141,6 @@ class PlannerREWOOSGR(Agent):
         self.prompt = PLANNER_PROMPT
         self.maximum_steps = maximum_steps
 
-    def _format_args(self, args) -> str:
-        """Format step arguments as string."""
-        if isinstance(args, dict):
-            args_parts = [f'"{value}"' if isinstance(value, str) else str(value) 
-                         for value in args.values()]
-            return ", ".join(args_parts)
-        return str(args)
-
-    def _convert_to_worker_format(self, parsed_response) -> Dict[str, Any]:
-        """Convert parsed Pydantic response to format expected by WorkerREWOO."""
-        steps_data = []
-        plan_string_parts = []
-        
-        for step in parsed_response.steps:
-            args_str = self._format_args(step.args)
-            step_tuple = (step.plan, step.evidence_tag, step.tool, args_str)
-            steps_data.append(step_tuple)
-            plan_string_parts.append(f"Plan: {step.plan} {step.evidence_tag} = {step.tool}[{args_str}]")
-        
-        return {"steps": steps_data, "plan_string": "\n".join(plan_string_parts)}
-
     def llm(self, prompt: str) -> BaseModel:
         """Call LLM to get a structured response."""
         Plan = _create_plan_model(self.tools)
@@ -173,9 +152,7 @@ class PlannerREWOOSGR(Agent):
             response_format=Plan
         )
 
-        parsed_response = response.choices[0].message.parsed
-
-        return parsed_response
+        return response.choices[0].message.parsed
 
     def run(self, task: Text) -> Dict[str, Any]:
         task_prompt = self.prompt.format(
@@ -184,15 +161,12 @@ class PlannerREWOOSGR(Agent):
             tools_formatted=self.tools_prompt
         )
         parsed_response = self.llm(task_prompt)
-        plan = self._convert_to_worker_format(parsed_response)
         
         logging.info(f"PARSED RESPONSE:\n\n{parsed_response}")
         logging.info(f"PLANNER TASK PROMPT:\n\n{task_prompt}")
         logging.info(_LOG_SEPARATOR)
-        logging.info(f"STEP BY STEP PLAN:\n{plan['plan_string']}")
-        logging.info(_LOG_SEPARATOR)
         
-        return plan
+        return parsed_response
 
 
 class WorkerREWOOSGR(Agent):
@@ -215,35 +189,7 @@ class WorkerREWOOSGR(Agent):
             return list(tool.args.__annotations__.keys())
         return []
 
-    def _parse_tool_arguments(self, arguments: str, tool: BaseTool) -> Dict[str, Any]:
-        """Parse tool arguments string into dictionary format."""
-        args_clean = arguments.strip().strip('"')
-        expected_args = self._get_expected_args(tool)
-        
-        if not args_clean:
-            return {}
-            
-        # Handle key=value format
-        if '=' in args_clean:
-            return {
-                key.strip(): value.strip().strip('"')
-                for pair in args_clean.split(',')
-                if '=' in pair
-                for key, value in [pair.split('=', 1)]
-            }
-        
-        # Handle positional arguments
-        if expected_args:
-            values = [v.strip().strip('"') for v in args_clean.split(',')]
-            return {
-                expected_args[i]: value
-                for i, value in enumerate(values)
-                if i < len(expected_args)
-            }
-        
-        # Default fallback
-        return {'query': args_clean}
-
+    #TODO нужно поменять тип arguments
     def execute_tool(self, tool_name: str, arguments: str) -> str:
         """Execute a tool with given arguments."""
         if tool_name not in self.tools_dict:
@@ -269,7 +215,7 @@ class WorkerREWOOSGR(Agent):
                 )
         return tool_input
 
-    def run(self, plan: Dict[str, Any]) -> Dict[str, Any]:
+    def run(self, plan: Plan) -> Dict[str, Any]:
         """Execute the plan steps and collect evidence."""
         for descr, step, tool, task in plan["steps"]:
             tool_input = task.replace('"', "")
