@@ -2,7 +2,7 @@ from .base_tool import (
     BaseTool
 )
 
-from .db_search import (
+from .db_search_tool import (
     DBSearchTool,
     DBSearchToolArgs
 )

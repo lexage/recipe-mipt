@@ -4,6 +4,7 @@ from pydantic import BaseModel, Field
 from src.tools.base_tool import BaseTool
 from src.agent_constructor.db import IDB
 from src.agent_constructor.context_engine import ContextAssembler
+from src.agent_constructor.context_engine import Retriever
 
 
 class DBSearchToolArgs(BaseModel):
@@ -17,11 +18,13 @@ class DBSearchTool(BaseTool):
         description: str = "A tool for extracting information from a database.",
         db: IDB = None,
         top_k: int = 5,
+        retriever: Retriever = None,
         context_assembler: ContextAssembler = None,
     ):
         super().__init__(name=name, description=description)
         self.db = db
         self.top_k = top_k
+        self.retriever = retriever
         self.context_assembler = context_assembler
         self.args = DBSearchToolArgs
 
@@ -38,8 +41,8 @@ class DBSearchTool(BaseTool):
 
     def __call__(self, query: str) -> str:
         """Извлекает контекст из базы данных"""
-        if self.db and self.context_assembler:
-            retrieved = self.db.query(query, self.top_k)
+        if self.retriever and self.context_assembler:
+            retrieved = self.retriever.retrieve(query, self.top_k)
             retrieved_context = self.context_assembler.assemble(retrieved)
             return f"query: {query}\n\nretrieved context: {retrieved_context}"
-        return "No database or context assembler available."
+        return "No retriever or context assembler available."
