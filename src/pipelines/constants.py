@@ -14,6 +14,8 @@ class PipelinesNames(Enum):
     PANEL = "PANELPipeline"
     MARS = "MARSPipeline"
     MARS_CRITIC_UPD = "MARSPipelineCriticUpd"
+    REWOO_CRITIC_BEFORE_SOLVER = "REWOOPipelineAddCriticBeforeSolver"
+    REWOO_CRITIC_AFTER_SOLVER = "REWOOPipelineAddCriticAfterSolver"
 
 
 class ComponentNames(Enum):

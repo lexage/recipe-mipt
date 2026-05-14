@@ -15,8 +15,7 @@ PLANNER_PROMPT = """For the following task, make plans that can solve the proble
 which external tool together with tool input to retrieve evidence. You can store the evidence into a \
 variable #E that can be called by later tools.
 
-Available tool names only: {tool_names}
-
+TOOLS (Case-Sensitive, Exact Names Only)
 {tools_formatted}
 
 You must respond with a structured JSON format containing a list of steps. Each step should have:
@@ -26,6 +25,10 @@ You must respond with a structured JSON format containing a list of steps. Each 
 - args: object with tool-specific arguments
 - evidence_tag: string like "#E1", "#E2", etc.
 - depends_on: list of evidence tags this step depends on (e.g., ["#E1"] or [])
+
+CONSTRAINTS
+1. Action MUST be one of: {tool_names} or 'finish'.
+   IMPORTANT: Few-shot examples may demonstrate different tools for format/structure reference only. You must strictly call ONLY the available tools listed in {tool_names}.
 
 For example:
 Task: Thomas, Toby, and Rebecca worked a total of 157 hours in one week. Thomas worked x
@@ -298,3 +301,25 @@ class SolverREWOOSGR(Agent):
         logging.info(f"FINAL ANSWER:\n\n{final_answer}")
         logging.info(_LOG_SEPARATOR)
         return final_answer
+    
+    def run_after_critic(self, task, plan, evidencies, critic):
+        # plan format: {"steps": matches, "plan_string": response}
+        # evidence format: {"tool": tool, "tool_input": tool_input,"tool_result": tool_result}
+        completed_plan = []
+        for step in plan.steps:
+            step_descr = step.plan
+            evidence_tag = step.evidence_tag
+            evidence_result = evidencies.get(evidence_tag, {}).get("tool_result", "No evidence available")
+            completed_plan.append(f"\t- Plan: '{step_descr}'\n\t- Evidence: '{evidence_result}'")
+        
+        completed_plan_str = "\n".join(completed_plan) + "\nCritic: " + critic
+        solve_prompt = self.prompt.format(plan=completed_plan_str, task=task)
+        
+        final_answer = self.llm(solve_prompt).strip()
+        
+        logging.info(f"SOLVE PROMPT:\n\n{solve_prompt}")
+        logging.info(_LOG_SEPARATOR)
+        logging.info(f"FINAL ANSWER AFTER CRITIC:\n\n{final_answer}")
+        logging.info(_LOG_SEPARATOR)
+        return final_answer
+    
