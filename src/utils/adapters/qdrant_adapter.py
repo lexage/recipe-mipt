@@ -91,15 +91,18 @@ class QdrantDocsAdapter:
             limit=top_k,
         ).points
 
-        chunks = [
-            Chunk(
-                id=point.payload.get("id"),
-                doc_id=point.payload.get("doc_id"),
-                text=point.payload.get("text"),
-                metadata=point.payload.get("metadata"),
+        chunks = []
+        for point in search_results:
+            metadata = (point.payload.get("metadata") or {}).copy()
+            metadata["score"] = point.score
+            chunks.append(
+                Chunk(
+                    id=point.payload.get("id"),
+                    doc_id=point.payload.get("doc_id"),
+                    text=point.payload.get("text"),
+                    metadata=metadata,
+                )
             )
-            for point in search_results 
-        ]
         
         return chunks
 

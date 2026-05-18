@@ -50,16 +50,15 @@ class DS1000Solver(Agent):
 
 
     def run(self, task: Text, context: Text) -> Text:
+        if context:
+            task_tokens = len(self.tokenizer.encode(task, add_special_tokens=False))
+            budget = self.max_context_lenght - task_tokens
 
-        task_tokens = len(self.tokenizer.encode(task, add_special_tokens=False))
-        budget = self.max_context_lenght - task_tokens
-
-        # Truncate whole chunks rather than cutting mid-text
-        context = self._truncate_context(context, budget)
-        prompt = self._create_prompt(task, context)
-
-
-        prompt = self._create_prompt(task, context)
+            # Truncate whole chunks rather than cutting mid-text
+            context = self._truncate_context(context, budget)
+            prompt = self._create_prompt(task, context)
+        else:
+            prompt = task
 
         match self.api:
             case SOLVER_API.COMPLETIONS.value:
@@ -110,7 +109,7 @@ class DS1000Solver(Agent):
         if context.strip():
             return (
                 f"{context}\n\n"
-                f"# Task\n\n"
+                f"# Task ({DEFAULT_SYSTEM_PROMPT})\n\n"
                 f"{task}"
             )
         return task

@@ -144,3 +144,90 @@ class DocRewriter(Agent):
         )
 
         return response.choices[0].message.content.strip()
+
+
+_API_SELECTOR_SYSTEM_PROMPT = """\
+You are an expert Python developer. Given a programming problem, return a list of \
+Python library APIs (functions, methods, or classes) that are most relevant to solving it.
+
+Allowed libraries (only these seven):
+- pandas
+- numpy
+- matplotlib
+- sklearn
+- scipy
+- torch
+- tensorflow
+
+Rules:
+- Output one API per line in dot-notation, e.g. pandas.DataFrame.groupby
+- Only include APIs from the allowed libraries above that are directly useful for the solution
+- If no APIs from the allowed libraries are needed to solve the problem, output an empty response
+- Do not include explanations, numbering, bullet points, or any other text
+- Prefer specific methods over entire modules\
+"""
+
+_API_SELECTOR_USER_TEMPLATE = """\
+[PROBLEM]:
+{task}
+
+List the relevant APIs (only from pandas, numpy, matplotlib, sklearn, scipy, torch, tensorflow). \
+If none are needed, return nothing:\
+"""
+
+
+class APISelector(Agent):
+    """
+    Given a task description, returns a ranked list of Python API names
+    (in dot-notation) that are most relevant to solving the problem.
+
+    Parameters
+    ----------
+    url : str
+        Base URL of the OpenAI-compatible inference endpoint.
+    model_name : str
+        Model identifier to use for inference.
+    temperature : float
+        Sampling temperature. Low values give stable, focused output.
+    max_tokens : int
+        Hard cap on output length.
+    """
+
+    def __init__(
+        self,
+        url: str,
+        temperature: float = 0.1,
+        max_tokens: int = 256,
+    ):
+        super().__init__("api_selector")
+        self.client = OpenAI(base_url=url, api_key="vllm")
+        self.model_name = self.client.models.list().data[0].id
+        self.temperature = temperature
+        self.max_tokens = max_tokens
+
+    def run(self, task: Text) -> list[Text]:
+        """
+        Parameters
+        ----------
+        task : str
+            Natural-language description of the programming problem.
+
+        Returns
+        -------
+        list[str]
+            API names in dot-notation, e.g. ['pandas.DataFrame.groupby', ...].
+        """
+        user_prompt = _API_SELECTOR_USER_TEMPLATE.format(task=task.strip())
+
+        response = self.client.chat.completions.create(
+            model=self.model_name,
+            messages=[
+                {"role": "system", "content": _API_SELECTOR_SYSTEM_PROMPT},
+                {"role": "user",   "content": user_prompt},
+            ],
+            temperature=self.temperature,
+            max_tokens=self.max_tokens,
+        )
+
+        raw = response.choices[0].message.content.strip()
+        return [line.strip() for line in raw.splitlines() if line.strip()]

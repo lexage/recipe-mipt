@@ -53,6 +53,7 @@ class ComponentNames(Enum):
     RAPTOR_SUMM_AGENT = "src.agents.rag.RaptorSummarizationAgent"
 
     # ===== Agents: Generation =====
+    API_SELECTOR = "src.agents.generation.APISelector"
     QUERY_GENERATOR = "src.agents.generation.QueryGenerator"
 
     # ===== Agents: Reasoning =====
@@ -71,6 +72,7 @@ class ComponentNames(Enum):
     RAPTOR_RETRIEVER = "src.rag.raptor.RaptorRetriever"
     INSTRUCT_RETRIEVER = "src.rag.instructrag.InstructRAGRetriever"
     SIMPLE_RETRIEVER = "src.rag.simple.SimpleRetriever"
+    API_RETRIEVER = "src.rag.api.APIRetriever"
 
     # ===== Filters =====
     EXACT_SUBSTR_FILTER = "src.filtering.exactsubstr.ExactSubstrFiltrator"
