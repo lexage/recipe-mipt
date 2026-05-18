@@ -1,27 +1,34 @@
 import logging
 
-from typing import List
 import pandas as pd
 
 from src.benchmarks import DS1000, DataItemDS1000
-from src.agent_constructor.core import Chunk
-from src.utils.api_parser import parse_api_calls
 from src.agent_constructor.chunkers import RecursiveChunker
 from src.filtering.simple_filters import LengthFilter
-from src.agents.generation.generation_agents import DocRewriter
+from src.agents.generation.generation_agents import APISelector
 
 from src.agents.general.embedding_agents import EmbeddingAgent
 from src.db.docs_db import LocalDB
 from src.context_assemblers.corag_assembler import CoRAGContextAssembler
 from src.agents.general.ds1000_solver import DS1000Solver
+from src.rag.api import APIRetriever
 
 
 logging.getLogger("openai").setLevel(logging.ERROR)
 logging.getLogger("httpx").setLevel(logging.ERROR)
 logging.getLogger("httpcore").setLevel(logging.ERROR)
 
-SAVE_PATH = "results/bench_eval_base/"
-BENCH_PATH = "data/ds1000/ds1000_test.jsonl.gz"
+SAVE_PATH = "results/bench_beter_assembly_chunks_chat_selector_lim6/"
+BENCH_PATH = "data/ds1000/ds1000.jsonl.gz"
+
+MAX_APIS = 8
+API_TOP_K = 4
+MAX_CONTEXT_CHUNKS = 6
+
+IGNORE_LIBS = [
+    #"Matplotlib",
+]
+
 
 def main():
 
@@ -44,7 +51,7 @@ def main():
         collection_name="docs",
     )
 
-    rewriter = DocRewriter(
+    selector = APISelector(
         url="http://localhost:7215/v1"
     )
 
@@ -62,50 +69,44 @@ def main():
 
     db.add_chunks(chunks)
 
+    retriever = APIRetriever(
+        name="api_retriever",
+        data_base=db,
+        api_selector=selector,
+        max_apis=MAX_APIS,
+        api_top_k=API_TOP_K,
+        ignore_libs=IGNORE_LIBS,
+    )
 
     assembler = CoRAGContextAssembler(name="assembler")
 
     agent = DS1000Solver(
         url="http://localhost:7215/v1",
-        api="chat",
+        api="completions",
     )
 
     retrieve_results = []
 
     def run_pipeline(task: DataItemDS1000):
-        api_results = parse_api_calls(task).apis
-
-        chunks : List[Chunk] = []
-
-        for api in api_results:
-            query = api.qualified
-
-            chunks.extend(
-                db.query(
-                    query_text=query,
-                    top_k=1
-                )
-            )
-        
-        for chunk in chunks:
-            chunk.text = rewriter.run(chunk.text)
-
-        context = assembler.assemble(
-            chunks
-        )
+        chunks = retriever.retrieve(task, k=MAX_CONTEXT_CHUNKS)
+        context = assembler.assemble(chunks) if chunks else ""
 
         result = agent.run(
             task=task.prompt,
             context=context,
         )
 
-        for chunk, api in zip(chunks, api_results):
+        for chunk in chunks:
             retrieve_results.append(
                 {
                     "problem_id": task.p_id,
                     "problem_lib": task.metadata.get("library"),
                     "problem": task.prompt,
-                    "api": api.qualified,
+                    "api": (chunk.metadata or {}).get("retrieval_api"),
+                    "chunk_id": chunk.id,
+                    "chunk_doc_name": (chunk.metadata or {}).get("doc_name"),
+                    "chunk_library": (chunk.metadata or {}).get("library"),
+                    "chunk_score": (chunk.metadata or {}).get("score"),
                     "chunk": chunk.text,
                     "result": result,
                 }
@@ -116,7 +117,7 @@ def main():
     bench.eval(
         run_method=run_pipeline,
         save_path=SAVE_PATH,
-        num_workers=4
+        num_workers=1
         )
 
     pd.DataFrame().from_records(retrieve_results).to_excel(f"{SAVE_PATH}/retrieve_results.xlsx")
