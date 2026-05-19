@@ -1,16 +1,13 @@
-from __future__ import annotations
-
 import re
 from dataclasses import replace
-from typing import TYPE_CHECKING, List, Optional
+from typing import List, Optional
 
 from src.agent_constructor.agent import Agent
 from src.agent_constructor.context_engine import Retriever
 from src.agent_constructor.core import Chunk, Text
 from src.agent_constructor.db import IDB
 
-if TYPE_CHECKING:
-    from src.benchmarks import DataItemDS1000
+from src.benchmarks import DataItemDS1000
 
 
 LIBRARY_ROOTS = {
@@ -60,8 +57,8 @@ class APIRetriever(Retriever):
         self.chunks_per_api = chunks_per_api
         self.ignore_libs = set(ignore_libs or [])
 
-    def retrieve(self, task: DataItemDS1000 | Text, k: int = 6) -> List[Chunk]:
-        prompt, metadata = self._extract_prompt_and_metadata(task)
+    def retrieve(self, query: DataItemDS1000 | Text, k: int = 6) -> List[Chunk]:
+        prompt, metadata = self._extract_prompt_and_metadata(query)
 
         if metadata.get("library") in self.ignore_libs:
             return []
