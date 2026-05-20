@@ -55,7 +55,7 @@ def main():
         pipeline = PipelineBuilder().build(pipleline_config)
     
         def run_pipeline(task: DataItemDS1000):
-            return pipeline.run(task.prompt)
+            return pipeline.run(task)
     
         bench.eval(
             run_method=run_pipeline,

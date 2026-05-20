@@ -7,6 +7,7 @@ from src.agent_constructor.generator import Generator
 from src.agent_constructor.pipeline import Pipeline
 from src.agent_constructor.context_engine import ContextAssembler
 from src.agent_constructor.icl import ICLBlock
+from src.benchmarks.ds1000 import DataItemDS1000
 
 class SimplePipeline(Pipeline):
 
@@ -46,7 +47,7 @@ class SimplePipeline(Pipeline):
         self.enhancer = enhancer
         self.top_k = top_k
             
-    def run(self, task: str) -> str:
+    def run(self, task: DataItemDS1000) -> str:
 
         if self.enhancer:
             tasks = self.enhancer.run(task)
@@ -65,6 +66,6 @@ class SimplePipeline(Pipeline):
             context = self.context_assembler.assemble(context)
         
         if context:
-            return self.agent.run(task, context)
+            return self.agent.run(task.prompt, context)
         
-        return self.agent.run(task, "")
+        return self.agent.run(task.prompt, "")
