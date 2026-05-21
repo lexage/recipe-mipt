@@ -7,23 +7,23 @@ from src.agent_constructor.generator import Generator
 from src.agent_constructor.pipeline import Pipeline
 from src.agent_constructor.context_engine import ContextAssembler
 from src.agent_constructor.icl import ICLBlock
+from src.benchmarks.ds1000 import DataItemDS1000
 
 
 class SimplePipeline(Pipeline):
 
-    def __init__(
-        self,
-        data_base: IDB,
-        retriever: Retriever,
-        agent: Agent,
-        chunker: Chunker,
-        filter: Filter = None,
-        icl_block: ICLBlock = None,
-        generator: Generator = None,
-        context_assembler: ContextAssembler = None,
-        enhancer: Agent = None,
-        top_k: int = 1,
-    ):
+    def __init__(self, 
+                 data_base: IDB, 
+                 agent: Agent, 
+                 chunker: Chunker,
+                 retriever: Retriever = None, 
+                 filter: Filter = None,
+                 icl_block: ICLBlock = None,
+                 generator: Generator = None,
+                 context_assembler: ContextAssembler = None,
+                 enhancer: Agent = None,
+                 top_k: int = 1):
+        
 
         super().__init__("simple_pipeline")
 
@@ -54,13 +54,17 @@ class SimplePipeline(Pipeline):
             tasks = [task]
 
         context = []
-        for query in tasks:
-            context.extend(self.retriever.retrieve(query=query, k=self.top_k))
+        if self.retriever:
+            for query in tasks:
+                context.extend(self.retriever.retrieve(query=query, k=self.top_k))
 
         if self.icl_block:
             context = self.icl_block.apply(context)
 
         if self.context_assembler:
             context = self.context_assembler.assemble(context)
-
-        return self.agent.run(task, context)
+        
+        if context:
+            return self.agent.run(task, context)
+        
+        return self.agent.run(task, "")

@@ -12,33 +12,13 @@ class InstructRAGRetriever(Retriever):
             name, 
             data_base: IDB, 
             rationality_agent: Agent,
-            documents_as_chunks: bool = False
             ):
         super().__init__(name)
         self.data_base = data_base
         self.rationality_agent = rationality_agent
-        self.documents_as_chunks = documents_as_chunks
 
     def retrieve(self, query: Text, k: int = 5) -> List[Chunk]:
         chunks = self.data_base.query(query, k)
-
-        if self.documents_as_chunks:
-            
-            doc_ids = list(set([chunk.doc_id for chunk in chunks]))
-
-            documnets: List[Document] = self.data_base.get_documents(
-                ids=doc_ids
-            )
-
-            chunks = [
-                Chunk(
-                    id=doc.id,
-                    doc_id=doc.id,
-                    text=doc.text,
-                    metadata=doc.metadata,
-                )
-                for doc in documnets
-            ]
 
         rationalities = [self.rationality_agent.run(query, chunk.text) for chunk in chunks]
 
