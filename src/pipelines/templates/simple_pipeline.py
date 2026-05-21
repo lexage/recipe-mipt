@@ -9,6 +9,7 @@ from src.agent_constructor.context_engine import ContextAssembler
 from src.agent_constructor.icl import ICLBlock
 from src.benchmarks.ds1000 import DataItemDS1000
 
+
 class SimplePipeline(Pipeline):
 
     def __init__(self, 
@@ -28,17 +29,15 @@ class SimplePipeline(Pipeline):
 
         documents = data_base.get_documents()
         if generator:
-            synth_docs=generator.generate(documents=documents)
+            synth_docs = generator.generate(documents=documents)
             documents.extend(synth_docs)
-            
+
         chunks = []
         [chunks.extend(chunker.chunk(doc)) for doc in documents]
         if filter:
             chunks = filter.apply(chunks)
-            
+
         data_base.add_chunks(chunks)
-
-
 
         self.retriever = retriever
         self.agent = agent
@@ -46,7 +45,7 @@ class SimplePipeline(Pipeline):
         self.icl_block = icl_block
         self.enhancer = enhancer
         self.top_k = top_k
-            
+
     def run(self, task: str) -> str:
 
         if self.enhancer:

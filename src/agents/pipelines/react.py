@@ -1,7 +1,5 @@
 import logging
 import re
-import json
-from pathlib import Path
 from typing import List, Dict, Any, Optional, Tuple
 
 from openai import OpenAI
@@ -23,21 +21,23 @@ REACT_SYSTEM_PROMPT = """You are an autonomous AI agent using the ReAct (Reasoni
         Answer the following questions by reasoning step-by-step. Use the following format:
 
         Thought: <your reasoning about what to do next>
-        Action: <AVAILABLE tool name>[<arguments>] or <Finish>
+        Action: <AVAILABLE tool name> or <Finish>
+        Action Input: <arguments>  # if Action is Finish then write None
         
-        If Action is Finish, then you don't need to write arguments!
+        If Action is Finish, then write in Action Input: None
         
-        You may repeat the Thought/Action cycle multiple times.
         When you have the final answer, use: Action: Finish
         
         ### EXAMPLES
         
         Question: What is 2 + 2 * 3?
         Thought: I need to evaluate this mathematical expression.
-        Action: calculator[2 + 2 * 3]
+        Action: calculator
+        Action Input: 2 + 2 * 3
         Observation: 8
         Thought: The calculation is complete.
         Action: Finish
+        Action Input: None
 
         ### AVAILABLE TOOLS
         {tools_formatted}
@@ -45,8 +45,8 @@ REACT_SYSTEM_PROMPT = """You are an autonomous AI agent using the ReAct (Reasoni
         ### RULES
         1. Always start with "Thought:".
         2. Use only exact tool names from the list above, or "Finish" when done.
-        3. Arguments go inside square brackets immediately after the action name: action_name[arguments].
-        4. When you have the final answer, output: Action: Finish.
+        3. Arguments go on a separate line after Action: Action Input: <arguments>.
+        4. When you have the final answer, output: Action: Finish
         5. One action per response. Stop after outputting Action.
     """
 
@@ -111,29 +111,23 @@ class ReActAgent(Agent):
     def _parse_action_info(self, content: str) -> Tuple[str, Optional[str]]:
         """Parsing the final response."""
 
-        action_prefix = "Action: "
+        action_match = re.search(
+            r"Action:\s*(.*?)(?=\s*Action Input:)", content, re.DOTALL
+        )
 
-        lines = content.strip().split("\n")
-        action_block = None
-        for line in reversed(lines):
-            if line.strip().startswith(action_prefix):
-                action_block = line.strip()
-                break
-
-        if not action_block:
+        if not action_match:
             raise ValueError(f"Could not parse LLM Output: {content}")
 
-        action_str = action_block[len(action_prefix) :]
+        action = action_match.group(1).strip()
 
-        re_matches = re.search(r"^(.*?)(?:\[(.*)\])?$", action_str)
+        action_input = content.split("Action Input:")[1]
 
-        if re_matches is None:
-            raise ValueError(f"Could not parse action directive: {action_str}")
-        action = re_matches.group(1)
+        stop_words = ["Thought:", "Observation:", "Action:"]
+        for word in stop_words:
+            if word in action_input:
+                action_input = action_input.split(word)[0]
 
-        if "Finish" not in action:
-            action_input = re_matches.group(2)
-        else:
+        if "Finish" in action:
             action = "Finish"
             action_input = None
 

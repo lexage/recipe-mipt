@@ -1,0 +1,36 @@
+type: MARS
+components:
+
+  planner:
+    type: MARS_PLANNER
+    params:
+      name: "PlannerMARS"
+      url: "http://localhost:7215/v1"
+      model_name: "Qwen/Qwen1.5-32B-Chat-AWQ"
+      temperature: 0.2
+
+  teacher:
+    type: MARS_TEACHER
+    params:
+      name: "TeacherMARS"
+      url: "http://localhost:7215/v1"
+      model_name: "Qwen/Qwen1.5-32B-Chat-AWQ"
+
+  critic:
+    type: MARS_CRITIC
+    params:
+      name: "CriticMARS"
+      url: "http://localhost:7215/v1"
+      model_name: "Qwen/Qwen1.5-32B-Chat-AWQ"
+      temperature: 0.2
+
+  student:
+    type: MARS_STUDENT
+    params:
+      name: "StudentMARS"
+      url: "http://localhost:7215/v1"
+      model_name: "Qwen/Qwen1.5-32B-Chat-AWQ"
+      temperature: 0.2
+
+
+logs_path: "mars/logs"
