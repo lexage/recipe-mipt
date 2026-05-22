@@ -57,6 +57,7 @@ class ComponentNames(Enum):
     # ===== Agents: RAG =====
     INSTRUCT_RATIONALITY_AGENT = "src.agents.rag.InstructRationalityAgent"
     CORAG_FINAL_SOLVER = "src.agents.rag.CoRAGFinalSolver"
+    API_CORAG_FINAL_SOLVER = "src.agents.rag.APICoRAGFinalSolver"
     RAPTOR_QA_AGENT = "src.agents.rag.RaptorQAAgent"
     RAPTOR_SUMM_AGENT = "src.agents.rag.RaptorSummarizationAgent"
 
@@ -77,6 +78,7 @@ class ComponentNames(Enum):
 
     # ===== Retrievers =====
     CORAG_RETRIEVER = "src.rag.corag.CoRAGRetriever"
+    API_CORAG_RETRIEVER = "src.rag.corag.APICoRAGRetriever"
     RAPTOR_RETRIEVER = "src.rag.raptor.RaptorRetriever"
     INSTRUCT_RETRIEVER = "src.rag.instructrag.InstructRAGRetriever"
     SIMPLE_RETRIEVER = "src.rag.simple.SimpleRetriever"
