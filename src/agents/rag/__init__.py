@@ -3,8 +3,9 @@ from .corag_agents import (
     APICoRAGFinalSolver,
 )
 
-from .instruct_agents import(
-    InstructRationalityAgent
+from .instruct_agents import (
+    InstructRationalityAgent,
+    APIInstructRationalityAgent,
 )
 
 from .raptor_agents import(
@@ -18,4 +19,5 @@ __all__ = [
     "RaptorQAAgent",
     "RaptorSummarizationAgent",
     "InstructRationalityAgent",
+    "APIInstructRationalityAgent",
 ]
