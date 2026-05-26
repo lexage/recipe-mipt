@@ -94,6 +94,9 @@ class LocalDB(IDB):
     def add_chunks(self, chunks: List[Chunk]):
         self.vdb_adapter.add(chunks)
 
+    def close(self) -> None:
+        self.vdb_adapter.close()
+
     def _extract_example_numbers(self, text):
         pattern = r'<example_(\d+)>'
         matches = re.findall(pattern, text)

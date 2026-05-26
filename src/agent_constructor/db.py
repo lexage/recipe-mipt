@@ -28,8 +28,12 @@ class IDB(Block):
     @abstractmethod
     def get_documents(ids: Optional[List[int]]) -> List[Document]:
         raise NotImplementedError
-    
-    
+
+    def close(self) -> None:
+        """Release external resources (DB connections, file locks, etc.)."""
+        pass
+
+
 class InMemoryDB(IDB):
     def __init__(self):
         self._chunks: Dict[str, Chunk] = {}
