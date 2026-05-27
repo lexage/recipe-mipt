@@ -177,3 +177,6 @@ notebooks/
 venv
 venv/
 data/docs_database.db
+
+*db
+gitignore_generation.py
