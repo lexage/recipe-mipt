@@ -39,12 +39,16 @@ class SimplePipeline(Pipeline):
 
         data_base.add_chunks(chunks)
 
+        self.data_base = data_base
         self.retriever = retriever
         self.agent = agent
         self.context_assembler = context_assembler
         self.icl_block = icl_block
         self.enhancer = enhancer
         self.top_k = top_k
+
+    def close(self):
+        self.data_base.close()
 
     def run(self, task: str) -> str:
 

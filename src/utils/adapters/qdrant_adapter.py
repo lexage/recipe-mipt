@@ -65,6 +65,10 @@ class QdrantDocsAdapter:
             )
     
 
+    def close(self):
+        self.client.close()
+
+
     def search(self, query: Text, top_k: int = 1) -> List[Chunk]:
         
         dense_query = self.embedder.run(query)[0]

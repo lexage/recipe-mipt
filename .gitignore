@@ -178,5 +178,5 @@ venv
 venv/
 data/docs_database.db
 
-*db
+*.db
 gitignore_generation.py

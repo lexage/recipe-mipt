@@ -38,20 +38,20 @@ components:
       name: chunker
       max_chunk_size: 1000
   
-filter:
-  type: EDUCATION_VALUE_FILTER
-  params:
-    llm_url: "http://0.0.0.0:7215/v1"
-    llm_model: "Qwen/Qwen2.5-32B-Instruct"
-    embedding_url: "http://0.0.0.0:7216/v1"
-    embedding_model: "Qwen/Qwen3-Embedding-4B"
-    embeddings_path: "data/edu_filter/embeddings.npy"
-    annotations_path: "data/edu_filter/annotations.joblib"
-    models_path: "data/edu_filter/model.joblib"
-    datasets_path: "data/edu_filter/datasets.npz"
-    metadata_path: "data/edu_filter/metadata.json"
-    # опционально: subsample_size, limit_labels, save_metadata, test_size, random_state
-  
+  filter:
+    type: EDUCATION_VALUE_FILTER
+    params:
+      llm_url: "http://0.0.0.0:7215/v1"
+      llm_model: "Qwen/Qwen2.5-32B-Instruct"
+      embedding_url: "http://0.0.0.0:7216/v1"
+      embedding_model: "Qwen/Qwen3-Embedding-4B"
+      embeddings_path: "data/edu_filter/embeddings.npy"
+      annotations_path: "data/edu_filter/annotations.joblib"
+      models_path: "data/edu_filter/model.joblib"
+      datasets_path: "data/edu_filter/datasets.npz"
+      metadata_path: "data/edu_filter/metadata.json"
+      # опционально: subsample_size, limit_labels, save_metadata, test_size, random_state
+
   context_assembler:
     type: CORAG_CONTEXT_ASSEMBLER
     params:

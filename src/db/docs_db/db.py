@@ -44,7 +44,10 @@ class LocalDB(IDB):
         self.return_examples = return_examples
         self.return_full_docs = return_full_docs
         self.merge_examples = merge_examples
-    
+
+    def close(self):
+        self.vdb_adapter.close()
+
     def get_documents(self, ids: List[int] = None) -> List[Document]:
         if not ids:
             documents = self.sqlite_adapter.get_docs()
