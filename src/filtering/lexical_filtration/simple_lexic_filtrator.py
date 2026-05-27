@@ -74,6 +74,8 @@ class SimpleLexicalFiltrator(Filter):
             config (Optional[FilteringConfig]): Объект конфигурации. Если не
                 передан, используется конфигурация по умолчанию.
         """
+        if isinstance(config, dict):
+            config = FilteringConfig(**config)
         self.config = config or self._get_default_config()
 
         # навигационные ключевые слова
