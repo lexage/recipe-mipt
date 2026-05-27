@@ -1,0 +1,87 @@
+type: SIMPLE
+
+params:
+  top_k: 5
+
+components:
+  
+  embedder:
+    type: EMBEDDING_AGENT
+    params:
+      name: embedder
+      url: "http://0.0.0.0:7216/v1"
+      model_name: "Qwen/Qwen3-Embedding-4B"
+  
+  data_base:
+    type: LOCAL_DB
+    params:
+      path_to_db: "data/docs_database_examples_apis.db"
+      path_to_vector_db: "data/docs_vdb_rc_1000_meta_ml20"
+      collection_name: "docs"
+      
+      return_examples: True
+      return_full_docs: False
+      merge_examples: False
+
+      hnsw_space: "cosine"
+      hnsw_m: 16
+      hnsw_construction_ef: 400
+      hnsw_search_ef: 200
+      batch_size: 16
+      
+      search_filter:
+        source: "documents"
+  
+  chunker:
+    type: RECURSIVE_CHUNKER
+    params:
+      name: chunker
+      max_chunk_size: 1000
+  
+filter:
+  type: EDUCATION_VALUE_FILTER
+  params:
+    llm_url: "http://0.0.0.0:7215/v1"
+    llm_model: "Qwen/Qwen2.5-32B-Instruct"
+    embedding_url: "http://0.0.0.0:7216/v1"
+    embedding_model: "Qwen/Qwen3-Embedding-4B"
+    embeddings_path: "data/edu_filter/embeddings.npy"
+    annotations_path: "data/edu_filter/annotations.joblib"
+    models_path: "data/edu_filter/model.joblib"
+    datasets_path: "data/edu_filter/datasets.npz"
+    metadata_path: "data/edu_filter/metadata.json"
+    # опционально: subsample_size, limit_labels, save_metadata, test_size, random_state
+  
+  context_assembler:
+    type: CORAG_CONTEXT_ASSEMBLER
+    params:
+      name: simple_assembler
+  
+  retriever:
+    type: SIMPLE_RETRIEVER
+    params:
+      name: simple_retriever
+  
+  enchancer:
+    type: QUERY_GENERATOR
+    params:
+      name: query_gen
+      url: "http://0.0.0.0:7215/v1"
+      model_name: "Qwen/Qwen2.5-32B-Instruct"
+      options: 1
+  
+  agent:
+    type: DS1000_SOLVER_AGENT
+    params:
+      name: ds1000_solver
+
+      url: "http://0.0.0.0:7215/v1"
+      model_name: "Qwen/Qwen2.5-32B-Instruct"
+      
+      api: chat
+      context_after_task: False
+      
+      temperature: 0.2
+      top_p: 0.95
+      max_tokens: 1024
+      stop_tokens: ["</code>", "# SOLUTION END"]

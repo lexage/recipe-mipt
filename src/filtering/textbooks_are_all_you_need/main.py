@@ -33,17 +33,19 @@ class EducationValueClassifierFilter(Filter):
 
     def __init__(
         self,
+        # ── всё ниже теперь обязательное, дефолтов нет ──
+        llm_url: str,
+        llm_model: str,
+        embedding_url: str,
+        embedding_model: str,
+        embeddings_path: str,
+        annotations_path: str,
+        models_path: str,
+        datasets_path: str,
+        metadata_path: str,
+        # ── гиперпараметры алгоритма, дефолты сохранены ──
         subsample_size: int = 1000,
-        llm_url: str = "http://shtraukh_vllm:8000/v1",
-        llm_model: str = "unsloth/gemma-3-12b-it",
-        embedding_url: str = "http://shtraukh_vllm:8001/v1",
-        embedding_model: str = "Qwen/Qwen3-Embedding-0.6B",
-        embeddings_path: str = "data/embeddings.npy",
-        annotations_path: str = "data/annotations.joblib",
         limit_labels: int = 20,
-        models_path: str = "data/models",
-        datasets_path: str = "data/datasets.npz",
-        metadata_path: str = "data/metadata.json",
         save_metadata: bool = False,
         test_size: float = 0.2,
         random_state: int = 42,
