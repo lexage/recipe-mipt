@@ -15,8 +15,6 @@ are identical to `SimplePipeline`.  Self-instrumentation: stores
 to read into runtime_stats.json.
 """
 
-from __future__ import annotations
-
 import time
 from typing import Optional
 

@@ -13,8 +13,6 @@ The filter is corpus-level, has no query awareness, no learned parameters,
 and does not call any external service. Cheap.
 """
 
-from __future__ import annotations
-
 import ast
 import logging
 import re

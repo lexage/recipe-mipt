@@ -15,8 +15,6 @@ once during pipeline build.  Uses the project's embedder via dependency
 injection (the registry recognises type `Agent` as an injectable Block).
 """
 
-from __future__ import annotations
-
 import logging
 from typing import List
 

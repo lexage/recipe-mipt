@@ -19,8 +19,6 @@ Uses an OpenAI-compatible /v1/completions endpoint with
 the input prompt itself — no generation.
 """
 
-from __future__ import annotations
-
 import logging
 import math
 from concurrent.futures import ThreadPoolExecutor, as_completed

@@ -14,8 +14,6 @@ Drops the entire chunk rather than editing it.  Safer than
 SimpleLexicalFiltrator's in-place mutation.
 """
 
-from __future__ import annotations
-
 import logging
 import re
 import string

@@ -14,8 +14,6 @@ chunks) because we never mutate a survivor's text — we just drop full
 duplicates before they ever reach the chunker.
 """
 
-from __future__ import annotations
-
 import hashlib
 import logging
 import re
