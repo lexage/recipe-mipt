@@ -6,6 +6,7 @@ PIPELINES_IMPORT_PATH = "src.pipelines.templates"
 
 class PipelinesNames(Enum):
     SIMPLE = "SimplePipeline"
+    SIMPLE_WITH_DOC_FILTER = "SimplePipelineWithDocFilter"
     REWOO = "REWOOPipeline"
     MAPS = "MAPSPipeline"
     REACT = "REACTPipeline"
@@ -87,6 +88,13 @@ class ComponentNames(Enum):
     SIMPLE_LEXICAL_FILTER = "src.filtering.lexical_filtration.SimpleLexicalFiltrator"
     LENGTH_FILTER = "src.filtering.simple_filters.LengthFilter"
     EDUCATION_VALUE_FILTER = "src.filtering.textbooks_are_all_you_need.EducationValueClassifierFilter"
+    CODE_DENSITY_FILTER = "src.filtering.code_density.CodeDensityFilter"
+    SEMANTIC_DEDUP_FILTER = "src.filtering.semantic_dedup.SemanticDedupFilter"
+    AGGRESSIVE_PATTERN_FILTER = "src.filtering.aggressive_pattern.AggressivePatternFilter"
+    PERPLEXITY_FILTER = "src.filtering.perplexity.PerplexityFilter"
+
+    # ===== Document Filters (pre-chunking; only used by SIMPLE_WITH_DOC_FILTER) =====
+    DOC_DEDUP_FILTER = "src.filtering.doc_dedup.DocumentDedupFilter"
 
     # ===== Chunkers =====
     DUMMY_CHUNKER = "src.agent_constructor.chunkers.DummyChunker"

@@ -1,3 +1,5 @@
+import time
+
 from src.agent_constructor.context_engine import Retriever
 from src.agent_constructor.db import IDB
 from src.agent_constructor.chunkers import Chunker
@@ -12,18 +14,18 @@ from src.benchmarks.ds1000 import DataItemDS1000
 
 class SimplePipeline(Pipeline):
 
-    def __init__(self, 
-                 data_base: IDB, 
-                 agent: Agent, 
+    def __init__(self,
+                 data_base: IDB,
+                 agent: Agent,
                  chunker: Chunker,
-                 retriever: Retriever = None, 
+                 retriever: Retriever = None,
                  filter: Filter = None,
                  icl_block: ICLBlock = None,
                  generator: Generator = None,
                  context_assembler: ContextAssembler = None,
                  enhancer: Agent = None,
                  top_k: int = 1):
-        
+
 
         super().__init__("simple_pipeline")
 
@@ -34,8 +36,15 @@ class SimplePipeline(Pipeline):
 
         chunks = []
         [chunks.extend(chunker.chunk(doc)) for doc in documents]
+
+        # Time the filter step separately — exposed via self._filter_apply_time
+        # for the runner to record in runtime_stats.json.
+        filter_time = 0.0
         if filter:
+            t0 = time.time()
             chunks = filter.apply(chunks)
+            filter_time = time.time() - t0
+        self._filter_apply_time = filter_time
 
         data_base.add_chunks(chunks)
 
