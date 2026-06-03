@@ -17,6 +17,7 @@ import ast
 import logging
 import re
 import textwrap
+import warnings
 from typing import List, Tuple
 
 from tqdm import tqdm
@@ -153,7 +154,11 @@ class CodeDensityFilter(Filter):
             if not candidate:
                 continue
             try:
-                ast.parse(candidate)
+                # Suppress SyntaxWarning that 3.12+ emits for things like
+                # "Python 2.x" or stray decimals in prose-y chunks.
+                with warnings.catch_warnings():
+                    warnings.simplefilter("ignore", SyntaxWarning)
+                    ast.parse(candidate)
                 return True
             except (SyntaxError, ValueError):
                 continue
