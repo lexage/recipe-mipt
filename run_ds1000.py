@@ -11,6 +11,11 @@ from src.benchmarks import DS1000, DataItemDS1000
 from src.pipelines.pipeline_builder import PipelineBuilder
 from src.pipelines.configs import ConfigLoader
 from src.utils.loggers import create_logging
+from src.utils.token_tracker import (
+    TokenTracker,
+    install_patch as install_token_patch,
+    set_active as set_active_tracker,
+)
 
 
 logging.getLogger("openai").setLevel(logging.ERROR)
@@ -131,6 +136,9 @@ def main():
             "Install with: python -m pip install psutil"
         )
 
+    # Install token-tracking monkey-patch once.
+    install_token_patch()
+
     for idx, config_path in enumerate(config_files):
 
         print(f"- processing file {idx+1}/{len(config_files)}")
@@ -152,10 +160,13 @@ def main():
         rss = RSSSampler(interval=0.5)
         rss.start()
 
-        # ---------- build pipeline (includes filter.apply) ----------
+        # ---------- build pipeline (filter.apply runs here) ----------
+        init_tracker = TokenTracker()
+        set_active_tracker(init_tracker)
         init_start = time.time()
         pipeline = PipelineBuilder().build(pipeline_config)
         init_time_s = time.time() - init_start
+        set_active_tracker(None)
 
         filter_apply_time_s = getattr(pipeline, "_filter_apply_time", None)
         document_filter_apply_time_s = getattr(
@@ -170,6 +181,8 @@ def main():
 
         def run_pipeline(task: DataItemDS1000):
             task_start = time.time()
+            # Re-arm the active tracker for this worker thread (thread-local).
+            set_active_tracker(eval_tracker)
             result = pipeline.run(task.prompt)
             task_time = time.time() - task_start
             logging.info(
@@ -177,6 +190,8 @@ def main():
             )
             return result
 
+        eval_tracker = TokenTracker()
+        set_active_tracker(eval_tracker)
         eval_start = time.time()
         try:
             bench.eval(
@@ -186,6 +201,7 @@ def main():
             )
         finally:
             pipeline.close()
+            set_active_tracker(None)
         total_time_s = time.time() - eval_start
 
         peak_rss_mb = rss.stop()
@@ -208,6 +224,21 @@ def main():
             "mean_task_time_s": round(total_time_s / n_tasks, 4),
             "peak_rss_mb": peak_rss_mb,
             "config_time_s": round(config_time, 2),
+
+            # Tokens during bench.eval (1000 tasks).
+            "eval_input_tokens":       eval_tracker.input_tokens,
+            "eval_output_tokens":      eval_tracker.output_tokens,
+            "eval_total_tokens":       eval_tracker.total_tokens,
+            "eval_mean_input_tokens":  round(eval_tracker.input_tokens  / n_tasks, 2),
+            "eval_mean_output_tokens": round(eval_tracker.output_tokens / n_tasks, 2),
+            "eval_mean_total_tokens":  round(eval_tracker.total_tokens  / n_tasks, 2),
+            "eval_llm_calls":          eval_tracker.n_calls,
+
+            # Tokens during pipeline build / filter.apply (one-time cost).
+            "init_input_tokens":       init_tracker.input_tokens,
+            "init_output_tokens":      init_tracker.output_tokens,
+            "init_total_tokens":       init_tracker.total_tokens,
+            "init_llm_calls":          init_tracker.n_calls,
         }
         experiment_dir = _find_new_subdir(save_dir, before_subdirs)
         _write_runtime_stats(experiment_dir, stats)

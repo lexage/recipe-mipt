@@ -92,9 +92,14 @@ class ComponentNames(Enum):
     SEMANTIC_DEDUP_FILTER = "src.filtering.semantic_dedup.SemanticDedupFilter"
     AGGRESSIVE_PATTERN_FILTER = "src.filtering.aggressive_pattern.AggressivePatternFilter"
     PERPLEXITY_FILTER = "src.filtering.perplexity.PerplexityFilter"
+    AST_COMPLEXITY_FILTER = "src.filtering.ast_complexity.ASTComplexityFilter"
+    TFIDF_FILTER = "src.filtering.tfidf.TfIdfInformativenessFilter"
 
     # ===== Document Filters (pre-chunking; only used by SIMPLE_WITH_DOC_FILTER) =====
     DOC_DEDUP_FILTER = "src.filtering.doc_dedup.DocumentDedupFilter"
+    DOC_CODE_DENSITY_FILTER = "src.filtering.doc_code_density.DocumentCodeDensityFilter"
+    DOC_SEMANTIC_DEDUP_FILTER = "src.filtering.doc_semantic_dedup.DocumentSemanticDedupFilter"
+    DOC_PERPLEXITY_FILTER = "src.filtering.doc_perplexity.DocumentPerplexityFilter"
 
     # ===== Chunkers =====
     DUMMY_CHUNKER = "src.agent_constructor.chunkers.DummyChunker"
