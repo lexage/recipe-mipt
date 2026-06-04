@@ -95,6 +95,13 @@ class ComponentNames(Enum):
     AST_COMPLEXITY_FILTER = "src.filtering.ast_complexity.ASTComplexityFilter"
     TFIDF_FILTER = "src.filtering.tfidf.TfIdfInformativenessFilter"
 
+    # ===== Filters: experiment 3 — our new universal/code filters =====
+    RANK_FUSION_FILTER = "src.filtering.rank_fusion.RankFusionFilter"
+    COMPRESSION_FILTER = "src.filtering.compression.CompressionDensityFilter"
+    COHERENCE_FILTER = "src.filtering.coherence.CoherenceFilter"
+    BOILERPLATE_FILTER = "src.filtering.boilerplate.BoilerplateFilter"
+    API_DOC_FILTER = "src.filtering.api_doc_density.ApiDocDensityFilter"
+
     # ===== Document Filters (pre-chunking; only used by SIMPLE_WITH_DOC_FILTER) =====
     DOC_DEDUP_FILTER = "src.filtering.doc_dedup.DocumentDedupFilter"
     DOC_CODE_DENSITY_FILTER = "src.filtering.doc_code_density.DocumentCodeDensityFilter"
