@@ -1,8 +1,9 @@
 type: SIMPLE
 
-# === ЭКСПЕРИМЕНТ 4: метрика R (recovery) на API-пайплайне ===
-# Конфиг: api_doc_dirty_apis
-# БД: data/docs_database_examples_apis_dirty.db
+# === ЭКСПЕРИМЕНТ 4: метрика R на 3 уровнях загрязнения (25/50/75% мусора) ===
+# Конфиг: simple_example_length_d50
+# length на ~50% мусора (line-ratio 1.0, char-frac 0.1, swap-frac 0.1)
+# БД: data/docs_database_examples_apis_dirty_d50.db
 
 params:
   top_k: 6
@@ -19,8 +20,8 @@ components:
   data_base:
     type: LOCAL_DB
     params:
-      path_to_db: "data/docs_database_examples_apis_dirty.db"
-      path_to_vector_db: "data/vdb_exp4/api_doc_dirty_apis"     # УНИКАЛЬНО на конфиг — свежий индекс
+      path_to_db: "data/docs_database_examples_apis_dirty_d50.db"
+      path_to_vector_db: "data/vdb_exp4/simple_example_length_d50"     # УНИКАЛЬНО на конфиг — свежий индекс
       collection_name: "docs"
       return_full_docs: False
       return_examples: False
@@ -34,18 +35,10 @@ components:
 
   # ---- ФИЛЬТР (наша зона, до эмбеддера) ----
   filter:
-    type: API_DOC_FILTER
+    type: LENGTH_FILTER
     params:
       name: filter
-      require_signature: true
-
-  # ---- ГЕНЕРАЦИЯ (закреплена, пока ОТКЛЮЧЕНА) ----
-  # generator:
-  #   type: CODE_EVAL_GENERATOR
-  #   params:
-  #     url: "http://0.0.0.0:7215/v1"
-  #     model_name: "Qwen/Qwen2.5-32B-Instruct"
-  #     prob: 0.05
+      min_len: 20
 
   context_assembler:
     type: CORAG_CONTEXT_ASSEMBLER

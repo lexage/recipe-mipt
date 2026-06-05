@@ -186,10 +186,23 @@ gitignore_generation.py
 build_filter_summary_xlsx.py
 experiment_data.py
 EXPERIMENT_PLAN.md
+methodology_dirtying.md
 
 # локальные генераторы и анализ — делают файлы локально, серверу не нужны
 make_exp3_configs.py
+make_exp4_configs.py
+make_exp5_configs.py
 make_dirty_configs.py
 compute_R.py
 evaluate_noise_removal.py
 analyze_significance.py
+
+# векторные индексы (строятся на сервере при прогоне) — не пушим
+data/vdb_*/
+data/vdb_*
+
+# прочие локальные доки/обзор
+REPO_OVERVIEW.md
+
+# пушим намеренно (на сервере нужны): test_self_clean.py, compute_R_levels.py,
+# make_noised_db.py, run_ds1000.py, test_configs_experimental_4/, src/

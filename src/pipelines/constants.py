@@ -102,6 +102,9 @@ class ComponentNames(Enum):
     BOILERPLATE_FILTER = "src.filtering.boilerplate.BoilerplateFilter"
     API_DOC_FILTER = "src.filtering.api_doc_density.ApiDocDensityFilter"
 
+    # ===== Filters: experiment 4 — "document is its own reference" cleaners =====
+    SELF_CLEAN_FILTER = "src.filtering.self_clean.SelfConsistencyCleaner"
+
     # ===== Document Filters (pre-chunking; only used by SIMPLE_WITH_DOC_FILTER) =====
     DOC_DEDUP_FILTER = "src.filtering.doc_dedup.DocumentDedupFilter"
     DOC_CODE_DENSITY_FILTER = "src.filtering.doc_code_density.DocumentCodeDensityFilter"

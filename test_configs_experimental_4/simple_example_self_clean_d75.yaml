@@ -1,8 +1,9 @@
 type: SIMPLE
 
-# === ЭКСПЕРИМЕНТ 4: метрика R (recovery) на API-пайплайне ===
-# Конфиг: coherence_dirty_apis
-# БД: data/docs_database_examples_apis_dirty.db
+# === ЭКСПЕРИМЕНТ 4: метрика R на 3 уровнях загрязнения (25/50/75% мусора) ===
+# Конфиг: simple_example_self_clean_d75
+# self_clean на ~75% мусора (line-ratio 3.0, char-frac 0.2, swap-frac 0.2)
+# БД: data/docs_database_examples_apis_dirty_d75.db
 
 params:
   top_k: 6
@@ -19,8 +20,8 @@ components:
   data_base:
     type: LOCAL_DB
     params:
-      path_to_db: "data/docs_database_examples_apis_dirty.db"
-      path_to_vector_db: "data/vdb_exp4/coherence_dirty_apis"     # УНИКАЛЬНО на конфиг — свежий индекс
+      path_to_db: "data/docs_database_examples_apis_dirty_d75.db"
+      path_to_vector_db: "data/vdb_exp4/simple_example_self_clean_d75"     # УНИКАЛЬНО на конфиг — свежий индекс
       collection_name: "docs"
       return_full_docs: False
       return_examples: False
@@ -34,18 +35,15 @@ components:
 
   # ---- ФИЛЬТР (наша зона, до эмбеддера) ----
   filter:
-    type: COHERENCE_FILTER
+    type: SELF_CLEAN_FILTER
     params:
       name: filter
-      min_coherence: 0.5
-
-  # ---- ГЕНЕРАЦИЯ (закреплена, пока ОТКЛЮЧЕНА) ----
-  # generator:
-  #   type: CODE_EVAL_GENERATOR
-  #   params:
-  #     url: "http://0.0.0.0:7215/v1"
-  #     model_name: "Qwen/Qwen2.5-32B-Instruct"
-  #     prob: 0.05
+      min_line_chars: 12
+      garbled_alpha_ratio: 0.6
+      garbled_max_run: 3
+      knn: 4
+      sep_z: 2.0
+      min_doc_lines: 5
 
   context_assembler:
     type: CORAG_CONTEXT_ASSEMBLER
