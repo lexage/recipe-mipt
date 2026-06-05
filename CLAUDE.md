@@ -48,9 +48,11 @@ do it; hand it to Konstantin.)
    по теме»). Трогаем только неповторяющиеся/иноязычные слова → доменные термины целы.
    Ручки если L3 вредит: `clean_words`, `char_z`, `semantic_word_check`.
 
-**Загрязнение** (`make_noised_db.py`) — грязь ВНУТРИ доков, под все 3 уровня:
-`--line-ratio` (целые мусорные строки, L2), `--char-frac` (порча слов символами/буквами, L1),
-`--swap-frac` (подмена слов на случайные/иноязычные, L3). Чистый корпус не трогается.
+**Загрязнение** (`make_noised_db.py`) — грязь ВНУТРИ доков, под все 3 уровня. Одна ручка
+`--noise` = ОБЩАЯ доля мусорных слов в датасете (0.25/0.5/0.75); три вида грязи (целые
+строки → L2, порча слов символами/буквами → L1, подмена слов на случайные/иноязычные → L3)
+в **фиксированной пропорции** (`--p-line/--p-char/--p-swap`, по умолчанию 1:1:1, одинаковой
+на всех уровнях). Чистый корпус не трогается.
 
 **Метрика = R (recovery)** по 3 уровням шума: `R = (фильтр_грязный − pure_грязный) /
 (pure_чистый − pure_грязный)`. Скрипт **`compute_R_levels.py`**. Эксперимент —
@@ -64,9 +66,9 @@ do it; hand it to Konstantin.)
 
 **Команды (сервер):**
 ```bash
-python make_noised_db.py --in data/docs_database_examples_apis.db --out data/docs_database_examples_apis_dirty_d25.db --dirty-frac 1.0 --line-ratio 0.333 --char-frac 0.05 --swap-frac 0.05 --seed 7
-python make_noised_db.py --in data/docs_database_examples_apis.db --out data/docs_database_examples_apis_dirty_d50.db --dirty-frac 1.0 --line-ratio 1.0   --char-frac 0.1  --swap-frac 0.1  --seed 7
-python make_noised_db.py --in data/docs_database_examples_apis.db --out data/docs_database_examples_apis_dirty_d75.db --dirty-frac 1.0 --line-ratio 3.0   --char-frac 0.2  --swap-frac 0.2  --seed 7
+python make_noised_db.py --in data/docs_database_examples_apis.db --out data/docs_database_examples_apis_dirty_d25.db --dirty-frac 1.0 --noise 0.25 --seed 7
+python make_noised_db.py --in data/docs_database_examples_apis.db --out data/docs_database_examples_apis_dirty_d50.db --dirty-frac 1.0 --noise 0.5 --seed 7
+python make_noised_db.py --in data/docs_database_examples_apis.db --out data/docs_database_examples_apis_dirty_d75.db --dirty-frac 1.0 --noise 0.75 --seed 7
 rm -rf data/vdb_exp4
 python run_ds1000.py -c test_configs_experimental_4
 python compute_R_levels.py

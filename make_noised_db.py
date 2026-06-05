@@ -1,34 +1,31 @@
 """Make a SEPARATE dirtied copy of a corpus DB — dirt is mixed INSIDE real docs.
 
-For metric R (recovery). We do NOT add separate junk documents (the retriever
-would just ignore them). Instead we keep every real document but inject dirt at
-THREE granularities, so each cleaning level has something to act on:
+For metric R (recovery). We keep every real document but inject dirt at THREE
+granularities, so each cleaning level has something to act on:
 
-  * LEVEL 3 (whole lines):   junk LINES interleaved between good lines
-        (boilerplate, garbled, filler, off-topic, wrong-code).
-  * LEVEL 1 (symbols/letters in a word):  inside good lines, some words get
-        random JUNK SYMBOLS and/or random LETTERS inserted into them
-        (e.g. "array" -> "ar#r@ay" or "arxray").
-  * LEVEL 2 (whole words):   inside good lines, some words are REPLACED by a
-        random token — random ascii gibberish or a real word in a random
-        language (Cyrillic / CJK / Arabic / Latin-other).
+  * whole junk LINES interleaved between good lines        -> cleaner level 2
+  * symbols/letters inserted INTO words ("ar#r@ay")        -> cleaner level 1
+  * words REPLACED by random / foreign-language tokens     -> cleaner level 3
 
-After chunking each chunk therefore holds good content AND dirt together at all
-three levels. A line-dropping filter can only fight level 3; a real cleaner has
-to repair words (1), drop alien words (2) and drop alien lines (3).
+ONE knob controls how dirty: `--noise` = the TOTAL share of dirt in the result,
+measured in WORDS (tokens). The split BETWEEN the three dirt types is FIXED by
+proportions (`--p-line --p-char --p-swap`, default 1:1:1) and stays the same at
+every noise level — only the total grows. So `--noise 0.25/0.5/0.75` gives ~25 /
+50 / 75 % dirty words with identical internal proportions.
 
-The clean DB is never touched; the dirt lives in its own file (reproducible).
+Math (words): with good-word count G, total proportion p_line+p_char+p_swap=1
+and target fraction f, the final word count is N = G/(1 - p_line*f), and we make
+  char  = p_char*f*N words corrupted,
+  swap  = p_swap*f*N words replaced,
+  junk  = p_line*f*N words added as whole junk lines,
+so dirty/N = f exactly (junk rounds to whole lines, hence ±a little).
 
-RUN ON THE SERVER (by Konstantin), e.g. the 50%-ish level:
+The clean DB is never touched; the dirty lives in its own file (reproducible).
+
+RUN ON THE SERVER (by Konstantin), e.g. the 50% level:
   python make_noised_db.py --in  data/docs_database_examples_apis.db \
                            --out data/docs_database_examples_apis_dirty_d50.db \
-                           --dirty-frac 1.0 --line-ratio 1.0 \
-                           --char-frac 0.10 --swap-frac 0.10 --seed 7
-
-  --line-ratio : junk LINES per good line (level 3); 1.0 ~ half the lines junk.
-  --char-frac  : probability a word gets symbol/letter corruption (level 1).
-  --swap-frac  : probability a word is replaced by a random/foreign word (lvl 2).
-  --dirty-frac : fraction of documents to dirty (1.0 = all).
+                           --dirty-frac 1.0 --noise 0.5 --seed 7
 """
 
 import argparse
@@ -51,19 +48,18 @@ _FILLER = [
     "this section describes the thing that describes this section.",
     "note: see the note above for the note below about this note.",
 ]
-# Real words in several scripts/languages for level-2 word swaps.
 _FOREIGN = [
-    "привет", "значение", "массив", "число", "функция",      # Russian
-    "das", "haus", "wert", "zahl", "wissen",                  # German
-    "bonjour", "valeur", "fromage", "nombre",                 # French
-    "你好", "世界", "数值", "函数",                              # Chinese
-    "مرحبا", "قيمة", "رقم",                                    # Arabic
-    "こんにちは", "値", "関数",                                  # Japanese
-    "gato", "casa", "valor", "número",                        # Spanish
+    "привет", "значение", "массив", "число", "функция",
+    "das", "haus", "wert", "zahl", "wissen",
+    "bonjour", "valeur", "fromage", "nombre",
+    "你好", "世界", "数值", "函数",
+    "مرحبا", "قيمة", "رقم",
+    "こんにちは", "値", "関数",
+    "gato", "casa", "valor", "número",
 ]
 _JUNK_SYM = "!@#$%^&*~`"
 _CODEISH = re.compile(r"[=(){}\[\]]|def |class |import |return ")
-_WORD = re.compile(r"[A-Za-z]{3,}")
+_WORDISH = re.compile(r"[A-Za-z]{3,}")
 
 
 def garbled_line(rng, n=60):
@@ -72,7 +68,7 @@ def garbled_line(rng, n=60):
 
 
 def dirt_line(rng, prose_pool, code_pool):
-    """A whole junk LINE (level 3)."""
+    """A whole junk LINE (cleaner level 2)."""
     t = rng.choice(["boiler", "garbled", "filler", "offtopic", "wrongcode"])
     if t == "boiler":
         return rng.choice(_BOILER)
@@ -82,7 +78,7 @@ def dirt_line(rng, prose_pool, code_pool):
         return rng.choice(_FILLER)
     if t == "offtopic":
         return rng.choice(prose_pool) if prose_pool else rng.choice(_FILLER)
-    return rng.choice(code_pool) if code_pool else garbled_line(rng)  # wrongcode
+    return rng.choice(code_pool) if code_pool else garbled_line(rng)
 
 
 def corrupt_word(word, rng, n=None):
@@ -92,48 +88,59 @@ def corrupt_word(word, rng, n=None):
     for _ in range(n):
         pos = rng.randint(0, len(chars))
         if rng.random() < 0.5:
-            chars.insert(pos, rng.choice(_JUNK_SYM))          # symbol noise
+            chars.insert(pos, rng.choice(_JUNK_SYM))
         else:
-            chars.insert(pos, rng.choice(string.ascii_lowercase))  # letter noise
+            chars.insert(pos, rng.choice(string.ascii_lowercase))
     return "".join(chars)
 
 
 def swap_word(rng):
-    """A replacement token: random ascii gibberish or a foreign-language word."""
+    """A replacement token: random ascii gibberish or a foreign-language word (level 3)."""
     if rng.random() < 0.5:
         return rng.choice(_FOREIGN)
     return "".join(rng.choice(string.ascii_lowercase) for _ in range(rng.randint(4, 9)))
 
 
-def corrupt_line(line, rng, char_frac, swap_frac):
-    """Per-word corruption of a good line (levels 1 & 2)."""
-    if char_frac <= 0 and swap_frac <= 0:
-        return line
-
-    def repl(m):
-        w = m.group(0)
-        r = rng.random()
-        if r < swap_frac:
-            return swap_word(rng)                 # level 2: alien word
-        if r < swap_frac + char_frac:
-            return corrupt_word(w, rng)           # level 1: junk in word
-        return w
-
-    return _WORD.sub(repl, line)
-
-
-def inject_dirt(content, line_ratio, char_frac, swap_frac, rng, prose_pool, code_pool):
-    good = [ln for ln in (content or "").split("\n") if ln.strip()]
-    if not good:
+def inject_dirt(content, f, p_line, p_char, p_swap, rng, prose_pool, code_pool):
+    good_lines = [ln for ln in (content or "").split("\n") if ln.strip()]
+    if not good_lines:
         return content
-    out = []
-    acc = 0.0
-    for gl in good:
-        out.append(corrupt_line(gl, rng, char_frac, swap_frac))   # levels 1 & 2
-        acc += line_ratio                                          # level 3
-        while acc >= 1.0:
-            out.append(dirt_line(rng, prose_pool, code_pool))
-            acc -= 1.0
+
+    line_tokens = [ln.split() for ln in good_lines]
+    G = sum(len(toks) for toks in line_tokens)
+    if G == 0:
+        return content
+
+    denom = 1.0 - p_line * f
+    N = G / denom if denom > 0 else float(G)
+    n_char = round(p_char * f * N)
+    n_swap = round(p_swap * f * N)
+    j_target = round(p_line * f * N)          # junk words to add
+
+    # eligible word tokens (have a 3+ letter run) for char/swap
+    eligible = [
+        (li, ti)
+        for li, toks in enumerate(line_tokens)
+        for ti, t in enumerate(toks)
+        if _WORDISH.search(t)
+    ]
+    rng.shuffle(eligible)
+    n_char = min(n_char, len(eligible))
+    n_swap = min(n_swap, len(eligible) - n_char)
+
+    for li, ti in eligible[:n_char]:                       # level 1: corrupt
+        line_tokens[li][ti] = corrupt_word(line_tokens[li][ti], rng)
+    for li, ti in eligible[n_char:n_char + n_swap]:        # level 3: swap
+        line_tokens[li][ti] = swap_word(rng)
+
+    out = [" ".join(toks) for toks in line_tokens]
+
+    junk_words = 0                                          # level 2: junk lines
+    while junk_words < j_target:
+        jl = dirt_line(rng, prose_pool, code_pool)
+        out.insert(rng.randint(0, len(out)), jl)
+        junk_words += len(jl.split())
+
     return "\n".join(out)
 
 
@@ -143,27 +150,30 @@ def main():
     ap.add_argument("--out", dest="out", required=True)
     ap.add_argument("--dirty-frac", type=float, default=1.0,
                     help="доля документов, которые пачкаем (1.0 = все)")
-    ap.add_argument("--line-ratio", type=float, default=None,
-                    help="грязных СТРОК на одну хорошую (уровень 3)")
-    ap.add_argument("--dirt-ratio", type=float, default=None,
-                    help="deprecated alias for --line-ratio")
-    ap.add_argument("--char-frac", type=float, default=0.0,
-                    help="вероятность порчи слова символами/буквами (уровень 1)")
-    ap.add_argument("--swap-frac", type=float, default=0.0,
-                    help="вероятность замены слова на случайное/иноязычное (уровень 2)")
+    ap.add_argument("--noise", type=float, default=0.5,
+                    help="ОБЩАЯ доля мусора в словах (0.25 / 0.5 / 0.75)")
+    ap.add_argument("--p-line", type=float, default=1.0,
+                    help="пропорция: целые мусорные строки (уровень 2)")
+    ap.add_argument("--p-char", type=float, default=1.0,
+                    help="пропорция: порча слов символами/буквами (уровень 1)")
+    ap.add_argument("--p-swap", type=float, default=1.0,
+                    help="пропорция: подмена слов случайными/иноязычными (уровень 3)")
     ap.add_argument("--seed", type=int, default=7)
     args = ap.parse_args()
 
-    line_ratio = args.line_ratio if args.line_ratio is not None else args.dirt_ratio
-    if line_ratio is None:
-        line_ratio = 1.0
+    if not 0.0 <= args.noise < 1.0:
+        raise SystemExit(f"--noise must be in [0,1), got {args.noise}")
+    psum = args.p_line + args.p_char + args.p_swap
+    if psum <= 0:
+        raise SystemExit("proportions must sum to > 0")
+    p_line, p_char, p_swap = args.p_line / psum, args.p_char / psum, args.p_swap / psum
 
     if not os.path.exists(args.inp):
         raise SystemExit(f"input DB not found: {args.inp}")
     if os.path.abspath(args.inp) == os.path.abspath(args.out):
         raise SystemExit("--out must differ from --in (keep the clean DB intact)")
 
-    shutil.copyfile(args.inp, args.out)            # dirty starts as a copy of clean
+    shutil.copyfile(args.inp, args.out)
     conn = sqlite3.connect(args.out)
     cols = [c[1] for c in conn.execute("PRAGMA table_info(documents)")]
     if not {"id", "content"}.issubset(cols):
@@ -179,7 +189,6 @@ def main():
 
     rng = random.Random(args.seed)
 
-    # pools of lines drawn from real docs (for off-topic / wrong-code dirt)
     sample = rng.sample(docs, min(len(docs), 400))
     prose_pool, code_pool = [], []
     for _id, content in sample:
@@ -197,8 +206,7 @@ def main():
     updated = 0
     for doc_id, content in to_dirty:
         new_content = inject_dirt(
-            content, line_ratio, args.char_frac, args.swap_frac,
-            rng, prose_pool, code_pool,
+            content, args.noise, p_line, p_char, p_swap, rng, prose_pool, code_pool,
         )
         if has_len:
             conn.execute("UPDATE documents SET content=?, length=? WHERE id=?",
@@ -213,9 +221,8 @@ def main():
 
     print(f"docs total      : {len(docs)}")
     print(f"docs dirtied    : {updated}  (dirty_frac={args.dirty_frac})")
-    print(f"line_ratio (L3) : {line_ratio}  (грязных строк на хорошую)")
-    print(f"char_frac  (L1) : {args.char_frac}  (порча слов символами/буквами)")
-    print(f"swap_frac  (L2) : {args.swap_frac}  (замена слов случайными/иноязычными)")
+    print(f"noise (total)   : {args.noise}  (доля мусорных слов в датасете)")
+    print(f"proportions     : line={p_line:.2f}  char={p_char:.2f}  swap={p_swap:.2f}")
     print(f"saved dirty DB  -> {args.out}")
 
 
