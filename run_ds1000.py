@@ -164,7 +164,16 @@ def main():
         init_tracker = TokenTracker()
         set_active_tracker(init_tracker)
         init_start = time.time()
-        pipeline = PipelineBuilder().build(pipeline_config)
+        try:
+            pipeline = PipelineBuilder().build(pipeline_config)
+        except Exception as exc:
+            set_active_tracker(None)
+            rss.stop()
+            logging.exception(
+                "CONFIG BUILD FAILED — skipping %s", config_path.name
+            )
+            print(f"\t - SKIPPED (build error): {exc}")
+            continue
         init_time_s = time.time() - init_start
         set_active_tracker(None)
 

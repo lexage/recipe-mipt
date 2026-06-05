@@ -180,3 +180,16 @@ data/docs_database.db
 
 *.db
 gitignore_generation.py
+
+# отчёты-таблицы, их билдер/данные и план — держим локально, в репо не пушим
+*.xlsx
+build_filter_summary_xlsx.py
+experiment_data.py
+EXPERIMENT_PLAN.md
+
+# локальные генераторы и анализ — делают файлы локально, серверу не нужны
+make_exp3_configs.py
+make_dirty_configs.py
+compute_R.py
+evaluate_noise_removal.py
+analyze_significance.py
