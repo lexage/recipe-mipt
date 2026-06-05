@@ -4,46 +4,49 @@ Our NEW mechanism (научная новизна): every known filter compares t
 something EXTERNAL — corpus frequencies (dedup / IDF), a trained classifier,
 a target distribution (DSIR), big-model perplexity, or an LLM judge (see the
 2025 report, §3.1). We instead ask, at every granularity: *does this piece fit
-the piece that contains it?* Injected dirt is a foreign body — it falls out of
-its own host (its word, its sentence, its document). We keep the self-consistent
-core and CUT what does not belong; a chunk is dropped only if nothing survives.
+the piece that contains it?* Injected dirt is a foreign body that falls out of
+its host. We keep the self-consistent core and CUT what does not belong; a
+chunk is dropped only if nothing survives.
 
-This is a CLEANER, not a selector, and it works at THREE granularities, each
-with its OWN reference (not the whole corpus, not even the whole document):
+This is a CLEANER (not a selector), at THREE granularities:
 
-  * LEVEL 1 — a word vs itself (cheap, NON-semantic). Real tokens are letter
-    runs, digit runs or identifiers (letters/digits/`_`/`-`). Junk symbols
-    inserted INTO a word (e.g. "ar#r@ay") are stripped when glued to letters,
-    so "ar#r@ay" -> "array" while code (`np.array(`), numbers and domain terms
-    (`int64`, `float32`, `read_csv`) are left intact. Letter/digit corruption
-    without symbols ("arr4ay", "arxray") is indistinguishable from real terms
-    here, so it is left for level 2 to judge by meaning.
+  * LEVEL 1 — a word vs itself (cheap, NON-semantic). Junk symbols inserted
+    INTO a word (e.g. "ar#r@ay") are stripped when glued to letters, so it
+    becomes "array"; code (`np.array(`), numbers and domain terms (`int64`,
+    `float32`, `read_csv`) are left intact. Letter/digit corruption without
+    symbols ("arr4ay", "arxray") is left for level 3.
 
-  * LEVEL 2 — a word vs its SENTENCE (semantic). The sentence is its own
-    reference: we measure how close each word is to the rest of its sentence
-    and drop the words that sit NOTICEABLY farther from their sentence than the
-    other words do (a relative, per-sentence cut). Foreign-language and random
-    swaps are handled here purely by meaning — nothing is removed just for being
-    non-English. We do NOT use the document core: with up to ~3/4 dirt the
-    document is mostly noise, so the sentence is the only trustworthy anchor.
+  * LEVEL 2 — a line vs the LINES THAT BELONG TOGETHER (semantic). We do NOT
+    take a document mean (with most lines dirty the mean is dirt). Each line's
+    neighbour-density (agreement with its closest DISTINCT lines) tells whether
+    it is part of a meaningful group or an outlier. The cut is relative —
+    derived from the document's own density distribution — and VERBATIM
+    duplicates are discounted (by exact text) so repeated junk can't vouch for
+    its own copies while genuinely similar good lines still vouch.
 
-  * LEVEL 3 — a line vs the LINES THAT BELONG TOGETHER (semantic). We do NOT
-    take a document mean (with most lines dirty the mean is dirt). Instead we
-    ask which lines mutually cohere: each line's neighbour-density (agreement
-    with its closest DISTINCT lines) tells whether it is part of a meaningful
-    group or an outlier. The cut is relative — derived from the document's own
-    density distribution — and VERBATIM-duplicate neighbours are discounted (by
-    exact text, not by embedding similarity) so repeated junk can't vouch for
-    its own copies, while genuinely similar good lines still vouch normally.
+  * LEVEL 3 — a word vs its SENTENCE, variant C (hybrid). Inside the lines kept
+    by level 2 we drop alien words with two cooperating signals:
+      (A) character normality, no embedder: a character n-gram model learnt
+          from the corpus's OWN words scores how "word-like" each token is.
+          Foreign-script words, random gibberish ("qwzlkj") and letter-
+          corrupted tokens ("arxray") score far below the corpus and are cut.
+      (B) semantics, for the rest: for a still-suspect word we embed the line
+          WITH and WITHOUT it and keep it only if removing it does NOT pull the
+          line closer to the level-2 CLEANED core (full-sentence embeddings —
+          robust — and the reference is the already-cleaned good lines, not the
+          noisy raw document). This catches real-but-off-topic words.
+    Only non-recurring / foreign words are even considered, so recurring domain
+    terms are never touched.
 
 NB: do NOT add `from __future__ import annotations` here — the registry injects
 `embedder` by matching the `Agent` type, which breaks under string annotations.
 """
 
 import logging
+import math
 import re
 from collections import Counter, defaultdict
-from typing import Dict, List, Tuple
+from typing import Dict, List, Optional, Tuple
 
 import numpy as np
 
@@ -56,36 +59,35 @@ logger = logging.getLogger(__name__)
 
 _WS = re.compile(r"\s+")
 _LETTER_RUN = re.compile(r"[A-Za-z]+")
-# Junk symbols stripped at level 1 ONLY when glued to a letter (so space-
-# separated code operators like `a % b` and dots in `np.array` survive).
 _JUNK = "#$%^&*~`!@"
 _JC = re.escape(_JUNK)
 _L1_RE = re.compile(rf"(?<=[A-Za-z])[{_JC}]|[{_JC}](?=[A-Za-z])")
 
 
 class SelfConsistencyCleaner(Filter):
-    """Clean dirt that does not fit its own word / sentence / document.
+    """Clean dirt that does not fit its own word / line / sentence.
 
     Args:
-        embedder: text->vector model, injected by the pipeline builder (the
-            `embedder` component). Used for levels 2 and 3.
-        min_line_chars: lines shorter than this are kept as-is (too short to
-            judge — e.g. headings, single tokens).
+        embedder: text->vector model, injected by the builder (the `embedder`
+            component). Used for levels 2 and 3-B.
+        min_line_chars: lines shorter than this are kept as-is.
         garbled_alpha_ratio, garbled_max_run: a line that is mostly non-letters
             with no real word-run is symbol soup -> dropped (cheap pre-clean).
-        knn: neighbours used for the level-3 density estimate.
-        sep_z: level-3 relative margin — a line is cut only if its density sits
+        knn: neighbours used for the level-2 density estimate.
+        sep_z: level-2 relative margin — a line is cut only if its density sits
             more than `sep_z` core-std-devs below the coherent group.
-        min_doc_lines: documents with fewer substantial lines skip level 3.
-        clean_words: enable level 2 (per-word, semantic, sentence-anchored).
+        min_doc_lines: documents with fewer substantial lines skip level 2
+            (and therefore level 3-B; level 3-A still runs).
+        clean_words: enable level 3 (per-word cleaning, variant C).
         word_min_len: minimum letter-length of a "content word".
         min_sentence_words: a line needs at least this many content words to run
-            level 2 (too few -> can't judge a word against its sentence).
-        sep_z_word: level-2 relative margin — a candidate word is cut only if its
-            closeness to the rest of its sentence sits more than `sep_z_word`
-            below the sentence's typical word closeness.
-        max_word_cut_frac: never remove more than this fraction of a sentence's
-            words (safety against gutting a real sentence).
+            level 3.
+        char_z: level 3-A margin — a candidate word is cut if its character
+            n-gram normality sits more than `char_z` MADs below the corpus.
+        semantic_word_check: enable level 3-B (semantic leave-one-out).
+        word_improve: level 3-B margin — remove a word only if dropping it pulls
+            the line at least this much closer to the cleaned core (cosine).
+        max_word_cut_frac: never remove more than this fraction of a line's words.
         embed_batch_size: texts per embedder call.
         min_keep_chars: drop a chunk whose cleaned text is shorter than this.
         name: component name.
@@ -103,8 +105,10 @@ class SelfConsistencyCleaner(Filter):
         clean_words: bool = True,
         word_min_len: int = 3,
         min_sentence_words: int = 4,
-        sep_z_word: float = 1.5,
-        max_word_cut_frac: float = 0.34,
+        char_z: float = 2.5,
+        semantic_word_check: bool = True,
+        word_improve: float = 0.05,
+        max_word_cut_frac: float = 0.5,
         embed_batch_size: int = 64,
         min_keep_chars: int = 1,
         name: str = "self_clean_filter",
@@ -119,7 +123,9 @@ class SelfConsistencyCleaner(Filter):
         self.clean_words = bool(clean_words)
         self.word_min_len = int(word_min_len)
         self.min_sentence_words = int(min_sentence_words)
-        self.sep_z_word = float(sep_z_word)
+        self.char_z = float(char_z)
+        self.semantic_word_check = bool(semantic_word_check)
+        self.word_improve = float(word_improve)
         self.max_word_cut_frac = float(max_word_cut_frac)
         self.embed_batch_size = int(embed_batch_size)
         self.min_keep_chars = int(min_keep_chars)
@@ -165,7 +171,7 @@ class SelfConsistencyCleaner(Filter):
         return emb / norms
 
     def _keep_mask(self, density: np.ndarray) -> np.ndarray:
-        """Level-3 relative cut from the document's own density distribution."""
+        """Level-2 relative cut from the document's own density distribution."""
         m = len(density)
         if m < 3:
             return np.ones(m, dtype=bool)
@@ -192,61 +198,79 @@ class SelfConsistencyCleaner(Filter):
             keep = density >= thr
         return keep
 
-    def _clean_sentence(self, line: str, vocab: Counter) -> str:
-        """Level 2: drop words that don't fit their own sentence (semantic).
+    # ---- level 3-A: character n-gram normality (no embedder) -----------
 
-        A word is a removal CANDIDATE only if it is non-recurring in the
-        document or written in a foreign script (cheap trigger — narrows the
-        work, does NOT decide). The DECISION is semantic: keep the word only if
-        it is not a clear outlier vs the rest of its sentence.
-        """
+    @staticmethod
+    def _build_char_model(words: List[str]):
+        tg: Counter = Counter()
+        total = 0
+        for w in words:
+            s = "^" + w + "$"
+            for i in range(len(s) - 2):
+                tg[s[i:i + 3]] += 1
+                total += 1
+        return tg, total, max(1, len(tg))
+
+    def _char_score(self, w: str, model) -> float:
+        """Mean of the two least-likely char trigrams (lower = less word-like)."""
+        tg, total, vocab = model
+        s = "^" + w + "$"
+        if len(s) < 3:
+            return 0.0
+        lps = []
+        denom = total + vocab
+        for i in range(len(s) - 2):
+            c = tg.get(s[i:i + 3], 0)
+            lps.append(math.log((c + 1) / denom))
+        lps.sort()
+        k = min(2, len(lps))
+        return sum(lps[:k]) / k
+
+    # ---- level 3: clean alien words inside a kept line -----------------
+
+    def _clean_sentence(self, line, vocab, model, char_thr, core, line_emb) -> str:
         toks = line.split()
-        # content words with their token index
         content = []
         for j, tok in enumerate(toks):
-            core = self._word_core(tok)
-            if len(core) >= self.word_min_len:
-                foreign = any(ord(c) > 127 for c in core)
-                content.append((j, tok, core.lower(), foreign))
+            core_w = self._word_core(tok)
+            if len(core_w) >= self.word_min_len:
+                content.append((j, core_w.lower(), any(ord(c) > 127 for c in core_w)))
         if len(content) < self.min_sentence_words:
             return line
 
-        candidates = [
-            c for c in content if c[3] or vocab[c[2]] <= 1   # foreign or non-recurring
-        ]
-        if not candidates:
+        # only non-recurring / foreign words are candidates
+        cand = [c for c in content if c[2] or vocab[c[1]] <= 1]
+        if not cand:
             return line
 
-        # closeness of each content word to its WHOLE sentence (sentence anchor)
-        sent_norm = self._norm(line)
-        word_texts = [c[1] for c in content]
-        emb = self._embed([sent_norm] + word_texts)
-        e_sent = emb[0]
-        coh = emb[1:] @ e_sent                 # cosine of each word to the sentence
+        remove = set()
+        semantic_cand = []
+        for j, low, foreign in cand:
+            if self._char_score(low, model) < char_thr:    # (A) not word-like
+                remove.add(j)
+            else:
+                semantic_cand.append((j, low))
 
-        med = float(np.median(coh))
-        mad = float(np.median(np.abs(coh - med)))
-        spread = mad if mad > 1e-6 else float(coh.std())
-        if spread <= 1e-6:
+        # (B) semantics: keep a still-suspect word unless dropping it pulls the
+        # line closer to the level-2 cleaned core.
+        if (self.semantic_word_check and core is not None
+                and line_emb is not None and semantic_cand):
+            base_sim = float(line_emb @ core)
+            variants = [
+                " ".join(t for k, t in enumerate(toks) if k != j)
+                for j, _ in semantic_cand
+            ]
+            ve = self._embed(variants)
+            for (j, _low), v in zip(semantic_cand, ve):
+                if float(v @ core) - base_sim > self.word_improve:
+                    remove.add(j)
+
+        if not remove:
             return line
-        thr = med - self.sep_z_word * spread
-
-        cand_idx = {c[0] for c in candidates}
-        order = np.argsort(coh)                # lowest closeness first
-        max_cut = int(self.max_word_cut_frac * len(content))
-        remove_tok_idx = set()
-        for pos in order:
-            if len(remove_tok_idx) >= max_cut:
-                break
-            if coh[pos] >= thr:
-                break                          # rest are fine
-            j = content[pos][0]
-            if j in cand_idx:                  # only candidates may be removed
-                remove_tok_idx.add(j)
-
-        if not remove_tok_idx:
-            return line
-        return " ".join(t for j, t in enumerate(toks) if j not in remove_tok_idx)
+        max_cut = max(1, int(self.max_word_cut_frac * len(content)))
+        if len(remove) > max_cut:
+            remove = set(sorted(remove)[:max_cut])
+        return " ".join(t for k, t in enumerate(toks) if k not in remove)
 
     # ---- main -----------------------------------------------------------
 
@@ -261,7 +285,25 @@ class SelfConsistencyCleaner(Filter):
             for c in chunks
         ]
 
-        # Index "substantial" lines per document (a doc spans several chunks).
+        # Global character model + relative threshold (level 3-A), built once.
+        char_model = char_thr = None
+        if self.clean_words:
+            corpus_words: List[str] = []
+            for lines in repaired:
+                for ln in lines:
+                    for tok in ln.split():
+                        cw = self._word_core(tok).lower()
+                        if len(cw) >= self.word_min_len:
+                            corpus_words.append(cw)
+            if corpus_words:
+                char_model = self._build_char_model(corpus_words)
+                distinct = list(set(corpus_words))
+                scores = np.array([self._char_score(w, char_model) for w in distinct])
+                med = float(np.median(scores))
+                mad = float(np.median(np.abs(scores - med))) or float(scores.std())
+                char_thr = med - self.char_z * (mad if mad > 1e-9 else 1.0)
+
+        # Index "substantial" lines per document.
         doc_lines: Dict[str, List[Tuple[int, int, str]]] = defaultdict(list)
         for ci, (chunk, lines) in enumerate(zip(chunks, repaired)):
             for li, ln in enumerate(lines):
@@ -269,10 +311,9 @@ class SelfConsistencyCleaner(Filter):
                     doc_lines[chunk.doc_id].append((ci, li, ln))
 
         cut: Dict[Tuple[int, int], bool] = {}
-        line_override: Dict[Tuple[int, int], str] = {}   # level-2 cleaned lines
+        line_override: Dict[Tuple[int, int], str] = {}
 
         for entries in doc_lines.values():
-            # cheap pre-clean: drop symbol-soup lines.
             survivors = []
             for ci, li, ln in entries:
                 if self._is_garbled(ln):
@@ -280,17 +321,15 @@ class SelfConsistencyCleaner(Filter):
                 else:
                     survivors.append((ci, li, ln))
 
-            # LEVEL 3: keep the lines that mutually cohere.
+            # LEVEL 2: keep the lines that mutually cohere.
             m = len(survivors)
-            kept = survivors
+            kept: List[Tuple[int, int, str, Optional[np.ndarray]]] = []
+            core = None
             if m >= self.min_doc_lines and m >= 2:
                 norm_texts = [self._norm(ln) for _, _, ln in survivors]
                 emb = self._embed(norm_texts)
                 sims = emb @ emb.T
                 np.fill_diagonal(sims, -1.0)
-                # discount VERBATIM duplicates (boilerplate/filler copies) so
-                # they can't vouch for one another; good lines have distinct
-                # text and keep all their real neighbours.
                 by_text: Dict[str, List[int]] = defaultdict(list)
                 for idx, t in enumerate(norm_texts):
                     by_text[t].append(idx)
@@ -300,23 +339,30 @@ class SelfConsistencyCleaner(Filter):
                 k = min(self.knn, m - 1)
                 density = np.sort(sims, axis=1)[:, -k:].mean(axis=1)
                 keep = self._keep_mask(density)
-                kept = []
-                for (ci, li, ln), keep_it in zip(survivors, keep):
-                    if keep_it:
-                        kept.append((ci, li, ln))
+                rows = []
+                for (ci, li, ln), row, kp in zip(survivors, emb, keep):
+                    if kp:
+                        kept.append((ci, li, ln, row))
+                        rows.append(row)
                     else:
                         cut[(ci, li)] = True
+                if rows:
+                    c = np.mean(rows, axis=0)
+                    nrm = np.linalg.norm(c)
+                    core = c / nrm if nrm > 0 else None
+            else:
+                kept = [(ci, li, ln, None) for ci, li, ln in survivors]
 
-            # LEVEL 2: clean alien words inside the kept lines.
-            if self.clean_words and kept:
+            # LEVEL 3: clean alien words inside the kept lines.
+            if self.clean_words and char_model is not None and kept:
                 vocab: Counter = Counter()
                 for _, _, ln in survivors:
                     for tok in ln.split():
-                        core = self._word_core(tok)
-                        if len(core) >= self.word_min_len:
-                            vocab[core.lower()] += 1
-                for ci, li, ln in kept:
-                    cleaned = self._clean_sentence(ln, vocab)
+                        cw = self._word_core(tok).lower()
+                        if len(cw) >= self.word_min_len:
+                            vocab[cw] += 1
+                for ci, li, ln, row in kept:
+                    cleaned = self._clean_sentence(ln, vocab, char_model, char_thr, core, row)
                     if cleaned != ln:
                         line_override[(ci, li)] = cleaned
 
