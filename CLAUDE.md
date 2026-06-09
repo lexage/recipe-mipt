@@ -23,62 +23,70 @@ do it; hand it to Konstantin.)
 
 ---
 
-## Где мы остановились — 06.06.2026 (для новой сессии)
+## Где мы остановились — 08.06.2026 (для новой сессии)
 
-**Пайплайн.** API-пайплайн коллег (`pipeline_configs/api_selector.yaml`): `pure ≈ 0.54`,
-контекст реально помогает. Фикс бага общего индекса — **уникальный `path_to_vector_db`
-на каждый конфиг** (память `vector-db-reuse-bug`).
+**Главный разворот.** Ушли с API-пайплайна на **семантический RAG над
+`docs_database_examples.db`** (`SIMPLE_RETRIEVER` + `CORAG` + `return_examples: True`,
+без query-enhancer). Причина: на API-ретривере контекст даёт всего ~3% над голой LLM
+(слова коллеги), и грязь/офтоп **не доезжали до ответа** → R был неизмерим (просадка
+`pure` ≈ 0.012 даже при 75% шума, в пределах шумового пола). На семантическом RAG грязь
+реально влияет на retrieval → R измерим. (exp4/`self_clean` на API — архив, см. ниже.)
 
-**Постановка.** Фильтр — **ОЧИСТИТЕЛЬ**: не выкидывает доки, а вырезает грязь ВНУТРИ
-документа, оставляя чистое ядро; целиком удаляет только если ничего не осталось.
+**Постановка.** Фильтр — ОЧИСТИТЕЛЬ («текст — сам себе эталон»). **Код-строки бережём
+дословно** (примеры вмёрджены в чанки) — текст-чистка их не трогает; код обрабатывают F2/F3.
 
-**ОДИН наш фильтр = `self_clean` (`SelfConsistencyCleaner`).** Старые 5 select-фильтров
-(rank_fusion/compression/coherence/boilerplate/api_doc) — отброшены как «известные
-методы», их exp4-конфиги удалены. Новизна = **«текст — сам себе эталон»**: каждый кусок
-сверяем с тем, что его содержит (его словом/строкой/документом), а не с корпусом.
-**Три уровня** (`src/filtering/self_clean/main.py`):
-1. **L1 — слова от мусорных символов** (символьная починка, БЕЗ эмбеддера): `ar#r@ay`→`array`;
-   код/`int64`/`read_csv` не трогаем. Вставленные буквы/цифры без символов → на L3.
-2. **L2 — строки**: оставляем взаимно осмысленную группу строк по **плотности соседей**
-   (НЕ среднее — при 3/4 шума среднее само грязь); порог **относительный** из самого
-   документа; дословные дубликаты гасим (повторный boilerplate не голосует за себя).
-3. **L3 — слова внутри оставшихся строк, вариант C**: (A) **буквенная n-грамм-модель**
-   нормальности слова по корпусу (ловит иноязычное/случайное/испорченное, без эмбеддера) +
-   (B) **семантика** leave-one-out против **уже очищенного ядра L2** (для «настоящее, но не
-   по теме»). Трогаем только неповторяющиеся/иноязычные слова → доменные термины целы.
-   Ручки если L3 вредит: `clean_words`, `char_z`, `semantic_word_check`.
+**5 наших фильтров (+ `pure`)** для серии exp5:
+- **F1_v2** `SelfConsistencyCleanerV2` (`src/filtering/self_clean_v2/`) — текст-очиститель
+  под РЕАЛИСТИЧНУЮ грязь: нормализаторы (снятие HTML, починка mojibake `cafÃ©`→`café`) +
+  старые уровни L1 символы / L2 плотность строк / L3 слова (char-n-gram + семантика).
+- **F2.1** `CodeAwareSelectCleaner` (`code_aware/`) — F1_v2 + построчно код/текст; **код→дроп
+  чанка, если не парсится** (AST, без LLM). Универсален (на прозе — no-op).
+- **F2.2** `CodeAwareLLMCleaner` — F1_v2 + **LLM чинит сломанный код**, давая ему ВЕСЬ
+  документ как контекст; LLM только на плохом коде (дёшево-гейт), не починил → дроп.
+- **F3.1** `TopicSelectCleaner` (`topic_aware/`) = F2.1 + **шаг 0: режем офтоп-доки**
+  (эмбеддинг-гейт к `benchmark_topic` из конфига → LLM подтверждает только дальние).
+- **F3.2** `TopicLLMCleaner` = F2.2 + тот же шаг 0.
+- Старый `self_clean` (F1) сохранён, но в серию НЕ входит.
 
-**Загрязнение** (`make_noised_db.py`) — грязь ВНУТРИ доков, под все 3 уровня. Одна ручка
-`--noise` = ОБЩАЯ доля мусорных слов в датасете (0.25/0.5/0.75); три вида грязи (целые
-строки → L2, порча слов символами/буквами → L1, подмена слов на случайные/иноязычные → L3)
-в **фиксированной пропорции** (`--p-line/--p-char/--p-swap`, по умолчанию 1:1:1, одинаковой
-на всех уровнях). Чистый корпус не трогается.
+**Загрязнение — реалистичное** (`make_noised_realistic.py`; старый `make_noised_db.py` цел):
+стадия 1 — порча ИСХОДНЫХ доков (`--noise f` = доля грязных слов, фикс. пропорции): mojibake /
+HTML / сквозная подмена символа (`w`→`vv`) / boilerplate. Стадия 2 — добавляем офтоп-ДОКИ из
+Википедии (`fetch_offtopic.py` → `data/offtopic_docs.jsonl`), `--junk-frac` (НЕ входит в f,
+они грязь сами по себе). Офтоп-доки чистят только F3.x.
 
-**Метрика = R (recovery)** по 3 уровням шума: `R = (фильтр_грязный − pure_грязный) /
-(pure_чистый − pure_грязный)`. Скрипт **`compute_R_levels.py`**. Эксперимент —
-**`test_configs_experimental_4/`**: `pure`/`length`/`self_clean` × {чистый, 25%, 50%, 75%},
-уникальный индекс `data/vdb_exp4/<конфиг>`. БД: `..._apis.db` + `..._apis_dirty_d25/50/75.db`.
+**Метрика = только R** (`compute_R_exp5.py`). Пока 1 чистый + 1 грязный (потом 2+ уровня).
+Доп.: **генеративный бейзлайн** — 6 преинференс-генераторов на чистом, без фильтра (база
+для своего метода генерации). Серия — **`test_configs_experimental_5/`** (12 фильтрации +
+6 генераторов), индекс `data/vdb_exp5/<конфиг>`.
 
-**Статус.** L1 и L2 проверены на реальном эмбеддере — работают. L3 переписан на вариант C;
-финальная проверка — прогоном (R). `test_self_clean.py` — серверная проверка фильтра на
-реальном эмбеддере (NB: буквенная модель L3-A надёжна только на полном корпусе, на крошечном
-синтетике может недосрабатывать — настоящий сигнал даёт R на прогоне).
+**Статус.** Весь код собран и локально проверен (дешёвые части): реестр видит `embedder`,
+все 5 фильтров инстанцируются/`apply`, F1_v2 нормализаторы работают (HTML/mojibake/boiler),
+F2.1 дропает сломанный код и бережёт хороший, загрязнитель даёт `vvith`/HTML/`cafÃ©`/boiler.
+LLM-пути (F2.2 починка, F3 тема) проверяются прогоном/`test_self_clean_v2.py` на сервере.
 
 **Команды (сервер):**
 ```bash
-python make_noised_db.py --in data/docs_database_examples_apis.db --out data/docs_database_examples_apis_dirty_d25.db --dirty-frac 1.0 --noise 0.25 --seed 7
-python make_noised_db.py --in data/docs_database_examples_apis.db --out data/docs_database_examples_apis_dirty_d50.db --dirty-frac 1.0 --noise 0.5 --seed 7
-python make_noised_db.py --in data/docs_database_examples_apis.db --out data/docs_database_examples_apis_dirty_d75.db --dirty-frac 1.0 --noise 0.75 --seed 7
-rm -rf data/vdb_exp4
-python run_ds1000.py -c test_configs_experimental_4
-python compute_R_levels.py
+python fetch_offtopic.py --n 18000         # где есть интернет → data/offtopic_docs.jsonl
+python make_noised_realistic.py --in data/docs_database_examples.db \
+    --out data/docs_database_examples_realistic.db \
+    --offtopic data/offtopic_docs.jsonl --noise 0.25 --junk-frac 1.0 --seed 7
+python smoke_run.py -c test_configs_experimental_5 --max-docs 15   # пред-запуск (рекурсивно, обе подпапки)
+rm -rf data/vdb_exp5
+bash run_exp5.sh                                                   # фильтрация → генерация
+python compute_R_exp5.py
 ```
-Конфиги генерит `make_exp4_configs.py` (локально, в `.gitignore`).
+Конфиги генерит `make_exp5_configs.py` (локально, в `.gitignore`).
+
+**Архив:** exp4 — `self_clean` («документ сам себе эталон», 3 уровня) на API-пайплайне с
+`make_noised_db.py` (`--noise`, 25/50/75%) и `compute_R_levels.py`. R оказался неизмерим
+из-за слабого контекста API-RAG (см. «Главный разворот»).
 
 **Процесс.** Konstantin делает весь git и сервер; Claude только читает файлы и пишет код.
-Пуш: `src/filtering/self_clean/`, `src/pipelines/constants.py`, `test_configs_experimental_4/`,
-`make_noised_db.py`, `run_ds1000.py`, `compute_R_levels.py`, `test_self_clean.py`,
-`CLAUDE.md`, `.gitignore`. Генераторы/планы/методологии/индексы — в `.gitignore`.
+Пуш: `src/filtering/{self_clean_v2,code_aware,topic_aware}/`, `src/pipelines/constants.py`,
+`src/db/docs_db/db.py` (добавлен `max_docs` для smoke), `test_configs_experimental_5/`,
+`make_noised_realistic.py`, `fetch_offtopic.py`, `smoke_run.py`, `run_exp5.sh`,
+`run_ds1000.py`, `compute_R_exp5.py`, `test_self_clean_v2.py`, `CLAUDE.md`, `.gitignore`.
+Генераторы (`make_exp*_configs.py`)/планы/индексы/`*.jsonl` — в `.gitignore`.
 
 ---
 

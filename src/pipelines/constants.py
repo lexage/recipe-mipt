@@ -105,6 +105,13 @@ class ComponentNames(Enum):
     # ===== Filters: experiment 4 — "document is its own reference" cleaners =====
     SELF_CLEAN_FILTER = "src.filtering.self_clean.SelfConsistencyCleaner"
 
+    # ===== Filters: experiment 5 — realistic dirt; text/code-aware; topic-aware =====
+    SELF_CLEAN_V2_FILTER = "src.filtering.self_clean_v2.SelfConsistencyCleanerV2"
+    CODE_SELECT_FILTER = "src.filtering.code_aware.CodeAwareSelectCleaner"
+    CODE_LLM_FILTER = "src.filtering.code_aware.CodeAwareLLMCleaner"
+    TOPIC_SELECT_FILTER = "src.filtering.topic_aware.TopicSelectCleaner"
+    TOPIC_LLM_FILTER = "src.filtering.topic_aware.TopicLLMCleaner"
+
     # ===== Document Filters (pre-chunking; only used by SIMPLE_WITH_DOC_FILTER) =====
     DOC_DEDUP_FILTER = "src.filtering.doc_dedup.DocumentDedupFilter"
     DOC_CODE_DENSITY_FILTER = "src.filtering.doc_code_density.DocumentCodeDensityFilter"

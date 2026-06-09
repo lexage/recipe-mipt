@@ -28,8 +28,14 @@ class LocalDB(IDB):
             batch_size: int = 16,
 
             similarity_threshold: float = 0.1,
-            
+
+            max_docs: int = None,
+            max_docs_tail: int = 0,
+
             search_filter: dict = {}):
+
+        self.max_docs = max_docs
+        self.max_docs_tail = max_docs_tail
 
         self.sqlite_adapter = SQLiteDocsDBAdapter(
             path_to_db=path_to_db
@@ -53,6 +59,12 @@ class LocalDB(IDB):
             documents = self.sqlite_adapter.get_docs()
         else:
             documents = self.sqlite_adapter.get_docs(ids)
+        if self.max_docs:                       # smoke/pre-flight: tiny corpus
+            n = len(documents)
+            idxs = list(range(min(self.max_docs, n)))
+            if self.max_docs_tail:              # also take the tail (e.g. junk docs)
+                idxs += list(range(max(0, n - self.max_docs_tail), n))
+            documents = [documents[i] for i in sorted(set(idxs))]
         return documents
 
     def query(self, query_text: Text, top_k: int = 10) -> List[Chunk]:
