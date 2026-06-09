@@ -20,6 +20,10 @@ import shutil
 import traceback
 from pathlib import Path
 
+# Embedder + LLM are served locally — never reach out to huggingface.co.
+os.environ.setdefault("HF_HUB_OFFLINE", "1")
+os.environ.setdefault("TRANSFORMERS_OFFLINE", "1")
+
 from src.pipelines.configs import ConfigLoader
 from src.pipelines.pipeline_builder import PipelineBuilder
 
@@ -43,9 +47,12 @@ def main():
         shutil.rmtree(args.vdb, ignore_errors=True)
 
     files = sorted(glob.glob(os.path.join(args.config, "**", "*.yaml"), recursive=True))
+    print(f"smoke: {len(files)} configs, max_docs={args.max_docs} (+tail {args.max_tail})\n",
+          flush=True)
     ok = fail = 0
-    for f in files:
+    for i, f in enumerate(files, 1):
         stem = Path(f).stem
+        print(f"[{i}/{len(files)}] building & running {stem} ...", flush=True)
         try:
             cfg = ConfigLoader().load_from_yaml(path_to_cfg=f)
             db = cfg.components["data_base"]
@@ -61,10 +68,11 @@ def main():
                 pass
 
             empty = ans is None or not str(ans).strip()
-            print(f"[{'EMPTY' if empty else 'OK'}] {stem}  (answer {len(str(ans or ''))} chars)")
+            print(f"    [{'EMPTY' if empty else 'OK'}] {stem}  (answer {len(str(ans or ''))} chars)",
+                  flush=True)
             ok += 1
         except Exception as e:                         # noqa: BLE001
-            print(f"[FAIL] {stem}: {type(e).__name__}: {e}")
+            print(f"    [FAIL] {stem}: {type(e).__name__}: {e}", flush=True)
             traceback.print_exc()
             fail += 1
 

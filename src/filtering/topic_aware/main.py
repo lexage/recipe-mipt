@@ -2,14 +2,12 @@
 
 STEP 0 of filtering: drop whole documents whose topic does not match the
 benchmark domain (e.g. gossip / physics injected into a data-science corpus).
-Cheap gate + LLM confirm:
+Cheap gate + LLM confirm, per document:
   * embed the document, compare to the `benchmark_topic` embedding;
   * if clearly on-topic (cosine >= topic_gate) -> keep, NO LLM;
   * if far -> ask the LLM "does this belong to <benchmark_topic>?" — drop on "no".
-So the LLM runs only on the suspicious tail, not the whole corpus.
 
-`benchmark_topic` is a CONFIG string (kept universal: change it for another
-benchmark) injected into the LLM system prompt.
+`benchmark_topic` is a CONFIG string (universal: change it per benchmark).
 
   * F3.1 `TopicSelectCleaner` = topic gate + F2.1 (drop bad-code chunks).
   * F3.2 `TopicLLMCleaner`    = topic gate + F2.2 (LLM repairs bad code).
@@ -36,8 +34,6 @@ class _TopicMixin:
         self.t_llm_model = llm_model
         self._topic_emb = None
         self._t_client = None
-        self._kept = 0
-        self._dropped = 0
 
     def _topic_vec(self):
         if self._topic_emb is None:
@@ -78,14 +74,8 @@ class _TopicMixin:
         demb = self._embed([text[:2000]])[0]
         sim = float(demb @ self._topic_vec())
         if sim >= self.topic_gate:                   # clearly on-topic
-            self._kept += 1
             return True
-        ok = self._llm_on_topic(text)                # far -> LLM decides
-        if ok:
-            self._kept += 1
-        else:
-            self._dropped += 1
-        return ok
+        return self._llm_on_topic(text)              # far -> LLM decides
 
 
 class TopicSelectCleaner(_TopicMixin, CodeAwareSelectCleaner):

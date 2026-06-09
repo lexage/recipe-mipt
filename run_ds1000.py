@@ -7,6 +7,11 @@ import time
 
 from pathlib import Path
 
+# Embedder + LLM are served locally on the server — never reach out to
+# huggingface.co (connection resets -> 5 retries per call = minutes wasted).
+os.environ.setdefault("HF_HUB_OFFLINE", "1")
+os.environ.setdefault("TRANSFORMERS_OFFLINE", "1")
+
 from src.benchmarks import DS1000, DataItemDS1000
 from src.pipelines.pipeline_builder import PipelineBuilder
 from src.pipelines.configs import ConfigLoader

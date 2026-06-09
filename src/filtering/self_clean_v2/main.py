@@ -22,6 +22,7 @@ from collections import Counter, defaultdict
 from typing import Dict, List, Optional, Set, Tuple
 
 import numpy as np
+from tqdm import tqdm
 
 from src.agent_constructor.agent import Agent
 from src.agent_constructor.core import Chunk
@@ -324,7 +325,7 @@ class SelfConsistencyCleanerV2(Filter):
         drop_chunk: Set[int] = set()
         dropped_docs = set()
 
-        for doc_id, entries in doc_lines.items():
+        for doc_id, entries in tqdm(list(doc_lines.items()), desc=self.name):
             if not self._document_allowed(doc_id, doc_all[doc_id]):   # STEP 0 (F3.x)
                 dropped_docs.add(doc_id)
                 for ci, li, _ in entries:
