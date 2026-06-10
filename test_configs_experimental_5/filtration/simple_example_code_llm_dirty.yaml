@@ -36,6 +36,7 @@ components:
     type: CODE_LLM_FILTER
     params:
       name: filter
+      num_workers: 4
       llm_url: "http://0.0.0.0:7215/v1"
       llm_model: "Qwen/Qwen2.5-32B-Instruct"
 

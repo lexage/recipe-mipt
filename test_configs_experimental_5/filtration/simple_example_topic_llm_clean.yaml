@@ -37,7 +37,8 @@ components:
     params:
       name: filter
       benchmark_topic: "Python data-science library usage and API documentation: numpy, pandas, scipy, scikit-learn, tensorflow, pytorch, matplotlib"
-      topic_gate: 0.4
+      # пороги темы вычисляются из данных (см. _auto_topic_bands); band_z по умолчанию 1.0
+      num_workers: 4
       llm_url: "http://0.0.0.0:7215/v1"
       llm_model: "Qwen/Qwen2.5-32B-Instruct"
 

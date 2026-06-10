@@ -276,12 +276,23 @@ class SelfConsistencyCleanerV2(Filter):
     def _is_code_line(self, line: str) -> bool:
         return bool(_CODE_RE.search(line)) if line.strip() else False
 
+    def _prepare_documents(self, doc_all: Dict[str, List[str]]) -> None:
+        """F3.x overrides: one batch pre-pass over ALL docs (batch-embed +
+        auto thresholds + parallel LLM) that fills a per-doc verdict cache,
+        so the per-doc `_document_allowed` below is just a dict lookup.
+        Base: no-op."""
+        return
+
     def _document_allowed(self, doc_id, lines) -> bool:
         """F3.x overrides: drop whole off-topic documents. Base keeps all."""
         return True
 
-    def _handle_code(self, chunks, repaired, code_idx, cut, drop_chunk, override) -> None:
-        """F2.x overrides: act on code lines (drop chunk / LLM-fix). Base: keep."""
+    def _handle_code(self, chunks, repaired, code_idx, cut, drop_chunk,
+                     override, dropped_docs) -> None:
+        """F2.x overrides: act on code lines (drop chunk / LLM-fix). Base: keep.
+
+        `dropped_docs` are docs already removed by the topic gate — F2.x must
+        skip them (don't waste an LLM repair on a doc we throw away anyway)."""
         return
 
     # ---- main -----------------------------------------------------------
@@ -323,11 +334,16 @@ class SelfConsistencyCleanerV2(Filter):
         cut: Dict[Tuple[int, int], bool] = {}
         override: Dict[Tuple[int, int], str] = {}
         drop_chunk: Set[int] = set()
-        dropped_docs = set()
 
-        for doc_id, entries in tqdm(list(doc_lines.items()), desc=self.name):
-            if not self._document_allowed(doc_id, doc_all[doc_id]):   # STEP 0 (F3.x)
-                dropped_docs.add(doc_id)
+        # STEP 0 (F3.x): one batch pre-pass decides off-topic docs up front.
+        self._prepare_documents(doc_all)
+        dropped_docs: Set[str] = {
+            doc_id for doc_id in doc_all
+            if not self._document_allowed(doc_id, doc_all[doc_id])
+        }
+
+        for doc_id, entries in tqdm(list(doc_lines.items()), desc=f"{self.name}:clean"):
+            if doc_id in dropped_docs:                # STEP 0: off-topic -> cut text
                 for ci, li, _ in entries:
                     cut[(ci, li)] = True
                 continue
@@ -384,12 +400,13 @@ class SelfConsistencyCleanerV2(Filter):
                         override[(ci, li)] = cleaned
 
         # CODE handling hook (F2.x): may fill drop_chunk / override / cut.
-        self._handle_code(chunks, repaired, code_idx, cut, drop_chunk, override)
+        self._handle_code(chunks, repaired, code_idx, cut, drop_chunk,
+                           override, dropped_docs)
 
         kept_chunks: List[Chunk] = []
         dropped_chunks = 0
         for ci, (chunk, lines) in enumerate(zip(chunks, repaired)):
-            if ci in drop_chunk:
+            if ci in drop_chunk or chunk.doc_id in dropped_docs:   # off-topic: drop code too
                 dropped_chunks += 1
                 continue
             new_lines = []

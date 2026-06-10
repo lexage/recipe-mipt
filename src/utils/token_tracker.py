@@ -20,7 +20,7 @@ Usage in the runner:
 
 import logging
 import threading
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 logger = logging.getLogger(__name__)
 
@@ -30,11 +30,15 @@ class TokenTracker:
     input_tokens: int = 0
     output_tokens: int = 0
     n_calls: int = 0
+    # Guards the counters so parallel filter/eval workers can add() concurrently.
+    _lock: threading.Lock = field(
+        default_factory=threading.Lock, repr=False, compare=False)
 
     def add(self, prompt: int, completion: int) -> None:
-        self.input_tokens += int(prompt or 0)
-        self.output_tokens += int(completion or 0)
-        self.n_calls += 1
+        with self._lock:
+            self.input_tokens += int(prompt or 0)
+            self.output_tokens += int(completion or 0)
+            self.n_calls += 1
 
     @property
     def total_tokens(self) -> int:
@@ -55,6 +59,15 @@ _state = threading.local()
 
 def set_active(tracker):
     _state.active = tracker
+
+
+def get_active():
+    """Active tracker for THIS thread (thread-local). None if unset.
+
+    Used to propagate the main thread's tracker into ThreadPoolExecutor
+    workers via `initializer=set_active, initargs=(get_active(),)`.
+    """
+    return getattr(_state, "active", None)
 
 
 def _record(response) -> None:
