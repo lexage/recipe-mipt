@@ -7,6 +7,10 @@ from .db_search_tool import (
     DBSearchToolArgs
 )
 
+from .db_search_tool_old import (
+    DBSearchToolOld
+)
+
 from .llm_tool import (
     LLMTool,
     LLMToolArgs
@@ -23,6 +27,7 @@ from .critic_tool import (
 __all__ = [
     "BaseTool"
     "DBSearchTool"
+    "DBSearchToolOld"
     "DBSearchToolArgs"
     "LLMTool"
     "LLMToolArgs"

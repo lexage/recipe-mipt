@@ -832,177 +832,17 @@ Is_final 3: True
 === TASK ===
 """
 
-FEW_SHOT_AUTO_COT = """=== FEW-SHOT EXAMPLE 1 ===
-Problem:
-I want to convert a 1-dimensional array into a 2-dimensional array by specifying the number of columns in the 2D array. Something that would work like this:
-> import numpy as np
-> A = np.array([1,2,3,4,5,6,7])
-> B = vec2matrix(A,ncol=2)
-> B
-array([[1, 2],
-       [3, 4],
-       [5, 6]])
-Note that when A cannot be reshaped into a 2D array, we tend to discard elements which are at the end of A.
-Does numpy have a function that works like my made-up function "vec2matrix"? (I understand that you can index a 1D array like a 2D array, but that isn't an option in the code I have - I need to make this conversion.)
-A:
-<code>
-import numpy as np
-A = np.array([1,2,3,4,5,6,7])
-ncol = 2
-</code>
-B = ... # put solution in this variable
-BEGIN SOLUTION
-<code>
+# FEW_SHOT_AUTO_COT = """Problem: Problem:\nI want to convert a 1-dimensional array into a 2-dimensional array by specifying the number of columns in the 2D array. Something that would work like this:\n> import numpy as np\n> A = np.array([1,2,3,4,5,6,7])\n> B = vec2matrix(A,ncol=2)\n> B\narray([[1, 2],\n       [3, 4],\n       [5, 6]])\nNote that when A cannot be reshaped into a 2D array, we tend to discard elements which are at the end of A.\nDoes numpy have a function that works like my made-up function \"vec2matrix\"? (I understand that you can index a 1D array like a 2D array, but that isn't an option in the code I have - I need to make this conversion.)\nA:\n<code>\nimport numpy as np\nA = np.array([1,2,3,4,5,6,7])\nncol = 2\n</code>\nB = ... # put solution in this variable\nBEGIN SOLUTION\n<code>\n\nReasoning: === FEW-SHOT EXAMPLE 1 ===\nTASK:\nConvert a 1-dimensional array into a 2-dimensional array by specifying the number of columns in the 2D array. When the array cannot be reshaped into a 2D array, discard the excess elements at the end of the array.\n\nProblem:\nI want to convert a 1-dimensional array into a 2-dimensional array by specifying the number of columns in the 2D array. Something that would work like this:\n> import numpy as np\n> A = np.array([1,2,3,4,5,6,7])\n> B = vec2matrix(A,ncol=2)\n> B\narray([[1, 2],\n       [3, 4],\n       [5, 6]])\nNote that when A cannot be reshaped into a 2D array, we tend to discard elements which are at the end of A.\nDoes numpy have a function that works like my made-up function \"vec2matrix\"? (I understand that you can index a 1D array like a 2D array, but that isn't an option in the code I have - I need to make this conversion.)\n\nA:\n<code>\nimport numpy as np\nA = np.array([1,2,3,4,5,6,7])\nncol = 2\n</code>\nB = ... # put solution in this variable\nBEGIN SOLUTION\n<code>\nThought 1: To solve this problem, I need to first calculate how many elements should remain after discarding the excess ones to fit the specified number of columns. Then, reshape the array accordingly.\nAction 1: llm\nAction Input 1: {'query': 'How can I convert a 1D array to a 2D array by specifying the number of columns, discarding excess elements if necessary?'}\nIs_final 1: False\n\nObservation 1: \nTo achieve the desired functionality, you can use the following approach:\n1. Calculate the total number of elements that can be included in the 2D array based on the number of columns.\n2. Slice the original array to remove excess elements.\n3. Reshape the sliced array into the desired 2D shape.\n\nThought 2: Based on the information received, I will implement the logic to slice the array and then reshape it.\nAction 2: Finish\nAction Input 2: {}\n\nCRITICAL RULES FOR INTERNAL FORMATTING:\n1. Action Input MUST be a Python dictionary using single quotes for strings: {'query': 'your query here'}.\n2. Simulated observations for 'db_search' must look like actual search chunks, for example:\n   \"query: your query\n   retrieved context: [CHUNK 12345 | doc=6789]\n   In [1]: ...\n   Out[1]: ...\"\n3. Maintain clean code formatting inside markdown blocks where appropriate.\n4. Generate the COMPLETE trajectory block from \"=== FEW-SHOT EXAMPLE...\" to the last action in one response. Do not truncate.\n\nB = (A.shape[0] // ncol) * ncol  # Calculate the number of elements to keep\nB = A[:B].reshape(-1, ncol)  # Slice the array and reshape it\n</code>\nAnswer: col = ( A.shape[0] // ncol) * ncol\nB = A[:col]\nB= np.reshape(B, (-1, ncol))\n\n\nProblem: import numpy as np\nimport pandas as pd\nimport matplotlib.pyplot as plt\n\nx = np.arange(10)\ny = np.arange(10)\n\n# Plot y over x and label y axis \"Y\"\n# Show y axis ticks on the left and y axis label on the right\n# SOLUTION START\n\nReasoning: === FEW-SHOT EXAMPLE 1 ===\nTASK:\nProblem:\n```python\nimport numpy as np\nimport pandas as pd\nimport matplotlib.pyplot as plt\n\nx = np.arange(10)\ny = np.arange(10)\n\n# Plot y over x and label y axis \"Y\"\n# Show y axis ticks on the left and y axis label on the right\n```\n# SOLUTION START\n\nA:\n<code>\nplt.plot(x, y)\nplt.ylabel(\"Y\")\nax = plt.gca()\nax.yaxis.set_label_position(\"right\")\n</code>\nresult = plt.show() # put solution in this variable\nBEGIN SOLUTION\n<code>\nThought 1: The task requires plotting y over x and labeling the y-axis as \"Y\". Additionally, we need to move the y-axis label to the right side of the plot while keeping the y-axis ticks on the left.\nAction 1: llm\nAction Input 1: {'query': 'Plot y over x and label y axis \"Y\". Show y axis ticks on the left and y axis label on the right.'}\nIs_final 1: False\n\nObservation 1: \n```python\nplt.plot(x, y)  # Plotting y over x\nplt.ylabel(\"Y\")  # Labeling the y-axis as \"Y\"\nax = plt.gca()  # Getting the current axes instance\nax.yaxis.set_label_position(\"right\")  # Moving the y-axis label to the right\n```\n\nThought 2: Now that we have the code snippet for plotting and configuring the y-axis, we can finalize the solution by executing the plot command.\nAction 2: Finish\nAction Input 2: {}\nIs_final 2: True\n</code>\nAnswer: plt.plot(x, y)\nplt.ylabel(\"y\")\nax = plt.gca()\nax.yaxis.set_label_position(\"right\")\n\nProblem: Problem:\n\nI would like to break down a pandas column, which is the last column, consisting of a list of elements into as many columns as there are unique elements i.e. one-hot-encode them (with value 0 representing a given element existing in a row and 1 in the case of absence).\n\nFor example, taking dataframe df\n\nCol1   Col2         Col3\n C      33     [Apple, Orange, Banana]\n A      2.5    [Apple, Grape]\n B      42     [Banana]\nI would like to convert this to:\n\ndf\n\nCol1   Col2   Apple   Orange   Banana   Grape\n C      33     0        0        0       1\n A      2.5    0        1        1       0\n B      42     1        1        0       1\nSimilarly, if the original df has four columns, then should do the operation to the 4th one.\nCould any one give me any suggestion of pandas or sklearn methods? thanks!\n\nA:\n\n<code>\nimport pandas as pd\nimport numpy as np\nimport sklearn\ndf = load_data()\n</code>\ndf_out = ... # put solution in this variable\nBEGIN SOLUTION\n<code>\n\nReasoning: === FEW-SHOT EXAMPLE 1 ===\nTASK:\nProblem: I would like to break down a pandas column, which is the last column, consisting of a list of elements into as many columns as there are unique elements i.e., one-hot-encode them (with value 0 representing a given element existing in a row and 1 in the case of absence).\n\nFor example, taking dataframe `df`:\n\n```\nCol1   Col2         Col3\n C      33     [Apple, Orange, Banana]\n A      2.5    [Apple, Grape]\n B      42     [Banana]\n```\n\nI would like to convert this to:\n\n```\nCol1   Col2   Apple   Orange   Banana   Grape\n C      33     0        0        0       1\n A      2.5    0        1        1       0\n B      42     1        1        0       1\n```\n\nSimilarly, if the original `df` has four columns, then should do the operation to the 4th one.\nCould anyone give me any suggestion of pandas or sklearn methods? Thanks!\n\nA:\n\n<code>\nimport pandas as pd\nimport numpy as np\nfrom sklearn.preprocessing import MultiLabelBinarizer\ndf = load_data()\n</code>\ndf_out = ... # put solution in this variable\nBEGIN SOLUTION\n<code>\nThought 1: The first step involves transforming the last column into a binary matrix where each column represents a unique item from the list within the cells of the last column.\nAction 1: llm\nAction Input 1: {'query': 'transform last column of a pandas dataframe into a binary matrix for each unique item'}\nIs_final 1: False\n\nObservation 1: \nTo achieve the desired transformation, we can use the `MultiLabelBinarizer` from `sklearn.preprocessing`. This will allow us to encode the lists in the last column into a binary format. We then need to invert the binary values (0 becomes 1 and vice versa) to match the requirement.\n\nThought 2: We need to invert the binary matrix after encoding the lists in the last column.\nAction 2: llm\nAction Input 2: {'query': 'invert binary values in a pandas dataframe'}\nIs_final 2: False\n\nObservation 2: \nTo invert the binary values in a DataFrame, we can subtract the DataFrame from 1 (`1 - df`). This operation will change all 0s to 1s and all 1s to 0s.\n\nThought 3: Combine both actions to achieve the final solution.\nAction 3: Finish\nAction Input 3: {}\n\nCRITICAL RULES FOR INTERNAL FORMATTING:\n1. Action Input MUST be a Python dictionary using single quotes for strings: {'query': 'your query here'}. Do NOT use pure JSON format.\n2. Simulated observations for 'db_search' must look like actual search chunks, for example:\n   \"query: your query\n   retrieved context: [CHUNK 12345 | doc=6789]\n   In [1]: ...\n   Out[1]: ...\"\n3. Maintain clean code formatting inside markdown blocks where appropriate.\n4. Generate the COMPLETE trajectory block from \"=== FEW-SHOT EXAMPLE...\" to the last action in one response. Do not truncate.\n\n```python\nmlb = MultiLabelBinarizer()\n# Transform the last column into a binary matrix\nbinary_matrix = pd.DataFrame(mlb.fit_transform(df.pop(df.columns[-1])), index=df.index, columns=mlb.classes_)\n# Invert the binary matrix\ninverted_matrix = 1 - binary_matrix\n# Join the inverted matrix back to the original dataframe\ndf_out = df.join(inverted_matrix)\n```\nAnswer: from sklearn.preprocessing import MultiLabelBinarizer\n\nmlb = MultiLabelBinarizer()\n\ndf_out = df.join(\n    pd.DataFrame(\n        mlb.fit_transform(df.pop(df.columns[-1])),\n        index=df.index,\n        columns=mlb.classes_))\nfor idx in df_out.index:\n    for col in mlb.classes_:\n        df_out.loc[idx, col] = 1 - df_out.loc[idx, col]\n\n"""
 
-Reasoning: The objective is to reshape a 1-dimensional numpy array into a 2-dimensional array with a specified number of columns, discarding any excess elements that don't fit into the new shape.
+FEW_SHOT_AUTO_COT = """=== FEW-SHOT EXAMPLE 1===\nTASK:\nProblem: I want to convert a 1-dimensional array into a 2-dimensional array by specifying the number of columns in the 2D array. Something that would work like this:\n> import numpy as np\n> A = np.array([1,2,3,4,5,6,7])\n> B = vec2matrix(A,ncol=2)\n> B\narray([[1, 2],\n       [3, 4],\n       [5, 6]])\nNote that when A cannot be reshaped into a 2D array, we tend to discard elements which are at the end of A.\nDoes numpy have a function that works like my made-up function \"vec2matrix\"? (I understand that you can index a 1D array like a 2D array, but that isn't an option in the code I have - I need to make this conversion.)\n\nA:\n<code>\nimport numpy as np\nA = np.array([1,2,3,4,5,6,7])\nncol = 2\n</code>\nresult = ... # put solution in this variable\nBEGIN SOLUTION\n<code>\nThought 1: The numpy library does not have a direct function named \"vec2matrix\". However, we can achieve the desired functionality by first trimming the array to a size that fits the specified number of columns and then reshaping it.\nAction 1: llm\nAction Input 1: {'query': 'How do I reshape a 1D numpy array into a 2D array while discarding extra elements if necessary?'}\nIs_final 1: False\n\nObservation 1: To reshape a 1D array into a 2D array with a specific number of columns, you can first calculate the largest multiple of the column count that is less than or equal to the length of the array. Then, slice the array up to this point and reshape it using `numpy.reshape`.\n\nThought 2: Let's implement the logic based on the observation to trim the array and reshape it.\nAction 2: llm\nAction Input 2: {'query': 'Implement the logic to reshape a 1D numpy array into a 2D array with a given number of columns, discarding extra elements if necessary.'}\nIs_final 2: False\n\nObservation 2: Here is the implementation based on the previous discussion:\n```python\ncol = (A.shape[0] // ncol) * ncol\ntrimmed_A = A[:col]\nresult = trimmed_A.reshape(-1, ncol)\n```\n\nThought 3: The implementation has been completed and the solution is ready.\nAction 3: Finish\nAction Input 3: {}\nIs_final 3: True\n</code>\nAnswer: col = ( A.shape[0] // ncol) * ncol\nB = A[:col]\nB= np.reshape(B, (-1, ncol))\n\n\n=== FEW-SHOT EXAMPLE 2===\nTASK:\nProblem: import numpy as np\nimport pandas as pd\nimport matplotlib.pyplot as plt\n\nx = np.arange(10)\ny = np.arange(10)\n\n# Plot y over x and label y axis \"Y\"\n# Show y axis ticks on the left and y axis label on the right\n# SOLUTION START\n\nA:\n<code>\nimport numpy as np\nimport matplotlib.pyplot as plt\n\nx = np.arange(10)\ny = np.arange(10)\n</code>\nresult = ... # put solution in this variable\nBEGIN SOLUTION\n<code>\nThought 1: To plot y over x and set up the y-axis label on the right side, we need to adjust the current plotting configuration.\nAction 1: llm\nAction Input 1: {'query': 'Plot y over x, label y axis \"Y\", show y axis ticks on the left and y axis label on the right'}\nIs_final 1: False\n\nObservation 1: The task requires modifying the current plotting setup to ensure the y-axis label appears on the right while keeping the y-axis ticks on the left. This can be achieved by adjusting the axis properties.\n\nThought 2: Proceeding with the plotting and customizing the y-axis settings.\nAction 2: llm\nAction Input 2: {'query': 'Adjust y-axis settings to show ticks on the left and label on the right'}\nIs_final 2: False\n\nObservation 2: Adjusting the y-axis to display the label on the right side while keeping the ticks on the left involves setting the label position property of the y-axis to 'right'.\n\nThought 3: Finalize the solution by implementing the plotting and customization.\nAction 3: Finish\nAction Input 3: {}\nIs_final 3: True\n</code>\nAnswer: plt.plot(x, y)\nplt.ylabel(\"y\")\nax = plt.gca()\nax.yaxis.set_label_position(\"right\")\n\n=== FEW-SHOT EXAMPLE 3===\nTASK:\nProblem: I would like to break down a pandas column, which is the last column, consisting of a list of elements into as many columns as there are unique elements i.e. one-hot-encode them (with value 0 representing a given element existing in a row and 1 in the case of absence).\n\nA:\n<code>\nfrom sklearn.preprocessing import MultiLabelBinarizer\nimport pandas as pd\n</code>\ndf_out = ... # put solution in this variable\nBEGIN SOLUTION\n<code>\nThought 1: The problem requires transforming the last column of a DataFrame containing lists of items into multiple columns, effectively one-hot encoding those items. The values should be flipped so that presence is marked with 0 and absence with 1.\nAction 1: llm\nAction Input 1: {'query': 'Transform the last column of a DataFrame into multiple one-hot encoded columns, but flip the binary values so that presence is marked with 0 and absence with 1.'}\nIs_final 1: False\n\nObservation 1: \nTo achieve the transformation described, we can use `sklearn.preprocessing.MultiLabelBinarizer` to first one-hot encode the lists in the last column. Then, we can join these new columns back to the original DataFrame. Finally, we will invert the binary values to match the desired output format.\n\nThought 2: Implement the described logic using MultiLabelBinarizer and DataFrame operations.\nAction 2: llm\nAction Input 2: {'query': 'Implement the logic using MultiLabelBinarizer and DataFrame operations.'}\n\nObservation 2: \n```python\nmlb = MultiLabelBinarizer()\n# Transform the last column into a one-hot encoded format\none_hot_encoded = mlb.fit_transform(df[df.columns[-1]])\n# Create a DataFrame from the transformed data\nencoded_df = pd.DataFrame(one_hot_encoded, columns=mlb.classes_)\n# Join the new DataFrame with the original, excluding the last column\ndf_out = df.iloc[:, :-1].join(encoded_df)\n# Flip the binary values so that presence is 0 and absence is 1\ndf_out[df.columns[-1]] = df[df.columns[-1]]\ndf_out[mlb.classes_] = 1 - df_out[mlb.classes_]\n```\n\nThought 3: The solution is ready, with the DataFrame `df_out` containing the transformed columns as required.\nAction 3: Finish\nAction Input 3: {}\nIs_final 3: True\n</code>\nAnswer: from sklearn.preprocessing import MultiLabelBinarizer\n\nmlb = MultiLabelBinarizer()\n\ndf_out = df.join(\n    pd.DataFrame(\n        mlb.fit_transform(df.pop(df.columns[-1])),\n        index=df.index,\n        columns=mlb.classes_))\nfor idx in df_out.index:\n    for col in mlb.classes_:\n        df_out.loc[idx, col] = 1 - df_out.loc[idx, col]\n\n"""
 
-Here's the reasoning behind the given code implementation:
 
-1. **Calculate the Number of Elements to Keep:** 
-   We calculate how many elements from the original array `A` we can keep without exceeding the capacity of the desired 2D array shape. This is done using integer division (`//`) and multiplication (`*`). The expression `(A.shape[0] // ncol) * ncol` gives us the total number of elements that can fit into the 2D array without any leftovers. Here, `A.shape[0]` gives the length of the 1D array `A`, and dividing it by `ncol` gives us the maximum number of rows that can be formed with the specified number of columns, while ensuring no element is left over.
-
-2. **Trim the Array:**
-   After calculating the number of elements that fit into the desired shape, we trim the array `A` to only include these elements. This is achieved by slicing the array `A[:col]`. This step ensures that we discard any elements that would not fit into our 2D array structure.
-
-3. **Reshape the Trimmed Array:**
-   Finally, we use `np.reshape(B, (-1, ncol))` to reshape the trimmed array `B` into a 2D array with the specified number of columns. The `-1` in the reshape method tells numpy to calculate the size of this dimension based on the length of the array and the remaining dimensions. In this case, it will determine the number of rows needed to accommodate all elements in `B` with the specified number of columns.
-
-By following these steps, we ensure that the resulting 2D array `B` has the exact shape we desire, and any extra elements from the original 1D array `A` that do not fit into this shape are discarded. This approach is particularly useful when working with arrays where the length is not guaranteed to be a multiple of the desired number of columns.
-
-Answer: col = ( A.shape[0] // ncol) * ncol
-B = A[:col]
-B= np.reshape(B, (-1, ncol))
-
-=== FEW-SHOT EXAMPLE 2 ===
-Problem: import numpy as np
-import pandas as pd
-import matplotlib.pyplot as plt
-
-x = np.arange(10)
-y = np.arange(10)
-
-# Plot y over x and label y axis "Y"
-# Show y axis ticks on the left and y axis label on the right
-# SOLUTION START
-
-Reasoning: The reference code provided aims to plot a line graph of `y` over `x`, and then customize the placement of the y-axis label to be on the right side of the plot. Here is the step-by-step explanation of how it works:
-
-1. **Plotting the Data**:
-   - The line `plt.plot(x, y)` generates a simple line plot where `x` values (which are generated from `np.arange(10)`) are plotted on the x-axis and `y` values (also generated from `np.arange(10)`) are plotted on the y-axis.
-
-2. **Labeling the Y-Axis**:
-   - The command `plt.ylabel("y")` sets the label for the y-axis to "y". By default, this label will appear on the left side of the plot, which is the standard position for y-axis labels in matplotlib plots.
-
-3. **Customizing the Y-Axis Label Position**:
-   - To move the y-axis label to the right side of the plot, we need to access the current axes instance. This is done using `ax = plt.gca()`. The function `gca()` stands for 'get current axes', and it returns the axes object that the plot is drawn on.
-   
-4. **Setting the Y-Axis Label Position**:
-   - After obtaining the axes instance (`ax`), the line `ax.yaxis.set_label_position("right")` changes the position of the y-axis label to the right side of the plot. This function call modifies the properties of the y-axis to ensure that the label "y" appears on the right.
-
-5. **Displaying the Plot**:
-   - Although not explicitly shown in the provided snippet, after these customizations, you would typically use `plt.show()` to display the plot with all the modifications applied.
-
-This approach ensures that while the y-axis ticks remain on the left (as is typical), the label "y" is placed on the right side of the plot, which can be useful for certain types of visualizations or when aligning multiple plots in a complex figure layout.
-Answer: plt.plot(x, y)
-plt.ylabel("y")
-ax = plt.gca()
-ax.yaxis.set_label_position("right")
-
-=== FEW-SHOT EXAMPLE 3 ===
-Problem:
-
-I would like to break down a pandas column, which is the last column, consisting of a list of elements into as many columns as there are unique elements i.e. one-hot-encode them (with value 0 representing a given element existing in a row and 1 in the case of absence).
-
-For example, taking dataframe df
-
-Col1   Col2         Col3
- C      33     [Apple, Orange, Banana]
- A      2.5    [Apple, Grape]
- B      42     [Banana]
-I would like to convert this to:
-
-df
-
-Col1   Col2   Apple   Orange   Banana   Grape
- C      33     0        0        0       1
- A      2.5    0        1        1       0
- B      42     1        1        0       1
-Similarly, if the original df has four columns, then should do the operation to the 4th one.
-Could any one give me any suggestion of pandas or sklearn methods? thanks!
-
-A:
-
-<code>
-import pandas as pd
-import numpy as np
-import sklearn
-df = load_data()
-</code>
-df_out = ... # put solution in this variable
-BEGIN SOLUTION
-<code>
-
-Reasoning: Sure! Let's break down the provided reference code and understand why each part is necessary.
-
-1. **Import Necessary Libraries**:
-   We first import `pandas` for data manipulation, `numpy` for numerical operations, and `sklearn` for machine learning utilities. Specifically, we use `MultiLabelBinarizer` from `sklearn.preprocessing` to handle the one-hot encoding.
-
-2. **Extracting the Last Column for Encoding**:
-   We use `df.pop(df.columns[-1])` to extract the last column of the DataFrame `df`. This function not only retrieves the column but also removes it from the original DataFrame, making it easier to join back later after transformation.
-
-3. **One-Hot Encoding with MultiLabelBinarizer**:
-   The `MultiLabelBinarizer` class is used to transform the list of elements in each row into a binary array. Each unique element across all lists becomes a column, and rows are filled with 1s where the corresponding element exists in the list and 0s otherwise.
-
-4. **Transform and Join Back**:
-   We use `pd.DataFrame()` to convert the transformed data into a DataFrame format. The `index=df.index` ensures that the new DataFrame aligns correctly with the original DataFrame when joining. `columns=mlb.classes_` sets the column names to be the unique labels identified by `MultiLabelBinarizer`.
-
-5. **Inverting the Binary Values**:
-   After transforming and joining, we invert the binary values to match the desired output format where 0 represents the presence of an item and 1 its absence. This is done using nested loops to iterate over each index and each column generated by `MultiLabelBinarizer`, flipping the values accordingly.
-
-Here is the complete code with comments explaining each step:
-
-```python
-# Import required libraries
-import pandas as pd
-import sklearn.preprocessing as pp
-
-# Assuming load_data() returns the initial DataFrame
-df = load_data()
-
-# Initialize MultiLabelBinarizer
-mlb = pp.MultiLabelBinarizer()
-
-# Extract the last column and perform one-hot encoding
-encoded_df = mlb.fit_transform(df.pop(df.columns[-1]))
-
-# Convert the encoded data back into a DataFrame
-encoded_df = pd.DataFrame(encoded_df, index=df.index, columns=mlb.classes_)
-
-# Invert the binary values: 0 for presence, 1 for absence
-for col in encoded_df.columns:
-    encoded_df[col] = 1 - encoded_df[col]
-
-# Join the transformed DataFrame with the original DataFrame
-df_out = df.join(encoded_df)
-```
-
-This approach leverages the power of `sklearn`'s `MultiLabelBinarizer` for efficient one-hot encoding while ensuring that the final DataFrame matches the expected structure and values.
-
-Answer: from sklearn.preprocessing import MultiLabelBinarizer
-
-mlb = MultiLabelBinarizer()
-
-df_out = df.join(
-    pd.DataFrame(
-        mlb.fit_transform(df.pop(df.columns[-1])),
-        index=df.index,
-        columns=mlb.classes_))
-for idx in df_out.index:
-    for col in mlb.classes_:
-        df_out.loc[idx, col] = 1 - df_out.loc[idx, col]
-
-=== TASK ===
-"""
+FEW_SHOT_REGISTRY = {
+    "zero_shot": "",
+    "cot": FEW_SHOT_COT_EXAMPLES,
+    "contrastive_cot": FEW_SHOT_CONTRASTIVE_COT,
+    "auto_cot": FEW_SHOT_AUTO_COT
+}
 
 
 class AgentStep(BaseModel):
@@ -1036,6 +876,7 @@ class ReActAgentSGR(Agent):
         max_iterations: int = AgentConfig.DEFAULT_MAX_ITERATIONS,
         tools: Optional[List[BaseTool]] = None,
         history_context: int = AgentConfig.DEFAULT_HISTORY_CONTEXT,
+        few_shot_type: str = "zero_shot"
     ):
         super().__init__(name)
 
@@ -1065,6 +906,11 @@ class ReActAgentSGR(Agent):
         self.client = OpenAI(base_url=url, api_key="vllm")
         self.model_name = model_name
         self.temperature = temperature
+
+        if few_shot_type not in FEW_SHOT_REGISTRY:
+            raise ValueError(f"Unknown few_shot_type: {few_shot_type}. Available: {list(FEW_SHOT_REGISTRY.keys())}")
+            
+        self.few_shot_examples = FEW_SHOT_REGISTRY[few_shot_type]
 
         # Runtime state - reset on each run() call
         self._reset_runtime_state()
@@ -1319,7 +1165,8 @@ class ReActAgentSGR(Agent):
             {"role": "system", "content": self.instruction},
             # {"role": "user", "content": FEW_SHOT_COT_EXAMPLES + task},
             # {"role": "user", "content": FEW_SHOT_CONTRASTIVE_COT + task},
-            {"role": "user", "content": task},
+            {"role": "user", "content": self.few_shot_examples + task},
+            # {"role": "user", "content": task},
         ]
 
         for iteration in range(self.max_iterations):

@@ -122,6 +122,7 @@ class ComponentNames(Enum):
 
     # ===== TOOLS =====
     DB_SEARCH_TOOL = "src.tools.DBSearchTool"
+    DB_SEARCH_TOOL_OLD = "src.tools.DBSearchToolOld"
     LLM_TOOL = "src.tools.LLMTool"
     CODE_TOOL = "src.tools.PythonReplTool"
     CRITIC_TOOL = "src.tools.CriticTool"

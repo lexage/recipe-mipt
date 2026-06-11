@@ -76,7 +76,7 @@ components:
 
       url: "http://localhost:7215/v1"
       model_name: "Qwen/Qwen1.5-32B-Chat-AWQ"
-      
+
       temperature: 0.2
       top_p: 0.95
       max_tokens: 1024
