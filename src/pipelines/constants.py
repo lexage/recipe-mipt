@@ -14,6 +14,7 @@ class PipelinesNames(Enum):
     PANEL = "PANELPipeline"
     MARS = "MARSPipeline"
     MARS_CRITIC_UPD = "MARSPipelineCriticUpd"
+    MARS_CRITIC_VERIFIER_UPD = "MARSPipelineCriticVerifierUpd"
     REWOO_CRITIC_BEFORE_SOLVER = "REWOOPipelineAddCriticBeforeSolver"
     REWOO_CRITIC_AFTER_SOLVER = "REWOOPipelineAddCriticAfterSolver"
 
@@ -56,6 +57,7 @@ class ComponentNames(Enum):
     MARS_CRITIC = "src.agents.pipelines.CriticMARS"
     MARS_STUDENT = "src.agents.pipelines.StudentMARS"
     MARS_CRITIC_UPD = "src.agents.pipelines.CriticMARSUpd"
+    MARS_STUDENT_UPD = "src.agents.pipelines.StudentMARSUpd"
 
 
     # ===== Agents: Planning =====

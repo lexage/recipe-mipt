@@ -23,7 +23,7 @@ class REWOOPipelineAddCriticBeforeSolver(Pipeline):
         final_answer = final_answer.replace("```\n", "") # добавлено дополнительно изменение, которое фиксит проблему с получением пустых строк из ```
         
         return final_answer
-    
+
 class REWOOPipelineAddCriticAfterSolver(Pipeline):
 
     def __init__(self, planner: Agent, worker: Agent, solver: Agent, critic: Agent):

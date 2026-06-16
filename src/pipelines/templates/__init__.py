@@ -8,6 +8,7 @@ from .react_add_critic_pipeline import REACTPipelineAddCritic
 from .panel_pipeline import PANELPipeline
 from .mars_pipeline import MARSPipeline
 from .mars_pipeline_critic_upd import MARSPipelineCriticUpd
+from .mars_pipeline_critic_verifier_upd import MARSPipelineCriticVerifierUpd
 
 __all__ = [
     "BasePipeline",
@@ -21,4 +22,5 @@ __all__ = [
     "PANELPipeline",
     "MARSPipeline",
     "MARSPipelineCriticUpd",
+    "MARSPipelineCriticVerifierUpd"
 ]

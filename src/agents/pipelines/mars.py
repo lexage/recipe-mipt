@@ -341,3 +341,60 @@ Please base on the following question update your final answer, write ONLY FINAL
 
         response = self.llm(student_prompt).strip()
         return response
+
+
+class StudentMARSUpd(Agent):
+    """Agent generates an improved final response."""
+
+    def __init__(
+        self,
+        url: str = None,
+        model_name: str = None,
+        temperature: float = 0.0,
+        name: str = "mars_student_agent",
+    ):
+        super().__init__(name)
+        self.client = OpenAI(base_url=url, api_key="vllm")
+        self.model_name = model_name
+        self.temperature = temperature
+        self.system_prompt = SYSTEM_STUDENT_PROMPT
+
+    def llm(self, prompt: str) -> str:
+        """Сalling the llm to get a response."""
+        response = self.client.chat.completions.create(
+            model=self.model_name,
+            messages=[
+                {"role": "system", "content": self.system_prompt},
+                {"role": "user", "content": prompt},
+            ],
+            temperature=self.temperature,
+        )
+        return response.choices[0].message.content
+
+    def run(
+            self,
+            task: Text,
+            final_answer: str = None,
+            questions: str = None,
+            verifier_feedback: str = None,
+            mode: str = "update",
+        ) -> Text:
+
+        if mode == "init":
+            student_prompt = f"""Here is the task definition:
+{task}
+Please generate a more appropriate final answer based on the following prompt and task definition: Think step by step and solve the question."""
+        else:
+            student_prompt = f"""Here is the task definition:
+{task}
+Here is your last final answer:
+{final_answer}
+Please base on the following question update your final answer, write ONLY FINAL CODE:
+{questions}"""
+            
+            if verifier_feedback:
+                student_prompt += f"""\n\nAdditionally, consider this feedback from the critic to improve your answer:
+{verifier_feedback}"""
+
+        response = self.llm(student_prompt).strip()
+        return response
