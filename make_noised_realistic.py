@@ -132,12 +132,16 @@ def main():
                     help="доля грязных слов в ИСХОДНЫХ доках (mojibake/html/boiler)")
     ap.add_argument("--char-sub-frac", type=float, default=None,
                     help="доля доков со сквозной подменой символа (по умолч. = --noise)")
+    ap.add_argument("--examples-noise", type=float, default=None,
+                    help="доля грязных слов в ПРИМЕРАХ кода (по умолч. = --noise; 0 = не трогать). "
+                         "Примеры — это код, который копирует солвер; без их порчи грязь не доезжает.")
     ap.add_argument("--junk-frac", type=float, default=0.5,
                     help="офтоп-доков добавить = junk-frac * (число исходных), НЕ входит в noise")
     ap.add_argument("--seed", type=int, default=7)
     args = ap.parse_args()
 
     char_sub_frac = args.char_sub_frac if args.char_sub_frac is not None else args.noise
+    examples_noise = args.examples_noise if args.examples_noise is not None else args.noise
 
     if os.path.abspath(args.inp) == os.path.abspath(args.out):
         raise SystemExit("--out must differ from --in")
@@ -161,6 +165,30 @@ def main():
             conn.execute("UPDATE documents SET content=?, length=? WHERE id=?", (nc, len(nc), doc_id))
         else:
             conn.execute("UPDATE documents SET content=? WHERE id=?", (nc, doc_id))
+
+    # STAGE 1b: corrupt the CODE EXAMPLES too (the solver copies these — if they
+    # stay clean the dirt never reaches the answer). Same corruption model.
+    ex_corrupted = 0
+    if examples_noise > 0:
+        has_ex = bool(conn.execute(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name='examples'"
+        ).fetchone())
+        if has_ex:
+            ex = conn.execute(
+                "SELECT id, content FROM examples WHERE content IS NOT NULL AND length(content) > 20"
+            ).fetchall()
+            ex_has_len = "length" in [c[1] for c in conn.execute("PRAGMA table_info(examples)")]
+            n_ex_char = int(len(ex) * char_sub_frac)
+            ex_char_ids = (set(e[0] for e in rng.sample(ex, n_ex_char))
+                           if n_ex_char < len(ex) else set(e[0] for e in ex))
+            for ex_id, content in ex:
+                nc = corrupt_doc(content, examples_noise, rng, do_char_sub=(ex_id in ex_char_ids))
+                if ex_has_len:
+                    conn.execute("UPDATE examples SET content=?, length=? WHERE id=?",
+                                 (nc, len(nc), ex_id))
+                else:
+                    conn.execute("UPDATE examples SET content=? WHERE id=?", (nc, ex_id))
+                ex_corrupted += 1
 
     # STAGE 2: add off-topic junk docs (separate, uncorrupted)
     added = 0
@@ -192,6 +220,7 @@ def main():
     conn.commit()
     conn.close()
     print(f"originals corrupted : {len(docs)}  (noise={args.noise}, char_sub on {len(char_ids)} docs)")
+    print(f"examples corrupted  : {ex_corrupted}  (examples_noise={examples_noise})")
     print(f"offtopic docs added : {added}  (junk_frac={args.junk_frac})")
     print(f"saved -> {args.out}")
 
