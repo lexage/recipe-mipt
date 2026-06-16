@@ -11,6 +11,7 @@ from qdrant_client.models import (
 from fastembed import SparseTextEmbedding
 from typing import List, Dict, Tuple
 from tqdm import tqdm
+from concurrent.futures import ThreadPoolExecutor
 
 
 from src.agent_constructor.core import Text, Chunk
@@ -19,12 +20,15 @@ from src.agent_constructor.agent import Agent
 
 class QdrantDocsAdapter:
     
-    def __init__(self, embedder: Agent, collection_name: str, path_to_db: str):
-        
+    def __init__(self, embedder: Agent, collection_name: str, path_to_db: str,
+                 embed_batch_size: int = 64, num_workers: int = 4):
+
         self.client = QdrantClient(path=path_to_db)
         self.embedder = embedder
         self.collection_name = collection_name
         self.batch_size = 10
+        self.embed_batch_size = int(embed_batch_size)   # texts per embedder call
+        self.num_workers = int(num_workers)             # parallel embedder calls
         self.sparse_embedder = SparseTextEmbedding(
             model_name="Qdrant/bm25"
         )
@@ -47,22 +51,43 @@ class QdrantDocsAdapter:
     def add(self, chunks: List[Chunk]):
         points_count, chunks = self._filter_existing_chunks(chunks)
 
-        if chunks == []:
+        if not chunks:
             return
-        
-        for i in tqdm(range(0, len(chunks), self.batch_size), desc="Vectorizing"):
-            id_offset = points_count + i
-            batch = chunks[i:i + self.batch_size]
 
-            points = self._points_from_batch(
-                batch=batch,
-                id_offset=id_offset
-            )            
+        bs = self.embed_batch_size
+        window = bs * max(1, self.num_workers)   # chunks embedded before each upsert
 
-            self.client.upsert(
-                collection_name=self.collection_name,
-                points=points,
-            )
+        with ThreadPoolExecutor(max_workers=self.num_workers) as ex, \
+                tqdm(total=len(chunks), desc="Vectorizing") as pbar:
+            for w in range(0, len(chunks), window):
+                wchunks = chunks[w:w + window]
+                wtexts = [c.text for c in wchunks]
+
+                # dense: parallel batched calls to the embedder service (order preserved)
+                subs = [wtexts[s:s + bs] for s in range(0, len(wtexts), bs)]
+                dense = [v for sub in ex.map(self.embedder.run, subs) for v in sub]
+                # sparse: local fastembed (BM25), batched
+                sparse = list(self.sparse_embedder.embed(wtexts))
+
+                points = [
+                    PointStruct(
+                        id=points_count + w + j,
+                        vector={
+                            "dense": dense[j],
+                            "sparse": {
+                                "indices": sparse[j].indices,
+                                "values": sparse[j].values,
+                            },
+                        },
+                        payload=self._chunk_payload(wchunks[j]),
+                    )
+                    for j in range(len(wchunks))
+                ]
+                self.client.upsert(
+                    collection_name=self.collection_name,
+                    points=points,
+                )
+                pbar.update(len(wchunks))
     
 
     def close(self):
@@ -127,42 +152,6 @@ class QdrantDocsAdapter:
 
         return n, chunks
 
-
-    def _points_from_batch(self, batch: List[Chunk], id_offset: int) -> List[PointStruct]:
-        
-        if not batch:
-            return []
-
-        ids = [id+id_offset for id in range(len(batch))]
-        
-        payload : List[Dict] = []
-        chunk_texts : List[Text] = []
-
-        for chunk in batch:
-            payload.append(self._chunk_payload(chunk))
-            chunk_texts.append(chunk.text)
-        
-        dense_vectors = self.embedder.run(chunk_texts)
-        sparse_vectors = list(self.sparse_embedder.embed(chunk_texts))
-
-        points : List[PointStruct] = []
-
-        for i in range(len(batch)):
-            points.append(
-                PointStruct(
-                    id=ids[i],
-                    vector={
-                        "dense": dense_vectors[i],
-                        "sparse": {
-                            "indices": sparse_vectors[i].indices,
-                            "values": sparse_vectors[i].values, 
-                        }
-                    },
-                    payload=payload[i]
-                )
-            )
-
-        return points
 
     @staticmethod
     def _chunk_payload(chunk: Chunk) -> Dict:

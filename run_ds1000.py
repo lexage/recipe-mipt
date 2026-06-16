@@ -122,6 +122,10 @@ def parse_args():
     parser.add_argument(
         "-n", "--num_workers", default=4, help="Number of workers",
     )
+    parser.add_argument(
+        "-l", "--limit", type=int, default=0,
+        help="Run only N tasks, evenly spaced across the dataset (0 = all).",
+    )
     return parser.parse_args()
 
 
@@ -134,6 +138,13 @@ def main():
     config_files = list(config_dir.glob("*.yaml")) + list(config_dir.glob("*.yml"))
 
     bench = DS1000(dataset_path=args.dataset)
+
+    if args.limit and args.limit < len(bench.dataset._items):
+        items = bench.dataset._items
+        step = len(items) / args.limit
+        bench.dataset._items = [items[int(i * step)] for i in range(args.limit)]
+        print(f"- limiting eval to {args.limit} tasks (evenly spaced across "
+              f"{len(items)})")
 
     if not _HAS_PSUTIL:
         logging.warning(
@@ -222,7 +233,7 @@ def main():
 
         # ---------- assemble and persist stats ----------
         config_time = time.time() - config_start
-        n_tasks = 1000  # DS1000
+        n_tasks = len(bench.dataset._items)  # actual tasks run (respects --limit)
         stats = {
             "config_name": config_path.stem,
             "init_time_s": round(init_time_s, 2),
