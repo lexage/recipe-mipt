@@ -19,8 +19,8 @@ components:
   data_base:
     type: LOCAL_DB
     params:
-      path_to_db: "data/docs_database_examples_realistic.db"
-      path_to_vector_db: "data/vdb_exp5/simple_example_pure_dirty"
+      path_to_db: "data/docs_database_examples_realistic_v2.db"
+      path_to_vector_db: "data/vdb_exp5/pure_dirty_v2"
       collection_name: "docs"
       return_full_docs: False
       return_examples: True
