@@ -29,6 +29,7 @@ class ComponentNames(Enum):
     SELFREFINE_AGENT = "src.agents.critique.SelfRefine"
 
     # ===== Agents: General =====
+    CODEMMLU_SOLVER_AGENT = "src.agents.general.CodeMMLUSolver"
     DS1000_SOLVER_AGENT = "src.agents.general.DS1000Solver"
     DUMMY_AGENT = "src.agents.general.DummyAgent"
     TFIDF_EMBEDDING = "src.agents.general.TFIDFEmbedding"
@@ -72,6 +73,7 @@ class ComponentNames(Enum):
     RAPTOR_SUMM_AGENT = "src.agents.rag.RaptorSummarizationAgent"
 
     # ===== Agents: Generation =====
+    API_SELECTOR = "src.agents.generation.APISelector"
     QUERY_GENERATOR = "src.agents.generation.QueryGenerator"
 
     # ===== Agents: Reasoning =====
@@ -90,6 +92,7 @@ class ComponentNames(Enum):
     RAPTOR_RETRIEVER = "src.rag.raptor.RaptorRetriever"
     INSTRUCT_RETRIEVER = "src.rag.instructrag.InstructRAGRetriever"
     SIMPLE_RETRIEVER = "src.rag.simple.SimpleRetriever"
+    API_RETRIEVER = "src.rag.api.APIRetriever"
 
     # ===== Filters =====
     EXACT_SUBSTR_FILTER = "src.filtering.exactsubstr.ExactSubstrFiltrator"
