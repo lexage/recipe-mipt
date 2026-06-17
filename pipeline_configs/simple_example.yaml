@@ -1,7 +1,7 @@
 type: SIMPLE
 
 params:
-  top_k: 5
+  top_k: 3
 
 components:
   
@@ -15,14 +15,11 @@ components:
   data_base:
     type: LOCAL_DB
     params:
-      path_to_db: "data/docs_database_examples.db"
-      path_to_vector_db: "data/docs_vdb_rc_1000_meta_ml20"
+      similarity_threshold: 0.0
+      path_to_db: "C:/Projects/docs_database_examples.db"
+      path_to_vector_db: "data/docs_vector_database"
       collection_name: "docs"
       
-      return_examples: True
-      return_full_docs: False
-      merge_examples: False
-
       hnsw_space: "cosine"
       hnsw_m: 16
       hnsw_construction_ef: 400
@@ -42,7 +39,7 @@ components:
     type: LENGTH_FILTER
     params:
       name: filter
-      min_len: 20
+      min_len: 500
   
   context_assembler:
     type: CORAG_CONTEXT_ASSEMBLER
@@ -53,7 +50,8 @@ components:
     type: SIMPLE_RETRIEVER
     params:
       name: simple_retriever
-  
+      return_docs_as_chunks: True
+
   enchancer:
     type: QUERY_GENERATOR
     params:
@@ -63,17 +61,19 @@ components:
       options: 1
   
   agent:
-    type: DS1000_SOLVER_AGENT
+    type: CODEMMLU_SOLVER_AGENT
     params:
-      name: ds1000_solver
+      name: codemmlu_solver
 
       url: "http://localhost:7215/v1"
       model_name: "Qwen/Qwen1.5-32B-Chat-AWQ"
-      
-      api: chat
+
+      api: completions
       context_after_task: False
       
       temperature: 0.2
       top_p: 0.95
       max_tokens: 1024
-      stop_tokens: ["</code>", "# SOLUTION END"]
+      stop_tokens: []
+
+
