@@ -60,8 +60,8 @@ class CriticTool(BaseTool):
             )
         agent_class = self._AGENT_REGISTRY[name]
         agent_kwargs = dict(name=name, model_name=model_name, openai_api_base_url=url)
-        # Only critics that accept a `dataset` arg get it (currently Decrim); others
-        # keep their original signature until adapted.
+        # Only critics that accept a `dataset` arg get it (currently Critic, Decrim,
+        # Reflexion, SelfRefine); others keep their original signature until adapted.
         if "dataset" in inspect.signature(agent_class.__init__).parameters:
             agent_kwargs["dataset"] = dataset
         self.critic_agent = agent_class(**agent_kwargs)

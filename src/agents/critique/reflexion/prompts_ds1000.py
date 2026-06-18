@@ -1,3 +1,16 @@
+"""Reflexion prompts — DS-1000 (code-generation) dataset.
+
+Content extracted from the original ``prompts_code.py``. Exposes the public names the
+agent reads via ``self.prompts.*`` so switching benchmarks changes only the imported
+module (selected by the ``dataset`` param): ``PY_EVALUATE_INSTRUCTION``,
+``PY_EVALUATE_FEW_SHOT``, ``PY_SELF_REFLECTION_INSTRUCTION``, ``PY_SELF_REFLECTION_FEW_SHOT``,
+``PY_ACTOR_INSTRUCTION``.
+
+Code-generation flow: the agent answer IS a Python implementation — it is scored 1..5
+(``PY_EVALUATE_*``) and then a verbal reflection / hint for the next attempt is produced
+(``PY_SELF_REFLECTION_*``).
+"""
+
 PY_SELF_REFLECTION_INSTRUCTION = """ You are a Python programming assistant.
         You will be given a problem and implementation in Python and evaluation of this implementation. 
         Your goal is to write feedback for the implementation step for:
