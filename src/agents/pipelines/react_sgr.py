@@ -9,7 +9,7 @@ from src.agent_constructor.agent import Agent
 from src.tools import BaseTool, LLMTool
 
 
-from src.agents.pipelines.prompts.prompts_react_sgr import (
+from src.agents.pipelines.prompts.ds1000.prompts_react_sgr import (
     REACT_SYSTEM_PROMPT,
     FINISH_PROMPT_TEMPLATE,
     SOLVER_PROMPT,

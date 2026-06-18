@@ -1,7 +1,7 @@
 """Prompt templates and few-shot examples for the ReWOO pipeline (Planner/Worker/Solver).
 
 Extracted from rewoo.py to keep the agent logic readable.
-Imported back via `from src.agents.pipelines.prompts.prompts_rewoo import ...`.
+Imported back via `from src.agents.pipelines.prompts.ds1000.prompts_rewoo import ...`.
 """
 
 PLANNER_PROMPT = """For the following task, make plans that can solve the problem step by step. For each plan, indicate \

@@ -6,7 +6,7 @@ from openai import OpenAI
 from src.agent_constructor.agent import Agent
 from src.agent_constructor.core import Text
 
-from src.agents.pipelines.prompts.prompts_mars import (
+from src.agents.pipelines.prompts.ds1000.prompts_mars import (
     SYSTEM_PLANNER_PROMPT,
     SYSTEM_TEACHER_PROMPT,
     SYSTEM_CRITIC_PROMPT_V1,

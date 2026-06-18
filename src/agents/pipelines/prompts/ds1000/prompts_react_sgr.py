@@ -1,7 +1,7 @@
 """Prompt templates and few-shot examples for ReActAgentSGR.
 
 Moved out of react_sgr.py to keep the agent logic readable.
-Imported back via `from src.agents.pipelines.prompts.prompts_react_sgr import ...`.
+Imported back via `from src.agents.pipelines.prompts.ds1000.prompts_react_sgr import ...`.
 Includes archived/experimental variants (kept commented, with metric notes).
 """
 

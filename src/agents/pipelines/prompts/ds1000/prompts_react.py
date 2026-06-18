@@ -1,7 +1,7 @@
 """Prompt templates and few-shot examples for the ReActAgent pipeline.
 
 Extracted from react.py to keep the agent logic readable.
-Imported back via `from src.agents.pipelines.prompts.prompts_react import ...`.
+Imported back via `from src.agents.pipelines.prompts.ds1000.prompts_react import ...`.
 """
 
 REACT_SYSTEM_PROMPT = """You are an autonomous AI agent using the ReAct (Reasoning + Acting) framework.

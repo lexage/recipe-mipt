@@ -7,7 +7,7 @@ from openai import OpenAI
 from src.agent_constructor.agent import Agent
 from src.tools import BaseTool, LLMTool
 
-from src.agents.pipelines.prompts.prompts_react_modify import (
+from src.agents.pipelines.prompts.ds1000.prompts_react_modify import (
     REACT_SYSTEM_PROMPT,
     REACT_FINISH_PROMPT,
     FEW_SHOT_COT_EXAMPLES,

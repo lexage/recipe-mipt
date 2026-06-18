@@ -9,7 +9,7 @@ from src.agent_constructor.agent import Agent
 from src.agent_constructor.core import Text
 from src.tools import BaseTool, LLMTool
 
-from src.agents.pipelines.prompts.prompts_rewoo import (
+from src.agents.pipelines.prompts.ds1000.prompts_rewoo import (
     PLANNER_PROMPT,
     WORKER_PROMPT,
     SOLVER_PROMPT,

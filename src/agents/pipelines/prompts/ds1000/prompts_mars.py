@@ -1,7 +1,7 @@
 """Prompt templates and few-shot examples for the ReActMARS multi-agent pipeline (Planner/Teacher/Critic/Student).
 
 Extracted from mars.py to keep the agent logic readable.
-Imported back via `from src.agents.pipelines.prompts.prompts_mars import ...`.
+Imported back via `from src.agents.pipelines.prompts.ds1000.prompts_mars import ...`.
 """
 
 SYSTEM_PLANNER_PROMPT = """You are a task planning assistant. Your response must follow this exact template:
