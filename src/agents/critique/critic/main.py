@@ -1,3 +1,4 @@
+import importlib
 from abc import ABC, abstractmethod
 from src.agent_constructor.agent import Agent
 import re
@@ -33,6 +34,15 @@ def get_examples() -> list[Example]:
     return fewshot_examples
 
 
+def _load_critic_prompts(dataset: str):
+    """Load the CRITIC prompt module for the given dataset (ds1000, codemmlu, ...).
+
+    Each ``prompts_<dataset>`` module exposes the same public names, so switching
+    benchmarks changes only which module is imported — selected via the ``dataset`` param.
+    """
+    return importlib.import_module(f"src.agents.critique.critic.prompts_{dataset}")
+
+
 class Critic(Agent):
     """
     Agent that implements CRITIC: Large Language Models Can Self-Correct with Tool-Interactive Critiquing.
@@ -51,10 +61,13 @@ class Critic(Agent):
         name: str = "CRITIC",
         model_name: str = "Qwen/Qwen1.5-32B-Chat-AWQ",
         openai_api_base_url="http://localhost:7215/v1",
+        dataset: str = "ds1000",
     ):
         super().__init__(name)
+        self.dataset = dataset
+        self.prompts = _load_critic_prompts(dataset)
         self.refrain = """You are a Python programming assistant.
-        You will be given a problem and implementation in Python and critique of implementation. 
+        You will be given a problem and implementation in Python and critique of implementation.
         Your goal is to make the correct implementation based on the critique
         Return only correct implementation"""
         self.tools = self.get_tools()
@@ -100,7 +113,11 @@ class Critic(Agent):
             compilation_result: Annotated[str, "Results of compilation"],
         ) -> str:
 
-            prompt = f"You will get a problem, implementation and compilation result of this implementation. You should compare the expected result of problem and compilation's result. Return only result of comparison. Problem: {problem} \n Implementation: {implementation} \n compilation_result: {compilation_result}  "
+            prompt = self.prompts.COMPARE_PROMPT.format(
+                problem=problem,
+                implementation=implementation,
+                compilation_result=compilation_result,
+            )
             return self.llm(prompt)
 
         return compare_tool
@@ -116,7 +133,7 @@ class Critic(Agent):
         return tool
 
     def get_code(self, answer: str) -> str:
-        promt = f"You only need to extract the Python code from the following text. I want to compile this code. And You can't fix it. If you can't find python code, return nothing. Text: {answer} "
+        promt = self.prompts.GET_CODE_PROMPT.format(answer=answer)
         return self.llm(promt)
 
     def get_tools(self) -> List[BaseTool]:
@@ -126,7 +143,22 @@ class Critic(Agent):
             self.get_compare_tool(),
         ]
 
-    def call_tools(self, problem: str, implementation: str):
+    def _gather_evidence(self, problem: str, implementation: str) -> str:
+        """Run tools to collect behavioural evidence for the critique step.
+
+        Dispatches on the dataset: code-generation (DS-1000) executes the single
+        implementation; multiple-choice (CodeMMLU) executes each option (A/B/C/D) and
+        compares them. The DS-1000 path is unchanged from the original ``call_tools``.
+        """
+        if self.dataset == "codemmlu":
+            return self._gather_evidence_mc(problem)
+        return self._gather_evidence_code(problem, implementation)
+
+    # Backwards-compatible alias for the original public name.
+    def call_tools(self, problem: str, implementation: str) -> str:
+        return self._gather_evidence(problem, implementation)
+
+    def _gather_evidence_code(self, problem: str, implementation: str) -> str:
         tool_map = {tool.name: tool for tool in self.tools}
         tool_criticisms = []
         code = self.get_code(implementation)
@@ -145,29 +177,68 @@ class Critic(Agent):
 
         return "\n".join(tool_criticisms)
 
+    @staticmethod
+    def _parse_options_response(raw: str) -> dict:
+        """Parse the GET_OPTIONS_PROMPT output into a ``{letter: code}`` map.
+
+        The prompt emits each option as a ``[[A]]`` / ``[[B]]`` / ... marker followed by its
+        runnable code. Options with an empty body (conceptual, no runnable code) map to "".
+        """
+        options: dict = {}
+        # Split keeps the captured letters: ['', 'A', codeA, 'B', codeB, ...]
+        parts = re.split(r"\[\[\s*([ABCD])\s*\]\]", raw or "")
+        for i in range(1, len(parts) - 1, 2):
+            letter = parts[i].strip()
+            code = parts[i + 1].strip()
+            options[letter] = code
+        return options
+
+    def _parse_options(self, problem: str) -> dict:
+        raw = self.llm(self.prompts.GET_OPTIONS_PROMPT.format(problem=problem))
+        return self._parse_options_response(raw)
+
+    def _gather_evidence_mc(self, problem: str) -> str:
+        """CodeMMLU: execute every option, then compare outputs vs expected behaviour.
+
+        Degrades gracefully — options without runnable code, or whose execution errors, are
+        recorded as evidence rather than aborting, so a verdict can still be reasoned out.
+        """
+        tool_map = {tool.name: tool for tool in self.tools}
+        repl = tool_map["python_repl_tool"]
+
+        options = self._parse_options(problem)
+        exec_results = {}
+        for letter in ("A", "B", "C", "D"):
+            code = options.get(letter, "")
+            if not code:
+                exec_results[letter] = "No runnable code (conceptual option or not extracted)."
+                continue
+            try:
+                exec_results[letter] = repl.invoke(code)
+            except BaseException as e:  # repl tool already traps most errors; belt-and-braces
+                exec_results[letter] = f"Failed to execute. Error: {repr(e)}"
+
+        execution_summary = "\n\n".join(
+            f"Option {letter}:\n{result}" for letter, result in exec_results.items()
+        )
+        compare_result = self.llm(
+            self.prompts.MC_COMPARE_PROMPT.format(
+                problem=problem, options_execution=execution_summary
+            )
+        )
+
+        return (
+            f"Per-option execution results:\n{execution_summary}\n\n"
+            f"Comparison against the expected behaviour:\n{compare_result}"
+        )
+
     def llm_critique(self, problem: str, implementation: str) -> str:
         tools_list = self.get_tools()
-        tools_result = self.call_tools(problem, implementation)
+        tools_result = self._gather_evidence(problem, implementation)
         prompt = ChatPromptTemplate.from_messages(
             [
-                (
-                    "system",
-                    """
-            You will be given a problem and Implementation in Python and information about Implementation. 
-            You should generate criticism of this Implementation using the information:
-            It is important for you to use following criteria:
-            1. Evaluation of implementation
-            2. Logical errors in reasoning 
-            3. Syntax and semantic correctness 
-            4. Conceptual misunderstandings 
-            5. Potential bugs or edge cases 
-            6. Alignment with problem requirements You will need this as a hint when you 
-             Return only Criticism, not implementation""",
-                ),
-                (
-                    "human",
-                    "Problem: {problem} \n Implementation: {implementation} \n Information: {tools_result}  . ",
-                ),
+                ("system", self.prompts.CRITIQUE_SYSTEM_PROMPT),
+                ("human", self.prompts.CRITIQUE_HUMAN_PROMPT),
                 ("placeholder", "{agent_scratchpad}"),
             ]
         )
