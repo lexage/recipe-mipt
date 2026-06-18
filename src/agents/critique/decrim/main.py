@@ -1,6 +1,20 @@
+import importlib
+
 from src.agent_constructor.agent import Agent
 from langchain_openai import ChatOpenAI
 from langchain_core.messages import HumanMessage
+
+
+def _load_decrim_prompts(dataset: str):
+    """Load DeCRIM prompt templates for the given dataset (ds1000, codemmlu, ...).
+
+    Each ``prompts_<dataset>`` module exposes the same public names, so switching
+    benchmarks changes only which module is imported — selected via the ``dataset`` param.
+    """
+    module = importlib.import_module(
+        f"src.agents.critique.decrim.prompts_{dataset}"
+    )
+    return module.DECOMPOSE_PROMPT, module.CRITIQUE_PROMPT, module.CONSTRAINTS_HEADER
 
 
 class Decrim(Agent):
@@ -11,8 +25,15 @@ class Decrim(Agent):
         name: str = "DeCRIM",
         model_name: str = "Qwen/Qwen1.5-32B-Chat-AWQ",
         openai_api_base_url="http://localhost:7215/v1",
+        dataset: str = "ds1000",
     ):
         super().__init__(name)
+        self.dataset = dataset
+        (
+            self.decompose_prompt,
+            self.critique_prompt,
+            self.constraints_header,
+        ) = _load_decrim_prompts(dataset)
         self.llm_model = ChatOpenAI(
             model=model_name,
             openai_api_base=openai_api_base_url,
@@ -50,60 +71,16 @@ class Decrim(Agent):
         )
 
     def _create_decompose_prompt(self, question: str) -> str:
-        """Build prompt for decomposition step."""
-        # TODO: add few-shot examples
-        # decompose_prompt = f"""
-        # You are an assistant whose job is to help me perform tasks.
-        # I will give you a coding instruction that implicitly contains constraints to be followed.
-        # Your task is to list the constraints provided by the user in an enumerated list format.
-        # The constraints should help validate that the instruction will be carried out correctly,
-        # and the resulting code will be correct and follow the syntax of the specified programming language.
-
-        # Original Instruction: {question}
-
-        # Provided Constraints:
-        # """
-
-        decompose_prompt = f"""
-        You are an assistant whose job is to help me perform tasks.
-        I will give you a coding instruction that implicitly contains constraints to be followed.
-        Your task is to extract and list the constraints in a STRICT enumerated format.
-
-        FORMAT REQUIREMENTS:
-        - Use ONLY a numbered list where each line starts with a digit followed immediately by a dot and a space (e.g., "1. ", "2. ", "3. ").
-        - Each constraint must be on a separate line.
-        - Do NOT use markdown formatting, parentheses, dashes, Roman numerals, or any other numbering styles.
-        - Output ONLY the list itself, without introductory text, explanations, or concluding remarks.
-
-        Original Instruction: {question}
-
-        Provided Constraints:
-        """
-        return decompose_prompt
+        """Build prompt for decomposition step (dataset-specific template)."""
+        return self.decompose_prompt.format(question=question)
 
     def _create_critique_prompt(
         self, question: str, constraints_text: str, answer: str
     ) -> str:
-        """Build prompt for critique step."""
-
-        critique_prompt = f"""
-        You are an assistant whose job is to help me perform tasks.
-        I will give you a coding instruction and an AI assistant response.
-        The response should be a valid and correct piece of code which follows the syntax of the programming language.
-        The instruction includes some constraints to be followed by AI assistant while generating response.
-        Your task is to check and let me know which of the constraints are satisfied by the AI assistant response.
-        Please state short reasons on whether constraint is satisfied in the response or not.
-        Also include final answer as "Constraint followed" or "Constraint not followed" for each constraint.
-
-        Instruction: {question}
-
-        {constraints_text}
-
-        Assistant Response: {answer}
-
-        Please analyze each constraint one by one and provide your critique:
-        """
-        return critique_prompt
+        """Build prompt for critique step (dataset-specific template)."""
+        return self.critique_prompt.format(
+            question=question, constraints_text=constraints_text, answer=answer
+        )
 
     def _decompose(self, question: str) -> str:
         decompose_prompt = self._create_decompose_prompt(question)
@@ -113,7 +90,7 @@ class Decrim(Agent):
         constraints_text = "\n".join(
             [f"{i+1}. {constraint}" for i, constraint in enumerate(constraint_list)]
         )
-        constraints_text = "Constraints:\n" + constraints_text
+        constraints_text = f"{self.constraints_header}\n" + constraints_text
 
         return constraints_text
 

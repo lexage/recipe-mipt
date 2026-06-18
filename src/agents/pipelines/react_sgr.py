@@ -1,5 +1,6 @@
 import logging
 import json
+import importlib
 from typing import List, Dict, Any, Optional, Tuple, Union, TypedDict
 from pydantic import BaseModel, Field, ValidationError, ConfigDict
 
@@ -9,12 +10,24 @@ from src.agent_constructor.agent import Agent
 from src.tools import BaseTool, LLMTool
 
 
-from src.agents.pipelines.prompts.ds1000.prompts_react_sgr import (
-    REACT_SYSTEM_PROMPT,
-    FINISH_PROMPT_TEMPLATE,
-    SOLVER_PROMPT,
-    FEW_SHOT_REGISTRY,
-)
+_PROMPTS_PACKAGE = "src.agents.pipelines.prompts"
+
+
+def _load_react_sgr_prompts(dataset: str):
+    """Load ReActAgentSGR prompt templates for the given dataset.
+
+    Each dataset package (e.g. ``ds1000``, ``codemmlu``) exposes the SAME public
+    names (REACT_SYSTEM_PROMPT, FINISH_PROMPT_TEMPLATE, SOLVER_PROMPT,
+    FEW_SHOT_REGISTRY), so switching benchmarks only changes which module we
+    import — selected from the pipeline config via the ``dataset`` param.
+    """
+    module = importlib.import_module(f"{_PROMPTS_PACKAGE}.{dataset}.prompts_react_sgr")
+    return (
+        module.REACT_SYSTEM_PROMPT,
+        module.FINISH_PROMPT_TEMPLATE,
+        module.SOLVER_PROMPT,
+        module.FEW_SHOT_REGISTRY,
+    )
 
 
 class AgentConfig:
@@ -65,12 +78,20 @@ class ReActAgentSGR(Agent):
         max_iterations: int = AgentConfig.DEFAULT_MAX_ITERATIONS,
         tools: Optional[List[BaseTool]] = None,
         history_context: int = AgentConfig.DEFAULT_HISTORY_CONTEXT,
-        few_shot_type: str = "zero_shot"
+        few_shot_type: str = "zero_shot",
+        dataset: str = "ds1000",
     ):
         super().__init__(name)
 
         if not model_name:
             raise ValueError("model_name is required for LLM initialization")
+
+        # Dataset selects which prompt package to use (ds1000, codemmlu, ...).
+        react_system_prompt, finish_prompt_template, _, few_shot_registry = (
+            _load_react_sgr_prompts(dataset)
+        )
+        self.dataset = dataset
+        self.finish_prompt_template = finish_prompt_template
 
         self.examples = examples or []
         self.max_iterations = max_iterations
@@ -87,7 +108,7 @@ class ReActAgentSGR(Agent):
         )
 
         # Compose system prompt with dynamic tool information
-        self.instruction = instruction or REACT_SYSTEM_PROMPT.format(
+        self.instruction = instruction or react_system_prompt.format(
             tool_names=self.tool_names, tools_formatted=self.tools_prompt
         )
 
@@ -96,10 +117,10 @@ class ReActAgentSGR(Agent):
         self.model_name = model_name
         self.temperature = temperature
 
-        if few_shot_type not in FEW_SHOT_REGISTRY:
-            raise ValueError(f"Unknown few_shot_type: {few_shot_type}. Available: {list(FEW_SHOT_REGISTRY.keys())}")
-            
-        self.few_shot_examples = FEW_SHOT_REGISTRY[few_shot_type]
+        if few_shot_type not in few_shot_registry:
+            raise ValueError(f"Unknown few_shot_type: {few_shot_type}. Available: {list(few_shot_registry.keys())}")
+
+        self.few_shot_examples = few_shot_registry[few_shot_type]
 
         # Runtime state - reset on each run() call
         self._reset_runtime_state()
@@ -249,7 +270,7 @@ class ReActAgentSGR(Agent):
             f"[{msg['role'].upper()}]: {msg['content']}" for msg in recent
         )
 
-        prompt = FINISH_PROMPT_TEMPLATE.format(task=task, history_text=history_text)
+        prompt = self.finish_prompt_template.format(task=task, history_text=history_text)
 
         try:
             response = self.client.chat.completions.create(
@@ -431,12 +452,15 @@ class SolverReAct(Agent):
         model_name: str = None,
         name: str = "ReActSolverAgent",
         temperature: float = 0.0,
+        dataset: str = "ds1000",
     ):
         super().__init__(name)
         self.client = OpenAI(base_url=url, api_key="vllm")
         self.model_name = model_name
         self.temperature = temperature
-        self.prompt = SOLVER_PROMPT
+        self.dataset = dataset
+        _, _, solver_prompt, _ = _load_react_sgr_prompts(dataset)
+        self.prompt = solver_prompt
 
     def llm(self, prompt: str) -> str:
         """Сalling the llm to get a response."""
