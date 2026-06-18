@@ -12,17 +12,21 @@ own multiple-choice system prompt (e.g. REACT_SYSTEM_PROMPT from the `codemmlu`
 prompt package). The task we hand to the pipeline is just the problem + the four
 options + a short per-kind steering hint.
 
-Run serially on purpose: the ReAct agent keeps mutable per-run state on `self`,
-so a single pipeline instance is not safe to share across threads.
+The ReAct agent keeps mutable per-run state on `self`, so a single pipeline
+instance is NOT safe to share across threads. To run with several workers we
+therefore build one independent pipeline per worker (a small pool) and hand each
+task a free pipeline — never sharing one instance between concurrent tasks.
 
 Example:
-    python codemmlu_agent_pipelines.py -c my_pipeline_configs/codemmlu_agent_pipelines
+    python codemmlu_agent_pipelines.py -c my_pipeline_configs/codemmlu_agent_pipelines -n 4
 """
 
 import argparse
 import logging
 import os
+import queue
 import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
 import pandas as pd
@@ -66,6 +70,10 @@ def parse_args():
         "-l", "--limit", type=int, default=500,
         help="Max examples per sub-dataset (matches the original 500-row cap)",
     )
+    parser.add_argument(
+        "-n", "--num_workers", type=int, default=4,
+        help="Number of parallel workers (one independent pipeline is built per worker)",
+    )
     return parser.parse_args()
 
 
@@ -105,25 +113,41 @@ def load_codemmlu(limit: int):
     return ds_code, ds_middle
 
 
-def run_split(df: pd.DataFrame, pipeline, kind: str) -> pd.DataFrame:
-    """Run every row of a sub-dataset through the pipeline and score it."""
+def run_split(df: pd.DataFrame, pipeline_pool: "queue.Queue", kind: str,
+              num_workers: int) -> pd.DataFrame:
+    """Run every row of a sub-dataset through the pipeline pool and score it.
+
+    `pipeline_pool` holds `num_workers` independent pipeline instances. Each task
+    checks out a pipeline, runs, and returns it — so no instance is ever used by
+    two concurrent tasks at once.
+    """
     total = len(df)
 
     def solve(row):
         task = build_agent_task(row["input"], row["choices"], kind=kind)
+        pipeline = pipeline_pool.get()
         task_start = time.time()
-        answer = pipeline.run(task)
+        try:
+            answer = pipeline.run(task)
+        finally:
+            pipeline_pool.put(pipeline)
         answer = answer.strip() if isinstance(answer, str) else answer
         logging.info(
             f"TASK\t{kind}\t{row.get('task_id', 'N/A')}\t{time.time() - task_start:.3f}s\t-> {answer}"
         )
         return answer
 
-    outputs = []
-    for i, (_, row) in enumerate(df.iterrows(), start=1):
-        outputs.append(solve(row))
-        if i % 25 == 0 or i == total:
-            print(f"\t\t{kind}: {i}/{total}")
+    # Preserve row order: collect outputs into a slot keyed by position.
+    rows = [row for _, row in df.iterrows()]
+    outputs = [None] * total
+    done = 0
+    with ThreadPoolExecutor(max_workers=num_workers) as executor:
+        futures = {executor.submit(solve, row): i for i, row in enumerate(rows)}
+        for future in as_completed(futures):
+            outputs[futures[future]] = future.result()
+            done += 1
+            if done % 25 == 0 or done == total:
+                print(f"\t\t{kind}: {done}/{total}")
 
     df = df.copy()
     df["output"] = outputs
@@ -153,12 +177,21 @@ def main():
         pipeline_config = ConfigLoader().load_from_yaml(path_to_cfg=config_path)
 
         if pipeline_config.logs_path:
-            create_logging(log_path=pipeline_config.logs_path, tag=config_path.stem)
+            create_logging(
+                log_path=pipeline_config.logs_path,
+                tag=config_path.stem,
+                n_workers=args.num_workers,
+                route=True,
+            )
 
-        pipeline = PipelineBuilder().build(pipeline_config)
+        # Build one independent pipeline per worker (sequentially — building is not
+        # known to be thread-safe) and stash them in a pool the tasks check out from.
+        pipeline_pool = queue.Queue()
+        for _ in range(args.num_workers):
+            pipeline_pool.put(PipelineBuilder().build(pipeline_config))
 
-        res_code = run_split(ds_code, pipeline, kind="code")
-        res_middle = run_split(ds_middle, pipeline, kind="middle")
+        res_code = run_split(ds_code, pipeline_pool, kind="code", num_workers=args.num_workers)
+        res_middle = run_split(ds_middle, pipeline_pool, kind="middle", num_workers=args.num_workers)
 
         save_dir = os.path.join(args.save_path, config_path.stem)
         os.makedirs(save_dir, exist_ok=True)
