@@ -134,9 +134,6 @@ All equal; list multiplication with PEP 8 spacing. Answer: A
 Output a single letter only."""
 
 
-from src.rag.simple.retriever import set_current_task, reset_retrieval_trace
-
-
 def get_prompt_answer(problem, answers, model, kind="middle", task_id=None):
     base = CODE_PROMPT if kind == "code" else MIDDLE_PROMPT
 
@@ -150,10 +147,6 @@ def get_prompt_answer(problem, answers, model, kind="middle", task_id=None):
         Solution D: {answers[3]}
         Return ONLY one character of the right solution (A, B, C, or D) — no explanation, no other words.
     """
-
-    # Tag the retrieval log with this task so we can audit what the retriever
-    # actually pulled in for each failing task (Code A focus).
-    set_current_task(task_id=task_id, kind=kind)
 
     response = model.run(prompt)
     print(response)
@@ -185,9 +178,6 @@ ds_code["input"] = ds_code.apply(
     axis=1
 )
 
-
-# Start a fresh retrieval trace for this run
-reset_retrieval_trace()
 
 ds_code["output"] = ds_code.apply(
     lambda row: get_prompt_answer(

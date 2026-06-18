@@ -46,11 +46,21 @@ components:
     params:
       name: simple_assembler
   
-  retriever:
-    type: SIMPLE_RETRIEVER
+  api_selector:
+    type: API_SELECTOR
     params:
-      name: simple_retriever
-      return_docs_as_chunks: True
+      url: "http://localhost:7215/v1"
+      temperature: 0.1
+      max_tokens: 256
+
+  retriever:
+    type: API_RETRIEVER
+    params:
+      name: api_retriever
+      max_apis: 6
+      api_top_k: 1
+      chunks_per_api: 1
+      ignore_libs: []
 
   enchancer:
     type: QUERY_GENERATOR
