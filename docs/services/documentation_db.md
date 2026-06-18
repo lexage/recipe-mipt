@@ -4,6 +4,11 @@
 
 Парсер документации находится в ветке [project/parser](https://github.com/lexage/recipe-mipt/tree/project/parser)
 
+#### Актуальная версия БД со статьями только по reference API
+___
+
+Скачать с [GoogleDrive](https://drive.google.com/file/d/1PIcv5g1RJ90Jy77c3hVkPe4oLIQjCzFK/view?usp=share_link)
+
 #### Актуальная версия БД с разделением на примеры и теорию
 ___
 
