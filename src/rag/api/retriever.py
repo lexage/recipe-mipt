@@ -58,6 +58,9 @@ class APIRetriever(Retriever):
         self.ignore_libs = set(ignore_libs or [])
 
     def retrieve(self, query: DataItemDS1000 | Text, k: int = 6) -> List[Chunk]:
+        return self.collect_api_chunks(query=query, k=k)
+
+    def collect_api_chunks(self, query: DataItemDS1000 | Text, k: int = 6) -> List[Chunk]:
         prompt, metadata = self._extract_prompt_and_metadata(query)
 
         if metadata.get("library") in self.ignore_libs:

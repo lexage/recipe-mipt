@@ -1,8 +1,8 @@
 from src.agent_constructor.agent import Agent
 from openai import OpenAI
-from typing import List
-from src.agent_constructor.chunkers import Chunk
 from src.agent_constructor.core import Text
+
+from src.agents.general.ds1000_solver import DEFAULT_SYSTEM_PROMPT
 
 
 class CoRAGFinalSolver(Agent):
@@ -49,6 +49,54 @@ Respond with an appropriate answer only, do not explain yourself or output anyth
             top_p=self.top_p,
             max_tokens=self.max_tokens,
             stop=self.stop_tokens
+        )
+
+        return response.choices[0].message.content
+
+
+class APICoRAGFinalSolver(Agent):
+    """
+    Final solver for API-CoRAG pipelines on DS1000-style tasks.
+    Consumes assembled context (API docs + explored API summaries) and
+    generates executable code between <code> tags.
+    """
+
+    def __init__(
+        self,
+        url: str,
+        model_name: str | None = None,
+        system_prompt: str = DEFAULT_SYSTEM_PROMPT,
+        temperature: float = 0.2,
+        top_p: float = 0.95,
+        max_tokens: int = 1024,
+        stop_tokens: list | None = None,
+    ):
+        super().__init__("api_corag_final_solver")
+
+        self.client = OpenAI(base_url=url, api_key="vllm")
+        self.model_name = model_name or self.client.models.list().data[0].id
+        self.system_prompt = system_prompt
+        self.temperature = temperature
+        self.top_p = top_p
+        self.max_tokens = max_tokens
+        self.stop_tokens = stop_tokens or ["</code>", "# SOLUTION END"]
+
+    def run(self, task: Text, context: Text) -> Text:
+        if context.strip():
+            user_prompt = f"{context.strip()}\n\n{task.strip()}"
+        else:
+            user_prompt = task.strip()
+
+        response = self.client.chat.completions.create(
+            model=self.model_name,
+            messages=[
+                {"role": "system", "content": self.system_prompt},
+                {"role": "user", "content": user_prompt},
+            ],
+            temperature=self.temperature,
+            top_p=self.top_p,
+            max_tokens=self.max_tokens,
+            stop=self.stop_tokens,
         )
 
         return response.choices[0].message.content
