@@ -42,8 +42,12 @@ class CodeMMLUSolver(Agent):
         super().__init__("ds_1000_solver")
         stop_tokens = []
         temperature=0.2
-        if not api in SOLVER_API:
-            raise ValueError(f"API: '{api}' is not a valid API! Use one of: {[item.value for item in SOLVER_API]}") 
+        
+        valid_apis = {item.value for item in SOLVER_API}
+        if api not in valid_apis:
+            raise ValueError(f"API: '{api}' is not a valid API! Use one of: {list(valid_apis)}")
+        # if not api in SOLVER_API:
+        #     raise ValueError(f"API: '{api}' is not a valid API! Use one of: {[item.value for item in SOLVER_API]}") 
         
         self.client = OpenAI(
             base_url=url,

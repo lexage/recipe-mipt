@@ -30,7 +30,7 @@ logging.getLogger("openai").setLevel(logging.ERROR)
 logging.getLogger("httpx").setLevel(logging.ERROR)
 logging.getLogger("httpcore").setLevel(logging.ERROR)
 
-pipeline_config = ConfigLoader().load_from_yaml("pipeline_configs/simple_example.yaml")
+pipeline_config = ConfigLoader().load_from_yaml("/workspace/proj/grant/exps_17_06_26_codemmlu/simple_test_codemmlu.yaml")
 
 if pipeline_config.logs_path:
     create_logging(log_filename=pipeline_config.logs_path)
