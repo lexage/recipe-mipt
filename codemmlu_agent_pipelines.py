@@ -12,25 +12,27 @@ own multiple-choice system prompt (e.g. REACT_SYSTEM_PROMPT from the `codemmlu`
 prompt package). The task we hand to the pipeline is just the problem + the four
 options + a short per-kind steering hint.
 
-The ReAct agent keeps mutable per-run state on `self`, so a single pipeline
-instance is NOT safe to share across threads. To run with several workers we
-therefore build one independent pipeline per worker (a small pool) and hand each
-task a free pipeline — never sharing one instance between concurrent tasks.
+This runner is SINGLE-THREADED: it builds exactly one pipeline instance and runs
+every task through it sequentially. The ReAct agent keeps mutable per-run state on
+`self`, and the local Qdrant vector store holds an exclusive file lock on its
+storage folder, so a single pipeline instance must not be shared across threads or
+duplicated across the same storage path. Running sequentially side-steps both
+issues entirely.
 
 Example:
-    python codemmlu_agent_pipelines.py -c my_pipeline_configs/codemmlu_agent_pipelines -n 4
+    python codemmlu_agent_pipelines.py -c my_pipeline_configs/codemmlu_agent_pipelines
 """
 
 import argparse
 import logging
 import os
-import queue
 import time
-from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
 import pandas as pd
 from datasets import load_dataset
+from tqdm import tqdm
+
 
 from src.pipelines.configs import ConfigLoader
 from src.pipelines.pipeline_builder import PipelineBuilder
@@ -69,10 +71,6 @@ def parse_args():
     parser.add_argument(
         "-l", "--limit", type=int, default=500,
         help="Max examples per sub-dataset (matches the original 500-row cap)",
-    )
-    parser.add_argument(
-        "-n", "--num_workers", type=int, default=4,
-        help="Number of parallel workers (one independent pipeline is built per worker)",
     )
     return parser.parse_args()
 
@@ -113,41 +111,24 @@ def load_codemmlu(limit: int):
     return ds_code, ds_middle
 
 
-def run_split(df: pd.DataFrame, pipeline_pool: "queue.Queue", kind: str,
-              num_workers: int) -> pd.DataFrame:
-    """Run every row of a sub-dataset through the pipeline pool and score it.
-
-    `pipeline_pool` holds `num_workers` independent pipeline instances. Each task
-    checks out a pipeline, runs, and returns it — so no instance is ever used by
-    two concurrent tasks at once.
-    """
+def run_split(df: pd.DataFrame, pipeline, kind: str) -> pd.DataFrame:
+    """Run every row of a sub-dataset through the single pipeline and score it."""
     total = len(df)
+    outputs = []
 
-    def solve(row):
+    # for done, (_, row) in tqdm(enumerate(df.iterrows(), start=1)):
+    for done, (_, row) in enumerate(
+        tqdm(df.iterrows(), total=total, desc=kind), start=1):
         task = build_agent_task(row["input"], row["choices"], kind=kind)
-        pipeline = pipeline_pool.get()
         task_start = time.time()
-        try:
-            answer = pipeline.run(task)
-        finally:
-            pipeline_pool.put(pipeline)
+        answer = pipeline.run(task)
         answer = answer.strip() if isinstance(answer, str) else answer
+        outputs.append(answer)
         logging.info(
             f"TASK\t{kind}\t{row.get('task_id', 'N/A')}\t{time.time() - task_start:.3f}s\t-> {answer}"
         )
-        return answer
-
-    # Preserve row order: collect outputs into a slot keyed by position.
-    rows = [row for _, row in df.iterrows()]
-    outputs = [None] * total
-    done = 0
-    with ThreadPoolExecutor(max_workers=num_workers) as executor:
-        futures = {executor.submit(solve, row): i for i, row in enumerate(rows)}
-        for future in as_completed(futures):
-            outputs[futures[future]] = future.result()
-            done += 1
-            if done % 25 == 0 or done == total:
-                print(f"\t\t{kind}: {done}/{total}")
+        if done % 25 == 0 or done == total:
+            print(f"\t\t{kind}: {done}/{total}")
 
     df = df.copy()
     df["output"] = outputs
@@ -180,18 +161,16 @@ def main():
             create_logging(
                 log_path=pipeline_config.logs_path,
                 tag=config_path.stem,
-                n_workers=args.num_workers,
+                n_workers=1,
                 route=True,
             )
 
-        # Build one independent pipeline per worker (sequentially — building is not
-        # known to be thread-safe) and stash them in a pool the tasks check out from.
-        pipeline_pool = queue.Queue()
-        for _ in range(args.num_workers):
-            pipeline_pool.put(PipelineBuilder().build(pipeline_config))
+        # Build a single pipeline instance and run everything through it sequentially.
+        # One instance => one Qdrant client => no storage-folder lock contention.
+        pipeline = PipelineBuilder().build(pipeline_config)
 
-        res_code = run_split(ds_code, pipeline_pool, kind="code", num_workers=args.num_workers)
-        res_middle = run_split(ds_middle, pipeline_pool, kind="middle", num_workers=args.num_workers)
+        res_code = run_split(ds_code, pipeline, kind="code")
+        res_middle = run_split(ds_middle, pipeline, kind="middle")
 
         save_dir = os.path.join(args.save_path, config_path.stem)
         os.makedirs(save_dir, exist_ok=True)
