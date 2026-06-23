@@ -118,6 +118,10 @@ class ComponentNames(Enum):
     DOC_SEMANTIC_DEDUP_FILTER = "src.filtering.doc_semantic_dedup.DocumentSemanticDedupFilter"
     DOC_PERPLEXITY_FILTER = "src.filtering.doc_perplexity.DocumentPerplexityFilter"
 
+    # ===== Document Filters: experiment 6 — API-reference vs narrative genre =====
+    API_SECTION_FILTER = "src.filtering.api_section.ApiReferenceSectionFilter"
+    API_GENRE_FILTER = "src.filtering.api_genre.ApiReferenceGenreFilter"
+
     # ===== Chunkers =====
     DUMMY_CHUNKER = "src.agent_constructor.chunkers.DummyChunker"
     SIMPLE_CHUNKER = "src.agent_constructor.chunkers.SimpleChunker"
@@ -142,6 +146,9 @@ class ComponentNames(Enum):
     RANDOM_TOPIC_GENERATOR = "src.generation.random_topic.RandomTopicGenerator"
     ZERO_SHOT_GENERATOR = "src.generation.zero_shot.ZeroShotGenerator"
     ONE_SHOT_GENERATOR = "src.generation.one_shot.OneShotGenerator"
+
+    # ===== Generators: experiment 6 — oracle (paraphrase reference answers) =====
+    PARAPHRASE_GENERATOR = "src.generation.paraphrase.ParaphraseGenerator"
 
     # ===== TOOLS =====
     DB_SEARCH_TOOL = "src.tools.DBSearchTool"

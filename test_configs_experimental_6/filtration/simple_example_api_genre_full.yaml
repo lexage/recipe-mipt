@@ -1,0 +1,66 @@
+type: SIMPLE_WITH_DOC_FILTER
+
+# === ЭКСПЕРИМЕНТ 6: API-фильтрация (жанр документа), семантический RAG ===
+# Конфиг: simple_example_api_genre_full
+#   УНИВЕРСАЛЬНЫЙ фильтр по СОДЕРЖИМОМУ (без метки секции) на ПОЛНОЙ БД.
+#   Deliverable: сколько ручного потолка восстанавливает контентный метод.
+#   Согласие с ручным разделением: F1 ~= 97% (offline-замер).
+# БД: data/docs_database_examples.db
+
+params:
+  top_k: 5
+
+components:
+
+  embedder:
+    type: EMBEDDING_AGENT
+    params:
+      name: embedder
+      url: "http://0.0.0.0:7216/v1"
+      model_name: "Qwen/Qwen3-Embedding-4B"
+
+  data_base:
+    type: LOCAL_DB
+    params:
+      path_to_db: "data/docs_database_examples.db"
+      path_to_vector_db: "data/vdb_exp6/simple_example_api_genre_full"
+      collection_name: "docs"
+      return_full_docs: False
+      return_examples: True
+      merge_examples: False
+
+  chunker:
+    type: RECURSIVE_CHUNKER
+    params:
+      name: chunker
+      max_chunk_size: 1000
+
+  document_filter:
+    type: API_GENRE_FILTER
+    params:
+      name: api_genre_filter
+      max_sig_len: 3000
+      max_stub_len: 800
+
+  context_assembler:
+    type: CORAG_CONTEXT_ASSEMBLER
+    params:
+      name: corag_assembler
+
+  retriever:
+    type: SIMPLE_RETRIEVER
+    params:
+      name: simple_retriever
+
+  agent:
+    type: DS1000_SOLVER_AGENT
+    params:
+      name: ds1000_solver
+      url: "http://0.0.0.0:7215/v1"
+      model_name: "Qwen/Qwen2.5-32B-Instruct"
+      api: chat
+      context_after_task: False
+      temperature: 0.2
+      top_p: 0.95
+      max_tokens: 1024
+      stop_tokens: ["</code>", "# SOLUTION END"]
