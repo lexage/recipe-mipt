@@ -18,7 +18,7 @@ class AlignerMAPS(Agent):
     ):
         super().__init__(name)
 
-        self.client = OpenAI(base_url=url, api_key="vllm")
+        self.client = OpenAI(base_url=url, api_key="vllm", timeout=600.0, max_retries=2)
 
         self.model_name = model_name
 
@@ -83,7 +83,7 @@ class ScholarMAPS(Agent):
     ):
         super().__init__(name)
 
-        self.client = OpenAI(base_url=url, api_key="vllm")
+        self.client = OpenAI(base_url=url, api_key="vllm", timeout=600.0, max_retries=2)
 
         self.model_name = model_name
 
@@ -156,7 +156,7 @@ class SolverMAPS(Agent):
         self, url: str = None, model_name: str = None, name: str = "maps_solver"
     ):
         super().__init__(name)
-        self.client = OpenAI(base_url=url, api_key="vllm")
+        self.client = OpenAI(base_url=url, api_key="vllm", timeout=600.0, max_retries=2)
 
         self.model_name = model_name
 
@@ -232,7 +232,7 @@ class CriticMAPS(Agent):
         self, url: str = None, model_name: str = None, name: str = "maps_critic"
     ):
         super().__init__(name)
-        self.client = OpenAI(base_url=url, api_key="vllm")
+        self.client = OpenAI(base_url=url, api_key="vllm", timeout=600.0, max_retries=2)
 
         self.model_name = model_name
 

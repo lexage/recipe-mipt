@@ -40,6 +40,8 @@ class Reflexion(Agent):
             openai_api_base=openai_api_base_url,
             openai_api_key="fake-key",
             temperature=0.7,
+            timeout=600.0,
+            max_retries=2,
         )
 
     def llm(self, message) -> str:

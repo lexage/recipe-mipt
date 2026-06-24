@@ -50,7 +50,7 @@ class ReActAgent(Agent):
             tool_names=self.tool_names, tools_formatted=self.tools_prompt
         )
 
-        self.client = OpenAI(base_url=url, api_key="vllm")
+        self.client = OpenAI(base_url=url, api_key="vllm", timeout=600.0, max_retries=2)
         self.model_name = model_name
         self.temperature = temperature
 

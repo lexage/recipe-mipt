@@ -30,7 +30,7 @@ class PlannerREWOO(Agent):
         tools: List[BaseTool] = None,
     ):
         super().__init__(name)
-        self.client = OpenAI(base_url=url, api_key="vllm")
+        self.client = OpenAI(base_url=url, api_key="vllm", timeout=600.0, max_retries=2)
         self.model_name = model_name
         self.temperature = temperature
         self.tools = tools
@@ -146,7 +146,7 @@ class SolverREWOO(Agent):
         temperature: float = 0.0,
     ):
         super().__init__(name)
-        self.client = OpenAI(base_url=url, api_key="vllm")
+        self.client = OpenAI(base_url=url, api_key="vllm", timeout=600.0, max_retries=2)
         self.model_name = model_name
         self.temperature = temperature
         self.prompt = SOLVER_PROMPT

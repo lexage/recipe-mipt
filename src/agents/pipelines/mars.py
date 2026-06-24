@@ -26,7 +26,7 @@ class PlannerMARS(Agent):
         name: str = "mars_planner_agent",
     ):
         super().__init__(name)
-        self.client = OpenAI(base_url=url, api_key="vllm")
+        self.client = OpenAI(base_url=url, api_key="vllm", timeout=600.0, max_retries=2)
         self.model_name = model_name
         self.temperature = temperature
         self.system_prompt = SYSTEM_PLANNER_PROMPT
@@ -97,7 +97,7 @@ class TeacherMARS(Agent):
         name: str = "mars_teacher_agent",
     ):
         super().__init__(name)
-        self.client = OpenAI(base_url=url, api_key="vllm")
+        self.client = OpenAI(base_url=url, api_key="vllm", timeout=600.0, max_retries=2)
         self.model_name = model_name
         self.temperature = temperature
         self.system_prompt = SYSTEM_TEACHER_PROMPT
@@ -154,7 +154,7 @@ class CriticMARS(Agent):
         name: str = "mars_critic_agent",
     ):
         super().__init__(name)
-        self.client = OpenAI(base_url=url, api_key="vllm")
+        self.client = OpenAI(base_url=url, api_key="vllm", timeout=600.0, max_retries=2)
         self.model_name = model_name
         self.temperature = temperature
         self.system_prompt = SYSTEM_CRITIC_PROMPT_V1
@@ -190,7 +190,7 @@ class CriticMARSUpd(Agent):
         name: str = "mars_critic_agent_upd",
     ):
         super().__init__(name)
-        self.client = OpenAI(base_url=url, api_key="vllm")
+        self.client = OpenAI(base_url=url, api_key="vllm", timeout=600.0, max_retries=2)
         self.model_name = model_name
         self.temperature = temperature
         self.system_prompt = SYSTEM_CRITIC_PROMPT_V2
@@ -246,7 +246,7 @@ class StudentMARS(Agent):
         name: str = "mars_student_agent",
     ):
         super().__init__(name)
-        self.client = OpenAI(base_url=url, api_key="vllm")
+        self.client = OpenAI(base_url=url, api_key="vllm", timeout=600.0, max_retries=2)
         self.model_name = model_name
         self.temperature = temperature
         self.system_prompt = SYSTEM_STUDENT_PROMPT
@@ -298,7 +298,7 @@ class StudentMARSUpd(Agent):
         name: str = "mars_student_agent",
     ):
         super().__init__(name)
-        self.client = OpenAI(base_url=url, api_key="vllm")
+        self.client = OpenAI(base_url=url, api_key="vllm", timeout=600.0, max_retries=2)
         self.model_name = model_name
         self.temperature = temperature
         self.system_prompt = SYSTEM_STUDENT_PROMPT

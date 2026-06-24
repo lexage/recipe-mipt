@@ -38,6 +38,8 @@ class SelfRefine(Agent):
             openai_api_base=openai_api_base_url,
             openai_api_key="fake-key",
             temperature=0.7,
+            timeout=600.0,
+            max_retries=2,
         )
         self.refrain_feedback: str = self.prompts.FEEDBACK_INSTRUCTION
         self.refrain_refine: str = self.prompts.REFINE_INSTRUCTION

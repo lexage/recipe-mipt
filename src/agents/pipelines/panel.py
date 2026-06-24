@@ -27,6 +27,8 @@ class PanelAgent(Agent):
             openai_api_base=url,
             openai_api_key="fake-key",
             temperature=self.temperature,
+            timeout=600.0,
+            max_retries=2,
         )
 
     def llm(self, message) -> str:

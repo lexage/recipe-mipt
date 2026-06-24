@@ -113,7 +113,7 @@ class ReActAgentSGR(Agent):
         )
 
         # Initialize OpenAI client with vLLM-compatible configuration
-        self.client = OpenAI(base_url=url, api_key="vllm")
+        self.client = OpenAI(base_url=url, api_key="vllm", timeout=600.0, max_retries=2)
         self.model_name = model_name
         self.temperature = temperature
 
@@ -455,7 +455,7 @@ class SolverReAct(Agent):
         dataset: str = "ds1000",
     ):
         super().__init__(name)
-        self.client = OpenAI(base_url=url, api_key="vllm")
+        self.client = OpenAI(base_url=url, api_key="vllm", timeout=600.0, max_retries=2)
         self.model_name = model_name
         self.temperature = temperature
         self.dataset = dataset

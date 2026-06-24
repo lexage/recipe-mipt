@@ -60,7 +60,7 @@ class PlannerREWOOSGR(Agent):
         few_shot_type: str = "zero_shot"
     ):
         super().__init__(name)
-        self.client = OpenAI(base_url=url, api_key="vllm")
+        self.client = OpenAI(base_url=url, api_key="vllm", timeout=600.0, max_retries=2)
         self.model_name = model_name
         self.temperature = temperature
         self.tools = tools
@@ -212,7 +212,7 @@ class SolverREWOOSGR(Agent):
         few_shot_type: str = "solver_cot"
     ):
         super().__init__(name)
-        self.client = OpenAI(base_url=url, api_key="vllm")
+        self.client = OpenAI(base_url=url, api_key="vllm", timeout=600.0, max_retries=2)
         self.model_name = model_name
         self.temperature = temperature
         self.prompt = SOLVER_PROMPT
