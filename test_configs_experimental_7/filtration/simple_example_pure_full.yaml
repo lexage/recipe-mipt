@@ -1,0 +1,66 @@
+type: SIMPLE
+
+# === ЭКСПЕРИМЕНТ 7: API-фильтрация на API-РЕТРИВЕРЕ (api_selector + api_retriever) ===
+# Конфиг: simple_example_pure_full  — ПОЛ (полная БД, без фильтра)
+# Пайплайн как в exp4 (API selector -> поиск по имени API), НЕ семантический RAG.
+# БД: data/docs_database_examples.db
+
+params:
+  top_k: 6
+
+components:
+
+  embedder:
+    type: EMBEDDING_AGENT
+    params:
+      name: embedder
+      url: "http://0.0.0.0:7216/v1"
+      model_name: "Qwen/Qwen3-Embedding-4B"
+
+  data_base:
+    type: LOCAL_DB
+    params:
+      path_to_db: "data/docs_database_examples.db"
+      path_to_vector_db: "data/vdb_exp7/simple_example_pure_full"
+      collection_name: "docs"
+      return_full_docs: False
+      return_examples: False
+      merge_examples: False
+
+  chunker:
+    type: RECURSIVE_CHUNKER
+    params:
+      name: chunker
+      max_chunk_size: 1000
+
+  context_assembler:
+    type: CORAG_CONTEXT_ASSEMBLER
+    params:
+      name: corag_assembler
+
+  retriever:
+    type: API_RETRIEVER
+    params:
+      name: api_retriever
+      max_apis: 8
+      api_top_k: 1
+      chunks_per_api: 1
+
+  api_selector:
+    type: API_SELECTOR
+    params:
+      url: "http://0.0.0.0:7215/v1"
+      temperature: 0.1
+      max_tokens: 256
+
+  agent:
+    type: DS1000_SOLVER_AGENT
+    params:
+      name: ds1000_solver
+      url: "http://0.0.0.0:7215/v1"
+      api: completions
+      context_after_task: False
+      temperature: 0.2
+      top_p: 0.95
+      max_tokens: 1024
+      stop_tokens: ["</code>", "# SOLUTION END"]
