@@ -163,8 +163,18 @@ def run_split(df: pd.DataFrame, pipeline, kind: str) -> pd.DataFrame:
         tqdm(df.iterrows(), total=total, desc=kind), start=1):
         task = build_agent_task(row["input"], row["choices"], kind=kind)
         task_start = time.time()
-        answer = pipeline.run(task)
-        answer = answer.strip() if isinstance(answer, str) else answer
+        try:
+            answer = pipeline.run(task)
+            answer = answer.strip() if isinstance(answer, str) else answer
+        except Exception:
+            # Isolate per-task failures: one bad/unparseable LLM response must not
+            # abort the whole config and discard every other row's result. Log the
+            # full traceback, record a sentinel answer, and keep going.
+            logging.exception(
+                f"TASK FAILED\t{kind}\t{row.get('task_id', 'N/A')}\t"
+                f"{time.time() - task_start:.3f}s"
+            )
+            answer = "ERROR"
         outputs.append(answer)
         logging.info(
             f"TASK\t{kind}\t{row.get('task_id', 'N/A')}\t{time.time() - task_start:.3f}s\t-> {answer}"
