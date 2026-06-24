@@ -37,6 +37,7 @@ from pathlib import Path
 
 import pandas as pd
 from datasets import load_dataset
+from qdrant_client import QdrantClient
 from tqdm import tqdm
 
 
@@ -123,35 +124,70 @@ def load_codemmlu(limit: int):
     return ds_code, ds_middle
 
 
+def _iter_qdrant_clients(root, _seen=None, _depth=0, _max_depth=12):
+    """Walk the pipeline object graph and yield every live QdrantClient instance.
+
+    The local Qdrant store keeps an exclusive file lock on its storage folder for
+    as long as its client object is alive, but that client is buried deep in the
+    graph (e.g. pipeline.agent -> tools -> DBSearchTool.db -> LocalDB.vdb_adapter
+    -> QdrantDocsAdapter.client). Shallow attribute guessing misses it, so we
+    traverse object __dict__s and common containers, guarding against reference
+    cycles via an id()-visited set and a depth cap.
+    """
+    if _seen is None:
+        _seen = set()
+
+    if root is None or _depth > _max_depth:
+        return
+
+    obj_id = id(root)
+    if obj_id in _seen:
+        return
+    _seen.add(obj_id)
+
+    if isinstance(root, QdrantClient):
+        yield root
+        return
+
+    # Skip primitives — they hold no references worth walking and recursing into
+    # giant strings/arrays would be pointless and slow.
+    if isinstance(root, (str, bytes, int, float, bool, type(None))):
+        return
+
+    if isinstance(root, dict):
+        children = list(root.keys()) + list(root.values())
+    elif isinstance(root, (list, tuple, set, frozenset)):
+        children = list(root)
+    else:
+        children = list(getattr(root, "__dict__", {}).values())
+
+    for child in children:
+        yield from _iter_qdrant_clients(child, _seen, _depth + 1, _max_depth)
+
+
 def close_pipeline(pipeline) -> None:
     """Best-effort release of pipeline resources (Qdrant client / storage lock).
 
     The local Qdrant store keeps an exclusive lock on its storage folder for as
     long as its client object is alive. If we do not release it before building
     the next config's pipeline, that next build fails on the still-held lock.
-    We try a few common teardown entry points, then drop the reference and force
-    a GC pass so any lingering client is finalised.
+    Relying on __del__/gc is not enough — a lingering reference somewhere in the
+    graph keeps the client alive until interpreter shutdown. So we explicitly find
+    every QdrantClient in the graph and close it, then drop the reference and
+    force a GC pass to finalise anything left over.
     """
     if pipeline is None:
         return
 
-    for attr in ("close", "shutdown", "teardown", "cleanup"):
-        fn = getattr(pipeline, attr, None)
-        if callable(fn):
-            try:
-                fn()
-            except Exception:
-                logging.exception(f"pipeline.{attr}() failed during cleanup")
+    closed = 0
+    for client in _iter_qdrant_clients(pipeline):
+        try:
+            client.close()
+            closed += 1
+        except Exception:
+            logging.exception("QdrantClient.close() failed during cleanup")
 
-    # Reach into common attribute names for an underlying vector-store / client.
-    for attr in ("client", "qdrant_client", "vector_store", "store"):
-        obj = getattr(pipeline, attr, None)
-        close_fn = getattr(obj, "close", None)
-        if callable(close_fn):
-            try:
-                close_fn()
-            except Exception:
-                logging.exception(f"pipeline.{attr}.close() failed during cleanup")
+    logging.info(f"close_pipeline: closed {closed} QdrantClient(s)")
 
 
 def run_split(df: pd.DataFrame, pipeline, kind: str) -> pd.DataFrame:
