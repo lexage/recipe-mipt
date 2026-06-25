@@ -108,7 +108,7 @@ def load_codemmlu(limit: int):
 
     if limit:
         ds_middle = ds_middle[:limit]
-        # ds_code = ds_code[:limit]
+        ds_code = ds_code[:limit]
 
     logging.info(
             f"ds_code: {len(ds_code)}, ds_middle: {len(ds_middle)}"
@@ -171,16 +171,30 @@ def close_pipeline(pipeline) -> None:
     The local Qdrant store keeps an exclusive lock on its storage folder for as
     long as its client object is alive. If we do not release it before building
     the next config's pipeline, that next build fails on the still-held lock.
-    Relying on __del__/gc is not enough — a lingering reference somewhere in the
-    graph keeps the client alive until interpreter shutdown. So we explicitly find
-    every QdrantClient in the graph and close it, then drop the reference and
-    force a GC pass to finalise anything left over.
+
+    In these REACT/critic configs the LocalDB (and its QdrantClient) is built by
+    the pipeline builder but is NOT a dependency of the agent or any tool, so it is
+    unreachable from the returned `pipeline` object — walking the pipeline graph
+    alone finds nothing to close (that was the "closed 0 QdrantClient(s)" bug). We
+    therefore also scan every live object via gc.get_objects() for QdrantClient
+    instances. That catches the orphaned client and releases the storage lock
+    before the next config opens the same path.
     """
-    if pipeline is None:
-        return
+    # Collect clients reachable from the pipeline graph (fast path)...
+    clients = {}
+    if pipeline is not None:
+        for client in _iter_qdrant_clients(pipeline):
+            clients[id(client)] = client
+
+    # ...and any still-alive QdrantClient anywhere (catches the orphaned db). This
+    # runner is single-threaded and sequential, so the only live client at teardown
+    # belongs to the config we are tearing down — closing them all is exactly right.
+    for obj in gc.get_objects():
+        if isinstance(obj, QdrantClient):
+            clients[id(obj)] = obj
 
     closed = 0
-    for client in _iter_qdrant_clients(pipeline):
+    for client in clients.values():
         try:
             client.close()
             closed += 1
@@ -242,13 +256,16 @@ def process_config(config_path: Path, ds_code, ds_middle, save_path: str) -> Non
     # One instance => one Qdrant client => no storage-folder lock contention.
     pipeline = PipelineBuilder().build(pipeline_config)
 
-    try:
-        res_code = run_split(ds_code, pipeline, kind="code")
-        res_middle = run_split(ds_middle, pipeline, kind="middle")
+    save_dir = os.path.join(save_path, config_path.stem)
+    os.makedirs(save_dir, exist_ok=True)
 
-        save_dir = os.path.join(save_path, config_path.stem)
-        os.makedirs(save_dir, exist_ok=True)
+    try:
+        # Save each split's CSV as soon as it finishes, so a slow or interrupted
+        # second split never discards the first split's completed results.
+        res_code = run_split(ds_code, pipeline, kind="code")
         res_code.to_csv(os.path.join(save_dir, "ds_code.csv"), encoding="utf-8", index=False)
+
+        res_middle = run_split(ds_middle, pipeline, kind="middle")
         res_middle.to_csv(os.path.join(save_dir, "ds_middle.csv"), encoding="utf-8", index=False)
 
         acc_code = res_code["accuracy"].mean()
