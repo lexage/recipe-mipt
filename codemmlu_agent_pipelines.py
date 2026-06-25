@@ -332,6 +332,12 @@ def main():
             logging.exception(f"Config {config_path.name} failed")
             print(f"\t - FAILED: {config_path.name} (see logs for traceback)")
             failures.append(config_path.name)
+            # A failure may have happened AFTER the QdrantClient was opened but
+            # before process_config's own finally ran (e.g. build error past the
+            # db step). That orphaned client still holds the storage lock, so the
+            # next config opening the same path would fail. close_pipeline(None)
+            # scans every live object via gc and closes any open client.
+            close_pipeline(None)
 
     if failures:
         print(f"\nDone with {len(failures)} failed config(s): {', '.join(failures)}")
@@ -341,3 +347,13 @@ def main():
 
 if __name__ == "__main__":
     main()
+    # fastembed/TensorFlow/onnxruntime spawn non-daemon background threads that
+    # keep the interpreter alive after main() returns. A lingering process keeps
+    # any still-open Qdrant client — and thus the storage-folder lock — held,
+    # which makes the NEXT run fail to acquire the lock. Flush stdio and hard-exit
+    # so those threads cannot outlive the script.
+    import sys
+    logging.shutdown()  # flush + close file handlers (os._exit skips atexit)
+    sys.stdout.flush()
+    sys.stderr.flush()
+    os._exit(0)

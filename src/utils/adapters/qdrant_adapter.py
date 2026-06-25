@@ -44,6 +44,20 @@ class QdrantDocsAdapter:
             )
         
 
+    def close(self):
+        """Release the local Qdrant storage lock by closing the client.
+
+        The local store holds an exclusive file lock on its storage folder for as
+        long as the client is alive; closing it releases that lock so another
+        process (e.g. the next config / run) can open the same path.
+        """
+        client = getattr(self, "client", None)
+        if client is not None:
+            try:
+                client.close()
+            finally:
+                self.client = None
+
     def add(self, chunks: List[Chunk]):
         points_count, chunks = self._filter_existing_chunks(chunks)
 

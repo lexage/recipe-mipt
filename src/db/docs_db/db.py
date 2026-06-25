@@ -45,6 +45,12 @@ class LocalDB(IDB):
         self.return_full_docs = return_full_docs
         self.merge_examples = merge_examples
     
+    def close(self):
+        """Release the underlying Qdrant storage lock (see QdrantDocsAdapter.close)."""
+        adapter = getattr(self, "vdb_adapter", None)
+        if adapter is not None and hasattr(adapter, "close"):
+            adapter.close()
+
     def get_documents(self, ids: List[int] = None) -> List[Document]:
         if not ids:
             documents = self.sqlite_adapter.get_docs()
