@@ -108,7 +108,9 @@ def load_codemmlu(limit: int):
 
     if limit:
         ds_middle = ds_middle[:limit]
-        ds_code = ds_code[:limit]
+        # ds_code is intentionally NOT capped: code_completion is small (~164 rows)
+        # and we want to evaluate on all of it.
+        # ds_code = ds_code[:limit]
 
     logging.info(
             f"ds_code: {len(ds_code)}, ds_middle: {len(ds_middle)}"
@@ -204,8 +206,22 @@ def close_pipeline(pipeline) -> None:
     logging.info(f"close_pipeline: closed {closed} QdrantClient(s)")
 
 
-def run_split(df: pd.DataFrame, pipeline, kind: str) -> pd.DataFrame:
-    """Run every row of a sub-dataset through the single pipeline and score it."""
+def _score(df: pd.DataFrame, outputs: list) -> pd.DataFrame:
+    """Attach `output`/`accuracy` columns to the first len(outputs) rows of df."""
+    scored = df.iloc[: len(outputs)].copy()
+    scored["output"] = outputs
+    scored["accuracy"] = (scored["output"] == scored["answer"]).astype(int)
+    return scored
+
+
+def run_split(df: pd.DataFrame, pipeline, kind: str, out_csv: str = None) -> pd.DataFrame:
+    """Run every row of a sub-dataset through the single pipeline and score it.
+
+    Results are flushed to `out_csv` after every task, so a hard kill / Ctrl-C
+    mid-split (the run is hours long) leaves a CSV with every completed row instead
+    of discarding all of them. Each write rewrites the whole file with the rows done
+    so far — cheap (milliseconds) next to ~50s per task.
+    """
     total = len(df)
     outputs = []
 
@@ -229,13 +245,12 @@ def run_split(df: pd.DataFrame, pipeline, kind: str) -> pd.DataFrame:
         logging.info(
             f"TASK\t{kind}\t{row.get('task_id', 'N/A')}\t{time.time() - task_start:.3f}s\t-> {answer}"
         )
+        if out_csv:
+            _score(df, outputs).to_csv(out_csv, encoding="utf-8", index=False)
         if done % 25 == 0 or done == total:
             print(f"\t\t{kind}: {done}/{total}")
 
-    df = df.copy()
-    df["output"] = outputs
-    df["accuracy"] = (df["output"] == df["answer"]).astype(int)
-    return df
+    return _score(df, outputs)
 
 
 def process_config(config_path: Path, ds_code, ds_middle, save_path: str) -> None:
@@ -260,13 +275,16 @@ def process_config(config_path: Path, ds_code, ds_middle, save_path: str) -> Non
     os.makedirs(save_dir, exist_ok=True)
 
     try:
-        # Save each split's CSV as soon as it finishes, so a slow or interrupted
-        # second split never discards the first split's completed results.
-        res_code = run_split(ds_code, pipeline, kind="code")
-        res_code.to_csv(os.path.join(save_dir, "ds_code.csv"), encoding="utf-8", index=False)
-
-        res_middle = run_split(ds_middle, pipeline, kind="middle")
-        res_middle.to_csv(os.path.join(save_dir, "ds_middle.csv"), encoding="utf-8", index=False)
+        # run_split flushes each CSV after every task, so even a hard kill mid-split
+        # leaves the rows completed so far on disk instead of losing the whole run.
+        res_code = run_split(
+            ds_code, pipeline, kind="code",
+            out_csv=os.path.join(save_dir, "ds_code.csv"),
+        )
+        res_middle = run_split(
+            ds_middle, pipeline, kind="middle",
+            out_csv=os.path.join(save_dir, "ds_middle.csv"),
+        )
 
         acc_code = res_code["accuracy"].mean()
         acc_middle = res_middle["accuracy"].mean()
