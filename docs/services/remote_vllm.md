@@ -5,7 +5,7 @@
 
 ### Windows/MacOS/Linux
 
-#### 1.1. Добавить в свой ssh-config (~/.ssh/config) вот это
+#### (НЕ АКТУАЛЬНО используем логин/пароль) 1.1. Добавить в свой ssh-config (~/.ssh/config) вот это
 
 ```
 Host mipt_aigrant_cluster
@@ -38,8 +38,8 @@ Host mipt_aigrant_recipe
   ServerAliveInterval 30
   ServerAliveCountMax 4
   HostKeyAlias mipt_aigrant_asap
-  LocalForward localhost:3002 172.18.0.3:3002
-  LocalForward localhost:3003 172.18.0.3:3003
+  LocalForward localhost:3002 0.0.0.0:3002
+  LocalForward localhost:3003 0.0.0.0:3003
 ```
 
 #### 1.2. Добавить файл с ключом в папку `~/.ssh/mipt/rsa_asap`. 
@@ -83,7 +83,7 @@ ssh mipt_aigrant_recipe
 
 ### 3.1. Скрипт для запуска vllm лежит в /work/vllm_exp
 ```shell
-cd /work/vllm-exp/
+cd /data/work/team_recipe/work/vllm-exp
 ```
 
 ### 3.2. Активируем окружение
@@ -94,16 +94,16 @@ cd /work/vllm-exp/
 
 ### 3.3. Запуск vllm, используя скрипт
 ```shell
-CUDA_VISIBLE_DEVICES=0,1 ./vllm_run.sh Qwen/Qwen1.5-32B-Chat-AWQ --port 7215 --max-num-batched-tokens 8192 --tensor-parallel-size 2
+CUDA_VISIBLE_DEVICES=0,1 vllm serve Qwen/Qwen1.5-32B-Chat-AWQ --port 7215 --max-num-batched-tokens 8192 --tensor-parallel-size 2
 ```
 
 ## 4. Пробросить порты на локальную машину
 
 У себя на локалке: 
 ```shell
-ssh -N -L localhost:7215:172.18.0.3:7215 -L localhost:7216:172.18.0.3:7216 mipt_aigrant_recipe
+ssh -N -L localhost:7215:0.0.0.0:7215 -L localhost:7216:0.0.0.0:7216 mipt_aigrant_recipe
 ```
-> **NOTE:** `localhost:<local_port>:172.18.0.3:<model_port>`
+> **NOTE:** `localhost:<local_port>:0.0.0.0:<model_port>`
 > - _local_port_ : порт по которому модель будет доступна на локалке, может быть любым;
 > - _model_port_ : порт, на котором развернута модель на удалённом кластере; 
 
