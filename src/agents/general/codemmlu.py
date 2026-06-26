@@ -47,7 +47,7 @@ class CodeMMLUSolver(Agent):
         if api not in valid_apis:
             raise ValueError(f"API: '{api}' is not a valid API! Use one of: {list(valid_apis)}")
         # if not api in SOLVER_API:
-        #     raise ValueError(f"API: '{api}' is not a valid API! Use one of: {[item.value for item in SOLVER_API]}") 
+        #     raise ValueError(f"AдPI: '{api}' is not a valid API! Use one of: {[item.value for item in SOLVER_API]}") 
         
         self.client = OpenAI(
             base_url=url,
