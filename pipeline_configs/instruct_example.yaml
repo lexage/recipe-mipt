@@ -1,7 +1,7 @@
 type: SIMPLE
 
 params:
-  top_k: 3
+  top_k: 5
 
 components:
   
@@ -16,9 +16,13 @@ components:
     type: LOCAL_DB
     params:
       path_to_db: "data/docs_database_examples.db"
-      path_to_vector_db: "data/docs_vdb_rc_1000_meta_ml500"
+      path_to_vector_db: "data/docs_vdb_rc_1000_meta_ml20"
       collection_name: "docs"
       
+      return_examples: True
+      return_full_docs: False
+      merge_examples: True
+
       hnsw_space: "cosine"
       hnsw_m: 16
       hnsw_construction_ef: 400
@@ -40,7 +44,7 @@ components:
     type: LENGTH_FILTER
     params:
       name: filter
-      min_len: 500
+      min_len: 20
   
   context_assembler:
     type: INSTRUCT_CONTEXT_ASSEMBLER
@@ -63,7 +67,15 @@ components:
       
       temperature: 0.2
       top_p: 0.95
-      max_tokens: 1024
+      max_tokens: 256
+  
+  enchancer:
+    type: QUERY_GENERATOR
+    params:
+      name: query_gen
+      url: "http://localhost:7215/v1"
+      model_name: "Qwen/Qwen1.5-32B-Chat-AWQ"
+      options: 1
   
   agent:
     type: DS1000_SOLVER_AGENT

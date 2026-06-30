@@ -62,8 +62,9 @@ def main():
                     route=True
                 )
 
-            pipeline = PipelineBuilder().build(pipeline_config)
+        pipeline = PipelineBuilder().build(pipeline_config)
 
+        try:
             def run_pipeline(task: DataItemDS1000):
                 task_start = time.time()
                 result = pipeline.run(task.prompt)
@@ -76,9 +77,11 @@ def main():
                 save_path=os.path.join(args.save_path, config_path.stem),
                 num_workers=int(args.num_workers)
             )
+        finally:
+            pipeline.close()
 
-            config_time = time.time() - config_start
-            logging.info(f"CONFIG\t{config_path.name}\t{config_time:.3f}s")
+        config_time = time.time() - config_start
+        logging.info(f"CONFIG\t{config_path.name}\t{config_time:.3f}s")
 
         except Exception as e:
             logging.error(f"CONFIG FAILED\t{config_path.name}\t{e}", exc_info=True)

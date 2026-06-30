@@ -34,6 +34,34 @@ class CoRagAgent:
         self.tokenizer: PreTrainedTokenizerFast = AutoTokenizer.from_pretrained(vllm_client.model)
         self.lock = threading.Lock()
 
+    def _subquery_messages(
+        self,
+        query: str,
+        past_subqueries: List[str],
+        past_subanswers: List[str],
+        task_desc: str,
+    ) -> List[Dict]:
+        return get_generate_subquery_prompt(
+            query=query,
+            past_subqueries=past_subqueries,
+            past_subanswers=past_subanswers,
+            task_desc=task_desc,
+        )
+
+    def _intermediate_messages(
+        self,
+        subquery: str,
+        documents: List[str],
+        main_task: str = "",
+    ) -> List[Dict]:
+        return get_generate_intermediate_answer_prompt(
+            subquery=subquery,
+            documents=documents,
+        )
+
+    def _normalize_subquery(self, subquery: str) -> str | None:
+        return _normalize_subquery(subquery)
+
     def sample_path(
             self, query: str, task_desc: str,
             max_path_length: int = 3,
@@ -54,7 +82,7 @@ class CoRagAgent:
         max_num_llm_calls: int = 4 * (max_path_length - len(past_subqueries))
         while len(past_subqueries) < max_path_length and num_llm_calls < max_num_llm_calls:
             num_llm_calls += 1
-            messages: List[Dict] = get_generate_subquery_prompt(
+            messages: List[Dict] = self._subquery_messages(
                 query=query,
                 past_subqueries=past_subqueries,
                 past_subanswers=past_subanswers,
@@ -63,15 +91,17 @@ class CoRagAgent:
             self._truncate_long_messages(messages, max_length=max_message_length)
 
             subquery: str = self.vllm_client.call_chat(messages=messages, temperature=subquery_temp, **kwargs)
-            subquery = _normalize_subquery(subquery)
-
-            if subquery in past_subqueries:
+            subquery = self._normalize_subquery(subquery)
+            if not subquery or subquery in past_subqueries:
                 subquery_temp = max(subquery_temp, 0.7)
                 continue
 
             subquery_temp = temperature
             subanswer, documents, chunks = self._get_subanswer_and_doc_ids(
-                subquery=subquery, max_message_length=max_message_length, top_k=top_k
+                subquery=subquery,
+                main_task=query,
+                max_message_length=max_message_length,
+                top_k=top_k,
             )
 
             past_subqueries.append(subquery)
@@ -118,7 +148,7 @@ class CoRagAgent:
 
 
     def sample_subqueries(self, query: str, task_desc: str, n: int = 10, max_message_length: int = 4096, **kwargs) -> List[str]:
-        messages: List[Dict] = get_generate_subquery_prompt(
+        messages: List[Dict] = self._subquery_messages(
             query=query,
             past_subqueries=kwargs.pop('past_subqueries', []),
             past_subanswers=kwargs.pop('past_subanswers', []),
@@ -127,15 +157,23 @@ class CoRagAgent:
         self._truncate_long_messages(messages, max_length=max_message_length)
 
         completion: ChatCompletion = self.vllm_client.call_chat(messages=messages, return_str=False, n=int(1.5 * n), **kwargs)
-        subqueries: List[str] = [_normalize_subquery(c.message.content) for c in completion.choices]
-        subqueries = list(set(subqueries))[:n]
+        subqueries: List[str] = []
+        for choice in completion.choices:
+            normalized = self._normalize_subquery(choice.message.content)
+            if normalized:
+                subqueries.append(normalized)
+        subqueries = list(dict.fromkeys(subqueries))[:n]
 
         return subqueries
 
 
     # TODO: переписать эту функцию на использование IDB
     def _get_subanswer_and_doc_ids(
-            self, subquery: str, max_message_length: int = 4096, top_k: int =  1
+            self,
+            subquery: str,
+            main_task: str = "",
+            max_message_length: int = 4096,
+            top_k: int = 1,
     ) -> Tuple[str, List, List]:
         
         retrieve_results: List[Chunk] = self.data_base.query(query_text=subquery, top_k=top_k)
@@ -145,10 +183,10 @@ class CoRagAgent:
 
         doc_texts = [doc.text for doc in documents]
 
-        messages: List[Dict] = get_generate_intermediate_answer_prompt(
+        messages: List[Dict] = self._intermediate_messages(
             subquery=subquery,
-            documents=doc_texts
-            # documents=documents,
+            documents=doc_texts,
+            main_task=main_task or subquery,
         )
         # TODO: Добавить функционал токенизации в vllm client
         self._truncate_long_messages(messages, max_length=max_message_length)
@@ -218,7 +256,10 @@ class CoRagAgent:
                     new_candidate: RagPath = deepcopy(candidate)
                     new_candidate.past_subqueries.append(subquery)
                     subanswer, documents, chunks = self._get_subanswer_and_doc_ids(
-                        subquery=subquery, max_message_length=max_message_length
+                        subquery=subquery,
+                        main_task=query,
+                        max_message_length=max_message_length,
+                        top_k=top_k,
                     )
                     new_candidate.past_subanswers.append(subanswer)
                     new_candidate.past_docs.append(documents)
@@ -247,9 +288,13 @@ class CoRagAgent:
 
     def _eval_single_path(self, current_path: RagPath, max_message_length: int = 4096) -> float:
         
-        messages: List[Dict] = get_generate_intermediate_answer_prompt(
+        messages: List[Dict] = self._intermediate_messages(
             subquery=current_path.query,
-            documents=[f'Q: {q}\nA: {a}' for q, a in zip(current_path.past_subqueries, current_path.past_subanswers)],
+            documents=[
+                f"API: {q}\nSummary: {a}"
+                for q, a in zip(current_path.past_subqueries, current_path.past_subanswers)
+            ],
+            main_task=current_path.query,
         )
 
         messages.append({'role': 'assistant', 'content': 'No relevant information found'})
