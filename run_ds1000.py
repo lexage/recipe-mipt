@@ -47,41 +47,43 @@ def main():
     bench = DS1000(dataset_path=args.dataset)
 
     for idx, config_path in enumerate(config_files):
-        
         print(f"- processing file {idx+1}/{len(config_files)}")
         print(f"\t - config: {config_path.name}")
-        
-        config_start = time.time()
 
-        pipeline_config = ConfigLoader().load_from_yaml(
-            path_to_cfg=config_path
-        )
-        
-        if pipeline_config.logs_path:
-            create_logging(
-                log_path=pipeline_config.logs_path,
-                tag=config_path.stem,
-                n_workers=int(args.num_workers),
-                route=True
+        try:
+            config_start = time.time()
+            pipeline_config = ConfigLoader().load_from_yaml(path_to_cfg=config_path)
+
+            if pipeline_config.logs_path:
+                create_logging(
+                    log_path=pipeline_config.logs_path,
+                    tag=config_path.stem,
+                    n_workers=int(args.num_workers),
+                    route=True
                 )
 
-        pipeline = PipelineBuilder().build(pipeline_config)
-    
-        def run_pipeline(task: DataItemDS1000):
-            task_start = time.time()
-            result = pipeline.run(task.prompt)
-            task_time = time.time() - task_start
-            logging.info(f"TASK\t{task.metadata.get('problem_id', 'N/A')}\t{task_time:.3f}s")
-            return result
-    
-        bench.eval(
-            run_method=run_pipeline,
-            save_path=os.path.join(args.save_path, config_path.stem),
-            num_workers=int(args.num_workers)
+            pipeline = PipelineBuilder().build(pipeline_config)
+
+            def run_pipeline(task: DataItemDS1000):
+                task_start = time.time()
+                result = pipeline.run(task.prompt)
+                task_time = time.time() - task_start
+                logging.info(f"TASK\t{task.metadata.get('problem_id', 'N/A')}\t{task_time:.3f}s")
+                return result
+
+            bench.eval(
+                run_method=run_pipeline,
+                save_path=os.path.join(args.save_path, config_path.stem),
+                num_workers=int(args.num_workers)
             )
-        
-        config_time = time.time() - config_start
-        logging.info(f"CONFIG\t{config_path.name}\t{config_time:.3f}s")
+
+            config_time = time.time() - config_start
+            logging.info(f"CONFIG\t{config_path.name}\t{config_time:.3f}s")
+
+        except Exception as e:
+            logging.error(f"CONFIG FAILED\t{config_path.name}\t{e}", exc_info=True)
+            print(f"\t - ERROR: {e}")
+            continue  # переходим к следующему конфигу
 
 
 if __name__ == "__main__":
