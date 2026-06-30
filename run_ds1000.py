@@ -83,11 +83,6 @@ def main():
         config_time = time.time() - config_start
         logging.info(f"CONFIG\t{config_path.name}\t{config_time:.3f}s")
 
-        except Exception as e:
-            logging.error(f"CONFIG FAILED\t{config_path.name}\t{e}", exc_info=True)
-            print(f"\t - ERROR: {e}")
-            continue  # переходим к следующему конфигу
-
 
 if __name__ == "__main__":
     main()
