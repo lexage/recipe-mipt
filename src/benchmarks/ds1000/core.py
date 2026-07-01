@@ -1,4 +1,5 @@
 import os
+import re
 import json
 import concurrent.futures as cfuts
 
@@ -38,6 +39,10 @@ class DS1000:
 
     @staticmethod
     def _postprocess(code: str) -> str:
+        # Strip reasoning-model <think>...</think> blocks (and unterminated
+        # ones caused by the model running out of tokens mid-thought).
+        code = re.sub(r'<think>.*?</think>', '', code, flags=re.DOTALL)
+        code = re.sub(r'<think>.*', '', code, flags=re.DOTALL)
         code = code.split('</code>')[0]
         code = code.replace('```python', '')
         code = code.split('```')[0]

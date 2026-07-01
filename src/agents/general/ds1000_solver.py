@@ -94,7 +94,8 @@ class DS1000Solver(Agent):
             temperature=self.temperature,
             top_p=self.top_p,
             max_tokens=self.max_tokens,
-            stop=self.stop_tokens
+            stop=self.stop_tokens,
+            extra_body={"chat_template_kwargs": {"enable_thinking": False}}
         )
 
         return completions.choices[0].message.content
