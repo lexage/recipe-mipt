@@ -28,9 +28,10 @@ class SOLVER_API(Enum):
 
 class CodeMMLUSolver(Agent):
     def __init__(
-            self, 
-            url: str, 
+            self,
+            url: str,
             context_after_task: bool,
+            model_name: str = None,
             api: str = SOLVER_API.COMPLETIONS.value,
             system_prompt: str = DEFAULT_SYSTEM_PROMPT,
             temperature=0.2, 
@@ -57,7 +58,8 @@ class CodeMMLUSolver(Agent):
         self.api = api
         self.system_prompt = system_prompt
 
-        self.model_name = self.client.models.list().data[0].id
+        # Honour the model from config; fall back to whatever the server serves.
+        self.model_name = model_name or self.client.models.list().data[0].id
 
         self.temperature=temperature
         self.top_p=top_p

@@ -67,7 +67,7 @@ components:
     params:
       name: query_gen
       url: "http://localhost:7215/v1"
-      model_name: "Qwen/Qwen1.5-32B-Chat-AWQ"
+      model_name: "Qwen/Qwen2.5-32B-Instruct"
       options: 1
   
   agent:
@@ -76,7 +76,7 @@ components:
       name: codemmlu_solver
 
       url: "http://localhost:7215/v1"
-      model_name: "Qwen/Qwen1.5-32B-Chat-AWQ"
+      model_name: "Qwen/Qwen2.5-32B-Instruct"
 
       api: completions
       context_after_task: False

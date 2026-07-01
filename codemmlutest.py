@@ -71,20 +71,46 @@ implies:
   sentinel such as nan / [] / None BEFORE dividing or indexing), or that
   DEDUPLICATES data that must keep duplicates;
 - reject a wrong formula, wrong tie-breaking, or a different algorithm;
+- reject an option that applies a per-element / per-group transform to only PART
+  of the data (e.g. fixes only the first group) instead of every element;
+- reject an option that returns ALL items when the spec asks only for the
+  EXTREME one(s) — the maximum, or the most frequent — and when several items tie
+  for that extreme, the answer must keep EVERY tied item;
 - prefer the option whose result matches EVERY docstring example exactly.
 
-STEP 2 — If two or more options are FUNCTIONALLY EQUIVALENT (identical result on
-every input), pick the CANONICAL / minimal form — the one identical, character
-for character, to the simplest reference form:
-- strict `>` to track a maximum (not `>=`); keep the FIRST among equal values;
-- minimal form: no extra guard the spec does not need (e.g. no `if max == min`
-  branch when the input is guaranteed to have >= 2 distinct values);
-- standard 4-space indentation; PEP 8 spacing `[1] * (n + 1)` (not `[1]*(n+1)`);
-- `[x] * n` over `[x for _ in range(n)]`; `'.'.join(parts)` over manual concat;
-- arithmetic identities are equal — `i / 2 + 1` == `(i + 2) / 2`,
-  `3 * (k // 3)` == `k - k % 3` — choose the explicit reference form / shortest;
-- prefer the concise idiom the reference uses (e.g. `decode = encode(encode(s))`
-  over re-implementing the transform).
+STEP 2 — Several options are often FUNCTIONALLY EQUIVALENT: they return the SAME
+value on EVERY valid input and differ only in surface form. This is common and
+catches you out — two options can look different yet behave identically, so
+ACTIVELY check for it before deciding. Watch for these equivalences:
+- a comparison whose RESULT is unchanged: `e > m` vs `e >= m` while tracking a
+  maximum gives the same maximum; likewise `>` vs `>=` on a bound no input hits;
+- an algebraic identity: `i / 2 + 1` == `(i + 2) / 2`; `3 * (k // 3)` ==
+  `k - k % 3`; `(l + r) // 2` == `l + (r - l) // 2`;
+- the SAME logic with different control flow: an early-return double loop
+  `for i: for j>i: if cond: return True ... return False` is the same predicate
+  as an all-pairs scan `for a: for b!=a: if cond: return True`;
+- two options that are IDENTICAL character-for-character — then they are
+  interchangeable and either is acceptable; never reject one just because its
+  twin exists.
+
+Once you see options are equivalent, do NOT decide by elimination or by position
+— pick the CANONICAL reference form using this priority order:
+1. the option that COMPLETELY and directly implements every behaviour the
+   docstring describes (the full reference-style solution), over a clever terse
+   rewrite that only happens to match;
+2. strict `>` / `<` to track an extreme, keeping the FIRST among equal values
+   (not `>=` / `<=`);
+3. the explicit standard arithmetic form (`i / 2 + 1`, not `(i + 2) / 2`);
+4. the standard idiom / PEP 8 form: `[x] * n` (not `[x for _ in range(n)]`),
+   `'.'.join(parts)` over manual concatenation, `[1] * (n + 1)` with spaces;
+   and among options that differ ONLY in indentation or a trailing newline, the
+   canonical one keeps standard 4-space block indentation and the reference's
+   trailing newline, not a 1-space or de-indented twin;
+5. otherwise the minimal form, with no extra guard the spec does not require.
+
+The reference answer is spread EVENLY across A, B, C and D. Judge every option by
+its behaviour, not its position: do not prefer a middle option and do not avoid
+A — if the fully-correct, reference-style option is A, answer A.
 
 Output a single letter only."""
 
