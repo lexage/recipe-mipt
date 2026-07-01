@@ -30,12 +30,9 @@ logging.getLogger("openai").setLevel(logging.ERROR)
 logging.getLogger("httpx").setLevel(logging.ERROR)
 logging.getLogger("httpcore").setLevel(logging.ERROR)
 
-pipeline_config = ConfigLoader().load_from_yaml("pipeline_configs/simple_example.yaml")
-
-if pipeline_config.logs_path:
-    create_logging(log_filename=pipeline_config.logs_path)
-
-pipeline = PipelineBuilder().build(pipeline_config)
+# The pipeline is now built per-experiment inside run_experiment() (bottom of
+# file), so this module can be imported and driven with any config / run in
+# parallel. See run_experiment() and the __main__ CLI.
 
 def check(correct, output):
     if (correct == output):
@@ -178,59 +175,137 @@ def get_prompt_answer(problem, answers, model, kind="middle", task_id=None):
     print(response)
     return response
 
-# Login using e.g. `huggingface-cli login` to access this dataset
-ds_middle = load_dataset("Fsoft-AIC/CodeMMLU", "fill_in_the_middle")
+def describe_config(pipeline_config):
+    """Pull the human-readable experiment parameters out of a loaded config."""
 
-ds_code = load_dataset("Fsoft-AIC/CodeMMLU", "code_completion")
+    def _one(name):
+        c = pipeline_config.components.get(name)
+        if c is None:
+            return None
+        if isinstance(c, list):
+            c = c[0]
+        return c
 
-ds_middle = ds_middle["test"].to_pandas()
+    def _type(name):
+        c = _one(name)
+        return c.type.name if c is not None else None
 
-ds_code = ds_code["test"].to_pandas()
+    def _params(name):
+        c = _one(name)
+        return (c.params or {}) if c is not None else {}
 
-ds_middle = ds_middle[ds_middle['choices'].apply(len) == 4]
-
-ds_middle = ds_middle[: 500]
-##ds_code['output'] = ds_code.apply(lambda row: get_prompt_code(row[""], row[""]), axis=1)
-
-
-
-ds_middle["input"] = ds_middle.apply(
-    lambda row: get_prompt_middle(row["question"], row["problem_description"]), 
-    axis=1
-)
-
-ds_code["input"] = ds_code.apply(
-    lambda row: get_prompt_code(row["question"]), 
-    axis=1
-)
-
-
-ds_code["output"] = ds_code.apply(
-    lambda row: get_prompt_answer(
-        row["input"], row["choices"], pipeline,
-        kind="code", task_id=row["task_id"],
-    ),
-    axis=1,
-)
-
-ds_middle["output"] = ds_middle.apply(
-    lambda row: get_prompt_answer(
-        row["input"], row["choices"], pipeline,
-        kind="middle", task_id=row["task_id"],
-    ),
-    axis=1,
-)
-
-ds_code['accuracy'] = (ds_code['output'] == ds_code['answer']).astype(int)
-
-ds_middle['accuracy'] = (ds_middle['output'] == ds_middle['answer']).astype(int)
+    db = _params("data_base")
+    agent = _params("agent")
+    emb = _params("embedder")
+    return {
+        "Retriever": _type("retriever") or "NONE (baseline / no retrieval)",
+        "Context assembler": _type("context_assembler") or "NONE",
+        "Relevance rationales": "yes" if "rationality_agent" in pipeline_config.components else "no",
+        "API selector": "yes" if "api_selector" in pipeline_config.components else "no",
+        "return_full_docs": db.get("return_full_docs", False),
+        "return_examples": db.get("return_examples", False),
+        "merge_examples": db.get("merge_examples", False),
+        "top_k": pipeline_config.params.get("top_k"),
+        "Solver model": agent.get("model_name"),
+        "Embedder model": emb.get("model_name"),
+    }
 
 
-print("Code:")
-print(ds_code.groupby("answer")['accuracy'].mean())
+def _letter_report(df, title):
+    per = df.groupby("answer")["accuracy"].agg(["mean", "sum", "count"])
+    lines = [f"{title}: overall {df['accuracy'].mean():.4f} ({int(df['accuracy'].sum())}/{len(df)})",
+             "  accuracy by correct-answer letter:"]
+    for letter, row in per.iterrows():
+        lines.append(f"    {letter}: {row['mean']:.4f}  ({int(row['sum'])}/{int(row['count'])})")
+    return "\n".join(lines)
 
-print("middle:")
-print(ds_middle.groupby("answer")['accuracy'].mean())
+
+def run_experiment(config_path, exp_name=None, out_dir="results"):
+    """Build the pipeline from `config_path`, run the CodeMMLU code + middle
+    benchmarks, and save a titled results notebook (results/<exp_name>.txt) with
+    the experiment name, its parameters (Retriever, flags, models, ...), and the
+    accuracy tables. Also dumps per-task CSVs and appends one row to
+    results/summary.csv so experiments can be compared side by side."""
+    import os
+    from datetime import datetime
+
+    if exp_name is None:
+        exp_name = os.path.splitext(os.path.basename(config_path))[0]
+    os.makedirs(out_dir, exist_ok=True)
+
+    pipeline_config = ConfigLoader().load_from_yaml(config_path)
+    if pipeline_config.logs_path:
+        create_logging(log_filename=pipeline_config.logs_path)
+    params = describe_config(pipeline_config)
+    pipeline = PipelineBuilder().build(pipeline_config)
+
+    # --- data (same source/filters as the original script) ---
+    ds_middle = load_dataset("Fsoft-AIC/CodeMMLU", "fill_in_the_middle")["test"].to_pandas()
+    ds_code = load_dataset("Fsoft-AIC/CodeMMLU", "code_completion")["test"].to_pandas()
+    ds_middle = ds_middle[ds_middle["choices"].apply(len) == 4][:500]
+
+    ds_middle["input"] = ds_middle.apply(
+        lambda row: get_prompt_middle(row["question"], row["problem_description"]), axis=1)
+    ds_code["input"] = ds_code.apply(lambda row: get_prompt_code(row["question"]), axis=1)
+
+    ds_code["output"] = ds_code.apply(
+        lambda row: get_prompt_answer(row["input"], row["choices"], pipeline,
+                                      kind="code", task_id=row["task_id"]), axis=1)
+    ds_middle["output"] = ds_middle.apply(
+        lambda row: get_prompt_answer(row["input"], row["choices"], pipeline,
+                                      kind="middle", task_id=row["task_id"]), axis=1)
+
+    ds_code["accuracy"] = (ds_code["output"] == ds_code["answer"]).astype(int)
+    ds_middle["accuracy"] = (ds_middle["output"] == ds_middle["answer"]).astype(int)
+
+    ds_code.to_csv(os.path.join(out_dir, f"{exp_name}_code.csv"), index=False)
+    ds_middle.to_csv(os.path.join(out_dir, f"{exp_name}_middle.csv"), index=False)
+
+    ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    lines = [
+        "=" * 70,
+        f"Experiment: {exp_name}",
+        f"Config:     {config_path}",
+        f"Timestamp:  {ts}",
+        "-" * 70,
+        "Parameters:",
+    ]
+    for k, v in params.items():
+        lines.append(f"  {k:22} {v}")
+    lines += ["-" * 70, _letter_report(ds_code, "CODE"), "", _letter_report(ds_middle, "MIDDLE"), "=" * 70, ""]
+    text = "\n".join(lines)
+
+    notebook = os.path.join(out_dir, f"{exp_name}.txt")
+    with open(notebook, "w", encoding="utf-8") as f:
+        f.write(text)
+
+    summary = os.path.join(out_dir, "summary.csv")
+    write_header = not os.path.exists(summary)
+    with open(summary, "a", encoding="utf-8") as f:
+        if write_header:
+            f.write("experiment,retriever,rationales,full_docs,examples,merge,top_k,"
+                    "code_overall,middle_overall,timestamp\n")
+        f.write(f"{exp_name},{params['Retriever']},{params['Relevance rationales']},"
+                f"{params['return_full_docs']},{params['return_examples']},{params['merge_examples']},"
+                f"{params['top_k']},{ds_code['accuracy'].mean():.4f},"
+                f"{ds_middle['accuracy'].mean():.4f},{ts}\n")
+
+    print(text)
+    print(f"[saved] {notebook}")
+    return notebook
+
+
+if __name__ == "__main__":
+    import argparse
+
+    ap = argparse.ArgumentParser(description="Run one CodeMMLU RAG experiment and log the result.")
+    ap.add_argument("--config", default="pipeline_configs/simple_example.yaml",
+                    help="path to the pipeline YAML config")
+    ap.add_argument("--name", default=None,
+                    help="experiment name (default: config file stem); used for the results file")
+    ap.add_argument("--out", default="results", help="output directory for result notebooks")
+    args = ap.parse_args()
+    run_experiment(args.config, args.name, args.out)
 
 
 ds_middle.to_csv("ds_middle.csv", encoding='utf-8', index=False)

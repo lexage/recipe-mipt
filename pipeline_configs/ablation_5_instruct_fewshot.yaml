@@ -1,86 +1,80 @@
+# Ablation 5 — InstructRetriever + few-shot (examples + merge)
+# Variant 3 (rationales) plus retrieved docs bring their worked code EXAMPLES
+# (return_examples: True), merged into the parent chunk (merge_examples: True),
+# so the solver gets few-shot demonstrations alongside the rationale. No full docs.
 type: SIMPLE
 
 params:
-  top_k: 3
+  top_k: 5
 
 components:
-  
+
   embedder:
     type: EMBEDDING_AGENT
     params:
       name: embedder
       url: "http://localhost:7216/v1"
       model_name: "Qwen/Qwen3-Embedding-4B"
-  
+
   data_base:
     type: LOCAL_DB
     params:
-      similarity_threshold: 0.0
       path_to_db: "C:/Projects/docs_database_examples.db"
-      path_to_vector_db: "data/docs_vector_database"
+      path_to_vector_db: "data/vdb_ablation_5_instruct_fewshot"
       collection_name: "docs"
-      
+      return_full_docs: False
+      return_examples: True       # <-- pull the docs' code examples
+      merge_examples: True        # <-- fold each example into its parent chunk
       hnsw_space: "cosine"
       hnsw_m: 16
       hnsw_construction_ef: 400
       hnsw_search_ef: 200
       batch_size: 16
-      
+      similarity_threshold: 0.1
       search_filter:
         source: "documents"
-  
+
   chunker:
     type: RECURSIVE_CHUNKER
     params:
       name: chunker
       max_chunk_size: 1000
-  
+
   filter:
     type: LENGTH_FILTER
     params:
       name: filter
-      min_len: 500
-  
+      min_len: 20
+
   context_assembler:
-    type: CORAG_CONTEXT_ASSEMBLER
+    type: INSTRUCT_CONTEXT_ASSEMBLER
     params:
-      name: simple_assembler
-  
-  api_selector:
-    type: API_SELECTOR
+      name: instruct_assembler
+
+  rationality_agent:
+    type: INSTRUCT_RATIONALITY_AGENT
     params:
+      name: instruct_rationality_agent
       url: "http://localhost:7215/v1"
-      temperature: 0.1
+      model_name: "Qwen/Qwen2.5-32B-Instruct"
+      temperature: 0.2
+      top_p: 0.95
       max_tokens: 256
 
   retriever:
-    type: API_RETRIEVER
+    type: INSTRUCT_RETRIEVER
     params:
-      name: api_retriever
-      max_apis: 6
-      api_top_k: 1
-      chunks_per_api: 1
-      ignore_libs: []
+      name: instruct_retriever
 
-  enhancer:
-    type: API_SELECTOR
-    params:
-      url: "http://localhost:7215/v1"
-  
   agent:
     type: CODEMMLU_SOLVER_AGENT
     params:
       name: codemmlu_solver
-
       url: "http://localhost:7215/v1"
       model_name: "Qwen/Qwen2.5-32B-Instruct"
-
       api: completions
       context_after_task: False
-      
       temperature: 0.2
       top_p: 0.95
       max_tokens: 1024
       stop_tokens: []
-
-
