@@ -160,6 +160,9 @@ class QdrantDocsAdapter:
 
         return points
 
+    def close(self):
+        self.client.close()
+
     @staticmethod
     def _chunk_payload(chunk: Chunk) -> Dict:
         return {

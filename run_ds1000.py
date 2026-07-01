@@ -66,20 +66,23 @@ def main():
                 )
 
         pipeline = PipelineBuilder().build(pipeline_config)
-    
-        def run_pipeline(task: DataItemDS1000):
-            task_start = time.time()
-            result = pipeline.run(task.prompt)
-            task_time = time.time() - task_start
-            logging.info(f"TASK\t{task.metadata.get('problem_id', 'N/A')}\t{task_time:.3f}s")
-            return result
-    
-        bench.eval(
-            run_method=run_pipeline,
-            save_path=os.path.join(args.save_path, config_path.stem),
-            num_workers=int(args.num_workers)
+
+        try:
+            def run_pipeline(task: DataItemDS1000):
+                task_start = time.time()
+                result = pipeline.run(task.prompt)
+                task_time = time.time() - task_start
+                logging.info(f"TASK\t{task.metadata.get('problem_id', 'N/A')}\t{task_time:.3f}s")
+                return result
+
+            bench.eval(
+                run_method=run_pipeline,
+                save_path=os.path.join(args.save_path, config_path.stem),
+                num_workers=int(args.num_workers)
             )
-        
+        finally:
+            pipeline.close()
+
         config_time = time.time() - config_start
         logging.info(f"CONFIG\t{config_path.name}\t{config_time:.3f}s")
 

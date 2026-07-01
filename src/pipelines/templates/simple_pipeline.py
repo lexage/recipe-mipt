@@ -83,6 +83,7 @@ class SimplePipeline(Pipeline):
 
         data_base.add_chunks(chunks)
 
+        self.data_base = data_base
         self.retriever = retriever
         self.agent = agent
         self.context_assembler = context_assembler
@@ -113,3 +114,5 @@ class SimplePipeline(Pipeline):
         
         return self.agent.run(task, "", AnswerFormat)
 
+    def close(self) -> None:
+        self.data_base.close()

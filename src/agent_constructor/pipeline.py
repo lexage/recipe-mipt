@@ -22,6 +22,10 @@ class Pipeline(ABC):
     def run(self, *args, **kwargs):
         raise NotImplementedError
 
+    def close(self) -> None:
+        """Release resources held by the pipeline and its components."""
+        pass
+
     def __str__(self):
         return f"{self.__class__.__name__}({self.name})"
 
