@@ -76,8 +76,12 @@ class Critic(Agent):
             openai_api_base=openai_api_base_url,
             openai_api_key="fake-key",
             temperature=0.7,
-            timeout=600.0,
-            max_retries=2,
+            # Cap generation so a degenerate no-EOS run can't grow to the full
+            # context window (the main "hang" source on vLLM). A 120s timeout with a
+            # single retry fails fast instead of blocking ~30 min (600s x 2 retries).
+            max_tokens=1024,
+            timeout=120.0,
+            max_retries=1,
         )
 
     def llm(self, message) -> str:
@@ -87,8 +91,15 @@ class Critic(Agent):
         response = self.llm_model.invoke(messages)
         return response.content
 
+    # Wall-clock cap (seconds) for executing LLM-generated option code. Without it,
+    # PythonREPL.run() execs in-process with no timeout, so a generated `while True:`,
+    # an `input()` waiting on stdin, or a blocking call hangs the whole run forever.
+    # Passing a timeout makes PythonREPL run the code in a child process it can kill.
+    REPL_TIMEOUT = 10
+
     def get_python_repl_tool(self) -> BaseTool:
         repl = PythonREPL()
+        repl_timeout = self.REPL_TIMEOUT
 
         @tool(description="Use it to compile Python code")
         def python_repl_tool(
@@ -97,7 +108,7 @@ class Critic(Agent):
             """Use this to execute python code. If you want to see the output of a value,
             you should print it out with print(...). This is visible to the user."""
             try:
-                result = repl.run(code)
+                result = repl.run(code, timeout=repl_timeout)
             except BaseException as e:
                 return f"Failed to execute. Error: {repr(e)}"
             return f"Successfully executed:\n : {result}"
@@ -247,7 +258,13 @@ class Critic(Agent):
 
         agent = create_openai_functions_agent(self.llm_model, tools_list, prompt=prompt)
         agent_executor = AgentExecutor(
-            agent=agent, tools=tools_list, verbose=True, return_intermediate_steps=True
+            agent=agent,
+            tools=tools_list,
+            verbose=True,
+            return_intermediate_steps=True,
+            # Bound the tool-calling loop in wall-clock too (not just max_iterations):
+            # a slow/blocking tool (e.g. DuckDuckGo rate-limiting) can't stall forever.
+            max_execution_time=180,
         )
 
         response = agent_executor.invoke(

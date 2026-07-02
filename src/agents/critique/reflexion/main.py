@@ -40,8 +40,12 @@ class Reflexion(Agent):
             openai_api_base=openai_api_base_url,
             openai_api_key="fake-key",
             temperature=0.7,
-            timeout=600.0,
-            max_retries=2,
+            # Cap generation so a degenerate no-EOS run can't grow to the full
+            # context window (the main "hang" source on vLLM). A 120s timeout with a
+            # single retry fails fast instead of blocking ~30 min (600s x 2 retries).
+            max_tokens=1024,
+            timeout=120.0,
+            max_retries=1,
         )
 
     def llm(self, message) -> str:
