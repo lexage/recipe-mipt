@@ -1,4 +1,5 @@
 import importlib
+import logging
 from abc import ABC, abstractmethod
 from src.agent_constructor.agent import Agent
 import re
@@ -14,8 +15,6 @@ from langchain_experimental.utilities import PythonREPL
 from typing import Annotated
 from langchain_classic.agents import AgentExecutor
 from langchain_classic.agents import create_openai_functions_agent
-from langchain_community.tools import DuckDuckGoSearchResults
-from langchain_community.utilities import DuckDuckGoSearchAPIWrapper
 from langchain_experimental.utilities import PythonREPL
 from typing import Annotated
 from langchain_core.tools import tool
@@ -50,7 +49,6 @@ class Critic(Agent):
     Agent has got the following tools:
     1. python_repl_tool - tool for Python code compilation.
     2. compare_tool - tool for comparing result of compilation of current problem's implementation and the expected results of solving the problem
-    3. web_search_tool - tool for searching information using Internet
     At the first stage agent uses python_repl_tool to get result of compilation of the current implementation. Then it uses compare_tool to compare the expected results of the solution with the actual compilation output.
     Then agent generates criticism of the implementation using these results.
 
@@ -135,23 +133,18 @@ class Critic(Agent):
 
         return compare_tool
 
-    def get_web_search_tool(self, max_results: int = 1) -> BaseTool:
-        wrapper = DuckDuckGoSearchAPIWrapper(
-            max_results=max_results,
-        )
-        tool = DuckDuckGoSearchResults(api_wrapper=wrapper)
-        tool.description = (
-            """Search information using Internet. Use English language for searching."""
-        )
-        return tool
-
     def get_code(self, answer: str) -> str:
         promt = self.prompts.GET_CODE_PROMPT.format(answer=answer)
         return self.llm(promt)
 
     def get_tools(self) -> List[BaseTool]:
+        # NOTE: the web-search (DuckDuckGo) tool was removed. It had NO enforceable
+        # timeout: after a couple hours of queries the IP gets rate-limited and the
+        # HTTP call blocks indefinitely. The AgentExecutor's max_execution_time only
+        # fires BETWEEN steps, so it cannot interrupt an in-flight tool call — that
+        # was the run-freeze source. The MC critic already gathers all its evidence
+        # in _gather_evidence_mc (each option executed), so web search is redundant.
         return [
-            self.get_web_search_tool(),
             self.get_python_repl_tool(),
             self.get_compare_tool(),
         ]
@@ -267,6 +260,11 @@ class Critic(Agent):
             max_execution_time=180,
         )
 
+        # AgentExecutor prints its trace to stdout (verbose=True), NOT to logging, so
+        # the per-config log goes silent during the critic stage. Bracket the call
+        # with log lines so a stall here is visible in the log instead of looking
+        # like a total freeze right after the ReAct FINAL ANSWER.
+        logging.info("CRITIC: invoking AgentExecutor")
         response = agent_executor.invoke(
             {
                 "problem": problem,
@@ -274,6 +272,7 @@ class Critic(Agent):
                 "implementation": implementation,
             }
         )
+        logging.info(f"CRITIC VERDICT:\n{response['output']}")
         return response["output"]
 
     def run(self, question: str, response: str) -> str:
