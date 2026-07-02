@@ -40,6 +40,10 @@ def main():
     ap.add_argument("--max-tail", type=int, default=10,
                     help="also load this many tail docs (off-topic junk sits at the end) "
                          "so the F3 topic-LLM path is exercised")
+    ap.add_argument("--gen-limit", type=int, default=5,
+                    help="cap dataset-driven generators (paraphrase / code2doc, which "
+                         "read the full ds1000 and ignore --max-docs) to this many tasks; "
+                         "harmless for corpus-driven generators (codeeval / code2task)")
     ap.add_argument("--vdb", default="data/vdb_smoke")
     args = ap.parse_args()
 
@@ -59,6 +63,13 @@ def main():
             db.params["max_docs"] = args.max_docs
             db.params["max_docs_tail"] = args.max_tail
             db.params["path_to_vector_db"] = f"{args.vdb}/{stem}"
+
+            # Dataset-driven generators (paraphrase/code2doc) read the full ds1000
+            # and ignore max_docs -> cap them so the smoke stays fast. The extra
+            # 'limit' key is ignored by generators without such a param.
+            gen = cfg.components.get("generator")
+            if gen is not None and not isinstance(gen, list):
+                gen.params["limit"] = args.gen_limit
 
             pipe = PipelineBuilder().build(cfg)        # runs filter/generator on max_docs
             ans = pipe.run(SAMPLE_PROMPT)              # runs retriever + solver
