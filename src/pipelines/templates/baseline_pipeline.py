@@ -7,7 +7,7 @@ from src.agent_constructor.pipeline import Pipeline
 _LOG_SEPARATOR = f"\n{'_' * 20}\n"
 
 
-class BasePipeline(Pipeline):
+class BasePipelineDS1000(Pipeline):
 
     def __init__(
         self,
@@ -33,4 +33,28 @@ class BasePipeline(Pipeline):
         
         logging.info(f"FINAL ANSWER AFTER POSTPROCESS: {final_answer}")
         logging.info(_LOG_SEPARATOR)
+        return final_answer
+
+ 
+class BasePipelineCodeMMLU(Pipeline):
+
+    def __init__(
+        self,
+        agent: Agent
+    ):
+
+        super().__init__("simple_pipeline")
+
+        self.agent = agent
+
+
+    def run(self, task: str):
+        logging.info(f"TASK: {task}")
+        logging.info(_LOG_SEPARATOR)
+
+        final_answer = self.agent.run(task)
+        
+        logging.info(f"FINAL ANSWER: {final_answer}")
+        logging.info(_LOG_SEPARATOR)
+
         return final_answer

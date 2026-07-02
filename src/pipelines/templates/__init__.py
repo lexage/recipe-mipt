@@ -1,4 +1,4 @@
-from .baseline_pipeline import BasePipeline
+from .baseline_pipeline import BasePipelineDS1000, BasePipelineCodeMMLU
 from .simple_pipeline import SimplePipeline
 from .rewoo_pipeline import REWOOPipeline
 from .rewoo_add_critic_pipeline import REWOOPipelineAddCriticBeforeSolver, REWOOPipelineAddCriticAfterSolver
@@ -11,7 +11,8 @@ from .mars_pipeline_critic_upd import MARSPipelineCriticUpd
 from .mars_pipeline_critic_verifier_upd import MARSPipelineCriticVerifierUpd
 
 __all__ = [
-    "BasePipeline",
+    "BasePipelineDS1000",
+    "BasePipelineCodeMMLU",
     "SimplePipeline",
     "REWOOPipeline",
     "REWOOPipelineAddCriticBeforeSolver",

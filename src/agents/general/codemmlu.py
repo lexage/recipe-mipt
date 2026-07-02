@@ -31,6 +31,7 @@ class CodeMMLUSolver(Agent):
             self,
             url: str,
             context_after_task: bool,
+            name: str = "codemmlu_solver",
             model_name: str = None,
             api: str = SOLVER_API.COMPLETIONS.value,
             system_prompt: str = DEFAULT_SYSTEM_PROMPT,
@@ -40,9 +41,9 @@ class CodeMMLUSolver(Agent):
             max_context_lenght: int = 24000,
             stop_tokens=["</code>", "# SOLUTION END"]):
         
-        super().__init__("ds_1000_solver")
+        super().__init__(name)
         stop_tokens = []
-        temperature=0.2
+        # temperature=0.7
         
         valid_apis = {item.value for item in SOLVER_API}
         if api not in valid_apis:
@@ -70,9 +71,9 @@ class CodeMMLUSolver(Agent):
         self.context_after_task = context_after_task
 
         self.tokenizer: PreTrainedTokenizerFast = AutoTokenizer.from_pretrained(self.model_name)
-
-
-    def run(self, task: Text, context: Text, response_format: Type[T]) -> Text:
+            
+    def run(self, task: Text, context: Text = "", response_format: Type[T] = AnswerFormat) -> Text:
+    # def run(self, task: Text, context: Text, response_format: Type[T]) -> Text:
 
         tokens = self.tokenizer.encode(context, add_special_tokens=False)
 
