@@ -90,10 +90,18 @@ class _TqdmToLogger(io.StringIO):
 
     def flush(self):
         if self.buf:
-            self.logger.log(self.level, self.buf)
+            try:
+                self.logger.log(self.level, self.buf)
+            except (ValueError, OSError):
+                # logging уже закрыт (logging.shutdown() на этапе завершения)
+                pass
             # Keep the live, in-place bar visible in the terminal too.
-            sys.stderr.write("\r" + self.buf)
-            sys.stderr.flush()
+            try:
+                sys.stderr.write("\r" + self.buf)
+                sys.stderr.flush()
+            except (BrokenPipeError, ValueError, OSError):
+                # stderr закрыт/сломан при завершении процесса — писать некуда
+                pass
 
 
 def parse_args():
@@ -259,10 +267,11 @@ def run_split(df: pd.DataFrame, pipeline, kind: str, out_csv: str = None) -> pd.
     total = len(df)
     outputs = []
 
+
     tqdm_out = _TqdmToLogger(logging.getLogger())
-    for done, (_, row) in enumerate(
-        tqdm(df.iterrows(), total=total, desc=kind,
-             file=tqdm_out, mininterval=5.0), start=1):
+    bar = tqdm(df.iterrows(), total=total, desc=kind,
+               file=tqdm_out, mininterval=5.0, leave=False)
+    for done, (_, row) in enumerate(bar, start=1):
         task = build_agent_task(row["input"], row["choices"], kind=kind)
         task_start = time.time()
         try:
@@ -286,6 +295,7 @@ def run_split(df: pd.DataFrame, pipeline, kind: str, out_csv: str = None) -> pd.
         if done % 25 == 0 or done == total:
             print(f"\t\t{kind}: {done}/{total}")
 
+    bar.close()
     return _score(df, outputs)
 
 
