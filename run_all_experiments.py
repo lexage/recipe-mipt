@@ -22,6 +22,7 @@ import argparse
 import os
 import subprocess
 import sys
+import threading
 import time
 
 EXPERIMENTS = [
@@ -31,6 +32,11 @@ EXPERIMENTS = [
     ("instruct_full_docs",             "pipeline_configs/ablation_4_instruct_full_docs.yaml"),
     ("instruct_fewshot",               "pipeline_configs/ablation_5_instruct_fewshot.yaml"),
     ("instruct_fewshot_full_docs",     "pipeline_configs/ablation_6_instruct_fewshot_full_docs.yaml"),
+    # API-selection retriever families (from the spreadsheet)
+    ("api_docrag_simple",              "pipeline_configs/ablation_7_api_docrag_simple.yaml"),
+    ("api_corag",                      "pipeline_configs/ablation_8_api_corag.yaml"),
+    ("api_instruct",                   "pipeline_configs/ablation_9_api_instruct.yaml"),
+    ("api_instruct_fewshot",           "pipeline_configs/ablation_10_api_instruct_fewshot.yaml"),
 ]
 
 
@@ -40,6 +46,9 @@ def main():
     ap.add_argument("--out", default="results", help="output directory")
     ap.add_argument("--only", type=int, nargs="*", default=None,
                     help="1-based experiment numbers to run (default: all)")
+    ap.add_argument("--stream", action="store_true",
+                    help="also echo each experiment's stdout to the console "
+                         "(prefixed with its name), in addition to the log file")
     args = ap.parse_args()
 
     os.makedirs(args.out, exist_ok=True)
@@ -47,39 +56,53 @@ def main():
 
     print(f"Running {len(selected)} experiment(s), up to {args.jobs} at a time.\n")
 
-    running = []   # list of (name, Popen, log_file_handle)
+    running = []   # list of (name, Popen, log_file_handle, thread_or_None)
     queue = list(selected)
-    started = 0
 
     def launch(name, cfg):
         log_path = os.path.join(args.out, f"{name}.log")
         log = open(log_path, "w", encoding="utf-8")
-        proc = subprocess.Popen(
-            [sys.executable, "codemmlutest.py", "--config", cfg, "--name", name, "--out", args.out],
-            stdout=log, stderr=subprocess.STDOUT,
-        )
+        cmd = [sys.executable, "codemmlutest.py", "--config", cfg, "--name", name, "--out", args.out]
+        if args.stream:
+            proc = subprocess.Popen(
+                cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                text=True, bufsize=1, encoding="utf-8", errors="replace",
+            )
+
+            def pump(p=proc, lg=log, nm=name):
+                for line in p.stdout:            # tee: log file + console (prefixed)
+                    lg.write(line)
+                    lg.flush()
+                    sys.stdout.write(f"[{nm}] {line}")
+                    sys.stdout.flush()
+
+            th = threading.Thread(target=pump, daemon=True)
+            th.start()
+        else:
+            proc = subprocess.Popen(cmd, stdout=log, stderr=subprocess.STDOUT)
+            th = None
         print(f"  [start] {name}  (pid {proc.pid})  -> {log_path}")
-        return (name, proc, log)
+        return (name, proc, log, th)
 
     t0 = time.time()
     while queue or running:
         while queue and len(running) < args.jobs:
             name, cfg = queue.pop(0)
             running.append(launch(name, cfg))
-            started += 1
-        # poll
         still = []
-        for name, proc, log in running:
+        for name, proc, log, th in running:
             rc = proc.poll()
             if rc is None:
-                still.append((name, proc, log))
+                still.append((name, proc, log, th))
             else:
+                if th is not None:
+                    th.join(timeout=5)
                 log.close()
                 status = "OK" if rc == 0 else f"FAILED (exit {rc})"
                 print(f"  [done ] {name}: {status}  ({time.time() - t0:.0f}s elapsed)")
         running = still
         if queue or running:
-            time.sleep(5)
+            time.sleep(2)
 
     print(f"\nAll experiments finished in {time.time() - t0:.0f}s.\n")
 

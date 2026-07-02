@@ -306,8 +306,3 @@ if __name__ == "__main__":
     ap.add_argument("--out", default="results", help="output directory for result notebooks")
     args = ap.parse_args()
     run_experiment(args.config, args.name, args.out)
-
-
-ds_middle.to_csv("ds_middle.csv", encoding='utf-8', index=False)
-
-ds_code.to_csv("ds_code.csv", encoding='utf-8', index=False)

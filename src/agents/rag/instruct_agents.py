@@ -32,15 +32,16 @@ _API_INSTRUCT_USER_TEMPLATE = """\
 
 class InstructRationalityAgent(Agent):
     def __init__(
-            self, url: str, model_name: str, 
+            self, url: str, model_name: str,
             temperature: float = 0.2,
             top_p: float = 0.95,
             max_tokens: float = 1024,
-            stop_tokens: list = []
+            stop_tokens: list = [],
+            max_context_chars: int = 40000,
             ):
-        
+
         super().__init__("instruct_rationality_agent")
-        
+
         self.client = OpenAI(
             base_url=url,
             api_key="vllm"
@@ -51,9 +52,16 @@ class InstructRationalityAgent(Agent):
         self.top_p = top_p
         self.max_tokens = max_tokens
         self.stop_tokens = stop_tokens
+        # Full documents (return_full_docs) can exceed the model context window;
+        # cap the doc text so task + prompt + output stay under the limit.
+        self.max_context_chars = max_context_chars
 
 
     def run(self, task: Text, context: Text) -> Text:
+
+        context = str(context)
+        if self.max_context_chars and len(context) > self.max_context_chars:
+            context = context[: self.max_context_chars] + "\n...[truncated]"
 
         prompt = f"""Read the following documents relevant to the given task:
 [TASK] 
@@ -95,6 +103,7 @@ class APIInstructRationalityAgent(Agent):
         top_p: float = 0.95,
         max_tokens: int = 384,
         stop_tokens: list | None = None,
+        max_context_chars: int = 40000,
     ):
         super().__init__("api_instruct_rationality_agent")
 
@@ -104,12 +113,16 @@ class APIInstructRationalityAgent(Agent):
         self.top_p = top_p
         self.max_tokens = max_tokens
         self.stop_tokens = stop_tokens or []
+        self.max_context_chars = max_context_chars
 
     def run(self, task: Text, api: Text, documentation: Text) -> Text:
+        documentation = documentation.strip()
+        if self.max_context_chars and len(documentation) > self.max_context_chars:
+            documentation = documentation[: self.max_context_chars] + "\n...[truncated]"
         user_prompt = _API_INSTRUCT_USER_TEMPLATE.format(
             task=task.strip(),
             api=api.strip(),
-            documentation=documentation.strip(),
+            documentation=documentation,
         )
 
         response = self.client.chat.completions.create(

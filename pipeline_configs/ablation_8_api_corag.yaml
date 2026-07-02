@@ -1,0 +1,88 @@
+# Ablation 8 — API_CORAG_RETRIEVER + CORAG_CONTEXT_ASSEMBLER   (sheet: ~54.5)
+# API-aware CoRAG: iterative multi-hop retrieval over library APIs.
+# Knobs from the sheet: search_type (sample|tree|best_of_n), include_original_docs,
+# use_full_documents, top_k. sample is the cheapest; tree/best_of_n are much heavier.
+#
+# CAVEAT: this retriever is designed to pair with API_CORAG_FINAL_SOLVER (free-text
+# answer). Here it is wired to CODEMMLU_SOLVER_AGENT so the answer comes out as a
+# single A-D letter for the CodeMMLU metric — SMOKE-TEST this one: the CoRAG search
+# returns a (paths, chunks) structure that CORAG_CONTEXT_ASSEMBLER must flatten into
+# text before the solver sees it.
+type: SIMPLE
+
+params:
+  top_k: 1
+
+components:
+
+  embedder:
+    type: EMBEDDING_AGENT
+    params:
+      name: embedder
+      url: "http://localhost:7216/v1"
+      model_name: "Qwen/Qwen3-Embedding-4B"
+
+  data_base:
+    type: LOCAL_DB
+    params:
+      path_to_db: "C:/Projects/docs_database_examples.db"
+      path_to_vector_db: "data/vdb_ablation_8_api_corag"
+      collection_name: "docs"
+      return_full_docs: False
+      return_examples: False
+      merge_examples: False
+      hnsw_space: "cosine"
+      hnsw_m: 16
+      hnsw_construction_ef: 400
+      hnsw_search_ef: 200
+      batch_size: 16
+      similarity_threshold: 0.1
+      search_filter:
+        source: "documents"
+
+  chunker:
+    type: RECURSIVE_CHUNKER
+    params:
+      name: chunker
+      max_chunk_size: 1000
+
+  filter:
+    type: LENGTH_FILTER
+    params:
+      name: filter
+      min_len: 20
+
+  context_assembler:
+    type: CORAG_CONTEXT_ASSEMBLER
+    params:
+      name: corag_assembler
+
+  retriever:
+    type: API_CORAG_RETRIEVER
+    params:
+      name: api_corag_retriever
+      url: "http://localhost:7215/v1"
+      search_type: sample          # sample | tree | best_of_n
+      include_original_docs: True
+      use_full_documents: False
+      max_path_length: 3
+      max_message_length: 4096
+      temperature: 0.7
+      task_description: solve a Python multiple-choice code problem using library APIs
+      expand_size: 4
+      num_rollouts: 2
+      beam_size: 1
+      n: 2
+
+  agent:
+    type: CODEMMLU_SOLVER_AGENT
+    params:
+      name: codemmlu_solver
+      url: "http://localhost:7215/v1"
+      model_name: "Qwen/Qwen2.5-32B-Instruct"
+      api: completions
+      context_after_task: False
+      temperature: 0.2
+      top_p: 0.95
+      max_tokens: 1024
+      stop_tokens: []
