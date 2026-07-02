@@ -30,8 +30,10 @@ Example:
 
 import argparse
 import gc
+import io
 import logging
 import os
+import sys
 import time
 from pathlib import Path
 
@@ -67,6 +69,33 @@ KIND_HINTS = {
 }
 
 
+class _TqdmToLogger(io.StringIO):
+    """File-like object that mirrors tqdm's output into the logging system.
+
+    tqdm writes its progress bar to a stream (stderr by default). By pointing it at
+    this buffer we capture each refreshed bar line and emit it via logging at INFO
+    level, so the progress shows up in the per-config log file too. We also forward
+    to the real stderr so the live bar still appears in the terminal.
+    """
+
+    def __init__(self, logger, level=logging.INFO):
+        super().__init__()
+        self.logger = logger
+        self.level = level
+        self.buf = ""
+
+    def write(self, buf):
+        # tqdm uses \r to redraw the bar in place; keep only the meaningful text.
+        self.buf = buf.strip("\r\n\t ")
+
+    def flush(self):
+        if self.buf:
+            self.logger.log(self.level, self.buf)
+            # Keep the live, in-place bar visible in the terminal too.
+            sys.stderr.write("\r" + self.buf)
+            sys.stderr.flush()
+
+
 def parse_args():
     parser = argparse.ArgumentParser(description="Run agentic pipelines on CodeMMLU")
     parser.add_argument(
@@ -76,8 +105,8 @@ def parse_args():
         "-s", "--save_path", default="results_codemmlu", help="Where to save result CSVs"
     )
     parser.add_argument(
-        # "-l", "--limit", type=int, default=500,
         "-l", "--limit", type=int, default=500,
+        # "-l", "--limit", type=int, default=2,
         help="Max examples per sub-dataset (matches the original 500-row cap)",
     )
     return parser.parse_args()
@@ -221,12 +250,19 @@ def run_split(df: pd.DataFrame, pipeline, kind: str, out_csv: str = None) -> pd.
     mid-split (the run is hours long) leaves a CSV with every completed row instead
     of discarding all of them. Each write rewrites the whole file with the rows done
     so far — cheap (milliseconds) next to ~50s per task.
+
+    The tqdm progress bar is mirrored into the logging system via _TqdmToLogger, so
+    the per-config log file records progress alongside the per-task lines. We cap
+    the refresh rate (mininterval) so the bar does not spam the log between the
+    ~50s-long tasks.
     """
     total = len(df)
     outputs = []
 
+    tqdm_out = _TqdmToLogger(logging.getLogger())
     for done, (_, row) in enumerate(
-        tqdm(df.iterrows(), total=total, desc=kind), start=1):
+        tqdm(df.iterrows(), total=total, desc=kind,
+             file=tqdm_out, mininterval=5.0), start=1):
         task = build_agent_task(row["input"], row["choices"], kind=kind)
         task_start = time.time()
         try:
@@ -352,7 +388,6 @@ if __name__ == "__main__":
     # any still-open Qdrant client — and thus the storage-folder lock — held,
     # which makes the NEXT run fail to acquire the lock. Flush stdio and hard-exit
     # so those threads cannot outlive the script.
-    import sys
     logging.shutdown()  # flush + close file handlers (os._exit skips atexit)
     sys.stdout.flush()
     sys.stderr.flush()

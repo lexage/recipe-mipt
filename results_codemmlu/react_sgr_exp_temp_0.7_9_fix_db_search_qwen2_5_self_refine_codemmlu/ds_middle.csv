@@ -1,0 +1,1640 @@
+task_id,question,choices,problem_description,answer,input,output,accuracy
+rt00241,"class Solution:
+  def twoSum(self, nums: List[int], target: int) -> List[int]:
+    numToIndex = {}
+
+    for i, num in enumerate(nums):
+      _______________
+      if target - num in numToIndex:
+        return numToIndex[target - num], i
+      numToIndex[num] = i","['      if num in numToIndex and numToIndex[num] == target - num:'
+ '      if target - num in numToIndex:'
+ '      if target - num in numToIndex.values():'
+ '      if numToIndex.get(target - num) is not None:']","Given an array of integers nums and an integer target, return indices of the two numbers such that they add up to target. You may assume that each input would have exactly one solution, and you may not use the same element twice. You can return the answer in any order.",B,"class Solution:
+  def twoSum(self, nums: List[int], target: int) -> List[int]:
+    numToIndex = {}
+
+    for i, num in enumerate(nums):
+      _______________
+      if target - num in numToIndex:
+        return numToIndex[target - num], i
+      numToIndex[num] = i Given an array of integers nums and an integer target, return indices of the two numbers such that they add up to target. You may assume that each input would have exactly one solution, and you may not use the same element twice. You can return the answer in any order.",ERROR,0
+rt00242,"class Solution:
+  def addTwoNumbers(self, l1: ListNode, l2: ListNode) -> ListNode:
+    dummy = ListNode(0)
+    curr = dummy
+    carry = 0
+
+    while carry or l1 or l2:
+      if l1:
+        carry += l1.val
+        l1 = l1.next
+      if l2:
+        carry += l2.val
+        l2 = l2.next
+      curr.next = ListNode(carry % 10)
+      _______________
+      carry //= 10
+      curr = curr.next
+
+    return dummy.next","['      carry = math.floor(carry / 10)' '      carry //= 10'
+ '      carry = carry // 10' '      carry = int(carry / 10)']","You are given two non-empty linked lists representing two non-negative integers. The digits are stored in reverse order, and each of their nodes contains a single digit. Add the two numbers and return the sum as a linked list. You may assume the two numbers do not contain any leading zero, except the number 0 itself.",B,"class Solution:
+  def addTwoNumbers(self, l1: ListNode, l2: ListNode) -> ListNode:
+    dummy = ListNode(0)
+    curr = dummy
+    carry = 0
+
+    while carry or l1 or l2:
+      if l1:
+        carry += l1.val
+        l1 = l1.next
+      if l2:
+        carry += l2.val
+        l2 = l2.next
+      curr.next = ListNode(carry % 10)
+      _______________
+      carry //= 10
+      curr = curr.next
+
+    return dummy.next You are given two non-empty linked lists representing two non-negative integers. The digits are stored in reverse order, and each of their nodes contains a single digit. Add the two numbers and return the sum as a linked list. You may assume the two numbers do not contain any leading zero, except the number 0 itself.",ERROR,0
+rt00243,"class Solution:
+  def lengthOfLongestSubstring(self, s: str) -> int:
+    ans = 0
+    _______________
+    j = -1
+    lastSeen = {}
+
+    for i, c in enumerate(s):
+      j = max(j, lastSeen.get(c, -1))
+      ans = max(ans, i - j)
+      lastSeen[c] = i
+
+    return ans",['    j = 0' '    j = -1' '    j = ~0' '    j = -2'],"Given a string s, find the length of the longest substring without repeating characters.",B,"class Solution:
+  def lengthOfLongestSubstring(self, s: str) -> int:
+    ans = 0
+    _______________
+    j = -1
+    lastSeen = {}
+
+    for i, c in enumerate(s):
+      j = max(j, lastSeen.get(c, -1))
+      ans = max(ans, i - j)
+      lastSeen[c] = i
+
+    return ans Given a string s, find the length of the longest substring without repeating characters.",ERROR,0
+rt00244,"class Solution:
+  def findMedianSortedArrays(self, nums1: List[int], nums2: List[int]) -> float:
+    n1 = len(nums1)
+    n2 = len(nums2)
+    if n1 > n2:
+      return self.findMedianSortedArrays(nums2, nums1)
+
+    l = 0
+    r = n1
+
+    while l <= r:
+      partition1 = (l + r) // 2
+      _______________
+      partition2 = (n1 + n2 + 1) // 2 - partition1
+      maxLeft1 = -2**31 if partition1 == 0 else nums1[partition1 - 1]
+      maxLeft2 = -2**31 if partition2 == 0 else nums2[partition2 - 1]
+      minRight1 = 2**31 - 1 if partition1 == n1 else nums1[partition1]
+      minRight2 = 2**31 - 1 if partition2 == n2 else nums2[partition2]
+      if maxLeft1 <= minRight2 and maxLeft2 <= minRight1:
+        return (max(maxLeft1, maxLeft2) + min(minRight1, minRight2)) * 0.5 if (n1 + n2) % 2 == 0 else max(maxLeft1, maxLeft2)
+      elif maxLeft1 > minRight2:
+        r = partition1 - 1
+      else:
+        l = partition1 + 1","['      partition2 = ((n1 + n2) // 2) - partition1'
+ '      partition2 = (n1 + n2 + 2) // 2 - partition1'
+ '      partition2 = (n1 + n2) // 2 - (partition1 - 1)'
+ '      partition2 = (n1 + n2 + 1) // 2 - partition1']","Given two sorted arrays nums1 and nums2 of size m and n respectively, return the median of the two sorted arrays. The overall run time complexity should be O(log (m+n)).",D,"class Solution:
+  def findMedianSortedArrays(self, nums1: List[int], nums2: List[int]) -> float:
+    n1 = len(nums1)
+    n2 = len(nums2)
+    if n1 > n2:
+      return self.findMedianSortedArrays(nums2, nums1)
+
+    l = 0
+    r = n1
+
+    while l <= r:
+      partition1 = (l + r) // 2
+      _______________
+      partition2 = (n1 + n2 + 1) // 2 - partition1
+      maxLeft1 = -2**31 if partition1 == 0 else nums1[partition1 - 1]
+      maxLeft2 = -2**31 if partition2 == 0 else nums2[partition2 - 1]
+      minRight1 = 2**31 - 1 if partition1 == n1 else nums1[partition1]
+      minRight2 = 2**31 - 1 if partition2 == n2 else nums2[partition2]
+      if maxLeft1 <= minRight2 and maxLeft2 <= minRight1:
+        return (max(maxLeft1, maxLeft2) + min(minRight1, minRight2)) * 0.5 if (n1 + n2) % 2 == 0 else max(maxLeft1, maxLeft2)
+      elif maxLeft1 > minRight2:
+        r = partition1 - 1
+      else:
+        l = partition1 + 1 Given two sorted arrays nums1 and nums2 of size m and n respectively, return the median of the two sorted arrays. The overall run time complexity should be O(log (m+n)).",ERROR,0
+rt00245,"class Solution:
+  def longestPalindrome(self, s: str) -> str:
+    if not s:
+      return ''
+
+    indices = [0, 0]
+
+    def extend(s: str, i: int, j: int) -> Tuple[int, int]:
+      """"""
+      Returns the (start, end) indices of the longest palindrome extended from
+      the substring s[i..j].
+      """"""
+      _______________
+      while i >= 0 and j < len(s):
+        if s[i] != s[j]:
+          break
+        i -= 1
+        j += 1
+      return i + 1, j - 1
+
+    for i in range(len(s)):
+      l1, r1 = extend(s, i, i)
+      if r1 - l1 > indices[1] - indices[0]:
+        indices = l1, r1
+      if i + 1 < len(s) and s[i] == s[i + 1]:
+        l2, r2 = extend(s, i, i + 1)
+        if r2 - l2 > indices[1] - indices[0]:
+          indices = l2, r2
+
+    return s[indices[0]:indices[1] + 1]","['      while i > -1 and j < len(s) - 1:'
+ '      while i > 0 and j < len(s) - 1:'
+ '      while i >= 1 and j <= len(s):'
+ '      while i >= 0 and j < len(s):']","Given a string s, return the longest palindromic substring in s.",D,"class Solution:
+  def longestPalindrome(self, s: str) -> str:
+    if not s:
+      return ''
+
+    indices = [0, 0]
+
+    def extend(s: str, i: int, j: int) -> Tuple[int, int]:
+      """"""
+      Returns the (start, end) indices of the longest palindrome extended from
+      the substring s[i..j].
+      """"""
+      _______________
+      while i >= 0 and j < len(s):
+        if s[i] != s[j]:
+          break
+        i -= 1
+        j += 1
+      return i + 1, j - 1
+
+    for i in range(len(s)):
+      l1, r1 = extend(s, i, i)
+      if r1 - l1 > indices[1] - indices[0]:
+        indices = l1, r1
+      if i + 1 < len(s) and s[i] == s[i + 1]:
+        l2, r2 = extend(s, i, i + 1)
+        if r2 - l2 > indices[1] - indices[0]:
+          indices = l2, r2
+
+    return s[indices[0]:indices[1] + 1] Given a string s, return the longest palindromic substring in s.",ERROR,0
+rt00246,"class Solution:
+  def convert(self, s: str, numRows: int) -> str:
+    rows = [''] * numRows
+    k = 0
+    direction = (numRows == 1) - 1
+
+    for c in s:
+      rows[k] += c
+      if k == 0 or k == numRows - 1:
+        _______________
+        direction *= -1
+      k += direction
+
+    return ''.join(rows)","['        direction = 1 - 2 * direction' '        direction *= -1'
+ '        direction = -direction'
+ '        if direction == 1: direction = -1\nelse: direction = 1']","The string ""PAYPALISHIRING"" is written in a zigzag pattern on a given number of rows like this: (you may want to display this pattern in a fixed font for better legibility) And then read line by line: ""PAHNAPLSIIGYIR"" Write the code that will take a string and make this conversion given a number of rows:",B,"class Solution:
+  def convert(self, s: str, numRows: int) -> str:
+    rows = [''] * numRows
+    k = 0
+    direction = (numRows == 1) - 1
+
+    for c in s:
+      rows[k] += c
+      if k == 0 or k == numRows - 1:
+        _______________
+        direction *= -1
+      k += direction
+
+    return ''.join(rows) The string ""PAYPALISHIRING"" is written in a zigzag pattern on a given number of rows like this: (you may want to display this pattern in a fixed font for better legibility) And then read line by line: ""PAHNAPLSIIGYIR"" Write the code that will take a string and make this conversion given a number of rows:",ERROR,0
+rt00248,"class Solution:
+  def myAtoi(self, s: str) -> int:
+    s = s.strip()
+    if not s:
+      return 0
+
+    sign = -1 if s[0] == '-' else 1
+    if s[0] in {'-', '+'}:
+      s = s[1:]
+
+    num = 0
+
+    for c in s:
+      if not c.isdigit():
+        break
+      num = num * 10 + ord(c) - ord('0')
+      _______________
+      if sign * num <= -2**31:
+        return -2**31
+      if sign * num >= 2**31 - 1:
+        return 2**31 - 1
+
+    return sign * num","['      if num * sign <= -2**31:' '      if sign * num <= -2**31:'
+ '      if num <= -2**31 // sign:' '      if sign * (num // 1) <= -2**31:']","Implement the myAtoi(string s) function, which converts a string to a 32-bit signed integer. The algorithm for myAtoi(string s) is as follows: Return the integer as the final result.",B,"class Solution:
+  def myAtoi(self, s: str) -> int:
+    s = s.strip()
+    if not s:
+      return 0
+
+    sign = -1 if s[0] == '-' else 1
+    if s[0] in {'-', '+'}:
+      s = s[1:]
+
+    num = 0
+
+    for c in s:
+      if not c.isdigit():
+        break
+      num = num * 10 + ord(c) - ord('0')
+      _______________
+      if sign * num <= -2**31:
+        return -2**31
+      if sign * num >= 2**31 - 1:
+        return 2**31 - 1
+
+    return sign * num Implement the myAtoi(string s) function, which converts a string to a 32-bit signed integer. The algorithm for myAtoi(string s) is as follows: Return the integer as the final result.",ERROR,0
+rt00249,"class Solution:
+  def isPalindrome(self, x: int) -> bool:
+    if x < 0:
+      return False
+
+    rev = 0
+    y = x
+
+    while y:
+      _______________
+      rev = rev * 10 + y % 10
+      y //= 10
+
+    return rev == x","['      rev = (rev << 1) + (y % 10 - 5)' '      rev += y % 10'
+ '      rev += (y % 10) << (len(str(x)) - len(str(y)) + 1)'
+ '      rev = rev * 10 + y % 10']","Given an integer x, return true if x is a palindrome, and false otherwise.",D,"class Solution:
+  def isPalindrome(self, x: int) -> bool:
+    if x < 0:
+      return False
+
+    rev = 0
+    y = x
+
+    while y:
+      _______________
+      rev = rev * 10 + y % 10
+      y //= 10
+
+    return rev == x Given an integer x, return true if x is a palindrome, and false otherwise.",ERROR,0
+rt00250,"class Solution:
+  def isMatch(self, s: str, p: str) -> bool:
+    m = len(s)
+    n = len(p)
+    dp = [[False] * (n + 1) for _ in range(m + 1)]
+    dp[0][0] = True
+
+    def isMatch(i: int, j: int) -> bool:
+      _______________
+      return j >= 0 and p[j] == '.' or s[i] == p[j]
+
+    for j, c in enumerate(p):
+      if c == '*' and dp[0][j - 1]:
+        dp[0][j + 1] = True
+
+    for i in range(m):
+      for j in range(n):
+        if p[j] == '*':
+          noRepeat = dp[i + 1][j - 1]
+          doRepeat = isMatch(i, j - 1) and dp[i][j + 1]
+          dp[i + 1][j + 1] = noRepeat or doRepeat
+        elif isMatch(i, j):
+          dp[i + 1][j + 1] = dp[i][j]
+
+    return dp[m][n]","[""      return j >= 0 and (p[j] == '.' or p[j] == s[i])""
+ ""      return j >= 0 and p[j] == '.' or s[i] == p[j]""
+ ""      return j >= 0 and (s[i] == p[j] or ('.' == p[j]))""
+ ""      return j >= 0 and (s[i] == p[j] or p[j] in (s[i], '.'))""]","Given an input string s and a pattern p, implement regular expression matching with support for '.' and '*' where: The matching should cover the entire input string (not partial).",B,"class Solution:
+  def isMatch(self, s: str, p: str) -> bool:
+    m = len(s)
+    n = len(p)
+    dp = [[False] * (n + 1) for _ in range(m + 1)]
+    dp[0][0] = True
+
+    def isMatch(i: int, j: int) -> bool:
+      _______________
+      return j >= 0 and p[j] == '.' or s[i] == p[j]
+
+    for j, c in enumerate(p):
+      if c == '*' and dp[0][j - 1]:
+        dp[0][j + 1] = True
+
+    for i in range(m):
+      for j in range(n):
+        if p[j] == '*':
+          noRepeat = dp[i + 1][j - 1]
+          doRepeat = isMatch(i, j - 1) and dp[i][j + 1]
+          dp[i + 1][j + 1] = noRepeat or doRepeat
+        elif isMatch(i, j):
+          dp[i + 1][j + 1] = dp[i][j]
+
+    return dp[m][n] Given an input string s and a pattern p, implement regular expression matching with support for '.' and '*' where: The matching should cover the entire input string (not partial).",ERROR,0
+rt00251,"class Solution:
+  def maxArea(self, height: List[int]) -> int:
+    ans = 0
+    l = 0
+    r = len(height) - 1
+
+    while l < r:
+      minHeight = min(height[l], height[r])
+      _______________
+      ans = max(ans, minHeight * (r - l))
+      if height[l] < height[r]:
+        l += 1
+      else:
+        r -= 1
+
+    return ans","['      ans = max(ans, (r - l) * minHeight)'
+ '      ans = max(ans, (r - l) // minHeight)'
+ '      ans = max(ans, minHeight * (r - l) + 1)'
+ '      ans = max(ans, minHeight * (r - l))']","You are given an integer array height of length n. There are n vertical lines drawn such that the two endpoints of the ith line are (i, 0) and (i, height[i]). Find two lines that together with the x-axis form a container, such that the container contains the most water. Return the maximum amount of water a container can store. Notice that you may not slant the container.",D,"class Solution:
+  def maxArea(self, height: List[int]) -> int:
+    ans = 0
+    l = 0
+    r = len(height) - 1
+
+    while l < r:
+      minHeight = min(height[l], height[r])
+      _______________
+      ans = max(ans, minHeight * (r - l))
+      if height[l] < height[r]:
+        l += 1
+      else:
+        r -= 1
+
+    return ans You are given an integer array height of length n. There are n vertical lines drawn such that the two endpoints of the ith line are (i, 0) and (i, height[i]). Find two lines that together with the x-axis form a container, such that the container contains the most water. Return the maximum amount of water a container can store. Notice that you may not slant the container.",ERROR,0
+rt00252,"class Solution:
+  def intToRoman(self, num: int) -> str:
+    M = ['', 'M', 'MM', 'MMM']
+    C = ['', 'C', 'CC', 'CCC', 'CD', 'D', 'DC', 'DCC', 'DCCC', 'CM']
+    X = ['', 'X', 'XX', 'XXX', 'XL', 'L', 'LX', 'LXX', 'LXXX', 'XC']
+    I = ['', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX']
+    _______________
+    return M[num // 1000] + C[num % 1000 // 100] + X[num % 100 // 10] + I[num % 10]","['    return M[num // 1000] + C[(num % 1000) // 100] + X[(num % 100) // 10] + I[num % 10]'
+ '    return I[num % 10] + X[num % 100 // 10] + C[num % 1000 // 100] + M[num // 1000]'
+ '    return M[num // 1000] + C[num % 1000 // 100] + X[num % 100 // 10] + I[num % 10]'
+ '    return M[num // 1000] + X[num % 1000 // 100] + C[num % 100 // 10] + I[num % 10]']","Seven different symbols represent Roman numerals with the following values: Roman numerals are formed by appending the conversions of decimal place values from highest to lowest. Converting a decimal place value into a Roman numeral has the following rules: Given an integer, convert it to a Roman numeral.",C,"class Solution:
+  def intToRoman(self, num: int) -> str:
+    M = ['', 'M', 'MM', 'MMM']
+    C = ['', 'C', 'CC', 'CCC', 'CD', 'D', 'DC', 'DCC', 'DCCC', 'CM']
+    X = ['', 'X', 'XX', 'XXX', 'XL', 'L', 'LX', 'LXX', 'LXXX', 'XC']
+    I = ['', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX']
+    _______________
+    return M[num // 1000] + C[num % 1000 // 100] + X[num % 100 // 10] + I[num % 10] Seven different symbols represent Roman numerals with the following values: Roman numerals are formed by appending the conversions of decimal place values from highest to lowest. Converting a decimal place value into a Roman numeral has the following rules: Given an integer, convert it to a Roman numeral.",ERROR,0
+rt00253,"class Solution:
+  def romanToInt(self, s: str) -> int:
+    ans = 0
+    roman = {'I': 1, 'V': 5, 'X': 10, 'L': 50,
+             'C': 100, 'D': 500, 'M': 1000}
+
+    for a, b in zip(s, s[1:]):
+      if roman[a] < roman[b]:
+        ans -= roman[a]
+      else:
+        ans += roman[a]
+
+    _______________
+    return ans + roman[s[-1]]","['    return ans + (roman.get(s[-1], 0) if s else 0)'
+ '    return ans + (roman[s[-1]] if len(s) > 0 else 0)'
+ '    return ans + roman[s[-1]] if s else 0'
+ '    return ans + roman[s[-1]]']","Roman numerals are represented by seven different symbols: I, V, X, L, C, D and M. For example, 2 is written as II in Roman numeral, just two ones added together. 12 is written as XII, which is simply X + II. The number 27 is written as XXVII, which is XX + V + II. Roman numerals are usually written largest to smallest from left to right. However, the numeral for four is not IIII. Instead, the number four is written as IV. Because the one is before the five we subtract it making four. The same principle applies to the number nine, which is written as IX. There are six instances where subtraction is used: Given a roman numeral, convert it to an integer.",D,"class Solution:
+  def romanToInt(self, s: str) -> int:
+    ans = 0
+    roman = {'I': 1, 'V': 5, 'X': 10, 'L': 50,
+             'C': 100, 'D': 500, 'M': 1000}
+
+    for a, b in zip(s, s[1:]):
+      if roman[a] < roman[b]:
+        ans -= roman[a]
+      else:
+        ans += roman[a]
+
+    _______________
+    return ans + roman[s[-1]] Roman numerals are represented by seven different symbols: I, V, X, L, C, D and M. For example, 2 is written as II in Roman numeral, just two ones added together. 12 is written as XII, which is simply X + II. The number 27 is written as XXVII, which is XX + V + II. Roman numerals are usually written largest to smallest from left to right. However, the numeral for four is not IIII. Instead, the number four is written as IV. Because the one is before the five we subtract it making four. The same principle applies to the number nine, which is written as IX. There are six instances where subtraction is used: Given a roman numeral, convert it to an integer.",ERROR,0
+rt00254,"class Solution:
+  def longestCommonPrefix(self, strs: List[str]) -> str:
+    if not strs:
+      return ''
+
+    for i in range(len(strs[0])):
+      for j in range(1, len(strs)):
+        _______________
+        if i == len(strs[j]) or strs[j][i] != strs[0][i]:
+          return strs[0][:i]
+
+    return strs[0]","['        if i == len(strs[j]) or strs[j][i] != strs[0][i]:'
+ '        if j == len(strs[j]) or strs[0][i] != strs[j][i]:'
+ '        if i == strs[j].__len__() or strs[j][i] != strs[0][i]:'
+ '        if i >= len(strs[j]) or strs[j][i] != strs[0][i]:']","Write a function to find the longest common prefix string amongst an array of strings. If there is no common prefix, return an empty string """".",A,"class Solution:
+  def longestCommonPrefix(self, strs: List[str]) -> str:
+    if not strs:
+      return ''
+
+    for i in range(len(strs[0])):
+      for j in range(1, len(strs)):
+        _______________
+        if i == len(strs[j]) or strs[j][i] != strs[0][i]:
+          return strs[0][:i]
+
+    return strs[0] Write a function to find the longest common prefix string amongst an array of strings. If there is no common prefix, return an empty string """".",ERROR,0
+rt00255,"class Solution:
+  def threeSum(self, nums: List[int]) -> List[List[int]]:
+    if len(nums) < 3:
+      return []
+
+    ans = []
+
+    nums.sort()
+
+    for i in range(len(nums) - 2):
+      _______________
+      if i > 0 and nums[i] == nums[i - 1]:
+        continue
+      l = i + 1
+      r = len(nums) - 1
+      while l < r:
+        summ = nums[i] + nums[l] + nums[r]
+        if summ == 0:
+          ans.append((nums[i], nums[l], nums[r]))
+          l += 1
+          r -= 1
+          while nums[l] == nums[l - 1] and l < r:
+            l += 1
+          while nums[r] == nums[r + 1] and l < r:
+            r -= 1
+        elif summ < 0:
+          l += 1
+        else:
+          r -= 1
+
+    return ans","['      if i >= 1 and nums[i] == nums[i - 1]:'
+ '      if nums[i] in nums[:i] and i > 0:'
+ '      if i > 0 and nums[i] in nums[:i]:'
+ '      if i > 0 and nums[i] == nums[i - 1]:']","Given an integer array nums, return all the triplets [nums[i], nums[j], nums[k]] such that i != j, i != k, and j != k, and nums[i] + nums[j] + nums[k] == 0. Notice that the solution set must not contain duplicate triplets.",D,"class Solution:
+  def threeSum(self, nums: List[int]) -> List[List[int]]:
+    if len(nums) < 3:
+      return []
+
+    ans = []
+
+    nums.sort()
+
+    for i in range(len(nums) - 2):
+      _______________
+      if i > 0 and nums[i] == nums[i - 1]:
+        continue
+      l = i + 1
+      r = len(nums) - 1
+      while l < r:
+        summ = nums[i] + nums[l] + nums[r]
+        if summ == 0:
+          ans.append((nums[i], nums[l], nums[r]))
+          l += 1
+          r -= 1
+          while nums[l] == nums[l - 1] and l < r:
+            l += 1
+          while nums[r] == nums[r + 1] and l < r:
+            r -= 1
+        elif summ < 0:
+          l += 1
+        else:
+          r -= 1
+
+    return ans Given an integer array nums, return all the triplets [nums[i], nums[j], nums[k]] such that i != j, i != k, and j != k, and nums[i] + nums[j] + nums[k] == 0. Notice that the solution set must not contain duplicate triplets.",ERROR,0
+rt00256,"class Solution:
+  def threeSumClosest(self, nums: List[int], target: int) -> int:
+    ans = nums[0] + nums[1] + nums[2]
+
+    nums.sort()
+
+    for i in range(len(nums) - 2):
+      if i > 0 and nums[i] == nums[i - 1]:
+        continue
+      l = i + 1
+      r = len(nums) - 1
+      while l < r:
+        summ = nums[i] + nums[l] + nums[r]
+        if summ == target:
+          return summ
+        _______________
+        if abs(summ - target) < abs(ans - target):
+          ans = summ
+        if summ < target:
+          l += 1
+        else:
+          r -= 1
+
+    return ans","['        if (summ > target) == (ans > target) and abs(summ - target) < abs(ans - target):'
+ '        if math.fabs(summ - target) < math.fabs(ans - target):'
+ '        if summ - target < ans - target:'
+ '        if abs(summ - target) < abs(ans - target):']","Given an integer array nums of length n and an integer target, find three integers in nums such that the sum is closest to target. Return the sum of the three integers. You may assume that each input would have exactly one solution.",D,"class Solution:
+  def threeSumClosest(self, nums: List[int], target: int) -> int:
+    ans = nums[0] + nums[1] + nums[2]
+
+    nums.sort()
+
+    for i in range(len(nums) - 2):
+      if i > 0 and nums[i] == nums[i - 1]:
+        continue
+      l = i + 1
+      r = len(nums) - 1
+      while l < r:
+        summ = nums[i] + nums[l] + nums[r]
+        if summ == target:
+          return summ
+        _______________
+        if abs(summ - target) < abs(ans - target):
+          ans = summ
+        if summ < target:
+          l += 1
+        else:
+          r -= 1
+
+    return ans Given an integer array nums of length n and an integer target, find three integers in nums such that the sum is closest to target. Return the sum of the three integers. You may assume that each input would have exactly one solution.",ERROR,0
+rt00257,"class Solution:
+  def letterCombinations(self, digits: str) -> List[str]:
+    if not digits:
+      return []
+
+    digitToLetters = ['', '', 'abc', 'def', 'ghi',
+                      'jkl', 'mno', 'pqrs', 'tuv', 'wxyz']
+    ans = []
+
+    def dfs(i: int, path: List[chr]) -> None:
+      if i == len(digits):
+        ans.append(''.join(path))
+        return
+
+      for letter in digitToLetters[ord(digits[i]) - ord('0')]:
+        path.append(letter)
+        _______________
+        dfs(i + 1, path)
+        path.pop()
+
+    dfs(0, [])
+    return ans","['        dfs(i + 1, path[:])' '        dfs(i + 1, list(path))'
+ '        dfs(i + 1, path)' '        dfs(i + 1, path.copy())']","Given a string containing digits from 2-9 inclusive, return all possible letter combinations that the number could represent. Return the answer in any order. A mapping of digits to letters (just like on the telephone buttons) is given below. Note that 1 does not map to any letters.",C,"class Solution:
+  def letterCombinations(self, digits: str) -> List[str]:
+    if not digits:
+      return []
+
+    digitToLetters = ['', '', 'abc', 'def', 'ghi',
+                      'jkl', 'mno', 'pqrs', 'tuv', 'wxyz']
+    ans = []
+
+    def dfs(i: int, path: List[chr]) -> None:
+      if i == len(digits):
+        ans.append(''.join(path))
+        return
+
+      for letter in digitToLetters[ord(digits[i]) - ord('0')]:
+        path.append(letter)
+        _______________
+        dfs(i + 1, path)
+        path.pop()
+
+    dfs(0, [])
+    return ans Given a string containing digits from 2-9 inclusive, return all possible letter combinations that the number could represent. Return the answer in any order. A mapping of digits to letters (just like on the telephone buttons) is given below. Note that 1 does not map to any letters.",ERROR,0
+rt00259,"class Solution:
+  def removeNthFromEnd(self, head: ListNode, n: int) -> ListNode:
+    slow = head
+    fast = head
+
+    for _ in range(n):
+      fast = fast.next
+    if not fast:
+      return head.next
+
+    while fast.next:
+      slow = slow.next
+      fast = fast.next
+    _______________
+    slow.next = slow.next.next
+
+    return head","['    slow.next = slow.next.next' '    `slow.next = None`'
+ '    `slow.next = ListNode(0, slow.next.next)`' '    `del slow.next`']","Given the head of a linked list, remove the nth node from the end of the list and return its head.",A,"class Solution:
+  def removeNthFromEnd(self, head: ListNode, n: int) -> ListNode:
+    slow = head
+    fast = head
+
+    for _ in range(n):
+      fast = fast.next
+    if not fast:
+      return head.next
+
+    while fast.next:
+      slow = slow.next
+      fast = fast.next
+    _______________
+    slow.next = slow.next.next
+
+    return head Given the head of a linked list, remove the nth node from the end of the list and return its head.",ERROR,0
+rt00260,"class Solution:
+  def isValid(self, s: str) -> bool:
+    stack = []
+
+    for c in s:
+      if c == '(':
+        stack.append(')')
+      elif c == '{':
+        stack.append('}')
+      elif c == '[':
+        stack.append(']')
+      _______________
+      elif not stack or stack.pop() != c:
+        return False
+
+    return not stack","['      elif not stack or stack.pop() != c:'
+ '      elif stack and stack.pop() == c:\n    continue\nelif not stack:\n    return False'
+ '      elif not stack or c != stack.pop():'
+ ""      elif c not in ['}', ')', ']'] or c != stack.pop():""]","Given a string s containing just the characters '(', ')', '{', '}', '[' and ']', determine if the input string is valid. An input string is valid if:",A,"class Solution:
+  def isValid(self, s: str) -> bool:
+    stack = []
+
+    for c in s:
+      if c == '(':
+        stack.append(')')
+      elif c == '{':
+        stack.append('}')
+      elif c == '[':
+        stack.append(']')
+      _______________
+      elif not stack or stack.pop() != c:
+        return False
+
+    return not stack Given a string s containing just the characters '(', ')', '{', '}', '[' and ']', determine if the input string is valid. An input string is valid if:",ERROR,0
+rt00261,"class Solution:
+  def mergeTwoLists(self, list1: Optional[ListNode], list2: Optional[ListNode]) -> Optional[ListNode]:
+    if not list1 or not list2:
+      return list1 if list1 else list2
+    _______________
+    if list1.val > list2.val:
+      list1, list2 = list2, list1
+    list1.next = self.mergeTwoLists(list1.next, list2)
+    return list1","['    if list2.val <= list1.val:' '    if list1.val >= list2.val:'
+ '    if list1.val > list2.val:' '    if not list2.val < list1.val:']",You are given the heads of two sorted linked lists list1 and list2. Merge the two lists into one sorted list. The list should be made by splicing together the nodes of the first two lists. Return the head of the merged linked list.,C,"class Solution:
+  def mergeTwoLists(self, list1: Optional[ListNode], list2: Optional[ListNode]) -> Optional[ListNode]:
+    if not list1 or not list2:
+      return list1 if list1 else list2
+    _______________
+    if list1.val > list2.val:
+      list1, list2 = list2, list1
+    list1.next = self.mergeTwoLists(list1.next, list2)
+    return list1 You are given the heads of two sorted linked lists list1 and list2. Merge the two lists into one sorted list. The list should be made by splicing together the nodes of the first two lists. Return the head of the merged linked list.",ERROR,0
+rt00262,"class Solution:
+  def generateParenthesis(self, n):
+    ans = []
+
+    def dfs(l: int, r: int, s: str) -> None:
+      if l == 0 and r == 0:
+        ans.append(s)
+      if l > 0:
+        _______________
+        dfs(l - 1, r, s + '(')
+      if l < r:
+        dfs(l, r - 1, s + ')')
+
+    dfs(n, n, '')
+    return ans","[""        dfs(l - 1, r + 1, '(' + s)"" ""        dfs(l, r, '(' + s + ')')""
+ ""        dfs(l - 1, r, '(' * l + s)"" ""        dfs(l - 1, r, s + '(')""]","Given n pairs of parentheses, write a function to generate all combinations of well-formed parentheses.",D,"class Solution:
+  def generateParenthesis(self, n):
+    ans = []
+
+    def dfs(l: int, r: int, s: str) -> None:
+      if l == 0 and r == 0:
+        ans.append(s)
+      if l > 0:
+        _______________
+        dfs(l - 1, r, s + '(')
+      if l < r:
+        dfs(l, r - 1, s + ')')
+
+    dfs(n, n, '')
+    return ans Given n pairs of parentheses, write a function to generate all combinations of well-formed parentheses.",ERROR,0
+rt00263,"from queue import PriorityQueue
+
+
+class Solution:
+  def mergeKLists(self, lists: List[ListNode]) -> ListNode:
+    dummy = ListNode(0)
+    curr = dummy
+    pq = PriorityQueue()
+
+    for i, lst in enumerate(lists):
+      if lst:
+        pq.put((lst.val, i, lst))
+
+    while not pq.empty():
+      _, i, minNode = pq.get()
+      if minNode.next:
+        _______________
+        pq.put((minNode.next.val, i, minNode.next))
+      curr.next = minNode
+      curr = curr.next
+
+    return dummy.next","['        pq.put((minNode.val, i, minNode.next))'
+ '        pq.put((minNode.val, i, minNode))'
+ '        pq.put((minNode.next.val, i, minNode))'
+ '        pq.put((minNode.next.val, i, minNode.next))']","You are given an array of k linked-lists lists, each linked-list is sorted in ascending order. Merge all the linked-lists into one sorted linked-list and return it.",D,"from queue import PriorityQueue
+
+
+class Solution:
+  def mergeKLists(self, lists: List[ListNode]) -> ListNode:
+    dummy = ListNode(0)
+    curr = dummy
+    pq = PriorityQueue()
+
+    for i, lst in enumerate(lists):
+      if lst:
+        pq.put((lst.val, i, lst))
+
+    while not pq.empty():
+      _, i, minNode = pq.get()
+      if minNode.next:
+        _______________
+        pq.put((minNode.next.val, i, minNode.next))
+      curr.next = minNode
+      curr = curr.next
+
+    return dummy.next You are given an array of k linked-lists lists, each linked-list is sorted in ascending order. Merge all the linked-lists into one sorted linked-list and return it.",ERROR,0
+rt00264,"class Solution:
+  def swapPairs(self, head: ListNode) -> ListNode:
+    def getLength(head: ListNode) -> int:
+      length = 0
+      while head:
+        _______________
+        length += 1
+        head = head.next
+      return length
+
+    length = getLength(head)
+    dummy = ListNode(0, head)
+    prev = dummy
+    curr = head
+
+    for _ in range(length // 2):
+      next = curr.next
+      curr.next = next.next
+      next.next = prev.next
+      prev.next = next
+      prev = curr
+      curr = curr.next
+
+    return dummy.next","['        length = length + 1 - 0' '        length += 2 - 1'
+ '        length = length + 1' '        length += 1']","Given a linked list, swap every two adjacent nodes and return its head. You must solve the problem without modifying the values in the list's nodes (i.e., only nodes themselves may be changed.)",D,"class Solution:
+  def swapPairs(self, head: ListNode) -> ListNode:
+    def getLength(head: ListNode) -> int:
+      length = 0
+      while head:
+        _______________
+        length += 1
+        head = head.next
+      return length
+
+    length = getLength(head)
+    dummy = ListNode(0, head)
+    prev = dummy
+    curr = head
+
+    for _ in range(length // 2):
+      next = curr.next
+      curr.next = next.next
+      next.next = prev.next
+      prev.next = next
+      prev = curr
+      curr = curr.next
+
+    return dummy.next Given a linked list, swap every two adjacent nodes and return its head. You must solve the problem without modifying the values in the list's nodes (i.e., only nodes themselves may be changed.)",ERROR,0
+rt00265,"class Solution:
+  def reverseKGroup(self, head: ListNode, k: int) -> ListNode:
+    if not head or k == 1:
+      return head
+
+    def getLength(head: ListNode) -> int:
+      length = 0
+      while head:
+        _______________
+        length += 1
+        head = head.next
+      return length
+
+    length = getLength(head)
+    dummy = ListNode(0, head)
+    prev = dummy
+    curr = head
+
+    for _ in range(length // k):
+      for _ in range(k - 1):
+        next = curr.next
+        curr.next = next.next
+        next.next = prev.next
+        prev.next = next
+      prev = curr
+      curr = curr.next
+
+    return dummy.next","['        length = length.__add__(1)' '        length = length + 1'
+ '        length += k ** 0' '        length += 1']","Given the head of a linked list, reverse the nodes of the list k at a time, and return the modified list. k is a positive integer and is less than or equal to the length of the linked list. If the number of nodes is not a multiple of k then left-out nodes, in the end, should remain as it is. You may not alter the values in the list's nodes, only nodes themselves may be changed.",D,"class Solution:
+  def reverseKGroup(self, head: ListNode, k: int) -> ListNode:
+    if not head or k == 1:
+      return head
+
+    def getLength(head: ListNode) -> int:
+      length = 0
+      while head:
+        _______________
+        length += 1
+        head = head.next
+      return length
+
+    length = getLength(head)
+    dummy = ListNode(0, head)
+    prev = dummy
+    curr = head
+
+    for _ in range(length // k):
+      for _ in range(k - 1):
+        next = curr.next
+        curr.next = next.next
+        next.next = prev.next
+        prev.next = next
+      prev = curr
+      curr = curr.next
+
+    return dummy.next Given the head of a linked list, reverse the nodes of the list k at a time, and return the modified list. k is a positive integer and is less than or equal to the length of the linked list. If the number of nodes is not a multiple of k then left-out nodes, in the end, should remain as it is. You may not alter the values in the list's nodes, only nodes themselves may be changed.",ERROR,0
+rt00266,"class Solution:
+  def removeDuplicates(self, nums: List[int]) -> int:
+    i = 0
+
+    for num in nums:
+      _______________
+      if i < 1 or num > nums[i - 1]:
+        nums[i] = num
+        i += 1
+
+    return i","['      if i == 0 or num > nums[i - 1]:'
+ '      if not i or num > nums[i - 1]:'
+ '      if i < 1 or num > nums[i - 1]:'
+ '      if i <= 0 or num > nums[i - 1]:']","Given an integer array nums sorted in non-decreasing order, remove the duplicates in-place such that each unique element appears only once. The relative order of the elements should be kept the same. Then return the number of unique elements in nums. Consider the number of unique elements of nums to be k, to get accepted, you need to do the following things: Custom Judge: The judge will test your solution with the following code: If all assertions pass, then your solution will be accepted.",C,"class Solution:
+  def removeDuplicates(self, nums: List[int]) -> int:
+    i = 0
+
+    for num in nums:
+      _______________
+      if i < 1 or num > nums[i - 1]:
+        nums[i] = num
+        i += 1
+
+    return i Given an integer array nums sorted in non-decreasing order, remove the duplicates in-place such that each unique element appears only once. The relative order of the elements should be kept the same. Then return the number of unique elements in nums. Consider the number of unique elements of nums to be k, to get accepted, you need to do the following things: Custom Judge: The judge will test your solution with the following code: If all assertions pass, then your solution will be accepted.",ERROR,0
+rt00267,"class Solution:
+  def removeElement(self, nums: List[int], val: int) -> int:
+    i = 0
+
+    for num in nums:
+      if num != val:
+        nums[i] = num
+        _______________
+        i += 1
+
+    return i","['        i += 1;' '        i = i + 1' '        i = i.__add__(1)'
+ '        i += 1']","Given an integer array nums and an integer val, remove all occurrences of val in nums in-place. The order of the elements may be changed. Then return the number of elements in nums which are not equal to val. Consider the number of elements in nums which are not equal to val be k, to get accepted, you need to do the following things: Custom Judge: The judge will test your solution with the following code: If all assertions pass, then your solution will be accepted.",D,"class Solution:
+  def removeElement(self, nums: List[int], val: int) -> int:
+    i = 0
+
+    for num in nums:
+      if num != val:
+        nums[i] = num
+        _______________
+        i += 1
+
+    return i Given an integer array nums and an integer val, remove all occurrences of val in nums in-place. The order of the elements may be changed. Then return the number of elements in nums which are not equal to val. Consider the number of elements in nums which are not equal to val be k, to get accepted, you need to do the following things: Custom Judge: The judge will test your solution with the following code: If all assertions pass, then your solution will be accepted.",ERROR,0
+rt00268,"class Solution:
+  def strStr(self, haystack: str, needle: str) -> int:
+    m = len(haystack)
+    n = len(needle)
+
+    for i in range(m - n + 1):
+      _______________
+      if haystack[i:i + n] == needle:
+        return i
+
+    return -1","['      if haystack[i:i+n][0:n] == needle:'
+ '      if haystack[i:i+n] == needle:'
+ '      if haystack[i:i+n:] == needle:'
+ '      if haystack[i:i + n] == needle:']","Given two strings needle and haystack, return the index of the first occurrence of needle in haystack, or -1 if needle is not part of haystack.",D,"class Solution:
+  def strStr(self, haystack: str, needle: str) -> int:
+    m = len(haystack)
+    n = len(needle)
+
+    for i in range(m - n + 1):
+      _______________
+      if haystack[i:i + n] == needle:
+        return i
+
+    return -1 Given two strings needle and haystack, return the index of the first occurrence of needle in haystack, or -1 if needle is not part of haystack.",ERROR,0
+rt00269,"class Solution:
+  def divide(self, dividend: int, divisor: int) -> int:
+    _______________
+    if dividend == -2**31 and divisor == -1:
+      return 2**31 - 1
+
+    sign = -1 if (dividend > 0) ^ (divisor > 0) else 1
+    ans = 0
+    dvd = abs(dividend)
+    dvs = abs(divisor)
+
+    while dvd >= dvs:
+      k = 1
+      while k * 2 * dvs <= dvd:
+        k <<= 1
+      dvd -= k * dvs
+      ans += k
+
+    return sign * ans","['    if dividend == -2147483648 and divisor == -1:'
+ '    if dividend == -2**31 and divisor == -1:'
+ '    if dividend == -0x80000000 and divisor == -1:'
+ '    if dividend == -(2**31) and divisor == -1:']","Given two integers dividend and divisor, divide two integers without using multiplication, division, and mod operator. The integer division should truncate toward zero, which means losing its fractional part. For example, 8.345 would be truncated to 8, and -2.7335 would be truncated to -2. Return the quotient after dividing dividend by divisor. Note: Assume we are dealing with an environment that could only store integers within the 32-bit signed integer range: [−2**31, 2**31 − 1]. For this problem, if the quotient is strictly greater than 2**31 - 1, then return 2**31 - 1, and if the quotient is strictly less than -2**31, then return -2**31.",B,"class Solution:
+  def divide(self, dividend: int, divisor: int) -> int:
+    _______________
+    if dividend == -2**31 and divisor == -1:
+      return 2**31 - 1
+
+    sign = -1 if (dividend > 0) ^ (divisor > 0) else 1
+    ans = 0
+    dvd = abs(dividend)
+    dvs = abs(divisor)
+
+    while dvd >= dvs:
+      k = 1
+      while k * 2 * dvs <= dvd:
+        k <<= 1
+      dvd -= k * dvs
+      ans += k
+
+    return sign * ans Given two integers dividend and divisor, divide two integers without using multiplication, division, and mod operator. The integer division should truncate toward zero, which means losing its fractional part. For example, 8.345 would be truncated to 8, and -2.7335 would be truncated to -2. Return the quotient after dividing dividend by divisor. Note: Assume we are dealing with an environment that could only store integers within the 32-bit signed integer range: [−2**31, 2**31 − 1]. For this problem, if the quotient is strictly greater than 2**31 - 1, then return 2**31 - 1, and if the quotient is strictly less than -2**31, then return -2**31.",ERROR,0
+rt00271,"class Solution:
+  def nextPermutation(self, nums: List[int]) -> None:
+    n = len(nums)
+
+    i = n - 2
+    _______________
+    while i >= 0:
+      if nums[i] < nums[i + 1]:
+        break
+      i -= 1
+
+    if i >= 0:
+      for j in range(n - 1, i, -1):
+        if nums[j] > nums[i]:
+          nums[i], nums[j] = nums[j], nums[i]
+          break
+
+    def reverse(nums: List[int], l: int, r: int) -> None:
+      while l < r:
+        nums[l], nums[r] = nums[r], nums[l]
+        l += 1
+        r -= 1
+
+    reverse(nums, i + 1, len(nums) - 1)","['    while i != -1:' '    while 0 <= i:' '    while i >= 0:'
+ '    while i > -1:']","A permutation of an array of integers is an arrangement of its members into a sequence or linear order. The next permutation of an array of integers is the next lexicographically greater permutation of its integer. More formally, if all the permutations of the array are sorted in one container according to their lexicographical order, then the next permutation of that array is the permutation that follows it in the sorted container. If such arrangement is not possible, the array must be rearranged as the lowest possible order (i.e., sorted in ascending order). Given an array of integers nums, find the next permutation of nums. The replacement must be in place and use only constant extra memory.",C,"class Solution:
+  def nextPermutation(self, nums: List[int]) -> None:
+    n = len(nums)
+
+    i = n - 2
+    _______________
+    while i >= 0:
+      if nums[i] < nums[i + 1]:
+        break
+      i -= 1
+
+    if i >= 0:
+      for j in range(n - 1, i, -1):
+        if nums[j] > nums[i]:
+          nums[i], nums[j] = nums[j], nums[i]
+          break
+
+    def reverse(nums: List[int], l: int, r: int) -> None:
+      while l < r:
+        nums[l], nums[r] = nums[r], nums[l]
+        l += 1
+        r -= 1
+
+    reverse(nums, i + 1, len(nums) - 1) A permutation of an array of integers is an arrangement of its members into a sequence or linear order. The next permutation of an array of integers is the next lexicographically greater permutation of its integer. More formally, if all the permutations of the array are sorted in one container according to their lexicographical order, then the next permutation of that array is the permutation that follows it in the sorted container. If such arrangement is not possible, the array must be rearranged as the lowest possible order (i.e., sorted in ascending order). Given an array of integers nums, find the next permutation of nums. The replacement must be in place and use only constant extra memory.",ERROR,0
+rt00272,"class Solution:
+  def longestValidParentheses(self, s: str) -> int:
+    s2 = ')' + s
+    dp = [0] * len(s2)
+
+    for i in range(1, len(s2)):
+      if s2[i] == ')' and s2[i - dp[i - 1] - 1] == '(':
+        _______________
+        dp[i] = dp[i - 1] + dp[i - dp[i - 1] - 2] + 2
+
+    return max(dp)","['        dp[i] = dp[i - 1] + dp[i - dp[i - 1] - 2] + 1'
+ '        dp[i] = dp[i - 1] + dp[i - dp[i - 1] - 1] + 1'
+ '        dp[i] = dp[i - 1] + dp[i - dp[i - 1] - 3] + 3'
+ '        dp[i] = dp[i - 1] + dp[i - dp[i - 1] - 2] + 2']","Given a string containing just the characters '(' and ')', return the length of the longest valid (well-formed) parentheses substring.",D,"class Solution:
+  def longestValidParentheses(self, s: str) -> int:
+    s2 = ')' + s
+    dp = [0] * len(s2)
+
+    for i in range(1, len(s2)):
+      if s2[i] == ')' and s2[i - dp[i - 1] - 1] == '(':
+        _______________
+        dp[i] = dp[i - 1] + dp[i - dp[i - 1] - 2] + 2
+
+    return max(dp) Given a string containing just the characters '(' and ')', return the length of the longest valid (well-formed) parentheses substring.",ERROR,0
+rt00273,"class Solution:
+  def search(self, nums: List[int], target: int) -> int:
+    l = 0
+    r = len(nums) - 1
+
+    while l <= r:
+      _______________
+      m = (l + r) // 2
+      if nums[m] == target:
+        return m
+      if nums[l] <= nums[m]:  
+        if nums[l] <= target < nums[m]:
+          r = m - 1
+        else:
+          l = m + 1
+      else:  
+        if nums[m] < target <= nums[r]:
+          l = m + 1
+        else:
+          r = m - 1
+
+    return -1","['      m = l + (r - l) // 2' '      m = (l + r) >> 1'
+ '      m = l + r // 2 - (r - l) // 2' '      m = (l + r) // 2']","There is an integer array nums sorted in ascending order (with distinct values). Prior to being passed to your function, nums is possibly rotated at an unknown pivot index k (1 <= k < nums.length) such that the resulting array is [nums[k], nums[k+1], ..., nums[n-1], nums[0], nums[1], ..., nums[k-1]] (0-indexed). For example, [0,1,2,4,5,6,7] might be rotated at pivot index 3 and become [4,5,6,7,0,1,2]. Given the array nums after the possible rotation and an integer target, return the index of target if it is in nums, or -1 if it is not in nums. You must write an algorithm with O(log n) runtime complexity.",D,"class Solution:
+  def search(self, nums: List[int], target: int) -> int:
+    l = 0
+    r = len(nums) - 1
+
+    while l <= r:
+      _______________
+      m = (l + r) // 2
+      if nums[m] == target:
+        return m
+      if nums[l] <= nums[m]:  
+        if nums[l] <= target < nums[m]:
+          r = m - 1
+        else:
+          l = m + 1
+      else:  
+        if nums[m] < target <= nums[r]:
+          l = m + 1
+        else:
+          r = m - 1
+
+    return -1 There is an integer array nums sorted in ascending order (with distinct values). Prior to being passed to your function, nums is possibly rotated at an unknown pivot index k (1 <= k < nums.length) such that the resulting array is [nums[k], nums[k+1], ..., nums[n-1], nums[0], nums[1], ..., nums[k-1]] (0-indexed). For example, [0,1,2,4,5,6,7] might be rotated at pivot index 3 and become [4,5,6,7,0,1,2]. Given the array nums after the possible rotation and an integer target, return the index of target if it is in nums, or -1 if it is not in nums. You must write an algorithm with O(log n) runtime complexity.",ERROR,0
+rt00274,"class Solution:
+  def searchRange(self, nums: List[int], target: int) -> List[int]:
+    l = bisect_left(nums, target)
+    if l == len(nums) or nums[l] != target:
+      _______________
+      return -1, -1
+    r = bisect_right(nums, target) - 1
+    return l, r","['      return [-1, -1]' '      return (-1, -1)'
+ '      r = -1\nreturn r, r' '      return -1, -1']","Given an array of integers nums sorted in non-decreasing order, find the starting and ending position of a given target value. If target is not found in the array, return [-1, -1]. You must write an algorithm with O(log n) runtime complexity.",D,"class Solution:
+  def searchRange(self, nums: List[int], target: int) -> List[int]:
+    l = bisect_left(nums, target)
+    if l == len(nums) or nums[l] != target:
+      _______________
+      return -1, -1
+    r = bisect_right(nums, target) - 1
+    return l, r Given an array of integers nums sorted in non-decreasing order, find the starting and ending position of a given target value. If target is not found in the array, return [-1, -1]. You must write an algorithm with O(log n) runtime complexity.",ERROR,0
+rt00275,"class Solution:
+  def searchInsert(self, nums: List[int], target: int) -> int:
+    l = 0
+    r = len(nums)
+
+    while l < r:
+      _______________
+      m = (l + r) // 2
+      if nums[m] == target:
+        return m
+      if nums[m] < target:
+        l = m + 1
+      else:
+        r = m
+
+    return l","['      m = (l + r - 1) // 2' '      m = r - (r - l) // 2'
+ '      m = l + (r - l) // 2' '      m = (l + r) // 2']","Given a sorted array of distinct integers and a target value, return the index if the target is found. If not, return the index where it would be if it were inserted in order. You must write an algorithm with O(log n) runtime complexity.",D,"class Solution:
+  def searchInsert(self, nums: List[int], target: int) -> int:
+    l = 0
+    r = len(nums)
+
+    while l < r:
+      _______________
+      m = (l + r) // 2
+      if nums[m] == target:
+        return m
+      if nums[m] < target:
+        l = m + 1
+      else:
+        r = m
+
+    return l Given a sorted array of distinct integers and a target value, return the index if the target is found. If not, return the index where it would be if it were inserted in order. You must write an algorithm with O(log n) runtime complexity.",ERROR,0
+rt00276,"class Solution:
+  def isValidSudoku(self, board: List[List[str]]) -> bool:
+    seen = set()
+
+    for i in range(9):
+      for j in range(9):
+        c = board[i][j]
+        if c == '.':
+          continue
+        if c + '@row ' + str(i) in seen or \
+           c + '@col ' + str(j) in seen or \
+           _______________
+           c + '@box ' + str(i // 3) + str(j // 3) in seen:
+          return False
+        seen.add(c + '@row ' + str(i))
+        seen.add(c + '@col ' + str(j))
+        seen.add(c + '@box ' + str(i // 3) + str(j // 3))
+
+    return True","[""           c + '@box ' + str((i-i%3)//3)+str((j-j%3)//3) in seen:""
+ ""           c + '@box ' + str(i//3*3+j//3) in seen:""
+ ""           c + '@box ' + str((i//3)*3+(j//3)) in seen:""
+ ""           c + '@box ' + str(i // 3) + str(j // 3) in seen:""]",Determine if a 9 x 9 Sudoku board is valid. Only the filled cells need to be validated according to the following rules: Note:,D,"class Solution:
+  def isValidSudoku(self, board: List[List[str]]) -> bool:
+    seen = set()
+
+    for i in range(9):
+      for j in range(9):
+        c = board[i][j]
+        if c == '.':
+          continue
+        if c + '@row ' + str(i) in seen or \
+           c + '@col ' + str(j) in seen or \
+           _______________
+           c + '@box ' + str(i // 3) + str(j // 3) in seen:
+          return False
+        seen.add(c + '@row ' + str(i))
+        seen.add(c + '@col ' + str(j))
+        seen.add(c + '@box ' + str(i // 3) + str(j // 3))
+
+    return True Determine if a 9 x 9 Sudoku board is valid. Only the filled cells need to be validated according to the following rules: Note:",ERROR,0
+rt00277,"class Solution:
+  def solveSudoku(self, board: List[List[str]]) -> None:
+    def isValid(row: int, col: int, c: str) -> bool:
+      for i in range(9):
+        if board[i][col] == c or \
+           board[row][i] == c or \
+           _______________
+           board[3 * (row // 3) + i // 3][3 * (col // 3) + i % 3] == c:
+          return False
+      return True
+
+    def solve(s: int) -> bool:
+      if s == 81:
+        return True
+
+      i = s // 9
+      j = s % 9
+
+      if board[i][j] != '.':
+        return solve(s + 1)
+
+      for c in string.digits[1:]:
+        if isValid(i, j, c):
+          board[i][j] = c
+          if solve(s + 1):
+            return True
+          board[i][j] = '.'
+
+      return False
+
+    solve(0)","['           board[3 * (row // 3) + i // 3][3 * (col // 3) + i % 3] == c:'
+ '           board[(row // 3) * 3 + i // 3][(col // 3) * 3 + i % 3] == c'
+ '           board[row - row % 3 + i // 3][col - col % 3 + i % 3] == c'
+ '           board[(row - row % 3) + i // 3][(col - col % 3) + i % 3] == c']",Write a program to solve a Sudoku puzzle by filling the empty cells. A sudoku solution must satisfy all of the following rules: The '.' character indicates empty cells.,A,"class Solution:
+  def solveSudoku(self, board: List[List[str]]) -> None:
+    def isValid(row: int, col: int, c: str) -> bool:
+      for i in range(9):
+        if board[i][col] == c or \
+           board[row][i] == c or \
+           _______________
+           board[3 * (row // 3) + i // 3][3 * (col // 3) + i % 3] == c:
+          return False
+      return True
+
+    def solve(s: int) -> bool:
+      if s == 81:
+        return True
+
+      i = s // 9
+      j = s % 9
+
+      if board[i][j] != '.':
+        return solve(s + 1)
+
+      for c in string.digits[1:]:
+        if isValid(i, j, c):
+          board[i][j] = c
+          if solve(s + 1):
+            return True
+          board[i][j] = '.'
+
+      return False
+
+    solve(0) Write a program to solve a Sudoku puzzle by filling the empty cells. A sudoku solution must satisfy all of the following rules: The '.' character indicates empty cells.",ERROR,0
+rt00278,"class Solution:
+  def countAndSay(self, n: int) -> str:
+    ans = '1'
+
+    for _ in range(n - 1):
+      nxt = ''
+      i = 0
+      while i < len(ans):
+        count = 1
+        _______________
+        while i + 1 < len(ans) and ans[i] == ans[i + 1]:
+          count += 1
+          i += 1
+        nxt += str(count) + ans[i]
+        i += 1
+      ans = nxt
+
+    return ans","['        while i < len(ans) and ans[i] == ans[i - 1]:'
+ '        while i < len(ans) - 1 and ans[i] == ans[i + 1]:'
+ '        while i + 1 < len(ans) and ans[i] == ans[i + 1]:'
+ '        while ans and i < len(ans) - 1 and ans[i] == ans[i + 1]:']","The count-and-say sequence is a sequence of digit strings defined by the recursive formula: Run-length encoding (RLE) is a string compression method that works by replacing consecutive identical characters (repeated 2 or more times) with the concatenation of the character and the number marking the count of the characters (length of the run). For example, to compress the string ""3322251"" we replace ""33"" with ""23"", replace ""222"" with ""32"", replace ""5"" with ""15"" and replace ""1"" with ""11"". Thus the compressed string becomes ""23321511"". Given a positive integer n, return the nth element of the count-and-say sequence.",C,"class Solution:
+  def countAndSay(self, n: int) -> str:
+    ans = '1'
+
+    for _ in range(n - 1):
+      nxt = ''
+      i = 0
+      while i < len(ans):
+        count = 1
+        _______________
+        while i + 1 < len(ans) and ans[i] == ans[i + 1]:
+          count += 1
+          i += 1
+        nxt += str(count) + ans[i]
+        i += 1
+      ans = nxt
+
+    return ans The count-and-say sequence is a sequence of digit strings defined by the recursive formula: Run-length encoding (RLE) is a string compression method that works by replacing consecutive identical characters (repeated 2 or more times) with the concatenation of the character and the number marking the count of the characters (length of the run). For example, to compress the string ""3322251"" we replace ""33"" with ""23"", replace ""222"" with ""32"", replace ""5"" with ""15"" and replace ""1"" with ""11"". Thus the compressed string becomes ""23321511"". Given a positive integer n, return the nth element of the count-and-say sequence.",ERROR,0
+rt00279,"class Solution:
+  def combinationSum(self, candidates: List[int], target: int) -> List[List[int]]:
+    ans = []
+
+    def dfs(s: int, target: int, path: List[int]) -> None:
+      _______________
+      if target < 0:
+        return
+      if target == 0:
+        ans.append(path.clone())
+        return
+
+      for i in range(s, len(candidates)):
+        path.append(candidates[i])
+        dfs(i, target - candidates[i], path)
+        path.pop()
+
+    candidates.sort()
+    dfs(0, target, [])
+    return ans","['      if target < 1:' '      if target < 0:' '      if target == -1:'
+ '      if target <= 0:']","Given an array of distinct integers candidates and a target integer target, return a list of all unique combinations of candidates where the chosen numbers sum to target. You may return the combinations in any order. The same number may be chosen from candidates an unlimited number of times. Two combinations are unique if the frequency of at least one of the chosen numbers is different. The test cases are generated such that the number of unique combinations that sum up to target is less than 150 combinations for the given input.",B,"class Solution:
+  def combinationSum(self, candidates: List[int], target: int) -> List[List[int]]:
+    ans = []
+
+    def dfs(s: int, target: int, path: List[int]) -> None:
+      _______________
+      if target < 0:
+        return
+      if target == 0:
+        ans.append(path.clone())
+        return
+
+      for i in range(s, len(candidates)):
+        path.append(candidates[i])
+        dfs(i, target - candidates[i], path)
+        path.pop()
+
+    candidates.sort()
+    dfs(0, target, [])
+    return ans Given an array of distinct integers candidates and a target integer target, return a list of all unique combinations of candidates where the chosen numbers sum to target. You may return the combinations in any order. The same number may be chosen from candidates an unlimited number of times. Two combinations are unique if the frequency of at least one of the chosen numbers is different. The test cases are generated such that the number of unique combinations that sum up to target is less than 150 combinations for the given input.",ERROR,0
+rt00280,"class Solution:
+  def combinationSum2(self, candidates: List[int], target: int) -> List[List[int]]:
+    ans = []
+
+    def dfs(s: int, target: int, path: List[int]) -> None:
+      if target < 0:
+        return
+      if target == 0:
+        ans.append(path.copy())
+        return
+
+      for i in range(s, len(candidates)):
+        _______________
+        if i > s and candidates[i] == candidates[i - 1]:
+          continue
+        path.append(candidates[i])
+        dfs(i + 1, target - candidates[i], path)
+        path.pop()
+
+    candidates.sort()
+    dfs(0, target, [])
+    return ans","['        if i > s and candidates[i] in [candidates[j] for j in range(i)]:'
+ '        if i > s and candidates.count(candidates[i]) > 1:'
+ '        if i > s and candidates[i] in candidates[:i]:'
+ '        if i > s and candidates[i] == candidates[i - 1]:']","Given a collection of candidate numbers (candidates) and a target number (target), find all unique combinations in candidates where the candidate numbers sum to target. Each number in candidates may only be used once in the combination. Note: The solution set must not contain duplicate combinations.",D,"class Solution:
+  def combinationSum2(self, candidates: List[int], target: int) -> List[List[int]]:
+    ans = []
+
+    def dfs(s: int, target: int, path: List[int]) -> None:
+      if target < 0:
+        return
+      if target == 0:
+        ans.append(path.copy())
+        return
+
+      for i in range(s, len(candidates)):
+        _______________
+        if i > s and candidates[i] == candidates[i - 1]:
+          continue
+        path.append(candidates[i])
+        dfs(i + 1, target - candidates[i], path)
+        path.pop()
+
+    candidates.sort()
+    dfs(0, target, [])
+    return ans Given a collection of candidate numbers (candidates) and a target number (target), find all unique combinations in candidates where the candidate numbers sum to target. Each number in candidates may only be used once in the combination. Note: The solution set must not contain duplicate combinations.",ERROR,0
+rt00281,"class Solution:
+  def firstMissingPositive(self, nums: List[int]) -> int:
+    n = len(nums)
+
+    for i in range(n):
+      _______________
+      while nums[i] > 0 and nums[i] <= n and nums[nums[i] - 1] != nums[i]:
+        nums[nums[i] - 1], nums[i] = nums[i], nums[nums[i] - 1]
+
+    for i, num in enumerate(nums):
+      if num != i + 1:
+        return i + 1
+
+    return n + 1","['      while 0 < nums[i] <= n and nums[nums[i] - 1] != nums[i]:'
+ '      while nums[i] > 0 and nums[i] in range(1, n+1) and nums[nums[i] - 1] != nums[i]:'
+ '      while nums[i] > 0 and nums[i] <= n and nums[nums[i] - 1] != nums[i]:'
+ '      while nums[i] > 0 and nums[i] <= len(nums) and nums[nums[i] - 1] != nums[i]:']",Given an unsorted integer array nums. Return the smallest positive integer that is not present in nums. You must implement an algorithm that runs in O(n) time and uses O(1) auxiliary space.,C,"class Solution:
+  def firstMissingPositive(self, nums: List[int]) -> int:
+    n = len(nums)
+
+    for i in range(n):
+      _______________
+      while nums[i] > 0 and nums[i] <= n and nums[nums[i] - 1] != nums[i]:
+        nums[nums[i] - 1], nums[i] = nums[i], nums[nums[i] - 1]
+
+    for i, num in enumerate(nums):
+      if num != i + 1:
+        return i + 1
+
+    return n + 1 Given an unsorted integer array nums. Return the smallest positive integer that is not present in nums. You must implement an algorithm that runs in O(n) time and uses O(1) auxiliary space.",ERROR,0
+rt00284,"class Solution:
+  def isMatch(self, s: str, p: str) -> bool:
+    m = len(s)
+    n = len(p)
+    dp = [[False] * (n + 1) for _ in range(m + 1)]
+    dp[0][0] = True
+
+    def isMatch(i: int, j: int) -> bool:
+      _______________
+      return i >= 0 and p[j] == '?' or s[i] == p[j]
+
+    for j, c in enumerate(p):
+      if c == '*':
+        dp[0][j + 1] = dp[0][j]
+
+    for i in range(m):
+      for j in range(n):
+        if p[j] == '*':
+          matchEmpty = dp[i + 1][j]
+          matchSome = dp[i][j + 1]
+          dp[i + 1][j + 1] = matchEmpty or matchSome
+        elif isMatch(i, j):
+          dp[i + 1][j + 1] = dp[i][j]
+
+    return dp[m][n]","[""      return i >= 0 and (p[j] == '?' or s[i] == p[j])""
+ ""      return (i >= 0) and (p[j] in ['?', s[i]])""
+ ""      return i >= 0 and (p[j] in ['?', s[i]] or s[i] == p[j])""
+ ""      return i >= 0 and p[j] == '?' or s[i] == p[j]""]","Given an input string (s) and a pattern (p), implement wildcard pattern matching with support for '?' and '*' where: The matching should cover the entire input string (not partial).",D,"class Solution:
+  def isMatch(self, s: str, p: str) -> bool:
+    m = len(s)
+    n = len(p)
+    dp = [[False] * (n + 1) for _ in range(m + 1)]
+    dp[0][0] = True
+
+    def isMatch(i: int, j: int) -> bool:
+      _______________
+      return i >= 0 and p[j] == '?' or s[i] == p[j]
+
+    for j, c in enumerate(p):
+      if c == '*':
+        dp[0][j + 1] = dp[0][j]
+
+    for i in range(m):
+      for j in range(n):
+        if p[j] == '*':
+          matchEmpty = dp[i + 1][j]
+          matchSome = dp[i][j + 1]
+          dp[i + 1][j + 1] = matchEmpty or matchSome
+        elif isMatch(i, j):
+          dp[i + 1][j + 1] = dp[i][j]
+
+    return dp[m][n] Given an input string (s) and a pattern (p), implement wildcard pattern matching with support for '?' and '*' where: The matching should cover the entire input string (not partial).",ERROR,0
+rt00285,"class Solution:
+  def jump(self, nums: List[int]) -> int:
+    ans = 0
+    end = 0
+    farthest = 0
+
+    for i in range(len(nums) - 1):
+      farthest = max(farthest, i + nums[i])
+      _______________
+      if farthest >= len(nums) - 1:
+        ans += 1
+        break
+      if i == end:      
+        ans += 1        
+        end = farthest  
+
+    return ans","['      if i + nums[i] >= len(nums) - 1:'
+ '      if farthest >= len(nums) - 1:'
+ '      if farthest >= len(nums) // 2:'
+ '      if farthest == len(nums) - 1:']","You are given a 0-indexed array of integers nums of length n. You are initially positioned at nums[0]. Each element nums[i] represents the maximum length of a forward jump from index i. In other words, if you are at nums[i], you can jump to any nums[i + j] where: Return the minimum number of jumps to reach nums[n - 1]. The test cases are generated such that you can reach nums[n - 1].",B,"class Solution:
+  def jump(self, nums: List[int]) -> int:
+    ans = 0
+    end = 0
+    farthest = 0
+
+    for i in range(len(nums) - 1):
+      farthest = max(farthest, i + nums[i])
+      _______________
+      if farthest >= len(nums) - 1:
+        ans += 1
+        break
+      if i == end:      
+        ans += 1        
+        end = farthest  
+
+    return ans You are given a 0-indexed array of integers nums of length n. You are initially positioned at nums[0]. Each element nums[i] represents the maximum length of a forward jump from index i. In other words, if you are at nums[i], you can jump to any nums[i + j] where: Return the minimum number of jumps to reach nums[n - 1]. The test cases are generated such that you can reach nums[n - 1].",ERROR,0
+rt00286,"class Solution:
+  def permute(self, nums: List[int]) -> List[List[int]]:
+    ans = []
+    _______________
+    used = [False] * len(nums)
+
+    def dfs(path: List[int]) -> None:
+      if len(path) == len(nums):
+        ans.append(path.copy())
+        return
+
+      for i, num in enumerate(nums):
+        if used[i]:
+          continue
+        used[i] = True
+        path.append(num)
+        dfs(path)
+        path.pop()
+        used[i] = False
+
+    dfs([])
+    return ans","['    used = [False for _ in range(len(nums))]'
+ '    used = [False]*len(list(nums))' '    used = [False] * len(nums)'
+ '    used = [False]*nums.__len__()']","Given an array nums of distinct integers, return all the possible permutations. You can return the answer in any order.",C,"class Solution:
+  def permute(self, nums: List[int]) -> List[List[int]]:
+    ans = []
+    _______________
+    used = [False] * len(nums)
+
+    def dfs(path: List[int]) -> None:
+      if len(path) == len(nums):
+        ans.append(path.copy())
+        return
+
+      for i, num in enumerate(nums):
+        if used[i]:
+          continue
+        used[i] = True
+        path.append(num)
+        dfs(path)
+        path.pop()
+        used[i] = False
+
+    dfs([])
+    return ans Given an array nums of distinct integers, return all the possible permutations. You can return the answer in any order.",ERROR,0
+rt00287,"class Solution:
+  def permuteUnique(self, nums: List[int]) -> List[List[int]]:
+    ans = []
+    used = [False] * len(nums)
+
+    def dfs(path: List[int]) -> None:
+      if len(path) == len(nums):
+        ans.append(path.copy())
+        return
+
+      for i, num in enumerate(nums):
+        if used[i]:
+          continue
+        _______________
+        if i > 0 and nums[i] == nums[i - 1] and not used[i - 1]:
+          continue
+        used[i] = True
+        path.append(num)
+        dfs(path)
+        path.pop()
+        used[i] = False
+
+    nums.sort()
+    dfs([])
+    return ans","['        if i > 0 and nums[i] == nums[i - 1] and not used[i - 1]:'
+ '        if i > 0 and num == nums[i - 1] and not used[i - 1]:'
+ '        if i > 0 and num in nums[:i] and not used[i - 1]:'
+ '        if i > 0 and nums[i] in nums[:i] and not used[i - 1]:']","Given a collection of numbers, nums, that might contain duplicates, return all possible unique permutations in any order.",A,"class Solution:
+  def permuteUnique(self, nums: List[int]) -> List[List[int]]:
+    ans = []
+    used = [False] * len(nums)
+
+    def dfs(path: List[int]) -> None:
+      if len(path) == len(nums):
+        ans.append(path.copy())
+        return
+
+      for i, num in enumerate(nums):
+        if used[i]:
+          continue
+        _______________
+        if i > 0 and nums[i] == nums[i - 1] and not used[i - 1]:
+          continue
+        used[i] = True
+        path.append(num)
+        dfs(path)
+        path.pop()
+        used[i] = False
+
+    nums.sort()
+    dfs([])
+    return ans Given a collection of numbers, nums, that might contain duplicates, return all possible unique permutations in any order.",ERROR,0
+rt00288,"class Solution:
+  def rotate(self, matrix: List[List[int]]) -> None:
+    matrix.reverse()
+
+    for i in range(len(matrix)):
+      for j in range(i + 1, len(matrix)):
+        _______________
+        matrix[i][j], matrix[j][i] = matrix[j][i], matrix[i][j]","['        temp = matrix[i][j]; matrix[i][j] = matrix[j][i]; matrix[j][i] = temp'
+ '        matrix[i][j], matrix[j][i] = matrix[j][i], matrix[i][j]'
+ '        matrix[j][i], matrix[i][j] = matrix[i][j], matrix[j][i]'
+ '        matrix[i][j], matrix[j][i] = (matrix[j][i], matrix[i][j])']","You are given an n x n 2D matrix representing an image, rotate the image by 90 degrees (clockwise). You have to rotate the image in-place, which means you have to modify the input 2D matrix directly. DO NOT allocate another 2D matrix and do the rotation.",B,"class Solution:
+  def rotate(self, matrix: List[List[int]]) -> None:
+    matrix.reverse()
+
+    for i in range(len(matrix)):
+      for j in range(i + 1, len(matrix)):
+        _______________
+        matrix[i][j], matrix[j][i] = matrix[j][i], matrix[i][j] You are given an n x n 2D matrix representing an image, rotate the image by 90 degrees (clockwise). You have to rotate the image in-place, which means you have to modify the input 2D matrix directly. DO NOT allocate another 2D matrix and do the rotation.",ERROR,0
+rt00289,"class Solution:
+  def groupAnagrams(self, strs: List[str]) -> List[List[str]]:
+    dict = collections.defaultdict(list)
+
+    for str in strs:
+      _______________
+      key = ''.join(sorted(str))
+      dict[key].append(str)
+
+    return dict.values()","[""      key = ''.join(sorted(str, key=str.lower))""
+ '      key = tuple(sorted(str))' ""      key = '-'.join(sorted(str))""
+ ""      key = ''.join(sorted(str))""]","Given an array of strings strs, group the anagrams together. You can return the answer in any order. An Anagram is a word or phrase formed by rearranging the letters of a different word or phrase, typically using all the original letters exactly once.",D,"class Solution:
+  def groupAnagrams(self, strs: List[str]) -> List[List[str]]:
+    dict = collections.defaultdict(list)
+
+    for str in strs:
+      _______________
+      key = ''.join(sorted(str))
+      dict[key].append(str)
+
+    return dict.values() Given an array of strings strs, group the anagrams together. You can return the answer in any order. An Anagram is a word or phrase formed by rearranging the letters of a different word or phrase, typically using all the original letters exactly once.",ERROR,0
