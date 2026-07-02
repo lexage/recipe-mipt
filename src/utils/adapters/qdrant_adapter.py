@@ -21,7 +21,8 @@ from src.agent_constructor.agent import Agent
 class QdrantDocsAdapter:
     
     def __init__(self, embedder: Agent, collection_name: str, path_to_db: str,
-                 embed_batch_size: int = 64, num_workers: int = 4):
+                 embed_batch_size: int = 64, num_workers: int = 4,
+                 max_embed_chars: int = 60000, embed_max_items: int = 256):
 
         self.client = QdrantClient(path=path_to_db)
         self.embedder = embedder
@@ -29,6 +30,12 @@ class QdrantDocsAdapter:
         self.batch_size = 10
         self.embed_batch_size = int(embed_batch_size)   # texts per embedder call
         self.num_workers = int(num_workers)             # parallel embedder calls
+        # Guard the embedder's context limit: truncate any single text longer than
+        # max_embed_chars, and pack a request until either its total chars reach
+        # max_embed_chars or it holds embed_max_items texts (whichever first), so a
+        # batch never overflows the model's max token length.
+        self.max_embed_chars = int(max_embed_chars)
+        self.embed_max_items = int(embed_max_items)
         self.sparse_embedder = SparseTextEmbedding(
             model_name="Qdrant/bm25"
         )
@@ -61,10 +68,13 @@ class QdrantDocsAdapter:
                 tqdm(total=len(chunks), desc="Vectorizing") as pbar:
             for w in range(0, len(chunks), window):
                 wchunks = chunks[w:w + window]
-                wtexts = [c.text for c in wchunks]
+                # Truncate over-long texts so no single input exceeds the embedder
+                # context; the stored payload keeps the full text.
+                wtexts = [(c.text or "")[:self.max_embed_chars] for c in wchunks]
 
-                # dense: parallel batched calls to the embedder service (order preserved)
-                subs = [wtexts[s:s + bs] for s in range(0, len(wtexts), bs)]
+                # dense: parallel char-budgeted batched calls (order preserved)
+                subs = self._char_batches(wtexts, self.max_embed_chars,
+                                          self.embed_max_items)
                 dense = [v for sub in ex.map(self.embedder.run, subs) for v in sub]
                 # sparse: local fastembed (BM25), batched
                 sparse = list(self.sparse_embedder.embed(wtexts))
@@ -152,6 +162,23 @@ class QdrantDocsAdapter:
 
         return n, chunks
 
+
+    @staticmethod
+    def _char_batches(texts: List[Text], max_chars: int, max_items: int) -> List[List[Text]]:
+        """Group texts (in order) into sub-requests, flushing when the running
+        char total would exceed max_chars or the batch reaches max_items."""
+        batches: List[List[Text]] = []
+        cur: List[Text] = []
+        cur_len = 0
+        for t in texts:
+            if cur and (cur_len + len(t) > max_chars or len(cur) >= max_items):
+                batches.append(cur)
+                cur, cur_len = [], 0
+            cur.append(t)
+            cur_len += len(t)
+        if cur:
+            batches.append(cur)
+        return batches
 
     @staticmethod
     def _chunk_payload(chunk: Chunk) -> Dict:
