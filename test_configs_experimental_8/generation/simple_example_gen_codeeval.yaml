@@ -41,7 +41,7 @@ components:
     params:
       url: "http://0.0.0.0:7215/v1"
       model_name: "Qwen/Qwen2.5-32B-Instruct"
-      prob: 0.05
+      prob: 0.1
       input_source: "examples"
       output_source: "examples"
 

@@ -43,7 +43,7 @@ components:
       name: code2task_generator
       url: "http://0.0.0.0:7215/v1"
       model_name: "Qwen/Qwen2.5-32B-Instruct"
-      prob: 0.05
+      prob: 1.0
       n_variants: 3
       num_workers: 4
       input_source: "examples"
