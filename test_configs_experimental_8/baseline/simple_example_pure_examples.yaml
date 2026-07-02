@@ -1,0 +1,58 @@
+type: SIMPLE
+
+# === ЭКСПЕРИМЕНТ 8: генерация; семантический RAG; всё в examples ===
+# Конфиг: simple_example_pure_examples — ОСНОВНАЯ база сравнения
+#   Эмбеддим ТОЛЬКО код (таблица examples). Без генератора, без фильтра.
+# БД: data/docs_database_examples.db
+
+params:
+  top_k: 5
+
+components:
+
+  embedder:
+    type: EMBEDDING_AGENT
+    params:
+      name: embedder
+      url: "http://0.0.0.0:7216/v1"
+      model_name: "Qwen/Qwen3-Embedding-4B"
+
+  data_base:
+    type: LOCAL_DB
+    params:
+      path_to_db: "data/docs_database_examples.db"
+      path_to_vector_db: "data/vdb_exp8/simple_example_pure_examples"
+      collection_name: "docs"
+      index_sources: ["examples"]
+      return_full_docs: False
+      return_examples: False
+      merge_examples: False
+
+  chunker:
+    type: RECURSIVE_CHUNKER
+    params:
+      name: chunker
+      max_chunk_size: 1000
+
+  context_assembler:
+    type: CORAG_CONTEXT_ASSEMBLER
+    params:
+      name: corag_assembler
+
+  retriever:
+    type: SIMPLE_RETRIEVER
+    params:
+      name: simple_retriever
+
+  agent:
+    type: DS1000_SOLVER_AGENT
+    params:
+      name: ds1000_solver
+      url: "http://0.0.0.0:7215/v1"
+      model_name: "Qwen/Qwen2.5-32B-Instruct"
+      api: chat
+      context_after_task: False
+      temperature: 0.2
+      top_p: 0.95
+      max_tokens: 1024
+      stop_tokens: ["</code>", "# SOLUTION END"]

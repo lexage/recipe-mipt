@@ -9,19 +9,23 @@ from src.agent_constructor.core import Text, Document
 from src.utils import DOCUMENT_SRC_EXAMPLES
 
 class CodeEvalGenerator(Generator):
-    def __init__(self, url: str = None, model_name: str = None, prob: float = 0.01):
+    def __init__(self, url: str = None, model_name: str = None, prob: float = 0.01,
+                 input_source: str = DOCUMENT_SRC_EXAMPLES,
+                 output_source: str = DOCUMENT_SRC_EXAMPLES):
         super().__init__("code_eval_generator")
 
         self.client = OpenAI(base_url=url, api_key="vllm")
-        
+
         self.prob = max(0.0, min(1.0, prob))
         self.model_name = model_name
+        self.input_source = input_source
+        self.output_source = output_source
 
     def generate(self, documents: List[Document]) -> List[Document]:
         synth_docs = []
         ids_offset = len(documents)+1
 
-        documents = [doc for doc in documents if doc.source == DOCUMENT_SRC_EXAMPLES]
+        documents = [doc for doc in documents if doc.source == self.input_source]
         documents = random.sample(documents, round(len(documents) * self.prob))
 
         for doc in tqdm(documents, desc="Code Eval Generation"):
@@ -29,10 +33,10 @@ class CodeEvalGenerator(Generator):
                 Document(
                     id=str(len(synth_docs) + ids_offset),
                     text=self._run_model(doc.text),
-                    source=self.name,
+                    source=self.output_source,
                     metadata={"generated_from" : doc.id})
             )
-        
+
         return synth_docs
 
     def _run_model(self, example: Text) -> Text:

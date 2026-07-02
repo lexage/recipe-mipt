@@ -150,6 +150,10 @@ class ComponentNames(Enum):
     # ===== Generators: experiment 6 — oracle (paraphrase reference answers) =====
     PARAPHRASE_GENERATOR = "src.generation.paraphrase.ParaphraseGenerator"
 
+    # ===== Generators: experiment 8 — code2doc (oracle) + code2task (corpus) =====
+    CODE_TO_DOC_GENERATOR = "src.generation.code2doc.CodeToDocGenerator"
+    CODE_TO_TASK_GENERATOR = "src.generation.code2task.CodeToTaskGenerator"
+
     # ===== TOOLS =====
     DB_SEARCH_TOOL = "src.tools.DBSearchTool"
     LLM_TOOL = "src.tools.LLMTool"

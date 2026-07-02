@@ -5,6 +5,7 @@ from typing import List
 from src.agent_constructor.agent import Agent
 from src.agent_constructor.db import IDB
 from src.agent_constructor.core import Chunk, Document, Text
+from src.utils import DOCUMENT_SRC_DOCUMENTS, DOCUMENT_SRC_EXAMPLES
 from src.utils.adapters import SQLiteDocsDBAdapter, ChromaDocsAdapter, QdrantDocsAdapter
 from src.utils.utils_functions import replace_examples_in_chunks
 
@@ -32,10 +33,17 @@ class LocalDB(IDB):
             max_docs: int = None,
             max_docs_tail: int = 0,
 
+            index_sources: List[str] = None,
+
             search_filter: dict = {}):
 
         self.max_docs = max_docs
         self.max_docs_tail = max_docs_tail
+
+        # Which SQLite tables get loaded and embedded into the vector index at
+        # build time. Default = documents-only (backward compatible with exp<=6).
+        # Values: any subset of ['documents', 'examples'].
+        self.index_sources = index_sources or [DOCUMENT_SRC_DOCUMENTS]
 
         self.sqlite_adapter = SQLiteDocsDBAdapter(
             path_to_db=path_to_db
@@ -55,10 +63,18 @@ class LocalDB(IDB):
         self.vdb_adapter.close()
 
     def get_documents(self, ids: List[int] = None) -> List[Document]:
-        if not ids:
-            documents = self.sqlite_adapter.get_docs()
-        else:
-            documents = self.sqlite_adapter.get_docs(ids)
+        # ids-path (used by return_full_docs at query time) keeps the historical
+        # documents-only behaviour; index_sources only governs the build-time
+        # corpus load (ids is None).
+        if ids:
+            return self.sqlite_adapter.get_docs(ids)
+
+        documents: List[Document] = []
+        if DOCUMENT_SRC_DOCUMENTS in self.index_sources:
+            documents.extend(self.sqlite_adapter.get_docs())
+        if DOCUMENT_SRC_EXAMPLES in self.index_sources:
+            documents.extend(self.sqlite_adapter.get_examples())
+
         if self.max_docs:                       # smoke/pre-flight: tiny corpus
             n = len(documents)
             idxs = list(range(min(self.max_docs, n)))

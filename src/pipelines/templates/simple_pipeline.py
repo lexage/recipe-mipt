@@ -24,6 +24,7 @@ class SimplePipeline(Pipeline):
                  generator: Generator = None,
                  context_assembler: ContextAssembler = None,
                  enhancer: Agent = None,
+                 keep_source_docs: bool = True,
                  top_k: int = 1):
 
 
@@ -32,7 +33,12 @@ class SimplePipeline(Pipeline):
         documents = data_base.get_documents()
         if generator:
             synth_docs = generator.generate(documents=documents)
-            documents.extend(synth_docs)
+            # keep_source_docs=False -> only the generator output goes into the
+            # index (the loaded corpus is used as generator input, then dropped).
+            if keep_source_docs:
+                documents.extend(synth_docs)
+            else:
+                documents = synth_docs
 
         chunks = []
         [chunks.extend(chunker.chunk(doc)) for doc in documents]
