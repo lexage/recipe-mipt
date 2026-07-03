@@ -12064,3 +12064,596 @@ rt00580,"class Solution:
         ans.append(abs(num))
 
     return ans Given an integer array nums of length n where all the integers of nums are in the range [1, n] and each integer appears once or twice, return an array of all the integers that appears twice. You must write an algorithm that runs in O(n) time and uses only constant extra space.",B,0
+rt00581,"class Solution:
+  def compress(self, chars: List[str]) -> int:
+    ans = 0
+    i = 0
+
+    _______________
+    while i < len(chars):
+      letter = chars[i]
+      count = 0
+      while i < len(chars) and chars[i] == letter:
+        count += 1
+        i += 1
+      chars[ans] = letter
+      ans += 1
+      if count > 1:
+        for c in str(count):
+          chars[ans] = c
+          ans += 1
+
+    return ans","['    while i < len(chars):' '    while len(chars) > i:'
+ '    while i <= len(chars) - 1:' '    while i in range(len(chars)):']","Given an array of characters chars, compress it using the following algorithm: Begin with an empty string s. For each group of consecutive repeating characters in chars: The compressed string s should not be returned separately, but instead, be stored in the input character array chars. Note that group lengths that are 10 or longer will be split into multiple characters in chars. After you are done modifying the input array, return the new length of the array. You must write an algorithm that uses only constant extra space.",A,"class Solution:
+  def compress(self, chars: List[str]) -> int:
+    ans = 0
+    i = 0
+
+    _______________
+    while i < len(chars):
+      letter = chars[i]
+      count = 0
+      while i < len(chars) and chars[i] == letter:
+        count += 1
+        i += 1
+      chars[ans] = letter
+      ans += 1
+      if count > 1:
+        for c in str(count):
+          chars[ans] = c
+          ans += 1
+
+    return ans Given an array of characters chars, compress it using the following algorithm: Begin with an empty string s. For each group of consecutive repeating characters in chars: The compressed string s should not be returned separately, but instead, be stored in the input character array chars. Note that group lengths that are 10 or longer will be split into multiple characters in chars. After you are done modifying the input array, return the new length of the array. You must write an algorithm that uses only constant extra space.",A,1
+rt00582,"class Solution:
+  def addTwoNumbers(self, l1: ListNode, l2: ListNode) -> ListNode:
+    stack1 = []
+    stack2 = []
+
+    while l1:
+      stack1.append(l1)
+      l1 = l1.next
+
+    while l2:
+      stack2.append(l2)
+      l2 = l2.next
+
+    head = None
+    carry = 0
+
+    while carry or stack1 or stack2:
+      if stack1:
+        carry += stack1.pop().val
+      if stack2:
+        carry += stack2.pop().val
+      node = ListNode(carry % 10)
+      node.next = head
+      head = node
+      _______________
+      carry //= 10
+
+    return head","['      carry //= 10' '      carry = math.floor(carry / 10)'
+ '      carry = carry // 10' '      carry = int(carry / 10)']","You are given two non-empty linked lists representing two non-negative integers. The most significant digit comes first and each of their nodes contains a single digit. Add the two numbers and return the sum as a linked list. You may assume the two numbers do not contain any leading zero, except the number 0 itself.",A,"class Solution:
+  def addTwoNumbers(self, l1: ListNode, l2: ListNode) -> ListNode:
+    stack1 = []
+    stack2 = []
+
+    while l1:
+      stack1.append(l1)
+      l1 = l1.next
+
+    while l2:
+      stack2.append(l2)
+      l2 = l2.next
+
+    head = None
+    carry = 0
+
+    while carry or stack1 or stack2:
+      if stack1:
+        carry += stack1.pop().val
+      if stack2:
+        carry += stack2.pop().val
+      node = ListNode(carry % 10)
+      node.next = head
+      head = node
+      _______________
+      carry //= 10
+
+    return head You are given two non-empty linked lists representing two non-negative integers. The most significant digit comes first and each of their nodes contains a single digit. Add the two numbers and return the sum as a linked list. You may assume the two numbers do not contain any leading zero, except the number 0 itself.",A,1
+rt00583,"class Solution:
+  def numberOfBoomerangs(self, points: List[List[int]]) -> int:
+    ans = 0
+
+    for x1, y1 in points:
+      count = collections.Counter()
+      for x2, y2 in points:
+        _______________
+        ans += 2 * count[(x1 - x2)**2 + (y1 - y2)**2]
+        count[(x1 - x2)**2 + (y1 - y2)**2] += 1
+
+    return ans","['        count_val = count[(x1 - x2)**2 + (y1 - y2)**2]; ans += 2 * count_val'
+ '        ans += 2 * count[(x1 - x2)**2 + (y1 - y2)**2]'
+ '        ans += count[(x1 - x2)**2 + (y1 - y2)**2] * 2'
+ '        ans += 2 * (count[(x1 - x2)**2 + (y1 - y2)**2] or 0)']","You are given n points in the plane that are all distinct, where points[i] = [xi, yi]. A boomerang is a tuple of points (i, j, k) such that the distance between i and j equals the distance between i and k (the order of the tuple matters). Return the number of boomerangs.",B,"class Solution:
+  def numberOfBoomerangs(self, points: List[List[int]]) -> int:
+    ans = 0
+
+    for x1, y1 in points:
+      count = collections.Counter()
+      for x2, y2 in points:
+        _______________
+        ans += 2 * count[(x1 - x2)**2 + (y1 - y2)**2]
+        count[(x1 - x2)**2 + (y1 - y2)**2] += 1
+
+    return ans You are given n points in the plane that are all distinct, where points[i] = [xi, yi]. A boomerang is a tuple of points (i, j, k) such that the distance between i and j equals the distance between i and k (the order of the tuple matters). Return the number of boomerangs.",B,1
+rt00584,"class Solution:
+  def findDisappearedNumbers(self, nums: List[int]) -> List[int]:
+    for num in nums:
+      _______________
+      index = abs(num) - 1
+      nums[index] = -abs(nums[index])
+
+    return [i + 1 for i, num in enumerate(nums) if num > 0]","['      index = abs(num - 1)' '      index = abs(num) - 1'
+ '      index = (abs(num) // 1) - 1' '      index = num - 1']","Given an array nums of n integers where nums[i] is in the range [1, n], return an array of all the integers in the range [1, n] that do not appear in nums.",B,"class Solution:
+  def findDisappearedNumbers(self, nums: List[int]) -> List[int]:
+    for num in nums:
+      _______________
+      index = abs(num) - 1
+      nums[index] = -abs(nums[index])
+
+    return [i + 1 for i, num in enumerate(nums) if num > 0] Given an array nums of n integers where nums[i] is in the range [1, n], return an array of all the integers in the range [1, n] that do not appear in nums.",B,1
+rt00585,"class Solution:
+  def deleteNode(self, root: Optional[TreeNode], key: int) -> Optional[TreeNode]:
+    if not root:
+      return None
+    if root.val == key:
+      if not root.left:
+        return root.right
+      if not root.right:
+        return root.left
+      minNode = self._getMin(root.right)
+      root.right = self.deleteNode(root.right, minNode.val)
+      minNode.left = root.left
+      minNode.right = root.right
+      root = minNode
+    _______________
+    elif root.val < key:
+      root.right = self.deleteNode(root.right, key)
+    else:  
+      root.left = self.deleteNode(root.left, key)
+    return root
+
+  def _getMin(self, node: Optional[TreeNode]) -> Optional[TreeNode]:
+    while node.left:
+      node = node.left
+    return node","['    elif root.val <= key - 1:' '    elif not key < root.val:'
+ '    elif root.val < key:' '    elif key > root.val:']","Given a root node reference of a BST and a key, delete the node with the given key in the BST. Return the root node reference (possibly updated) of the BST. Basically, the deletion can be divided into two stages:",C,"class Solution:
+  def deleteNode(self, root: Optional[TreeNode], key: int) -> Optional[TreeNode]:
+    if not root:
+      return None
+    if root.val == key:
+      if not root.left:
+        return root.right
+      if not root.right:
+        return root.left
+      minNode = self._getMin(root.right)
+      root.right = self.deleteNode(root.right, minNode.val)
+      minNode.left = root.left
+      minNode.right = root.right
+      root = minNode
+    _______________
+    elif root.val < key:
+      root.right = self.deleteNode(root.right, key)
+    else:  
+      root.left = self.deleteNode(root.left, key)
+    return root
+
+  def _getMin(self, node: Optional[TreeNode]) -> Optional[TreeNode]:
+    while node.left:
+      node = node.left
+    return node Given a root node reference of a BST and a key, delete the node with the given key in the BST. Return the root node reference (possibly updated) of the BST. Basically, the deletion can be divided into two stages:",C,1
+rt00586,"class Solution:
+  def frequencySort(self, s: str) -> str:
+    ans = []
+    buckets = [[] for _ in range(len(s) + 1)]
+
+    for c, freq in collections.Counter(s).items():
+      buckets[freq].append(c)
+
+    for freq in reversed(range(len(buckets))):
+      for c in buckets[freq]:
+        _______________
+        ans.append(c * freq)
+
+    return ''.join(ans)","['        ans += [c] * freq' '        ans.append(c * freq)'
+ '        ans.extend([c] * freq)' '        ans += list(c * freq)']","Given a string s, sort it in decreasing order based on the frequency of the characters. The frequency of a character is the number of times it appears in the string. Return the sorted string. If there are multiple answers, return any of them.",B,"class Solution:
+  def frequencySort(self, s: str) -> str:
+    ans = []
+    buckets = [[] for _ in range(len(s) + 1)]
+
+    for c, freq in collections.Counter(s).items():
+      buckets[freq].append(c)
+
+    for freq in reversed(range(len(buckets))):
+      for c in buckets[freq]:
+        _______________
+        ans.append(c * freq)
+
+    return ''.join(ans) Given a string s, sort it in decreasing order based on the frequency of the characters. The frequency of a character is the number of times it appears in the string. Return the sorted string. If there are multiple answers, return any of them.",C,0
+rt00587,"class Solution:
+  def findMinArrowShots(self, points: List[List[int]]) -> int:
+    ans = 0
+    _______________
+    arrowX = -math.inf
+
+    for point in sorted(points, key=lambda x: x[1]):
+      if point[0] > arrowX:
+        ans += 1
+        arrowX = point[1]
+
+    return ans","['    arrowX = -math.inf' ""    arrowX = -float('inf')""
+ '    arrowX = -1e308' ""    arrowX = float('-inf')""]","There are some spherical balloons taped onto a flat wall that represents the XY-plane. The balloons are represented as a 2D integer array points where points[i] = [xstart, xend] denotes a balloon whose horizontal diameter stretches between xstart and xend. You do not know the exact y-coordinates of the balloons. Arrows can be shot up directly vertically (in the positive y-direction) from different points along the x-axis. A balloon with xstart and xend is burst by an arrow shot at x if xstart <= x <= xend. There is no limit to the number of arrows that can be shot. A shot arrow keeps traveling up infinitely, bursting any balloons in its path. Given the array points, return the minimum number of arrows that must be shot to burst all balloons.",A,"class Solution:
+  def findMinArrowShots(self, points: List[List[int]]) -> int:
+    ans = 0
+    _______________
+    arrowX = -math.inf
+
+    for point in sorted(points, key=lambda x: x[1]):
+      if point[0] > arrowX:
+        ans += 1
+        arrowX = point[1]
+
+    return ans There are some spherical balloons taped onto a flat wall that represents the XY-plane. The balloons are represented as a 2D integer array points where points[i] = [xstart, xend] denotes a balloon whose horizontal diameter stretches between xstart and xend. You do not know the exact y-coordinates of the balloons. Arrows can be shot up directly vertically (in the positive y-direction) from different points along the x-axis. A balloon with xstart and xend is burst by an arrow shot at x if xstart <= x <= xend. There is no limit to the number of arrows that can be shot. A shot arrow keeps traveling up infinitely, bursting any balloons in its path. Given the array points, return the minimum number of arrows that must be shot to burst all balloons.",B,0
+rt00588,"class Solution:
+  def minMoves(self, nums: List[int]) -> int:
+    _______________
+    mini = min(nums)
+    return sum(num - mini for num in nums)","['    mini = nums.index(min(nums))' '    mini = min(nums)'
+ '    mini = min(i for i in nums)' '    mini = min(x for x in nums)']","Given an integer array nums of size n, return the minimum number of moves required to make all array elements equal. In one move, you can increment n - 1 elements of the array by 1.",B,"class Solution:
+  def minMoves(self, nums: List[int]) -> int:
+    _______________
+    mini = min(nums)
+    return sum(num - mini for num in nums) Given an integer array nums of size n, return the minimum number of moves required to make all array elements equal. In one move, you can increment n - 1 elements of the array by 1.",B,1
+rt00589,"class Solution:
+  def fourSumCount(self, nums1: List[int], nums2: List[int],
+                   _______________
+                   nums3: List[int], nums4: List[int]) -> int:
+    count = collections.Counter(a + b for a in nums1 for b in nums2)
+    return sum(count[-c - d] for c in nums3 for d in nums4)","['                   class Solution:\n  def fourSumCount(self, arr1: List[int], arr2: List[int],\n                   arr3: List[int], arr4: List[int]) -> int:'
+ '                   nums3: List[int], nums4: List[int]) -> int:'
+ '                   class Solution:\n  def fourSumCount(self, A: List[int], B: List[int],\n                   C: List[int], D: List[int]) -> int:'
+ '                   class Solution:\n  def fourSumCount(self, x: List[int], y: List[int],\n                   z: List[int], w: List[int]) -> int:']","Given four integer arrays nums1, nums2, nums3, and nums4 all of length n, return the number of tuples (i, j, k, l) such that:",B,"class Solution:
+  def fourSumCount(self, nums1: List[int], nums2: List[int],
+                   _______________
+                   nums3: List[int], nums4: List[int]) -> int:
+    count = collections.Counter(a + b for a in nums1 for b in nums2)
+    return sum(count[-c - d] for c in nums3 for d in nums4) Given four integer arrays nums1, nums2, nums3, and nums4 all of length n, return the number of tuples (i, j, k, l) such that:",B,1
+rt00590,"class Solution:
+  def circularArrayLoop(self, nums: List[int]) -> bool:
+    def advance(i: int) -> int:
+      return (i + nums[i]) % len(nums)
+
+    if len(nums) < 2:
+      return False
+
+    for i, num in enumerate(nums):
+      if num == 0:
+        continue
+
+      slow = i
+      fast = advance(slow)
+      _______________
+      while num * nums[fast] > 0 and num * nums[advance(fast)] > 0:
+        if slow == fast:
+          if slow == advance(slow):
+            break
+          return True
+        slow = advance(slow)
+        fast = advance(advance(fast))
+
+      slow = i
+      sign = num
+      while sign * nums[slow] > 0:
+        next = advance(slow)
+        nums[slow] = 0
+        slow = next
+
+    return False","['      while num * nums[fast] > 0 and num * nums[advance(fast)] > 0:'
+ '      while num * nums[fast] > 0 and slow != fast:'
+ '      while num * nums[fast] > 0 and advance(fast) != i:'
+ '      while nums[fast] * nums[advance(fast)] > 0:']","You are playing a game involving a circular array of non-zero integers nums. Each nums[i] denotes the number of indices forward/backward you must move if you are located at index i: Since the array is circular, you may assume that moving forward from the last element puts you on the first element, and moving backwards from the first element puts you on the last element. A cycle in the array consists of a sequence of indices seq of length k where: Return true if there is a cycle in nums, or false otherwise.",A,"class Solution:
+  def circularArrayLoop(self, nums: List[int]) -> bool:
+    def advance(i: int) -> int:
+      return (i + nums[i]) % len(nums)
+
+    if len(nums) < 2:
+      return False
+
+    for i, num in enumerate(nums):
+      if num == 0:
+        continue
+
+      slow = i
+      fast = advance(slow)
+      _______________
+      while num * nums[fast] > 0 and num * nums[advance(fast)] > 0:
+        if slow == fast:
+          if slow == advance(slow):
+            break
+          return True
+        slow = advance(slow)
+        fast = advance(advance(fast))
+
+      slow = i
+      sign = num
+      while sign * nums[slow] > 0:
+        next = advance(slow)
+        nums[slow] = 0
+        slow = next
+
+    return False You are playing a game involving a circular array of non-zero integers nums. Each nums[i] denotes the number of indices forward/backward you must move if you are located at index i: Since the array is circular, you may assume that moving forward from the last element puts you on the first element, and moving backwards from the first element puts you on the last element. A cycle in the array consists of a sequence of indices seq of length k where: Return true if there is a cycle in nums, or false otherwise.",A,1
+rt00591,"class Solution:
+  def poorPigs(self, buckets: int, minutesToDie: int, minutesToTest: int) -> int:
+    _______________
+    base = minutesToTest // minutesToDie + 1
+    ans = 0
+    x = 1
+    while x < buckets:
+      ans += 1
+      x *= base
+    return ans","['    base = (minutesToTest // minutesToDie) + 2'
+ '    base = minutesToTest // (minutesToDie - 1) + 1'
+ '    base = minutesToTest // minutesToDie + 1'
+ '    base = minutesToTest // (minutesToDie + 1) + 1']","There are buckets buckets of liquid, where exactly one of the buckets is poisonous. To figure out which one is poisonous, you feed some number of (poor) pigs the liquid to see whether they will die or not. Unfortunately, you only have minutesToTest minutes to determine which bucket is poisonous. You can feed the pigs according to these steps: Given buckets, minutesToDie, and minutesToTest, return the minimum number of pigs needed to figure out which bucket is poisonous within the allotted time.",C,"class Solution:
+  def poorPigs(self, buckets: int, minutesToDie: int, minutesToTest: int) -> int:
+    _______________
+    base = minutesToTest // minutesToDie + 1
+    ans = 0
+    x = 1
+    while x < buckets:
+      ans += 1
+      x *= base
+    return ans There are buckets buckets of liquid, where exactly one of the buckets is poisonous. To figure out which one is poisonous, you feed some number of (poor) pigs the liquid to see whether they will die or not. Unfortunately, you only have minutesToTest minutes to determine which bucket is poisonous. You can feed the pigs according to these steps: Given buckets, minutesToDie, and minutesToTest, return the minimum number of pigs needed to figure out which bucket is poisonous within the allotted time.",C,1
+rt00592,"class Solution:
+  def repeatedSubstringPattern(self, s: str) -> bool:
+    _______________
+    return s in (s + s)[1:-1]","['    return s in (s + s)[1:-1]' '    return s in (s * 2)[1:-1]'
+ '    return s in s[:-1] + s[1:]' '    return s in s[1:-1] + s']","Given a string s, check if it can be constructed by taking a substring of it and appending multiple copies of the substring together.",A,"class Solution:
+  def repeatedSubstringPattern(self, s: str) -> bool:
+    _______________
+    return s in (s + s)[1:-1] Given a string s, check if it can be constructed by taking a substring of it and appending multiple copies of the substring together.",B,0
+rt00593,"import statistics
+
+
+class Solution:
+  def minMoves2(self, nums: List[int]) -> int:
+    _______________
+    median = int(statistics.median(nums))
+    return sum(abs(num - median) for num in nums)","['    median = statistics.median(nums) // 1'
+ '    median = int(round(statistics.median(nums) + 1e-9))'
+ '    median = round(statistics.median(nums))'
+ '    median = int(statistics.median(nums))']","Given an integer array nums of size n, return the minimum number of moves required to make all array elements equal. In one move, you can increment or decrement an element of the array by 1. Test cases are designed so that the answer will fit in a 32-bit integer.",D,"import statistics
+
+
+class Solution:
+  def minMoves2(self, nums: List[int]) -> int:
+    _______________
+    median = int(statistics.median(nums))
+    return sum(abs(num - median) for num in nums) Given an integer array nums of size n, return the minimum number of moves required to make all array elements equal. In one move, you can increment or decrement an element of the array by 1. Test cases are designed so that the answer will fit in a 32-bit integer.",D,1
+rt00594,"class Solution:
+  def islandPerimeter(self, grid: List[List[int]]) -> int:
+    m = len(grid)
+    n = len(grid[0])
+
+    islands = 0
+    neighbors = 0
+
+    for i in range(m):
+      for j in range(n):
+        if grid[i][j] == 1:
+          islands += 1
+          _______________
+          if i + 1 < m and grid[i + 1][j] == 1:
+            neighbors += 1
+          if j + 1 < n and grid[i][j + 1] == 1:
+            neighbors += 1
+
+    return islands * 4 - neighbors * 2","['          if i + 1 < m and grid[i + 1][j] == 1:'
+ '          if i < m - 1 and grid[i + 1][j] == 1:'
+ '          if i != m - 1 and grid[i + 1][j] == 1:'
+ '          if m - i > 1 and grid[i + 1][j] == 1:']","You are given row x col grid representing a map where grid[i][j] = 1 represents land and grid[i][j] = 0 represents water. Grid cells are connected horizontally/vertically (not diagonally). The grid is completely surrounded by water, and there is exactly one island (i.e., one or more connected land cells). The island doesn't have ""lakes"", meaning the water inside isn't connected to the water around the island. One cell is a square with side length 1. The grid is rectangular, width and height don't exceed 100. Determine the perimeter of the island.",A,"class Solution:
+  def islandPerimeter(self, grid: List[List[int]]) -> int:
+    m = len(grid)
+    n = len(grid[0])
+
+    islands = 0
+    neighbors = 0
+
+    for i in range(m):
+      for j in range(n):
+        if grid[i][j] == 1:
+          islands += 1
+          _______________
+          if i + 1 < m and grid[i + 1][j] == 1:
+            neighbors += 1
+          if j + 1 < n and grid[i][j + 1] == 1:
+            neighbors += 1
+
+    return islands * 4 - neighbors * 2 You are given row x col grid representing a map where grid[i][j] = 1 represents land and grid[i][j] = 0 represents water. Grid cells are connected horizontally/vertically (not diagonally). The grid is completely surrounded by water, and there is exactly one island (i.e., one or more connected land cells). The island doesn't have ""lakes"", meaning the water inside isn't connected to the water around the island. One cell is a square with side length 1. The grid is rectangular, width and height don't exceed 100. Determine the perimeter of the island.",A,1
+rt00595,"class Solution:
+  def findAllConcatenatedWordsInADict(self, words: List[str]) -> List[str]:
+    wordSet = set(words)
+
+    @functools.lru_cache(None)
+    def isConcat(word: str) -> bool:
+      for i in range(1, len(word)):
+        prefix = word[:i]
+        suffix = word[i:]
+        _______________
+        if prefix in wordSet and (suffix in wordSet or isConcat(suffix)):
+          return True
+
+      return False
+
+    return [word for word in words if isConcat(word)]","['        if prefix in wordSet and (suffix in wordSet or isConcat(suffix)):'
+ '        if prefix in wordSet and (isConcat(suffix) or suffix in wordSet):'
+ '        if prefix in wordSet and isConcat(suffix) or suffix in wordSet:'
+ '        if prefix in wordSet and any([isConcat(suffix), suffix in wordSet]):']","Given an array of strings words (without duplicates), return all the concatenated words in the given list of words. A concatenated word is defined as a string that is comprised entirely of at least two shorter words (not necessarily distinct) in the given array.",A,"class Solution:
+  def findAllConcatenatedWordsInADict(self, words: List[str]) -> List[str]:
+    wordSet = set(words)
+
+    @functools.lru_cache(None)
+    def isConcat(word: str) -> bool:
+      for i in range(1, len(word)):
+        prefix = word[:i]
+        suffix = word[i:]
+        _______________
+        if prefix in wordSet and (suffix in wordSet or isConcat(suffix)):
+          return True
+
+      return False
+
+    return [word for word in words if isConcat(word)] Given an array of strings words (without duplicates), return all the concatenated words in the given list of words. A concatenated word is defined as a string that is comprised entirely of at least two shorter words (not necessarily distinct) in the given array.",A,1
+rt00596,"class Solution:
+  def makesquare(self, matchsticks: List[int]) -> bool:
+    if len(matchsticks) < 4:
+      return False
+
+    perimeter = sum(matchsticks)
+    if perimeter % 4 != 0:
+      return False
+
+    A = sorted(matchsticks)[::-1]
+
+    def dfs(selected: int, edges: List[int]) -> bool:
+      if selected == len(A):
+        return all(edge == edges[0] for edge in edges)
+
+      for i, edge in enumerate(edges):
+        if A[selected] > edge:
+          continue
+        edges[i] -= A[selected]
+        if dfs(selected + 1, edges):
+          return True
+        edges[i] += A[selected]
+
+      return False
+
+    _______________
+    return dfs(0, [perimeter // 4] * 4)","['    edges = [perimeter // 4] * 4; return dfs(0, edges)'
+ '    return dfs(0, [perimeter // 4]*(4))'
+ '    return dfs(0, [perimeter // 4 for _ in range(4)])'
+ '    return dfs(0, [perimeter // 4] * 4)']","You are given an integer array matchsticks where matchsticks[i] is the length of the ith matchstick. You want to use all the matchsticks to make one square. You should not break any stick, but you can link them up, and each matchstick must be used exactly one time. Return true if you can make this square and false otherwise.",D,"class Solution:
+  def makesquare(self, matchsticks: List[int]) -> bool:
+    if len(matchsticks) < 4:
+      return False
+
+    perimeter = sum(matchsticks)
+    if perimeter % 4 != 0:
+      return False
+
+    A = sorted(matchsticks)[::-1]
+
+    def dfs(selected: int, edges: List[int]) -> bool:
+      if selected == len(A):
+        return all(edge == edges[0] for edge in edges)
+
+      for i, edge in enumerate(edges):
+        if A[selected] > edge:
+          continue
+        edges[i] -= A[selected]
+        if dfs(selected + 1, edges):
+          return True
+        edges[i] += A[selected]
+
+      return False
+
+    _______________
+    return dfs(0, [perimeter // 4] * 4) You are given an integer array matchsticks where matchsticks[i] is the length of the ith matchstick. You want to use all the matchsticks to make one square. You should not break any stick, but you can link them up, and each matchstick must be used exactly one time. Return true if you can make this square and false otherwise.",D,1
+rt00598,"class Solution:
+  def totalHammingDistance(self, nums: List[int]) -> int:
+    kMaxBit = 30
+    ans = 0
+
+    for i in range(kMaxBit):
+      ones = sum(num & (1 << i) > 0 for num in nums)
+      zeros = len(nums) - ones
+      _______________
+      ans += ones * zeros
+
+    return ans","['      ans += len(nums) * ones - ones**2'
+ '      ans += ones * (len(nums) - ones)' '      ans += ones * zeros'
+ '      ans += (ones * zeros) % (10**9 + 7)']","The Hamming distance between two integers is the number of positions at which the corresponding bits are different. Given an integer array nums, return the sum of Hamming distances between all the pairs of the integers in nums.",C,"class Solution:
+  def totalHammingDistance(self, nums: List[int]) -> int:
+    kMaxBit = 30
+    ans = 0
+
+    for i in range(kMaxBit):
+      ones = sum(num & (1 << i) > 0 for num in nums)
+      zeros = len(nums) - ones
+      _______________
+      ans += ones * zeros
+
+    return ans The Hamming distance between two integers is the number of positions at which the corresponding bits are different. Given an integer array nums, return the sum of Hamming distances between all the pairs of the integers in nums.",C,1
+rt00599,"class Solution:
+  def __init__(self, radius: float, x_center: float, y_center: float):
+    self.radius = radius
+    self.x_center = x_center
+    self.y_center = y_center
+
+  def randPoint(self) -> List[float]:
+    length = sqrt(random.uniform(0, 1)) * self.radius
+    degree = random.uniform(0, 1) * 2 * math.pi
+    _______________
+    x = self.x_center + length * math.cos(degree)
+    y = self.y_center + length * math.sin(degree)
+    return [x, y]","['    x = length * math.cos(degree) + self.x_center'
+ '    x = self.x_center + math.cos(degree) * length'
+ '    x = self.x_center + length * math.cos(degree)'
+ '    x = length * (math.cos(degree) + self.x_center)']","Given the radius and the position of the center of a circle, implement the function randPoint which generates a uniform random point inside the circle. Implement the Solution class:",C,"class Solution:
+  def __init__(self, radius: float, x_center: float, y_center: float):
+    self.radius = radius
+    self.x_center = x_center
+    self.y_center = y_center
+
+  def randPoint(self) -> List[float]:
+    length = sqrt(random.uniform(0, 1)) * self.radius
+    degree = random.uniform(0, 1) * 2 * math.pi
+    _______________
+    x = self.x_center + length * math.cos(degree)
+    y = self.y_center + length * math.sin(degree)
+    return [x, y] Given the radius and the position of the center of a circle, implement the function randPoint which generates a uniform random point inside the circle. Implement the Solution class:",C,1
+rt00600,"class Solution:
+  def largestPalindrome(self, n: int) -> int:
+    if n == 1:
+      return 9
+
+    kMod = 1337
+    upper = pow(10, n) - 1
+    lower = pow(10, n - 1) - 1
+
+    for i in range(upper, lower, -1):
+      cand = int(str(i) + str(i)[::-1])
+      j = upper
+      _______________
+      while j * j >= cand:
+        if cand % j == 0:
+          return cand % kMod
+        j -= 1","['      while j * j >= cand:' '      while j > cand ** 0.5:'
+ '      while j >= cand ** 0.5:' '      while j * j > cand:']","Given an integer n, return the largest palindromic integer that can be represented as the product of two n-digits integers. Since the answer can be very large, return it modulo 1337.",A,"class Solution:
+  def largestPalindrome(self, n: int) -> int:
+    if n == 1:
+      return 9
+
+    kMod = 1337
+    upper = pow(10, n) - 1
+    lower = pow(10, n - 1) - 1
+
+    for i in range(upper, lower, -1):
+      cand = int(str(i) + str(i)[::-1])
+      j = upper
+      _______________
+      while j * j >= cand:
+        if cand % j == 0:
+          return cand % kMod
+        j -= 1 Given an integer n, return the largest palindromic integer that can be represented as the product of two n-digits integers. Since the answer can be very large, return it modulo 1337.",A,1

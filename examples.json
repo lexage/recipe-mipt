@@ -1,0 +1,33 @@
+[
+  {
+    "subset": "fill_in_the_middle",
+    "index": 505,
+    "data": {
+      "task_id": "rt00746",
+      "question": "class Solution:\n  def dominantIndex(self, nums: List[int]) -> int:\n    max = 0\n    secondMax = 0\n\n    for i, num in enumerate(nums):\n      if num > max:\n        secondMax = max\n        max = num\n        ans = i\n      elif num > secondMax:\n        secondMax = num\n\n    _______________\n    return ans if max >= 2 * secondMax else -1",
+      "choices": [
+        "    return ans if max > 2 * secondMax else -1",
+        "    return ans if max >= 2 * secondMax else -1",
+        "    return ans if max == 2 * secondMax else -1",
+        "    return ans if max // 2 >= secondMax else -1"
+      ],
+      "problem_description": "You are given an integer array nums where the largest integer is unique. Determine whether the largest element in the array is at least twice as much as every other number in the array. If it is, return the index of the largest element, or return -1 otherwise.",
+      "answer": "B"
+    }
+  },
+  {
+    "subset": "code_completion",
+    "index": 0,
+    "data": {
+      "task_id": "rt00001",
+      "question": "from typing import List\n\n\ndef has_close_elements(numbers: List[float], threshold: float) -> bool:\n    \"\"\" Check if in given list of numbers, are any two numbers closer to each other than\n    given threshold.\n    >>> has_close_elements([1.0, 2.0, 3.0], 0.5)\n    False\n    >>> has_close_elements([1.0, 2.8, 3.0, 4.0, 5.0, 2.0], 0.3)\n    True\n    \"\"\"\n",
+      "choices": [
+        "  for i in range(len(numbers) - 1):\n    for j in range(i + 1, len(numbers)):\n      if abs(numbers[i] - numbers[j]) > threshold:\n        return False\n  return True",
+        "  return any(abs(a - b) < threshold for a, b in zip(numbers, numbers[1:]))",
+        "  for i in range(len(numbers)):  # Change range to len(numbers)\n    for j in range(i + 1, len(numbers)):\n      if abs(numbers[i] - numbers[j]) < threshold:\n        return True\n  return False",
+        "    for idx, elem in enumerate(numbers):\n        for idx2, elem2 in enumerate(numbers):\n            if idx != idx2:\n                distance = abs(elem - elem2)\n                if distance < threshold:\n                    return True\n\n    return False\n"
+      ],
+      "answer": "D"
+    }
+  }
+]
