@@ -37,6 +37,13 @@ EXPERIMENTS = [
     ("api_corag",                      "pipeline_configs/ablation_8_api_corag.yaml"),
     ("api_instruct",                   "pipeline_configs/ablation_9_api_instruct.yaml"),
     ("api_instruct_fewshot",           "pipeline_configs/ablation_10_api_instruct_fewshot.yaml"),
+    # documentation-format ablation (SimpleRetriever fixed; only the doc format varies)
+    ("doc_0_baseline",                 "pipeline_configs/ablation_doc_0_baseline.yaml"),
+    ("doc_1_apiref",                   "pipeline_configs/ablation_doc_1_apiref.yaml"),
+    ("doc_2_examples",                 "pipeline_configs/ablation_doc_2_examples.yaml"),
+    ("doc_3_rewrite",                  "pipeline_configs/ablation_doc_3_rewrite.yaml"),
+    ("doc_4_fulldoc",                  "pipeline_configs/ablation_doc_4_fulldoc.yaml"),
+    ("doc_5_allon",                    "pipeline_configs/ablation_doc_5_allon.yaml"),
 ]
 
 
