@@ -16,6 +16,38 @@
     }
   },
   {
+    "subset": "fill_in_the_middle",
+    "index": 510,
+    "data": {
+      "task_id": "rt00751",
+      "question": "class Solution:\n  def makeLargestSpecial(self, s: str) -> str:\n    specials = []\n    count = 0\n\n    i = 0\n    for j, c in enumerate(s):\n      count += 1 if c == '1' else -1\n      if count == 0:\n        specials.append(\n            _______________\n            '1' + self.makeLargestSpecial(s[i + 1:j]) + '0')\n        i = j + 1\n\n    return ''.join(sorted(specials)[::-1])",
+      "choices": [
+        "            self.makeLargestSpecial(s[i + 1:j]) + '10'",
+        "            '10' + self.makeLargestSpecial(s[i + 1:j]) + '0'",
+        "            '1' + self.makeLargestSpecial(s[i + 1:j]) + '01'",
+        "            '1' + self.makeLargestSpecial(s[i + 1:j]) + '0')"
+      ],
+      "problem_description": "Special binary strings are binary strings with the following two properties: You are given a special binary string s. A move consists of choosing two consecutive, non-empty, special substrings of s, and swapping them. Two strings are consecutive if the last character of the first string is exactly one index before the first character of the second string. Return the lexicographically largest resulting string possible after applying the mentioned operations on the string.",
+      "answer": "D"
+    }
+  },
+  {
+    "subset": "fill_in_the_middle",
+    "index": 520,
+    "data": {
+      "task_id": "rt00761",
+      "question": "class Solution:\n  def reachingPoints(self, sx: int, sy: int, tx: int, ty: int) -> bool:\n    while sx < tx and sy < ty:\n      tx, ty = tx % ty, ty % tx\n\n    _______________\n    return sx == tx and sy <= ty and (ty - sy) % tx == 0 or \\\n        sy == ty and sx <= tx and (tx - sx) % ty == 0",
+      "choices": [
+        "    return sx == tx and sy < ty and (ty + sy) % tx == 0 or \\",
+        "    return sx == tx and sy <= ty and (sx - sy) % tx == 0 or \\",
+        "    return sx == tx and sy <= ty and (ty - sy) % tx == 0 or \\",
+        "    return sx == tx and sy < ty and (ty - sy) % tx == 0 or \\"
+      ],
+      "problem_description": "Given four integers sx, sy, tx, and ty, return true if it is possible to convert the point (sx, sy) to the point (tx, ty) through some operations, or false otherwise. The allowed operation on some point (x, y) is to convert it to either (x, x + y) or (x + y, y).",
+      "answer": "C"
+    }
+  },
+  {
     "subset": "code_completion",
     "index": 0,
     "data": {
@@ -28,6 +60,36 @@
         "    for idx, elem in enumerate(numbers):\n        for idx2, elem2 in enumerate(numbers):\n            if idx != idx2:\n                distance = abs(elem - elem2)\n                if distance < threshold:\n                    return True\n\n    return False\n"
       ],
       "answer": "D"
+    }
+  },
+  {
+    "subset": "code_completion",
+    "index": 163,
+    "data": {
+      "task_id": "rt00164",
+      "question": "\ndef generate_integers(a, b):\n    \"\"\"\n    Given two positive integers a and b, return the even digits between a\n    and b, in ascending order.\n\n    For example:\n    generate_integers(2, 8) => [2, 4, 6, 8]\n    generate_integers(8, 2) => [2, 4, 6, 8]\n    generate_integers(10, 14) => []\n    \"\"\"\n",
+      "choices": [
+        "    lower = max(2, min(a, b))\n    upper = min(8, max(a, b))\n\n    return [i for i in range(lower, upper+1) if i % 2 != 0]  ",
+        "    lower = max(2, min(a, b))\n    upper = min(8, max(a, b))\n\n    return [i for i in range(lower, upper+1) if i % 2 == 0]\n",
+        "    lower = max(2, min(a, b))\n    upper = min(8, max(a, b))\n\n    return [i for i in range(lower, upper) if i % 2 == 0] ",
+        "    lower = min(2, min(a, b))\n    upper = max(8, max(a, b))\n\n    return [i for i in range(lower, upper+1) if i % 2 == 0]"
+      ],
+      "answer": "B"
+    }
+  },
+  {
+    "subset": "code_completion",
+    "index": 82,
+    "data": {
+      "task_id": "rt00083",
+      "question": "\ndef prime_length(string):\n    \"\"\"Write a function that takes a string and returns True if the string\n    length is a prime number or False otherwise\n    Examples\n    prime_length('Hello') == True\n    prime_length('abcdcba') == True\n    prime_length('kittens') == True\n    prime_length('orange') == False\n    \"\"\"\n",
+      "choices": [
+        "    l = len(string)\n    if l == 0 or l == 1:\n        return False\n    return l % 2 != 0",
+        "    l = len(string)\n    if l == 0 or l == 1:\n        return False\n    for i in range(2, l):\n        if l % i == 0:\n            return False\n    return True\n",
+        "    l = len(string)\n    if l == 0 or l == 1:\n        return False\n    return l % 3 != 0",
+        "    l = len(string)\n    if l == 0 or l == 1:\n        return False\n    return l % 2 == 1"
+      ],
+      "answer": "B"
     }
   }
 ]

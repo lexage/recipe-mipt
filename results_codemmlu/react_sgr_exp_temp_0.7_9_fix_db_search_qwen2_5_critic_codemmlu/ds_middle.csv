@@ -12688,3 +12688,306 @@ rt00601,"class Solution:
       length += 1
 
     return ''.join(reversed(ans)) You are given a license key represented as a string s that consists of only alphanumeric characters and dashes. The string is separated into n + 1 groups by n dashes. You are also given an integer k. We want to reformat the string s such that each group contains exactly k characters, except for the first group, which could be shorter than k but still must contain at least one character. Furthermore, there must be a dash inserted between two groups, and you should convert all lowercase letters to uppercase. Return the reformatted license key.",B,1
+rt00602,"class Solution:
+  def smallestGoodBase(self, n: str) -> str:
+    n = int(n)
+
+    for m in range(int(math.log(n, 2)), 1, -1):
+      k = int(n**m**-1)
+      _______________
+      if (k**(m + 1) - 1) // (k - 1) == n:
+        return str(k)
+
+    return str(n - 1)","['      if (k**(m - 1) - 1) // (k - 1) == n:'
+ '      if (k**(m - 1) + 1) // (k - 1) == n:'
+ '      if (k**(m + 1) - 1) // (k - 1) == n:'
+ '      if (k**(m + 2) - 2) // (k - 1) == n:']","Given an integer n represented as a string, return the smallest good base of n. We call k >= 2 a good base of n, if all digits of n base k are 1's.",C,"class Solution:
+  def smallestGoodBase(self, n: str) -> str:
+    n = int(n)
+
+    for m in range(int(math.log(n, 2)), 1, -1):
+      k = int(n**m**-1)
+      _______________
+      if (k**(m + 1) - 1) // (k - 1) == n:
+        return str(k)
+
+    return str(n - 1) Given an integer n represented as a string, return the smallest good base of n. We call k >= 2 a good base of n, if all digits of n base k are 1's.",C,1
+rt00603,"class Solution:
+  def findMaxConsecutiveOnes(self, nums: List[int]) -> int:
+    ans = 0
+    summ = 0
+
+    for num in nums:
+      if num == 0:
+        summ = 0
+      else:
+        _______________
+        summ += num
+        ans = max(ans, summ)
+
+    return ans","['        summ += 1' '        summ = summ + num * 0 + 1'
+ '        summ += num' '        summ = summ + 1']","Given a binary array nums, return the maximum number of consecutive 1's in the array.",C,"class Solution:
+  def findMaxConsecutiveOnes(self, nums: List[int]) -> int:
+    ans = 0
+    summ = 0
+
+    for num in nums:
+      if num == 0:
+        summ = 0
+      else:
+        _______________
+        summ += num
+        ans = max(ans, summ)
+
+    return ans Given a binary array nums, return the maximum number of consecutive 1's in the array.",A,0
+rt00604,"class Solution:
+  def findMinStep(self, board: str, hand: str) -> int:
+    def deDup(board):
+      start = 0  
+      for i, c in enumerate(board):
+        if c != board[start]:
+          _______________
+          if i - start >= 3:
+            return deDup(board[:start] + board[i:])
+          start = i  
+      return board
+
+    @functools.lru_cache(None)
+    def dfs(board: str, hand: str):
+      board = deDup(board)
+      if board == '
+        return 0
+
+      boardSet = set(board)
+      hand = ''.join(h for h in hand if h in boardSet)
+      if not hand:  
+        return math.inf
+
+      ans = math.inf
+
+      for i in range(len(board)):
+        for j, h in enumerate(hand):
+          newHand = hand[:j] + hand[j + 1:]
+          newBoard = board[:i] + h + board[i:]
+          ans = min(ans, 1 + dfs(newBoard, newHand))
+
+      return ans
+
+    ans = dfs(board + '
+    return -1 if ans == math.inf else ans","['          if len(board[start:i]) >= 3:' '          if i - start >= 3:'
+ '          if board[start:i].count(board[start]) >= 3:'
+ '          if i - start > 2:']","You are playing a variation of the game Zuma. In this variation of Zuma, there is a single row of colored balls on a board, where each ball can be colored red 'R', yellow 'Y', blue 'B', green 'G', or white 'W'. You also have several colored balls in your hand. Your goal is to clear all of the balls from the board. On each turn: Given a string board, representing the row of balls on the board, and a string hand, representing the balls in your hand, return the minimum number of balls you have to insert to clear all the balls from the board. If you cannot clear all the balls from the board using the balls in your hand, return -1.",B,"class Solution:
+  def findMinStep(self, board: str, hand: str) -> int:
+    def deDup(board):
+      start = 0  
+      for i, c in enumerate(board):
+        if c != board[start]:
+          _______________
+          if i - start >= 3:
+            return deDup(board[:start] + board[i:])
+          start = i  
+      return board
+
+    @functools.lru_cache(None)
+    def dfs(board: str, hand: str):
+      board = deDup(board)
+      if board == '
+        return 0
+
+      boardSet = set(board)
+      hand = ''.join(h for h in hand if h in boardSet)
+      if not hand:  
+        return math.inf
+
+      ans = math.inf
+
+      for i in range(len(board)):
+        for j, h in enumerate(hand):
+          newHand = hand[:j] + hand[j + 1:]
+          newBoard = board[:i] + h + board[i:]
+          ans = min(ans, 1 + dfs(newBoard, newHand))
+
+      return ans
+
+    ans = dfs(board + '
+    return -1 if ans == math.inf else ans You are playing a variation of the game Zuma. In this variation of Zuma, there is a single row of colored balls on a board, where each ball can be colored red 'R', yellow 'Y', blue 'B', green 'G', or white 'W'. You also have several colored balls in your hand. Your goal is to clear all of the balls from the board. On each turn: Given a string board, representing the row of balls on the board, and a string hand, representing the balls in your hand, return the minimum number of balls you have to insert to clear all the balls from the board. If you cannot clear all the balls from the board using the balls in your hand, return -1.",B,1
+rt00605,"class Solution:
+  def findSubsequences(self, nums: List[int]) -> List[List[int]]:
+    ans = []
+
+    def dfs(s: int, path: List[int]) -> None:
+      if len(path) > 1:
+        ans.append(path)
+
+      used = set()
+
+      for i in range(s, len(nums)):
+        if nums[i] in used:
+          continue
+        _______________
+        if not path or nums[i] >= path[-1]:
+          used.add(nums[i])
+          dfs(i + 1, path + [nums[i]])
+
+    dfs(0, [])
+    return ans","['        if len(path) == 0 or nums[i] >= path[-1]:'
+ '        if path == [] or nums[i] >= path[-1]:'
+ '        if not path or nums[i] > path[-1]:'
+ '        if not path or nums[i] >= path[-1]:']","Given an integer array nums, return all the different possible non-decreasing subsequences of the given array with at least two elements. You may return the answer in any order.",D,"class Solution:
+  def findSubsequences(self, nums: List[int]) -> List[List[int]]:
+    ans = []
+
+    def dfs(s: int, path: List[int]) -> None:
+      if len(path) > 1:
+        ans.append(path)
+
+      used = set()
+
+      for i in range(s, len(nums)):
+        if nums[i] in used:
+          continue
+        _______________
+        if not path or nums[i] >= path[-1]:
+          used.add(nums[i])
+          dfs(i + 1, path + [nums[i]])
+
+    dfs(0, [])
+    return ans Given an integer array nums, return all the different possible non-decreasing subsequences of the given array with at least two elements. You may return the answer in any order.",D,1
+rt00606,"class Solution:
+  def findTargetSumWays(self, nums: List[int], target: int) -> int:
+    summ = sum(nums)
+    if summ < abs(target) or (summ + target) & 1:
+      return 0
+
+    def knapsack(target: int) -> int:
+      dp = [1] + [0] * summ
+
+      for num in nums:
+        for j in range(summ, num - 1, -1):
+          dp[j] += dp[j - num]
+
+      return dp[target]
+
+    _______________
+    return knapsack((summ + target) // 2)","['    return knapsack((summ - target) // 2 * 2)'
+ '    return knapsack((summ - target) // 2)'
+ '    return knapsack((summ + target) // 2)'
+ '    return knapsack((summ + target) // 2 + 1)']","You are given an integer array nums and an integer target. You want to build an expression out of nums by adding one of the symbols '+' and '-' before each integer in nums and then concatenate all the integers. Return the number of different expressions that you can build, which evaluates to target.",C,"class Solution:
+  def findTargetSumWays(self, nums: List[int], target: int) -> int:
+    summ = sum(nums)
+    if summ < abs(target) or (summ + target) & 1:
+      return 0
+
+    def knapsack(target: int) -> int:
+      dp = [1] + [0] * summ
+
+      for num in nums:
+        for j in range(summ, num - 1, -1):
+          dp[j] += dp[j - num]
+
+      return dp[target]
+
+    _______________
+    return knapsack((summ + target) // 2) You are given an integer array nums and an integer target. You want to build an expression out of nums by adding one of the symbols '+' and '-' before each integer in nums and then concatenate all the integers. Return the number of different expressions that you can build, which evaluates to target.",C,1
+rt00607,"class Solution:
+  def findPoisonedDuration(self, timeSeries: List[int], duration: int) -> int:
+    if duration == 0:
+      return 0
+
+    ans = 0
+
+    for i in range(0, len(timeSeries) - 1):
+      _______________
+      ans += min(timeSeries[i + 1] - timeSeries[i], duration)
+
+    return ans + duration","['      ans += min(timeSeries[i + 2] - timeSeries[i], duration)'
+ '      ans += min(timeSeries[i + 1] - timeSeries[i], duration)'
+ '      ans += min(timeSeries[i] - timeSeries[i - 1], duration)'
+ '      ans += min(timeSeries[i + 1] - timeSeries[i - 1], duration)']","Our hero Teemo is attacking an enemy Ashe with poison attacks! When Teemo attacks Ashe, Ashe gets poisoned for a exactly duration seconds. More formally, an attack at second t will mean Ashe is poisoned during the inclusive time interval [t, t + duration - 1]. If Teemo attacks again before the poison effect ends, the timer for it is reset, and the poison effect will end duration seconds after the new attack. You are given a non-decreasing integer array timeSeries, where timeSeries[i] denotes that Teemo attacks Ashe at second timeSeries[i], and an integer duration. Return the total number of seconds that Ashe is poisoned.",B,"class Solution:
+  def findPoisonedDuration(self, timeSeries: List[int], duration: int) -> int:
+    if duration == 0:
+      return 0
+
+    ans = 0
+
+    for i in range(0, len(timeSeries) - 1):
+      _______________
+      ans += min(timeSeries[i + 1] - timeSeries[i], duration)
+
+    return ans + duration Our hero Teemo is attacking an enemy Ashe with poison attacks! When Teemo attacks Ashe, Ashe gets poisoned for a exactly duration seconds. More formally, an attack at second t will mean Ashe is poisoned during the inclusive time interval [t, t + duration - 1]. If Teemo attacks again before the poison effect ends, the timer for it is reset, and the poison effect will end duration seconds after the new attack. You are given a non-decreasing integer array timeSeries, where timeSeries[i] denotes that Teemo attacks Ashe at second timeSeries[i], and an integer duration. Return the total number of seconds that Ashe is poisoned.",B,1
+rt00608,"class Solution:
+  def nextGreaterElement(self, nums1: List[int], nums2: List[int]) -> List[int]:
+    numToNextGreater = {}
+    stack = []  
+
+    for num in nums2:
+      _______________
+      while stack and stack[-1] < num:
+        numToNextGreater[stack.pop()] = num
+      stack.append(num)
+
+    return [numToNextGreater.get(num, -1) for num in nums1]","['      while len(stack) and stack[-1] <= num:'
+ '      while stack and stack[-1] < num:'
+ '      while stack and num > stack[-1]:'
+ '      while stack and num >= stack[-1]:']","The next greater element of some element x in an array is the first greater element that is to the right of x in the same array. You are given two distinct 0-indexed integer arrays nums1 and nums2, where nums1 is a subset of nums2. For each 0 <= i < nums1.length, find the index j such that nums1[i] == nums2[j] and determine the next greater element of nums2[j] in nums2. If there is no next greater element, then the answer for this query is -1. Return an array ans of length nums1.length such that ans[i] is the next greater element as described above.",B,"class Solution:
+  def nextGreaterElement(self, nums1: List[int], nums2: List[int]) -> List[int]:
+    numToNextGreater = {}
+    stack = []  
+
+    for num in nums2:
+      _______________
+      while stack and stack[-1] < num:
+        numToNextGreater[stack.pop()] = num
+      stack.append(num)
+
+    return [numToNextGreater.get(num, -1) for num in nums1] The next greater element of some element x in an array is the first greater element that is to the right of x in the same array. You are given two distinct 0-indexed integer arrays nums1 and nums2, where nums1 is a subset of nums2. For each 0 <= i < nums1.length, find the index j such that nums1[i] == nums2[j] and determine the next greater element of nums2[j] in nums2. If there is no next greater element, then the answer for this query is -1. Return an array ans of length nums1.length such that ans[i] is the next greater element as described above.",B,1
+rt00609,"class Solution:
+  def __init__(self, rects: List[List[int]]):
+    self.rects = rects
+    self.areas = list(itertools.accumulate(
+        [(x2 - x1 + 1) * (y2 - y1 + 1) for x1, y1, x2, y2 in rects]))
+
+  def pick(self) -> List[int]:
+    _______________
+    index = bisect_right(self.areas, random.randint(0, self.areas[-1] - 1))
+    x1, y1, x2, y2 = self.rects[index]
+    return [random.randint(x1, x2), random.randint(y1, y2)]","['    index = bisect_right(self.areas, random.randint(0, self.areas[-1] - 1))'
+ '    index = np.searchsorted(self.areas, random.randint(0, self.areas[-1] - 1))'
+ '    index = bisect.bisect_left(self.areas, random.randint(0, self.areas[-1] - 1))'
+ '    index = next(i for i, x in enumerate(self.areas) if x > random.randint(0, self.areas[-1] - 1))']","You are given an array of non-overlapping axis-aligned rectangles rects where rects[i] = [ai, bi, xi, yi] indicates that (ai, bi) is the bottom-left corner point of the ith rectangle and (xi, yi) is the top-right corner point of the ith rectangle. Design an algorithm to pick a random integer point inside the space covered by one of the given rectangles. A point on the perimeter of a rectangle is included in the space covered by the rectangle. Any integer point inside the space covered by one of the given rectangles should be equally likely to be returned. Note that an integer point is a point that has integer coordinates. Implement the Solution class:",A,"class Solution:
+  def __init__(self, rects: List[List[int]]):
+    self.rects = rects
+    self.areas = list(itertools.accumulate(
+        [(x2 - x1 + 1) * (y2 - y1 + 1) for x1, y1, x2, y2 in rects]))
+
+  def pick(self) -> List[int]:
+    _______________
+    index = bisect_right(self.areas, random.randint(0, self.areas[-1] - 1))
+    x1, y1, x2, y2 = self.rects[index]
+    return [random.randint(x1, x2), random.randint(y1, y2)] You are given an array of non-overlapping axis-aligned rectangles rects where rects[i] = [ai, bi, xi, yi] indicates that (ai, bi) is the bottom-left corner point of the ith rectangle and (xi, yi) is the top-right corner point of the ith rectangle. Design an algorithm to pick a random integer point inside the space covered by one of the given rectangles. A point on the perimeter of a rectangle is included in the space covered by the rectangle. Any integer point inside the space covered by one of the given rectangles should be equally likely to be returned. Note that an integer point is a point that has integer coordinates. Implement the Solution class:",C,0
+rt00610,"class Solution:
+  def findWords(self, words: List[str]) -> List[str]:
+    ans = []
+    _______________
+    rows = [set('qwertyuiop'), set('asdfghjkl'), set('zxcvbnm')]
+
+    for word in words:
+      lowerWord = set(word.lower())
+      if any(lowerWord <= row for row in rows):
+        ans.append(word)
+
+    return ans","[""    rows = [set('qwertzuiop'), set('asdfghjkla'), set('yxcvbnm')]""
+ ""    rows = [set('qwertyuiop'), set('asdfghjkl'), set('zxcvbnm')]""
+ ""    rows = [set('qwertyuio'), set('asdfghjkl'), set('zxcvbnm,')]""
+ ""    rows = [set('qwertyuio'), set('asdfghjkl'), set('zxcvbnmp')]""]","Given an array of strings words, return the words that can be typed using letters of the alphabet on only one row of American keyboard like the image below. In the American keyboard:",B,"class Solution:
+  def findWords(self, words: List[str]) -> List[str]:
+    ans = []
+    _______________
+    rows = [set('qwertyuiop'), set('asdfghjkl'), set('zxcvbnm')]
+
+    for word in words:
+      lowerWord = set(word.lower())
+      if any(lowerWord <= row for row in rows):
+        ans.append(word)
+
+    return ans Given an array of strings words, return the words that can be typed using letters of the alphabet on only one row of American keyboard like the image below. In the American keyboard:",B,1
