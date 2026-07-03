@@ -431,7 +431,7 @@ rt00253,"class Solution:
         ans += roman[a]
 
     _______________
-    return ans + roman[s[-1]] Roman numerals are represented by seven different symbols: I, V, X, L, C, D and M. For example, 2 is written as II in Roman numeral, just two ones added together. 12 is written as XII, which is simply X + II. The number 27 is written as XXVII, which is XX + V + II. Roman numerals are usually written largest to smallest from left to right. However, the numeral for four is not IIII. Instead, the number four is written as IV. Because the one is before the five we subtract it making four. The same principle applies to the number nine, which is written as IX. There are six instances where subtraction is used: Given a roman numeral, convert it to an integer.",D,1
+    return ans + roman[s[-1]] Roman numerals are represented by seven different symbols: I, V, X, L, C, D and M. For example, 2 is written as II in Roman numeral, just two ones added together. 12 is written as XII, which is simply X + II. The number 27 is written as XXVII, which is XX + V + II. Roman numerals are usually written largest to smallest from left to right. However, the numeral for four is not IIII. Instead, the number four is written as IV. Because the one is before the five we subtract it making four. The same principle applies to the number nine, which is written as IX. There are six instances where subtraction is used: Given a roman numeral, convert it to an integer.",A,0
 rt00254,"class Solution:
   def longestCommonPrefix(self, strs: List[str]) -> str:
     if not strs:
@@ -683,7 +683,7 @@ rt00260,"class Solution:
       elif not stack or stack.pop() != c:
         return False
 
-    return not stack Given a string s containing just the characters '(', ')', '{', '}', '[' and ']', determine if the input string is valid. An input string is valid if:",C,0
+    return not stack Given a string s containing just the characters '(', ')', '{', '}', '[' and ']', determine if the input string is valid. An input string is valid if:",A,1
 rt00261,"class Solution:
   def mergeTwoLists(self, list1: Optional[ListNode], list2: Optional[ListNode]) -> Optional[ListNode]:
     if not list1 or not list2:
@@ -951,7 +951,7 @@ rt00268,"class Solution:
       if haystack[i:i + n] == needle:
         return i
 
-    return -1 Given two strings needle and haystack, return the index of the first occurrence of needle in haystack, or -1 if needle is not part of haystack.",D,1
+    return -1 Given two strings needle and haystack, return the index of the first occurrence of needle in haystack, or -1 if needle is not part of haystack.",B,0
 rt00269,"class Solution:
   def divide(self, dividend: int, divisor: int) -> int:
     _______________
@@ -1598,7 +1598,7 @@ rt00287,"class Solution:
 
     nums.sort()
     dfs([])
-    return ans Given a collection of numbers, nums, that might contain duplicates, return all possible unique permutations in any order.",B,0
+    return ans Given a collection of numbers, nums, that might contain duplicates, return all possible unique permutations in any order.",A,1
 rt00288,"class Solution:
   def rotate(self, matrix: List[List[int]]) -> None:
     matrix.reverse()
@@ -2062,7 +2062,7 @@ rt00300,"class Solution:
       ans += str(nums[j])
       nums.pop(j)
 
-    return ans The set [1, 2, 3, ..., n] contains a total of n! unique permutations. By listing and labeling all of the permutations in order, we get the following sequence for n = 3: Given n and k, return the kth permutation sequence.",C,0
+    return ans The set [1, 2, 3, ..., n] contains a total of n! unique permutations. By listing and labeling all of the permutations in order, we get the following sequence for n = 3: Given n and k, return the kth permutation sequence.",D,0
 rt00301,"class Solution:
   def rotateRight(self, head: ListNode, k: int) -> ListNode:
     if not head or not head.next or k == 0:
@@ -2350,7 +2350,7 @@ rt00308,"class Solution:
       row.append(word)
       rowLetters += len(word)
 
-    return ans + [' '.join(row).ljust(maxWidth)] Given an array of strings words and a width maxWidth, format the text such that each line has exactly maxWidth characters and is fully (left and right) justified. You should pack your words in a greedy approach; that is, pack as many words as you can in each line. Pad extra spaces ' ' when necessary so that each line has exactly maxWidth characters. Extra spaces between words should be distributed as evenly as possible. If the number of spaces on a line does not divide evenly between words, the empty slots on the left will be assigned more spaces than the slots on the right. For the last line of text, it should be left-justified, and no extra space is inserted between words. Note:",C,1
+    return ans + [' '.join(row).ljust(maxWidth)] Given an array of strings words and a width maxWidth, format the text such that each line has exactly maxWidth characters and is fully (left and right) justified. You should pack your words in a greedy approach; that is, pack as many words as you can in each line. Pad extra spaces ' ' when necessary so that each line has exactly maxWidth characters. Extra spaces between words should be distributed as evenly as possible. If the number of spaces on a line does not divide evenly between words, the empty slots on the left will be assigned more spaces than the slots on the right. For the last line of text, it should be left-justified, and no extra space is inserted between words. Note:",D,0
 rt00309,"class Solution:
   def mySqrt(self, x: int) -> int:
     return bisect.bisect_right(range(x + 1), x,
@@ -2362,7 +2362,7 @@ rt00309,"class Solution:
   def mySqrt(self, x: int) -> int:
     return bisect.bisect_right(range(x + 1), x,
                                _______________
-                               key=lambda m: m * m) - 1 Given a non-negative integer x, return the square root of x rounded down to the nearest integer. The returned integer should be non-negative as well. You must not use any built-in exponent function or operator.",C,1
+                               key=lambda m: m * m) - 1 Given a non-negative integer x, return the square root of x rounded down to the nearest integer. The returned integer should be non-negative as well. You must not use any built-in exponent function or operator.",A,0
 rt00310,"class Solution:
   def climbStairs(self, n: int) -> int:
     _______________
@@ -2849,7 +2849,7 @@ rt00323,"class Solution:
         curr.next = curr.next.next
       curr = curr.next
 
-    return head Given the head of a sorted linked list, delete all duplicates such that each element appears only once. Return the linked list sorted as well.",C,0
+    return head Given the head of a sorted linked list, delete all duplicates such that each element appears only once. Return the linked list sorted as well.",B,1
 rt00324,"class Solution:
   def largestRectangleArea(self, heights: List[int]) -> int:
     ans = 0
@@ -3013,7 +3013,7 @@ rt00327,"class Solution:
       if self.isScramble(s1[:i], s2[len(s2) - i:]) and self.isScramble(s1[i:], s2[:len(s2) - i]):
         return True
 
-    return False We can scramble a string s to get a string t using the following algorithm: Given two strings s1 and s2 of the same length, return true if s2 is a scrambled string of s1, otherwise, return false.",A,0
+    return False We can scramble a string s to get a string t using the following algorithm: Given two strings s1 and s2 of the same length, return true if s2 is a scrambled string of s1, otherwise, return false.",B,1
 rt00328,"class Solution:
   def merge(self, nums1: List[int], m: int, nums2: List[int], n: int) -> None:
     i = m - 1  
@@ -3468,7 +3468,7 @@ rt00339,"class Solution:
       x.val = y.val
       y.val = temp
 
-    swap(x, y) You are given the root of a binary search tree (BST), where the values of exactly two nodes of the tree were swapped by mistake. Recover the tree without changing its structure.",C,0
+    swap(x, y) You are given the root of a binary search tree (BST), where the values of exactly two nodes of the tree were swapped by mistake. Recover the tree without changing its structure.",A,1
 rt00340,"class Solution:
   def isSameTree(self, p: Optional[TreeNode], q: Optional[TreeNode]) -> bool:
     if not p or not q:
@@ -4030,7 +4030,7 @@ rt00356,"class Solution:
         node = node.next
       node = dummy.next  
 
-    return root You are given a perfect binary tree where all leaves are on the same level, and every parent has two children. The binary tree has the following definition: Populate each next pointer to point to its next right node. If there is no next right node, the next pointer should be set to NULL. Initially, all next pointers are set to NULL.",A,0
+    return root You are given a perfect binary tree where all leaves are on the same level, and every parent has two children. The binary tree has the following definition: Populate each next pointer to point to its next right node. If there is no next right node, the next pointer should be set to NULL. Initially, all next pointers are set to NULL.",C,1
 rt00357,"class Solution:
   def connect(self, root: 'Node') -> 'Node':
     node = root  
@@ -4118,7 +4118,7 @@ rt00359,"class Solution:
         _______________
         ans[i - j] += ans[i - j - 1]
 
-    return ans Given an integer rowIndex, return the rowIndexth (0-indexed) row of the Pascal's triangle. In Pascal's triangle, each number is the sum of the two numbers directly above it as shown:",B,1
+    return ans Given an integer rowIndex, return the rowIndexth (0-indexed) row of the Pascal's triangle. In Pascal's triangle, each number is the sum of the two numbers directly above it as shown:",A,0
 rt00360,"class Solution:
   def minimumTotal(self, triangle: List[List[int]]) -> int:
     for i in reversed(range(len(triangle) - 1)):
@@ -4808,7 +4808,7 @@ rt00376,"class Solution:
  '    return functools.reduce(operator.xor, nums, 0)']","Given a non-empty array of integers nums, every element appears twice except for one. Find that single one. You must implement a solution with a linear runtime complexity and use only constant extra space.",A,"class Solution:
   def singleNumber(self, nums: List[int]) -> int:
     _______________
-    return functools.reduce(lambda x, y: x ^ y, nums, 0) Given a non-empty array of integers nums, every element appears twice except for one. Find that single one. You must implement a solution with a linear runtime complexity and use only constant extra space.",D,0
+    return functools.reduce(lambda x, y: x ^ y, nums, 0) Given a non-empty array of integers nums, every element appears twice except for one. Find that single one. You must implement a solution with a linear runtime complexity and use only constant extra space.",A,1
 rt00377,"class Solution:
   def singleNumber(self, nums: List[int]) -> int:
     ones = 0
@@ -5926,7 +5926,7 @@ rt00404,"class Solution:
       _______________
       ans = ans * 26 + ord(c) - ord('@')
 
-    return ans Given a string columnTitle that represents the column title as appears in an Excel sheet, return its corresponding column number. For example:",D,0
+    return ans Given a string columnTitle that represents the column title as appears in an Excel sheet, return its corresponding column number. For example:",A,1
 rt00405,"class Solution:
   def trailingZeroes(self, n: int) -> int:
     _______________
@@ -6336,7 +6336,7 @@ rt00418,"class Solution:
       slow = squaredSum(slow)
       fast = squaredSum(squaredSum(fast))
 
-    return slow == 1 Write an algorithm to determine if a number n is happy. A happy number is a number defined by the following process: Return true if n is a happy number, and false if not.",B,0
+    return slow == 1 Write an algorithm to determine if a number n is happy. A happy number is a number defined by the following process: Return true if n is a happy number, and false if not.",D,1
 rt00419,"class Solution:
   def removeElements(self, head: ListNode, val: int) -> ListNode:
     _______________
@@ -7103,7 +7103,7 @@ rt00436,"class Solution:
       if i >= indexDiff:
         del bucket[getKey(nums[i - indexDiff])]
 
-    return False You are given an integer array nums and two integers indexDiff and valueDiff. Find a pair of indices (i, j) such that: Return true if such pair exists or false otherwise.",C,0
+    return False You are given an integer array nums and two integers indexDiff and valueDiff. Find a pair of indices (i, j) such that: Return true if such pair exists or false otherwise.",B,0
 rt00438,"class Solution:
   def countNodes(self, root: Optional[TreeNode]) -> int:
     if not root:
@@ -7117,7 +7117,7 @@ rt00438,"class Solution:
     if not root:
       return 0
     _______________
-    return 1 + self.countNodes(root.left) + self.countNodes(root.right) Given the root of a complete binary tree, return the number of the nodes in the tree. According to Wikipedia, every level, except possibly the last, is completely filled in a complete binary tree, and all nodes in the last level are as far left as possible. It can have between 1 and 2h nodes inclusive at the last level h. Design an algorithm that runs in less than O(n) time complexity.",B,1
+    return 1 + self.countNodes(root.left) + self.countNodes(root.right) Given the root of a complete binary tree, return the number of the nodes in the tree. According to Wikipedia, every level, except possibly the last, is completely filled in a complete binary tree, and all nodes in the last level are as far left as possible. It can have between 1 and 2h nodes inclusive at the last level h. Design an algorithm that runs in less than O(n) time complexity.",C,0
 rt00439,"class Solution:
   def computeArea(self, A: int, B: int, C: int, D: int, E: int, F: int, G: int, H: int) -> int:
     x = min(C, G) - max(A, E) if max(A, E) < min(C, G) else 0
@@ -7733,7 +7733,7 @@ rt00457,"class Solution:
           for b in self.diffWaysToCompute(expression[i + 1:]):
             ans.append(eval(str(a) + c + str(b)))
 
-    return ans or [int(expression)] Given a string expression of numbers and operators, return all possible results from computing all the different possible ways to group numbers and operators. You may return the answer in any order. The test cases are generated such that the output values fit in a 32-bit integer and the number of different results does not exceed 10**4.",A,1
+    return ans or [int(expression)] Given a string expression of numbers and operators, return all possible results from computing all the different possible ways to group numbers and operators. You may return the answer in any order. The test cases are generated such that the output values fit in a 32-bit integer and the number of different results does not exceed 10**4.",D,0
 rt00458,"class Solution:
   def isAnagram(self, s: str, t: str) -> bool:
     if len(s) != len(t):
@@ -7753,7 +7753,7 @@ rt00458,"class Solution:
     count = collections.Counter(s)
     _______________
     count.subtract(collections.Counter(t))
-    return all(freq == 0 for freq in count.values()) Given two strings s and t, return true if t is an anagram of s, and false otherwise. An Anagram is a word or phrase formed by rearranging the letters of a different word or phrase, typically using all the original letters exactly once.",C,1
+    return all(freq == 0 for freq in count.values()) Given two strings s and t, return true if t is an anagram of s, and false otherwise. An Anagram is a word or phrase formed by rearranging the letters of a different word or phrase, typically using all the original letters exactly once.",D,0
 rt00459,"class Solution:
   def binaryTreePaths(self, root: Optional[TreeNode]) -> List[str]:
     ans = []
@@ -8613,7 +8613,7 @@ rt00483,"class NumMatrix:
   def sumRegion(self, row1: int, col1: int, row2: int, col2: int) -> int:
     _______________
     return self.prefix[row2 + 1][col2 + 1] - self.prefix[row1][col2 + 1] - \
-        self.prefix[row2 + 1][col1] + self.prefix[row1][col1] Given a 2D matrix matrix, handle multiple queries of the following type: Implement the NumMatrix class: You must design an algorithm where sumRegion works on O(1) time complexity.",D,0
+        self.prefix[row2 + 1][col1] + self.prefix[row1][col1] Given a 2D matrix matrix, handle multiple queries of the following type: Implement the NumMatrix class: You must design an algorithm where sumRegion works on O(1) time complexity.",B,1
 rt00484,"class Solution:
   def isAdditiveNumber(self, num: str) -> bool:
     n = len(num)
@@ -8669,7 +8669,7 @@ rt00484,"class Solution:
           return True
         j += 1
 
-    return False An additive number is a string whose digits can form an additive sequence. A valid additive sequence should contain at least three numbers. Except for the first two numbers, each subsequent number in the sequence must be the sum of the preceding two. Given a string containing only digits, return true if it is an additive number or false otherwise. Note: Numbers in the additive sequence cannot have leading zeros, so sequence 1, 2, 03 or 1, 02, 3 is invalid.",B,0
+    return False An additive number is a string whose digits can form an additive sequence. A valid additive sequence should contain at least three numbers. Except for the first two numbers, each subsequent number in the sequence must be the sum of the preceding two. Given a string containing only digits, return true if it is an additive number or false otherwise. Note: Numbers in the additive sequence cannot have leading zeros, so sequence 1, 2, 03 or 1, 02, 3 is invalid.",C,0
 rt00485,"class FenwickTree:
   def __init__(self, n: int):
     _______________
@@ -9837,7 +9837,7 @@ rt00514,"class Solution:
       _______________
       ans += b
       if len(ans) == k:
-        return ans Given an integer array nums and an integer k, return the k most frequent elements. You may return the answer in any order.",B,1
+        return ans Given an integer array nums and an integer k, return the k most frequent elements. You may return the answer in any order.",A,0
 rt00515,"class Solution:
   def intersection(self, nums1: List[int], nums2: List[int]) -> List[int]:
     ans = []
@@ -9977,7 +9977,7 @@ class SummaryRanges:
     i = self.intervals.bisect_right(key)
     if i == len(self.intervals):
       return -1
-    return self.intervals.peekitem(i)[0] Given a data stream input of non-negative integers a1, a2, ..., an, summarize the numbers seen so far as a list of disjoint intervals. Implement the SummaryRanges class:",C,0
+    return self.intervals.peekitem(i)[0] Given a data stream input of non-negative integers a1, a2, ..., an, summarize the numbers seen so far as a list of disjoint intervals. Implement the SummaryRanges class:",A,1
 rt00518,"class Solution:
   def maxEnvelopes(self, envelopes: List[List[int]]) -> int:
     envelopes.sort(key=lambda x: (x[0], -x[1]))
@@ -10422,7 +10422,7 @@ rt00532,"class Solution:
       return count
 
     return bisect.bisect_left(range(matrix[0][0], matrix[-1][-1]), k,
-                              key=lambda m: numsNoGreaterThan(m)) + matrix[0][0] Given an n x n matrix where each of the rows and columns is sorted in ascending order, return the kth smallest element in the matrix. Note that it is the kth smallest element in the sorted order, not the kth distinct element. You must find a solution with a memory complexity better than O(n**2).",A,1
+                              key=lambda m: numsNoGreaterThan(m)) + matrix[0][0] Given an n x n matrix where each of the rows and columns is sorted in ascending order, return the kth smallest element in the matrix. Note that it is the kth smallest element in the sorted order, not the kth distinct element. You must find a solution with a memory complexity better than O(n**2).",D,0
 rt00533,"class RandomizedSet:
   def __init__(self):
     self.vals = []
@@ -11495,7 +11495,7 @@ rt00561,"class Solution:
       ans += c if c % 2 == 0 else c - 1
 
     hasOddCount = any(c % 2 == 1 for c in count.values())
-    return ans + hasOddCount Given a string s which consists of lowercase or uppercase letters, return the length of the longest palindrome that can be built with those letters. Letters are case sensitive, for example, ""Aa"" is not considered a palindrome here.",B,1
+    return ans + hasOddCount Given a string s which consists of lowercase or uppercase letters, return the length of the longest palindrome that can be built with those letters. Letters are case sensitive, for example, ""Aa"" is not considered a palindrome here.",D,0
 rt00563,"class Solution:
   def fizzBuzz(self, n: int) -> List[str]:
     _______________
@@ -11575,7 +11575,7 @@ rt00565,"class Solution:
       elif max2 > num and num > max3:
         max3 = num
 
-    return max1 if max3 == -math.inf else max3 Given an integer array nums, return the third distinct maximum number in this array. If the third maximum does not exist, return the maximum number.",C,0
+    return max1 if max3 == -math.inf else max3 Given an integer array nums, return the third distinct maximum number in this array. If the third maximum does not exist, return the maximum number.",D,1
 rt00566,"class Solution:
   def addStrings(self, num1: str, num2: str) -> str:
     ans = []
@@ -11651,7 +11651,7 @@ rt00567,"class Solution:
       for i in range(subsetSum, num - 1, -1):
         dp[i] = dp[i] or dp[i - num]
 
-    return dp[subsetSum] Given an integer array nums, return true if you can partition the array into two subsets such that the sum of the elements in both subsets is equal or false otherwise.",C,0
+    return dp[subsetSum] Given an integer array nums, return true if you can partition the array into two subsets such that the sum of the elements in both subsets is equal or false otherwise.",A,1
 rt00568,"class Solution:
   def pacificAtlantic(self, heights: List[List[int]]) -> List[List[int]]:
     _______________
@@ -12029,7 +12029,7 @@ rt00578,"class Solution:
       if required == 0:
         ans.append(r - len(p) + 1)
 
-    return ans Given two strings s and p, return an array of all the start indices of p's anagrams in s. You may return the answer in any order. An Anagram is a word or phrase formed by rearranging the letters of a different word or phrase, typically using all the original letters exactly once.",C,1
+    return ans Given two strings s and p, return an array of all the start indices of p's anagrams in s. You may return the answer in any order. An Anagram is a word or phrase formed by rearranging the letters of a different word or phrase, typically using all the original letters exactly once.",A,0
 rt00579,"class Solution:
   def arrangeCoins(self, n: int) -> int:
     _______________
@@ -12063,7 +12063,7 @@ rt00580,"class Solution:
       if nums[abs(num) - 1] > 0:
         ans.append(abs(num))
 
-    return ans Given an integer array nums of length n where all the integers of nums are in the range [1, n] and each integer appears once or twice, return an array of all the integers that appears twice. You must write an algorithm that runs in O(n) time and uses only constant extra space.",C,1
+    return ans Given an integer array nums of length n where all the integers of nums are in the range [1, n] and each integer appears once or twice, return an array of all the integers that appears twice. You must write an algorithm that runs in O(n) time and uses only constant extra space.",B,0
 rt00581,"class Solution:
   def compress(self, chars: List[str]) -> int:
     ans = 0
@@ -12159,7 +12159,7 @@ rt00582,"class Solution:
       _______________
       carry //= 10
 
-    return head You are given two non-empty linked lists representing two non-negative integers. The most significant digit comes first and each of their nodes contains a single digit. Add the two numbers and return the sum as a linked list. You may assume the two numbers do not contain any leading zero, except the number 0 itself.",C,0
+    return head You are given two non-empty linked lists representing two non-negative integers. The most significant digit comes first and each of their nodes contains a single digit. Add the two numbers and return the sum as a linked list. You may assume the two numbers do not contain any leading zero, except the number 0 itself.",A,1
 rt00583,"class Solution:
   def numberOfBoomerangs(self, points: List[List[int]]) -> int:
     ans = 0
@@ -12279,7 +12279,7 @@ rt00586,"class Solution:
         _______________
         ans.append(c * freq)
 
-    return ''.join(ans) Given a string s, sort it in decreasing order based on the frequency of the characters. The frequency of a character is the number of times it appears in the string. Return the sorted string. If there are multiple answers, return any of them.",B,1
+    return ''.join(ans) Given a string s, sort it in decreasing order based on the frequency of the characters. The frequency of a character is the number of times it appears in the string. Return the sorted string. If there are multiple answers, return any of them.",C,0
 rt00587,"class Solution:
   def findMinArrowShots(self, points: List[List[int]]) -> int:
     ans = 0
@@ -12391,7 +12391,7 @@ rt00590,"class Solution:
         nums[slow] = 0
         slow = next
 
-    return False You are playing a game involving a circular array of non-zero integers nums. Each nums[i] denotes the number of indices forward/backward you must move if you are located at index i: Since the array is circular, you may assume that moving forward from the last element puts you on the first element, and moving backwards from the first element puts you on the last element. A cycle in the array consists of a sequence of indices seq of length k where: Return true if there is a cycle in nums, or false otherwise.",A,1
+    return False You are playing a game involving a circular array of non-zero integers nums. Each nums[i] denotes the number of indices forward/backward you must move if you are located at index i: Since the array is circular, you may assume that moving forward from the last element puts you on the first element, and moving backwards from the first element puts you on the last element. A cycle in the array consists of a sequence of indices seq of length k where: Return true if there is a cycle in nums, or false otherwise.",D,0
 rt00591,"class Solution:
   def poorPigs(self, buckets: int, minutesToDie: int, minutesToTest: int) -> int:
     _______________
@@ -12421,7 +12421,7 @@ rt00592,"class Solution:
  '    return s in s[:-1] + s[1:]' '    return s in s[1:-1] + s']","Given a string s, check if it can be constructed by taking a substring of it and appending multiple copies of the substring together.",A,"class Solution:
   def repeatedSubstringPattern(self, s: str) -> bool:
     _______________
-    return s in (s + s)[1:-1] Given a string s, check if it can be constructed by taking a substring of it and appending multiple copies of the substring together.",B,0
+    return s in (s + s)[1:-1] Given a string s, check if it can be constructed by taking a substring of it and appending multiple copies of the substring together.",A,1
 rt00593,"import statistics
 
 
@@ -12513,7 +12513,7 @@ rt00595,"class Solution:
 
       return False
 
-    return [word for word in words if isConcat(word)] Given an array of strings words (without duplicates), return all the concatenated words in the given list of words. A concatenated word is defined as a string that is comprised entirely of at least two shorter words (not necessarily distinct) in the given array.",B,0
+    return [word for word in words if isConcat(word)] Given an array of strings words (without duplicates), return all the concatenated words in the given list of words. A concatenated word is defined as a string that is comprised entirely of at least two shorter words (not necessarily distinct) in the given array.",A,1
 rt00596,"class Solution:
   def makesquare(self, matchsticks: List[int]) -> bool:
     if len(matchsticks) < 4:
@@ -12964,7 +12964,7 @@ rt00609,"class Solution:
     _______________
     index = bisect_right(self.areas, random.randint(0, self.areas[-1] - 1))
     x1, y1, x2, y2 = self.rects[index]
-    return [random.randint(x1, x2), random.randint(y1, y2)] You are given an array of non-overlapping axis-aligned rectangles rects where rects[i] = [ai, bi, xi, yi] indicates that (ai, bi) is the bottom-left corner point of the ith rectangle and (xi, yi) is the top-right corner point of the ith rectangle. Design an algorithm to pick a random integer point inside the space covered by one of the given rectangles. A point on the perimeter of a rectangle is included in the space covered by the rectangle. Any integer point inside the space covered by one of the given rectangles should be equally likely to be returned. Note that an integer point is a point that has integer coordinates. Implement the Solution class:",A,1
+    return [random.randint(x1, x2), random.randint(y1, y2)] You are given an array of non-overlapping axis-aligned rectangles rects where rects[i] = [ai, bi, xi, yi] indicates that (ai, bi) is the bottom-left corner point of the ith rectangle and (xi, yi) is the top-right corner point of the ith rectangle. Design an algorithm to pick a random integer point inside the space covered by one of the given rectangles. A point on the perimeter of a rectangle is included in the space covered by the rectangle. Any integer point inside the space covered by one of the given rectangles should be equally likely to be returned. Note that an integer point is a point that has integer coordinates. Implement the Solution class:",C,0
 rt00610,"class Solution:
   def findWords(self, words: List[str]) -> List[str]:
     ans = []
@@ -13194,7 +13194,7 @@ rt00616,"class Solution:
       dfs(root.right, depth + 1)
 
     dfs(root, 1)
-    return ans Given the root of a binary tree, return the leftmost value in the last row of the tree.",A,1
+    return ans Given the root of a binary tree, return the leftmost value in the last row of the tree.",B,0
 rt00617,"class Solution:
   def findRotateSteps(self, ring: str, key: str) -> int:
     @functools.lru_cache(None)
@@ -13275,7 +13275,7 @@ rt00618,"class Solution:
       dfs(root.right, depth + 1)
 
     dfs(root, 0)
-    return ans Given the root of a binary tree, return an array of the largest value in each row of the tree (0-indexed).",C,1
+    return ans Given the root of a binary tree, return an array of the largest value in each row of the tree (0-indexed).",D,0
 rt00619,"class Solution:
   def longestPalindromeSubseq(self, s: str) -> int:
     @functools.lru_cache(None)
@@ -13515,7 +13515,7 @@ rt00627,"class Solution:
       prefix += 1 if num else -1
       ans = max(ans, i - prefixToIndex.setdefault(prefix, i))
 
-    return ans Given a binary array nums, return the maximum length of a contiguous subarray with an equal number of 0 and 1.",D,0
+    return ans Given a binary array nums, return the maximum length of a contiguous subarray with an equal number of 0 and 1.",A,1
 rt00628,"class Solution:
   def __init__(self, w: List[int]):
     self.prefix = list(itertools.accumulate(w))
@@ -13667,7 +13667,7 @@ rt00631,"class Codec:
     return 'http://tinyurl.com/' + self.urlToCode[longUrl]
 
   def decode(self, shortUrl: str) -> str:
-    return self.codeToUrl[shortUrl[-6:]] TinyURL is a URL shortening service where you enter a URL such as https://leetcode.com/problems/design-tinyurl and it returns a short URL such as http://tinyurl.com/4e9iAk. Design a class to encode a URL and decode a tiny URL. There is no restriction on how your encode/decode algorithm should work. You just need to ensure that a URL can be encoded to a tiny URL and the tiny URL can be decoded to the original URL. Implement the Solution class:",A,1
+    return self.codeToUrl[shortUrl[-6:]] TinyURL is a URL shortening service where you enter a URL such as https://leetcode.com/problems/design-tinyurl and it returns a short URL such as http://tinyurl.com/4e9iAk. Design a class to encode a URL and decode a tiny URL. There is no restriction on how your encode/decode algorithm should work. You just need to ensure that a URL can be encoded to a tiny URL and the tiny URL can be decoded to the original URL. Implement the Solution class:",C,0
 rt00632,"class Solution:
   def complexNumberMultiply(self, a: str, b: str) -> str:
     def getRealAndImag(s: str) -> tuple:
@@ -14903,7 +14903,7 @@ rt00665,"class Solution:
       if n <= 0:
         return True
 
-    return False You have a long flowerbed in which some of the plots are planted, and some are not. However, flowers cannot be planted in adjacent plots. Given an integer array flowerbed containing 0's and 1's, where 0 means empty and 1 means not empty, and an integer n, return true if n new flowers can be planted in the flowerbed without violating the no-adjacent-flowers rule and false otherwise.",B,1
+    return False You have a long flowerbed in which some of the plots are planted, and some are not. However, flowers cannot be planted in adjacent plots. Given an integer array flowerbed containing 0's and 1's, where 0 means empty and 1 means not empty, and an integer n, return true if n new flowers can be planted in the flowerbed without violating the no-adjacent-flowers rule and false otherwise.",D,0
 rt00666,"class Solution:
   def tree2str(self, t: Optional[TreeNode]) -> str:
     def dfs(root: Optional[TreeNode]) -> str:
@@ -14965,7 +14965,7 @@ rt00667,"class Solution:
         filePath = rootPath + '/' + file
         contentToPathFiles[content].append(filePath)
 
-    return [filePath for filePath in contentToPathFiles.values() if len(filePath) > 1] Given a list paths of directory info, including the directory path, and all the files with contents in this directory, return all the duplicate files in the file system in terms of their paths. You may return the answer in any order. A group of duplicate files consists of at least two files that have the same content. A single directory info string in the input list has the following format: It means there are n files (f1.txt, f2.txt ... fn.txt) with content (f1_content, f2_content ... fn_content) respectively in the directory ""root/d1/d2/.../dm"". Note that n >= 1 and m >= 0. If m = 0, it means the directory is just the root directory. The output is a list of groups of duplicate file paths. For each group, it contains all the file paths of the files that have the same content. A file path is a string that has the following format:",D,1
+    return [filePath for filePath in contentToPathFiles.values() if len(filePath) > 1] Given a list paths of directory info, including the directory path, and all the files with contents in this directory, return all the duplicate files in the file system in terms of their paths. You may return the answer in any order. A group of duplicate files consists of at least two files that have the same content. A single directory info string in the input list has the following format: It means there are n files (f1.txt, f2.txt ... fn.txt) with content (f1_content, f2_content ... fn_content) respectively in the directory ""root/d1/d2/.../dm"". Note that n >= 1 and m >= 0. If m = 0, it means the directory is just the root directory. The output is a list of groups of duplicate file paths. For each group, it contains all the file paths of the files that have the same content. A file path is a string that has the following format:",C,0
 rt00668,"class Solution:
   def triangleNumber(self, nums: List[int]) -> int:
     ans = 0
@@ -15239,7 +15239,7 @@ rt00676,"class Solution:
 
       return ans
 
-    return dfs(0) In LeetCode Store, there are n items to sell. Each item has a price. However, there are some special offers, and a special offer consists of one or more different kinds of items with a sale price. You are given an integer array price where price[i] is the price of the ith item, and an integer array needs where needs[i] is the number of pieces of the ith item you want to buy. You are also given an array special where special[i] is of size n + 1 where special[i][j] is the number of pieces of the jth item in the ith offer and special[i][n] (i.e., the last integer in the array) is the price of the ith offer. Return the lowest price you have to pay for exactly certain items as given, where you could make optimal use of the special offers. You are not allowed to buy more items than you want, even if that would lower the overall price. You could use any of the special offers as many times as you want.",D,1
+    return dfs(0) In LeetCode Store, there are n items to sell. Each item has a price. However, there are some special offers, and a special offer consists of one or more different kinds of items with a sale price. You are given an integer array price where price[i] is the price of the ith item, and an integer array needs where needs[i] is the number of pieces of the ith item you want to buy. You are also given an array special where special[i] is of size n + 1 where special[i][j] is the number of pieces of the jth item in the ith offer and special[i][n] (i.e., the last integer in the array) is the price of the ith offer. Return the lowest price you have to pay for exactly certain items as given, where you could make optimal use of the special offers. You are not allowed to buy more items than you want, even if that would lower the overall price. You could use any of the special offers as many times as you want.",B,0
 rt00677,"class Solution:
   def solveEquation(self, equation: str) -> str:
     def calculate(s: str) -> tuple:
@@ -16231,7 +16231,7 @@ rt00702,"class Solution:
         case default:
           scores.append(int(operation))
 
-    return sum(scores) You are keeping the scores for a baseball game with strange rules. At the beginning of the game, you start with an empty record. You are given a list of strings operations, where operations[i] is the ith operation you must apply to the record and is one of the following: Return the sum of all the scores on the record after applying all the operations. The test cases are generated such that the answer and all intermediate calculations fit in a 32-bit integer and that all operations are valid.",B,1
+    return sum(scores) You are keeping the scores for a baseball game with strange rules. At the beginning of the game, you start with an empty record. You are given a list of strings operations, where operations[i] is the ith operation you must apply to the record and is one of the following: Return the sum of all the scores on the record after applying all the operations. The test cases are generated such that the answer and all intermediate calculations fit in a 32-bit integer and that all operations are valid.",A,0
 rt00704,"class UnionFind:
   def __init__(self, n: int):
     self.id = list(range(n))
@@ -16383,7 +16383,7 @@ rt00706,"class Solution:
       return max(arrowLeft, arrowRight)
 
     longestUnivaluePathDownFrom(root)
-    return ans Given the root of a binary tree, return the length of the longest path, where each node in the path has the same value. This path may or may not pass through the root. The length of the path between two nodes is represented by the number of edges between them.",A,1
+    return ans Given the root of a binary tree, return the length of the longest path, where each node in the path has the same value. This path may or may not pass through the root. The length of the path between two nodes is represented by the number of edges between them.",C,0
 rt00707,"class Solution:
   def knightProbability(self, n: int, k: int, row: int, column: int) -> float:
     dirs = ((1, 2), (2, 1), (2, -1), (1, -2),
@@ -16872,7 +16872,7 @@ rt00720,"class MyHashSet:
     self.set[key] = False
 
   def contains(self, key: int) -> bool:
-    return self.set[key] Design a HashSet without using any built-in hash table libraries. Implement MyHashSet class:",B,0
+    return self.set[key] Design a HashSet without using any built-in hash table libraries. Implement MyHashSet class:",A,1
 rt00721,"class ListNode:
   def __init__(self, x):
     self.val = x
@@ -16993,7 +16993,7 @@ _______________
  ""return ''.join(chr(ord(c) | 32) if 'A' <= c <= 'Z' else c for c in str)""]","Given a string s, return the string after replacing every uppercase letter with the same lowercase letter.",C,"class Solution:
   def toLowerCase(self, str: str) -> str:
 _______________
-    return ''.join(chr(ord(c) + 32) if 'A' <= c <= 'Z' else c for c in str) Given a string s, return the string after replacing every uppercase letter with the same lowercase letter.",B,0
+    return ''.join(chr(ord(c) + 32) if 'A' <= c <= 'Z' else c for c in str) Given a string s, return the string after replacing every uppercase letter with the same lowercase letter.",A,0
 rt00723,"class Solution:
   def __init__(self, n: int, blacklist: List[int]):
     _______________
@@ -17274,7 +17274,7 @@ rt00730,"class Solution:
 
       return ans
 
-    return dfs(root) Given an array of strings words representing an English Dictionary, return the longest word in words that can be built one character at a time by other words in words. If there is more than one possible answer, return the longest word with the smallest lexicographical order. If there is no answer, return the empty string. Note that the word should be built from left to right with each additional character being added to the end of a previous word.",C,1
+    return dfs(root) Given an array of strings words representing an English Dictionary, return the longest word in words that can be built one character at a time by other words in words. If there is more than one possible answer, return the longest word with the smallest lexicographical order. If there is no answer, return the empty string. Note that the word should be built from left to right with each additional character being added to the end of a previous word.",D,0
 rt00731,"class Solution:
   def removeComments(self, source: List[str]) -> List[str]:
     ans = []
@@ -17373,7 +17373,7 @@ rt00732,"class Solution:
         return i
       prefix += num
 
-    return -1 Given an array of integers nums, calculate the pivot index of this array. The pivot index is the index where the sum of all the numbers strictly to the left of the index is equal to the sum of all the numbers strictly to the index's right. If the index is on the left edge of the array, then the left sum is 0 because there are no elements to the left. This also applies to the right edge of the array. Return the leftmost pivot index. If no such index exists, return -1.",C,0
+    return -1 Given an array of integers nums, calculate the pivot index of this array. The pivot index is the index where the sum of all the numbers strictly to the left of the index is equal to the sum of all the numbers strictly to the index's right. If the index is on the left edge of the array, then the left sum is 0 because there are no elements to the left. This also applies to the right edge of the array. Return the leftmost pivot index. If no such index exists, return -1.",B,1
 rt00733,"class Solution:
   def splitListToParts(self, root: ListNode, k: int) -> List[ListNode]:
     ans = [[] for _ in range(k)]
@@ -17552,7 +17552,7 @@ rt00736,"class MyCalendar:
       if max(start, s) < min(end, e):
         return False
     self.timeline.append((start, end))
-    return True You are implementing a program to use as your calendar. We can add a new event if adding the event will not cause a double booking. A double booking happens when two events have some non-empty intersection (i.e., some moment is common to both events.). The event can be represented as a pair of integers start and end that represents a booking on the half-open interval [start, end), the range of real numbers x such that start <= x < end. Implement the MyCalendar class:",D,0
+    return True You are implementing a program to use as your calendar. We can add a new event if adding the event will not cause a double booking. A double booking happens when two events have some non-empty intersection (i.e., some moment is common to both events.). The event can be represented as a pair of integers start and end that represents a booking on the half-open interval [start, end), the range of real numbers x such that start <= x < end. Implement the MyCalendar class:",C,1
 rt00737,"class Solution:
   def countPalindromicSubsequences(self, s: str) -> int:
     kMod = 1_000_000_007
@@ -17706,7 +17706,7 @@ rt00739,"class Solution:
       dfs(i, j - 1)
 
     dfs(sr, sc)
-    return image An image is represented by an m x n integer grid image where image[i][j] represents the pixel value of the image. You are also given three integers sr, sc, and color. You should perform a flood fill on the image starting from the pixel image[sr][sc]. To perform a flood fill, consider the starting pixel, plus any pixels connected 4-directionally to the starting pixel of the same color as the starting pixel, plus any pixels connected 4-directionally to those pixels (also with the same color), and so on. Replace the color of all of the aforementioned pixels with color. Return the modified image after performing the flood fill.",B,0
+    return image An image is represented by an m x n integer grid image where image[i][j] represents the pixel value of the image. You are also given three integers sr, sc, and color. You should perform a flood fill on the image starting from the pixel image[sr][sc]. To perform a flood fill, consider the starting pixel, plus any pixels connected 4-directionally to the starting pixel of the same color as the starting pixel, plus any pixels connected 4-directionally to those pixels (also with the same color), and so on. Replace the color of all of the aforementioned pixels with color. Return the modified image after performing the flood fill.",A,1
 rt00740,"class Solution:
   def asteroidCollision(self, asteroids: List[int]) -> List[int]:
     stack = []
@@ -17746,7 +17746,7 @@ rt00740,"class Solution:
         else:  
           pass  
 
-    return stack We are given an array asteroids of integers representing asteroids in a row. For each asteroid, the absolute value represents its size, and the sign represents its direction (positive meaning right, negative meaning left). Each asteroid moves at the same speed. Find out the state of the asteroids after all collisions. If two asteroids meet, the smaller one will explode. If both are the same size, both will explode. Two asteroids moving in the same direction will never meet.",B,0
+    return stack We are given an array asteroids of integers representing asteroids in a row. For each asteroid, the absolute value represents its size, and the sign represents its direction (positive meaning right, negative meaning left). Each asteroid moves at the same speed. Find out the state of the asteroids after all collisions. If two asteroids meet, the smaller one will explode. If both are the same size, both will explode. Two asteroids moving in the same direction will never meet.",A,1
 rt00741,"class Solution:
   def evaluate(self, expression: str) -> int:
     def evaluate(e: str, prevScope: dict) -> int:
@@ -17836,7 +17836,7 @@ rt00741,"class Solution:
         tokens.append(s)
       return tokens
 
-    return evaluate(expression, {}) You are given a string expression representing a Lisp-like expression to return the integer value of. The syntax for these expressions is given as follows.",D,0
+    return evaluate(expression, {}) You are given a string expression representing a Lisp-like expression to return the integer value of. The syntax for these expressions is given as follows.",C,1
 rt00742,"class Solution:
   def dailyTemperatures(self, temperatures: List[int]) -> List[int]:
     ans = [0] * len(temperatures)
@@ -17953,7 +17953,7 @@ rt00745,"class Solution:
       _______________
       cost[i] += min(cost[i - 1], cost[i - 2])
 
-    return cost[-1] You are given an integer array cost where cost[i] is the cost of ith step on a staircase. Once you pay the cost, you can either climb one or two steps. You can either start from the step with index 0, or the step with index 1. Return the minimum cost to reach the top of the floor.",D,0
+    return cost[-1] You are given an integer array cost where cost[i] is the cost of ith step on a staircase. Once you pay the cost, you can either climb one or two steps. You can either start from the step with index 0, or the step with index 1. Return the minimum cost to reach the top of the floor.",A,1
 rt00746,"class Solution:
   def dominantIndex(self, nums: List[int]) -> int:
     max = 0
@@ -18163,7 +18163,7 @@ rt00752,"class Solution:
         ans.append(r - l + 1)
         l = r + 1
 
-    return ans You are given a string s. We want to partition the string into as many parts as possible so that each letter appears in at most one part. Note that the partition is done so that after concatenating all the parts in order, the resultant string should be s. Return a list of integers representing the size of these parts.",C,0
+    return ans You are given a string s. We want to partition the string into as many parts as possible so that each letter appears in at most one part. Note that the partition is done so that after concatenating all the parts in order, the resultant string should be s. Return a list of integers representing the size of these parts.",A,1
 rt00753,"class Solution:
   def isToeplitzMatrix(self, matrix: List[List[int]]) -> bool:
     for i in range(len(matrix) - 1):
@@ -18229,7 +18229,7 @@ rt00754,"class Solution:
       prevFreq = freq + 1
       prevChar = c
 
-    return ''.join(ans) Given a string s, rearrange the characters of s so that any two adjacent characters are not the same. Return any possible rearrangement of s or return """" if not possible.",D,0
+    return ''.join(ans) Given a string s, rearrange the characters of s so that any two adjacent characters are not the same. Return any possible rearrangement of s or return """" if not possible.",A,1
 rt00755,"class Solution:
   def maxChunksToSorted(self, arr: List[int]) -> int:
     n = len(arr)

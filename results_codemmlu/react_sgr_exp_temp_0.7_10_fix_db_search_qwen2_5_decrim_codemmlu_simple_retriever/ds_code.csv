@@ -24,7 +24,7 @@ def has_close_elements(numbers: List[float], threshold: float) -> bool:
     >>> has_close_elements([1.0, 2.8, 3.0, 4.0, 5.0, 2.0], 0.3)
     True
     """"""
-",C,0
+",B,0
 rt00002,"from typing import List
 
 
@@ -155,7 +155,7 @@ def intersperse(numbers: List[int], delimeter: int) -> List[int]:
     >>> intersperse([1, 2, 3], 4)
     [1, 4, 2, 4, 3]
     """"""
-",A,1
+",B,0
 rt00007,"from typing import List
 
 
@@ -684,7 +684,7 @@ def remove_duplicates(numbers: List[int]) -> List[int]:
     >>> remove_duplicates([1, 2, 3, 2, 4])
     [1, 3, 4]
     """"""
-",A,1
+",C,0
 rt00028,"
 
 def flip_case(string: str) -> str:
@@ -768,7 +768,7 @@ def get_positive(l: list):
     >>> get_positive([5, 3, -5, 2, -3, 3, 9, 0, 123, 1, -10])
     [5, 3, 2, 3, 9, 123, 1]
     """"""
-",B,0
+",D,1
 rt00032,"
 
 def is_prime(n):
@@ -1049,7 +1049,7 @@ def prime_fib(n: int):
     >>> prime_fib(5)
     89
     """"""
-",D,0
+",A,1
 rt00041,"
 
 def triples_sum_to_zero(l: list):
@@ -1211,7 +1211,7 @@ def change_base(x: int, base: int):
     >>> change_base(7, 2)
     '111'
     """"""
-",D,1
+",C,0
 rt00046,"
 
 def triangle_area(a, h):
@@ -1320,7 +1320,7 @@ def is_palindrome(text: str):
     >>> is_palindrome('zbcd')
     False
     """"""
-",ERROR,0
+",C,1
 rt00050,"
 
 def modp(n: int, p: int):
@@ -1504,7 +1504,7 @@ def same_chars(s0: str, s1: str):
     >>> same_chars('eabcdzzzz', 'dddzzzzzzzddddabc')
     False
     """"""
-",C,1
+",D,0
 rt00056,"
 
 def fib(n: int):
@@ -1890,7 +1890,7 @@ def fruit_distribution(s,n):
     fruit_distribution(""2 apples and 3 oranges"", 100) -> 100 - 2 - 3 = 95
     fruit_distribution(""100 apples and 1 oranges"",120) -> 120 - 100 - 1 = 19
     """"""
-",D,0
+",B,1
 rt00069,"
 def pluck(arr):
     """"""
@@ -1964,7 +1964,7 @@ def pluck(arr):
         * 1 <= nodes.length <= 10000
         * 0 <= node.value
     """"""
-",A,1
+",D,0
 rt00070,"
 def search(lst):
     '''
@@ -2204,7 +2204,7 @@ def is_simple_power(x, n):
     is_simple_power(3, 1) => false
     is_simple_power(5, 3) => false
     """"""
-",D,1
+",B,0
 rt00078,"
 def iscube(a):
     '''
@@ -2394,7 +2394,7 @@ def numerical_letter_grade(grades):
     Example:
     grade_equation([4.0, 3, 1.7, 2, 3.5]) ==> ['A+', 'B', 'C-', 'C', 'A-']
     """"""
-",ERROR,0
+",C,1
 rt00083,"
 def prime_length(string):
     """"""Write a function that takes a string and returns True if the string
@@ -2658,7 +2658,7 @@ def next_smallest(lst):
     next_smallest([]) == None
     next_smallest([1, 1]) == None
     """"""
-",D,0
+",B,1
 rt00092,"
 def is_bored(S):
     """"""
@@ -2945,7 +2945,7 @@ def closest_integer(value):
     farthest from zero. For example closest_integer(""14.5"") should
     return 15 and closest_integer(""-14.5"") should return -15.
     '''
-",B,1
+",C,0
 rt00101,"
 def make_a_pile(n):
     """"""
@@ -3134,7 +3134,7 @@ def by_length(arr):
             -> reverse arr -> [55, 1, -1]
       return = ['One']
     """"""
-",D,0
+",C,1
 rt00107,"
 def f(n):
     """""" Implement the function f that takes n as a parameter,
@@ -3158,7 +3158,7 @@ def f(n):
     Example:
     f(5) == [1, 2, 6, 24, 15]
     """"""
-",D,1
+",B,0
 rt00108,"
 def even_odd_palindrome(n):
     """"""
@@ -3418,7 +3418,7 @@ def odd_count(lst):
     [""the number of odd elements 1n the str1ng 1 of the 1nput."",
      ""the number of odd elements 8n the str8ng 8 of the 8nput.""]
     """"""
-",C,1
+",B,0
 rt00115,"
 def minSubArraySum(nums):
     """"""
@@ -3440,7 +3440,7 @@ def minSubArraySum(nums):
     minSubArraySum([2, 3, 4, 1, 2, 4]) == 1
     minSubArraySum([-1, -2, -3]) == -6
     """"""
-",D,1
+",B,0
 rt00116,"
 def max_fill(grid, capacity):
     import math
@@ -4054,7 +4054,7 @@ def minPath(grid, k):
         Input: grid = [ [5,9,3], [4,1,6], [7,8,2]], k = 1
         Output: [1]
     """"""
-",D,1
+",C,0
 rt00131,"
 def tri(n):
     """"""Everyone knows Fibonacci sequence, it was studied deeply by mathematicians in 
@@ -4094,7 +4094,7 @@ def tri(n):
     Examples:
     tri(3) = [1, 3, 2, 8]
     """"""
-",B,0
+",C,0
 rt00132,"
 def digits(n):
     """"""Given a positive integer n, return the product of the odd digits.
@@ -4410,7 +4410,7 @@ def file_name_check(file_name):
     file_name_check(""example.txt"") # => 'Yes'
     file_name_check(""1example.dll"") # => 'No' (the name should start with a latin alphapet letter)
     """"""
-",C,1
+",D,0
 rt00143,"
 
 
@@ -4488,7 +4488,7 @@ def words_in_sentence(sentence):
         * 1 <= len(sentence) <= 100
         * sentence contains only letters
     """"""
-",C,1
+",D,0
 rt00145,"
 def simplify(x, n):
     """"""Your task is to implement a function that will simplify the expression

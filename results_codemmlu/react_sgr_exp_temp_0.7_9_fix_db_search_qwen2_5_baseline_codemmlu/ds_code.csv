@@ -495,7 +495,7 @@ def how_many_times(string: str, substring: str) -> int:
     >>> how_many_times('aaaa', 'aa')
     3
     """"""
-",C,1
+",B,0
 rt00020,"from typing import List
 
 
@@ -810,7 +810,7 @@ def is_prime(n):
     >>> is_prime(1)
     False
     """"""
-",B,0
+",C,0
 rt00033,"import math
 
 

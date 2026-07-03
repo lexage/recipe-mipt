@@ -347,7 +347,7 @@ def longest(strings: List[str]) -> Optional[str]:
     >>> longest(['a', 'bb', 'ccc'])
     'ccc'
     """"""
-",C,1
+",D,0
 rt00014,"
 
 def greatest_common_divisor(a: int, b: int) -> int:
@@ -411,7 +411,7 @@ def string_sequence(n: int) -> str:
     >>> string_sequence(5)
     '0 1 2 3 4 5'
     """"""
-",A,1
+",B,0
 rt00017,"
 
 def count_distinct_characters(string: str) -> int:
@@ -433,7 +433,7 @@ def count_distinct_characters(string: str) -> int:
     >>> count_distinct_characters('Jerry')
     4
     """"""
-",C,1
+",B,0
 rt00018,"from typing import List
 
 
@@ -545,7 +545,7 @@ def find_closest_elements(numbers: List[float]) -> Tuple[float, float]:
     >>> find_closest_elements([1.0, 2.0, 3.0, 4.0, 5.0, 2.0])
     (2.0, 2.0)
     """"""
-",B,0
+",A,0
 rt00022,"from typing import List
 
 
@@ -630,7 +630,7 @@ def largest_divisor(n: int) -> int:
     >>> largest_divisor(15)
     5
     """"""
-",D,1
+",C,0
 rt00026,"from typing import List
 
 
@@ -810,7 +810,7 @@ def is_prime(n):
     >>> is_prime(1)
     False
     """"""
-",C,0
+",B,0
 rt00033,"import math
 
 
@@ -860,7 +860,7 @@ def find_zero(xs: list):
     >>> round(find_zero([-6, 11, -6, 1]), 2) # (x - 1) * (x - 2) * (x - 3) = -6 + 11x - 6x^2 + x^3
     1.0
     """"""
-",D,1
+",B,0
 rt00034,"
 
 def sort_third(l: list):
@@ -1013,7 +1013,7 @@ def decode_cyclic(s: str):
     """"""
     takes as input string encoded with encode_cyclic function. Returns decoded string.
     """"""
-",C,0
+",D,1
 rt00040,"
 
 def prime_fib(n: int):
@@ -1049,7 +1049,7 @@ def prime_fib(n: int):
     >>> prime_fib(5)
     89
     """"""
-",D,0
+",A,1
 rt00041,"
 
 def triples_sum_to_zero(l: list):
@@ -1121,7 +1121,7 @@ def car_race_collision(n: int):
 
     This function outputs the number of such collisions.
     """"""
-",A,1
+",C,0
 rt00043,"
 
 def incr_list(l: list):
@@ -1320,7 +1320,7 @@ def is_palindrome(text: str):
     >>> is_palindrome('zbcd')
     False
     """"""
-",ERROR,0
+",C,1
 rt00050,"
 
 def modp(n: int, p: int):
@@ -1504,7 +1504,7 @@ def same_chars(s0: str, s1: str):
     >>> same_chars('eabcdzzzz', 'dddzzzzzzzddddabc')
     False
     """"""
-",C,1
+",D,0
 rt00056,"
 
 def fib(n: int):
@@ -1826,7 +1826,7 @@ def circular_shift(x, shift):
     >>> circular_shift(12, 2)
     ""12""
     """"""
-",D,1
+",C,0
 rt00067,"
 def digitSum(s):
     """"""Task
@@ -1890,7 +1890,7 @@ def fruit_distribution(s,n):
     fruit_distribution(""2 apples and 3 oranges"", 100) -> 100 - 2 - 3 = 95
     fruit_distribution(""100 apples and 1 oranges"",120) -> 120 - 100 - 1 = 19
     """"""
-",D,0
+",B,1
 rt00069,"
 def pluck(arr):
     """"""
@@ -2236,7 +2236,7 @@ def iscube(a):
     iscube(0) ==> True
     iscube(180) ==> False
     '''
-",C,1
+",B,0
 rt00079,"
 def hex_key(num):
     """"""You have been tasked to write a function that receives 
@@ -2394,7 +2394,7 @@ def numerical_letter_grade(grades):
     Example:
     grade_equation([4.0, 3, 1.7, 2, 3.5]) ==> ['A+', 'B', 'C-', 'C', 'A-']
     """"""
-",ERROR,0
+",C,1
 rt00083,"
 def prime_length(string):
     """"""Write a function that takes a string and returns True if the string
@@ -2854,7 +2854,7 @@ def count_up_to(n):
     count_up_to(1) => []
     count_up_to(18) => [2,3,5,7,11,13,17]
     """"""
-",A,1
+",D,0
 rt00098,"
 def multiply(a, b):
     """"""Complete the function that takes two integers and returns 
@@ -3158,7 +3158,7 @@ def f(n):
     Example:
     f(5) == [1, 2, 6, 24, 15]
     """"""
-",D,1
+",B,0
 rt00108,"
 def even_odd_palindrome(n):
     """"""
@@ -3360,7 +3360,7 @@ def histogram(test):
     histogram('') == {}
 
     """"""
-",A,1
+",C,0
 rt00113,"
 def reverse_delete(s,c):
     """"""Task
@@ -3418,7 +3418,7 @@ def odd_count(lst):
     [""the number of odd elements 1n the str1ng 1 of the 1nput."",
      ""the number of odd elements 8n the str8ng 8 of the 8nput.""]
     """"""
-",C,1
+",B,0
 rt00115,"
 def minSubArraySum(nums):
     """"""
@@ -3912,7 +3912,7 @@ def is_sorted(lst):
     is_sorted([1, 2, 2, 3, 3, 4]) ➞ True
     is_sorted([1, 2, 2, 2, 3, 4]) ➞ False
     '''
-",C,1
+",D,0
 rt00128,"
 def intersection(interval1, interval2):
     """"""You are given two intervals,
@@ -4054,7 +4054,7 @@ def minPath(grid, k):
         Input: grid = [ [5,9,3], [4,1,6], [7,8,2]], k = 1
         Output: [1]
     """"""
-",D,1
+",C,0
 rt00131,"
 def tri(n):
     """"""Everyone knows Fibonacci sequence, it was studied deeply by mathematicians in 
@@ -4214,7 +4214,7 @@ def check_if_last_char_is_a_letter(txt):
     check_if_last_char_is_a_letter(""apple pi e "") ➞ False
     check_if_last_char_is_a_letter("""") ➞ False 
     '''
-",C,1
+",D,0
 rt00136,"
 def can_arrange(arr):
     """"""Create a function which returns the largest index of an element which
@@ -4318,7 +4318,7 @@ def is_equal_to_sum_even(n):
     is_equal_to_sum_even(6) == False
     is_equal_to_sum_even(8) == True
     """"""
-",A,1
+",C,0
 rt00140,"
 def special_factorial(n):
     """"""The Brazilian factorial is defined as:
@@ -4376,7 +4376,7 @@ def fix_spaces(text):
     fix_spaces("" Example 2"") == ""_Example_2""
     fix_spaces("" Example   3"") == ""_Example-3""
     """"""
-",B,1
+",D,0
 rt00142,"
 def file_name_check(file_name):
     """"""Create a function which takes a string representing a file's name, and returns
@@ -4488,7 +4488,7 @@ def words_in_sentence(sentence):
         * 1 <= len(sentence) <= 100
         * sentence contains only letters
     """"""
-",C,1
+",D,0
 rt00145,"
 def simplify(x, n):
     """"""Your task is to implement a function that will simplify the expression
@@ -4676,7 +4676,7 @@ def sorted_list_sum(lst):
     assert list_sort([""aa"", ""a"", ""aaa""]) => [""aa""]
     assert list_sort([""ab"", ""a"", ""aaa"", ""cd""]) => [""ab"", ""cd""]
     """"""
-",B,1
+",D,0
 rt00151,"
 def x_or_y(n, x, y):
     """"""A simple program which should return the value of x if n is 
@@ -4832,7 +4832,7 @@ def cycpattern_check(a , b):
     cycpattern_check(""himenss"",""simen"") => True
 
     """"""
-",B,1
+",A,0
 rt00156,"
 def even_odd_count(num):
     """"""Given an integer. return a tuple that has the number of even and odd digits respectively.
@@ -5080,7 +5080,7 @@ def solve(s):
     solve(""ab"") = ""AB""
     solve(""#a@C"") = ""#A@c""
     """"""
-",C,1
+",B,0
 rt00163,"
 def string_to_md5(text):
     """"""
