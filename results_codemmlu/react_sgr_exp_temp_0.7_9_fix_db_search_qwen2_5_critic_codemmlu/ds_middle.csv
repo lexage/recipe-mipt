@@ -12030,3 +12030,37 @@ rt00578,"class Solution:
         ans.append(r - len(p) + 1)
 
     return ans Given two strings s and p, return an array of all the start indices of p's anagrams in s. You may return the answer in any order. An Anagram is a word or phrase formed by rearranging the letters of a different word or phrase, typically using all the original letters exactly once.",C,1
+rt00579,"class Solution:
+  def arrangeCoins(self, n: int) -> int:
+    _______________
+    return int((-1 + sqrt(8 * n + 1)) // 2)","['    return int((1 + sqrt(8 * n + 1)) // 2)'
+ '    return int(math.floor((sqrt(8 * n + 1) - 1) / 2))'
+ '    return int((-1 + sqrt(8 * n + 1)) // 2)'
+ '    return int((sqrt(8 * n + 1) - 1) // 2)']","You have n coins and you want to build a staircase with these coins. The staircase consists of k rows where the ith row has exactly i coins. The last row of the staircase may be incomplete. Given the integer n, return the number of complete rows of the staircase you will build.",C,"class Solution:
+  def arrangeCoins(self, n: int) -> int:
+    _______________
+    return int((-1 + sqrt(8 * n + 1)) // 2) You have n coins and you want to build a staircase with these coins. The staircase consists of k rows where the ith row has exactly i coins. The last row of the staircase may be incomplete. Given the integer n, return the number of complete rows of the staircase you will build.",C,1
+rt00580,"class Solution:
+  def findDuplicates(self, nums: List[int]) -> List[int]:
+    ans = []
+
+    for num in nums:
+      _______________
+      nums[abs(num) - 1] *= -1
+      if nums[abs(num) - 1] > 0:
+        ans.append(abs(num))
+
+    return ans","['      nums[abs(num) - 1] ^= 0xFFFFFFFF'
+ '      nums[abs(num) - 1] = -nums[abs(num) - 1]'
+ '      nums[abs(num) - 1] *= -1'
+ '      nums[abs(num) - 1] = ~nums[abs(num) - 1] + 1']","Given an integer array nums of length n where all the integers of nums are in the range [1, n] and each integer appears once or twice, return an array of all the integers that appears twice. You must write an algorithm that runs in O(n) time and uses only constant extra space.",C,"class Solution:
+  def findDuplicates(self, nums: List[int]) -> List[int]:
+    ans = []
+
+    for num in nums:
+      _______________
+      nums[abs(num) - 1] *= -1
+      if nums[abs(num) - 1] > 0:
+        ans.append(abs(num))
+
+    return ans Given an integer array nums of length n where all the integers of nums are in the range [1, n] and each integer appears once or twice, return an array of all the integers that appears twice. You must write an algorithm that runs in O(n) time and uses only constant extra space.",B,0
