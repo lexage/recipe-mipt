@@ -112,11 +112,693 @@ FINAL ANSWER:
 """
 
 
-# Few-shot examples are not implemented yet; keys mirror the DS-1000 registry so that
-# `few_shot_type` validation in the pipeline keeps working. Values are empty for now.
+# =====================================================================================
+# FEW-SHOT EXAMPLES
+# =====================================================================================
+# Each TASK below is produced exactly the way `build_agent_task()` assembles a live task
+# (see codemmlu_agent_pipelines.py): a "Problem: {input}" line followed by the four
+# "Solution A/B/C/D" options. The only difference between the two sub-types is `input`:
+#   * code_completion   -> input = question
+#   * fill_in_the_middle -> input = question + " " + problem_description
+# The TASKs are taken verbatim from examples.json (3 code_completion + 3 fill_in_the_middle).
+#
+# Trajectories use the same readable Thought/Action/Observation shape as the DS-1000
+# sibling file. They may reference the `db_search`/`llm` tools for FORMAT reference only —
+# at run time the agent must call ONLY the tools actually registered (see the system
+# prompt CONSTRAINTS section).
+# -------------------------------------------------------------------------------------
+
+
+# ---- code_completion (distractors are usually REAL bugs -> reason on edge cases) ----
+FEW_SHOT_COT_CODE = """### CODE_COMPLETION FEW-SHOT EXAMPLES ###
+
+=== FEW-SHOT EXAMPLE 1 ===
+TASK:
+Problem: from typing import List
+
+
+def has_close_elements(numbers: List[float], threshold: float) -> bool:
+    \"\"\" Check if in given list of numbers, are any two numbers closer to each other than
+    given threshold.
+    >>> has_close_elements([1.0, 2.0, 3.0], 0.5)
+    False
+    >>> has_close_elements([1.0, 2.8, 3.0, 4.0, 5.0, 2.0], 0.3)
+    True
+    \"\"\"
+
+Solution A:   for i in range(len(numbers) - 1):
+    for j in range(i + 1, len(numbers)):
+      if abs(numbers[i] - numbers[j]) > threshold:
+        return False
+  return True
+Solution B:   return any(abs(a - b) < threshold for a, b in zip(numbers, numbers[1:]))
+Solution C:   for i in range(len(numbers)):  # Change range to len(numbers)
+    for j in range(i + 1, len(numbers)):
+      if abs(numbers[i] - numbers[j]) < threshold:
+        return True
+  return False
+Solution D:     for idx, elem in enumerate(numbers):
+        for idx2, elem2 in enumerate(numbers):
+            if idx != idx2:
+                distance = abs(elem - elem2)
+                if distance < threshold:
+                    return True
+
+    return False
+
+Thought 1:
+The function must return True iff SOME pair is closer than `threshold`. I trace the docstring cases: [1.0,2.0,3.0],0.5 -> False; [1.0,2.8,3.0,...],0.3 -> True (2.8 vs 3.0 differ by 0.2 < 0.3). Now I reject options that change behaviour. A returns `False` on the first pair with distance `> threshold`, i.e. it fires on a FAR pair — inverted logic, so on [1.0,2.0,3.0] it returns False on (1.0,2.0) although no pair is close: WRONG. B only compares `zip(numbers, numbers[1:])`, i.e. ADJACENT pairs, so it misses close pairs that are not neighbours: WRONG. C and D both scan pairs and return True on `< threshold`, else False — both are correct and functionally EQUIVALENT. This is a genuine tie, so I keep the canonical reference form: the full pairwise double loop over enumerate (D). Let me confirm the canonical shape.
+
+Action 1: db_search
+Action Input 1: {'query': 'return true if any two elements are closer than threshold pairwise nested loop enumerate'}
+Is_final 1: False
+
+Observation 1: query: return true if any two elements are closer than threshold pairwise nested loop enumerate
+retrieved context: [CHUNK 2101 | doc=0071]
+def has_close_elements(numbers, threshold):
+    for idx, elem in enumerate(numbers):
+        for idx2, elem2 in enumerate(numbers):
+            if idx != idx2 and abs(elem - elem2) < threshold:
+                return True
+    return False
+
+Thought 2:
+The retrieved reference is the full pairwise enumerate scan with the `idx != idx2` guard — identical to option D. C is equivalent but D is the canonical reference form. The answer is D.
+
+Action 2: finish
+Action Input 2: {}
+Is_final 2: True
+
+=== FEW-SHOT EXAMPLE 2 ===
+TASK:
+Problem:
+def generate_integers(a, b):
+    \"\"\"
+    Given two positive integers a and b, return the even digits between a
+    and b, in ascending order.
+
+    For example:
+    generate_integers(2, 8) => [2, 4, 6, 8]
+    generate_integers(8, 2) => [2, 4, 6, 8]
+    generate_integers(10, 14) => []
+    \"\"\"
+
+Solution A:     lower = max(2, min(a, b))
+    upper = min(8, max(a, b))
+
+    return [i for i in range(lower, upper+1) if i % 2 != 0]
+Solution B:     lower = max(2, min(a, b))
+    upper = min(8, max(a, b))
+
+    return [i for i in range(lower, upper+1) if i % 2 == 0]
+Solution C:     lower = max(2, min(a, b))
+    upper = min(8, max(a, b))
+
+    return [i for i in range(lower, upper) if i % 2 == 0]
+Solution D:     lower = min(2, min(a, b))
+    upper = max(8, max(a, b))
+
+    return [i for i in range(lower, upper+1) if i % 2 == 0]
+
+Thought 1:
+The spec asks for the EVEN one-digit values in [2, 8] that lie between a and b, ascending. Trace: generate_integers(2, 8) => [2, 4, 6, 8]; generate_integers(10, 14) => [] (no even digit in 2..8 lies in 10..14). I reject behaviour changes. A filters `i % 2 != 0`, returning ODD values -> [3, 5, 7] for (2, 8): WRONG. C iterates `range(lower, upper)`, excluding `upper`, so it drops 8 for (2, 8) -> [2, 4, 6]: off-by-one, WRONG. D clamps with `min(2, ...)` / `max(8, ...)`, which does NOT bound the interval to [2, 8]; for (10, 14) it yields even numbers up to 14: WRONG. B clamps to [2, 8] with `max(2, ...)` / `min(8, ...)`, iterates inclusively, keeps `i % 2 == 0`. Let me confirm the inclusive-range boundary.
+
+Action 1: db_search
+Action Input 1: {'query': 'inclusive range clamp lower upper keep even numbers list comprehension'}
+Is_final 1: False
+
+Observation 1: query: inclusive range clamp lower upper keep even numbers list comprehension
+retrieved context: [CHUNK 3390 | doc=0142]
+lo, hi = max(2, min(a, b)), min(8, max(a, b))
+[i for i in range(lo, hi + 1) if i % 2 == 0]   # inclusive of hi; keeps evens
+
+Thought 2:
+The reference clamps to [2, 8], uses an inclusive `range(lo, hi + 1)`, and keeps even values — exactly option B. The answer is B.
+
+Action 2: finish
+Action Input 2: {}
+Is_final 2: True
+
+=== FEW-SHOT EXAMPLE 3 ===
+TASK:
+Problem:
+def prime_length(string):
+    \"\"\"Write a function that takes a string and returns True if the string
+    length is a prime number or False otherwise
+    Examples
+    prime_length('Hello') == True
+    prime_length('abcdcba') == True
+    prime_length('kittens') == True
+    prime_length('orange') == False
+    \"\"\"
+
+Solution A:     l = len(string)
+    if l == 0 or l == 1:
+        return False
+    return l % 2 != 0
+Solution B:     l = len(string)
+    if l == 0 or l == 1:
+        return False
+    for i in range(2, l):
+        if l % i == 0:
+            return False
+    return True
+Solution C:     l = len(string)
+    if l == 0 or l == 1:
+        return False
+    return l % 3 != 0
+Solution D:     l = len(string)
+    if l == 0 or l == 1:
+        return False
+    return l % 2 == 1
+
+Thought 1:
+The function must return True iff `len(string)` is prime. A and D are the SAME test: `l % 2 != 0` and `l % 2 == 1` both just check ODDness, so length 9 (odd, not prime) returns True — WRONG for both. C uses `l % 3 != 0`, which is unrelated to primality (length 25 -> True though 25 is not prime): WRONG. B is a real primality test by trial division over `range(2, l)`, returning False on any divisor. Let me confirm the trial-division form.
+
+Action 1: db_search
+Action Input 1: {'query': 'primality test trial division for i in range 2 to n return false if divisible'}
+Is_final 1: False
+
+Observation 1: query: primality test trial division for i in range 2 to n return false if divisible
+retrieved context: [CHUNK 4517 | doc=0203]
+def is_prime(n):
+    if n < 2:
+        return False
+    for i in range(2, n):
+        if n % i == 0:
+            return False
+    return True
+
+Thought 2:
+Option B is the canonical trial-division primality test; the odd/mod-3 shortcuts (A, C, D) are not real primality checks. The answer is B.
+
+Action 2: finish
+Action Input 2: {}
+Is_final 2: True
+"""
+
+
+# ---- fill_in_the_middle (options are usually EQUIVALENT -> pick the canonical form) ----
+FEW_SHOT_COT_MIDDLE = """### FILL_IN_THE_MIDDLE FEW-SHOT EXAMPLES ###
+
+=== FEW-SHOT EXAMPLE 1 ===
+TASK:
+Problem: class Solution:
+  def dominantIndex(self, nums: List[int]) -> int:
+    max = 0
+    secondMax = 0
+
+    for i, num in enumerate(nums):
+      if num > max:
+        secondMax = max
+        max = num
+        ans = i
+      elif num > secondMax:
+        secondMax = num
+
+    _______________
+    return ans if max >= 2 * secondMax else -1 You are given an integer array nums where the largest integer is unique. Determine whether the largest element in the array is at least twice as much as every other number in the array. If it is, return the index of the largest element, or return -1 otherwise.
+
+Solution A:     return ans if max > 2 * secondMax else -1
+Solution B:     return ans if max >= 2 * secondMax else -1
+Solution C:     return ans if max == 2 * secondMax else -1
+Solution D:     return ans if max // 2 >= secondMax else -1
+
+Thought 1:
+The spec says "at least twice as much", i.e. `max >= 2 * secondMax`; the reference line already shown after the blank is exactly that. So the fill line must reproduce the canonical `>=` comparison. I reject the behaviour-changers. A uses `>`, which drops the equality boundary and returns -1 when the max is EXACTLY twice the runner-up — WRONG ("at least" includes equality). C uses `==`, which is only true when max is exactly twice — WRONG. D rewrites it as `max // 2 >= secondMax`; integer division discards the remainder and is a non-canonical reformulation that can disagree on odd values — reject in favour of the direct form. B is the canonical `>=` expression.
+
+Action 1: db_search
+Action Input 1: {'query': 'at least twice as large comparison canonical greater than or equal 2 times'}
+Is_final 1: False
+
+Observation 1: query: at least twice as large comparison canonical greater than or equal 2 times
+retrieved context: [CHUNK 5120 | doc=0311]
+# "x is at least twice y"  ->  x >= 2 * y      (canonical; keeps the equality case)
+
+Thought 2:
+"At least twice" maps to the canonical `max >= 2 * secondMax`, which is option B. The answer is B.
+
+Action 2: finish
+Action Input 2: {}
+Is_final 2: True
+
+=== FEW-SHOT EXAMPLE 2 ===
+TASK:
+Problem: class Solution:
+  def makeLargestSpecial(self, s: str) -> str:
+    specials = []
+    count = 0
+
+    i = 0
+    for j, c in enumerate(s):
+      count += 1 if c == '1' else -1
+      if count == 0:
+        specials.append(
+            _______________
+            '1' + self.makeLargestSpecial(s[i + 1:j]) + '0')
+        i = j + 1
+
+    return ''.join(sorted(specials)[::-1]) Special binary strings are binary strings with the following two properties: You are given a special binary string s. A move consists of choosing two consecutive, non-empty, special substrings of s, and swapping them. Two strings are consecutive if the last character of the first string is exactly one index before the first character of the second string. Return the lexicographically largest resulting string possible after applying the mentioned operations on the string.
+
+Solution A:             self.makeLargestSpecial(s[i + 1:j]) + '10'
+Solution B:             '10' + self.makeLargestSpecial(s[i + 1:j]) + '0'
+Solution C:             '1' + self.makeLargestSpecial(s[i + 1:j]) + '01'
+Solution D:             '1' + self.makeLargestSpecial(s[i + 1:j]) + '0')
+
+Thought 1:
+Each balanced block is rebuilt by wrapping the recursively-normalised inner substring as `'1' + makeLargestSpecial(inner) + '0'`. The line already shown after the blank is `'1' + self.makeLargestSpecial(s[i + 1:j]) + '0')`, so the fill must reproduce that exact wrapping and close the `append(` call. A appends `... + '10'` (drops the leading `'1'`, mangles the wrap): WRONG. B prepends `'10'` and appends `'0'`: WRONG. C appends `... + '01'` instead of `'0'`: WRONG. D is `'1' + self.makeLargestSpecial(s[i + 1:j]) + '0')` — the canonical `'1'...'0'` wrap that also closes the parenthesis. The answer is D.
+
+Action 1: finish
+Action Input 1: {}
+Is_final 1: True
+
+=== FEW-SHOT EXAMPLE 3 ===
+TASK:
+Problem: class Solution:
+  def reachingPoints(self, sx: int, sy: int, tx: int, ty: int) -> bool:
+    while sx < tx and sy < ty:
+      tx, ty = tx % ty, ty % tx
+
+    _______________
+    return sx == tx and sy <= ty and (ty - sy) % tx == 0 or \\
+        sy == ty and sx <= tx and (tx - sx) % ty == 0 Given four integers sx, sy, tx, and ty, return true if it is possible to convert the point (sx, sy) to the point (tx, ty) through some operations, or false otherwise. The allowed operation on some point (x, y) is to convert it to either (x, x + y) or (x + y, y).
+
+Solution A:     return sx == tx and sy < ty and (ty + sy) % tx == 0 or \\
+Solution B:     return sx == tx and sy <= ty and (sx - sy) % tx == 0 or \\
+Solution C:     return sx == tx and sy <= ty and (ty - sy) % tx == 0 or \\
+Solution D:     return sx == tx and sy < ty and (ty - sy) % tx == 0 or \\
+
+Thought 1:
+The blank is the FIRST physical line of the final two-line return; the second line `sy == ty and sx <= tx and (tx - sx) % ty == 0` is already shown, so the fill must be its symmetric counterpart: `sx == tx and sy <= ty and (ty - sy) % tx == 0`. Reject the deviations. A uses `sy < ty` (drops the equality boundary) and `(ty + sy)` (wrong operator): WRONG. B computes `(sx - sy) % tx`, the wrong operands: WRONG. D uses `sy < ty` instead of `sy <= ty`, dropping the boundary where sy equals ty: WRONG. C matches the canonical symmetric line exactly. The answer is C.
+
+Action 1: finish
+Action Input 1: {}
+Is_final 1: True
+"""
+
+
+# ---- contrastive: CORRECT vs WRONG trajectory (same TASK, contrasting reasoning) ----
+FEW_SHOT_CONTRASTIVE_COT_CODE = """### CODE_COMPLETION FEW-SHOT EXAMPLES ###
+
+=== FEW-SHOT EXAMPLE 1 ===
+TASK:
+Problem: from typing import List
+
+
+def has_close_elements(numbers: List[float], threshold: float) -> bool:
+    \"\"\" Check if in given list of numbers, are any two numbers closer to each other than
+    given threshold.
+    >>> has_close_elements([1.0, 2.0, 3.0], 0.5)
+    False
+    >>> has_close_elements([1.0, 2.8, 3.0, 4.0, 5.0, 2.0], 0.3)
+    True
+    \"\"\"
+
+Solution A:   for i in range(len(numbers) - 1):
+    for j in range(i + 1, len(numbers)):
+      if abs(numbers[i] - numbers[j]) > threshold:
+        return False
+  return True
+Solution B:   return any(abs(a - b) < threshold for a, b in zip(numbers, numbers[1:]))
+Solution C:   for i in range(len(numbers)):  # Change range to len(numbers)
+    for j in range(i + 1, len(numbers)):
+      if abs(numbers[i] - numbers[j]) < threshold:
+        return True
+  return False
+Solution D:     for idx, elem in enumerate(numbers):
+        for idx2, elem2 in enumerate(numbers):
+            if idx != idx2:
+                distance = abs(elem - elem2)
+                if distance < threshold:
+                    return True
+
+    return False
+
+[CORRECT TRAJECTORY]
+Thought 1:
+Return True iff some pair is closer than threshold. A returns False on the first FAR pair (inverted): WRONG. B only compares adjacent pairs via `zip(numbers, numbers[1:])`, missing non-neighbour close pairs: WRONG. C and D both do the full pairwise `< threshold` scan and are equivalent; the canonical reference is the enumerate double loop (D).
+Action 1: db_search
+Action Input 1: {'query': 'return true if any two elements closer than threshold pairwise enumerate'}
+Is_final 1: False
+
+Observation 1: query: return true if any two elements closer than threshold pairwise enumerate
+retrieved context: [CHUNK 2101 | doc=0071]
+for idx, elem in enumerate(numbers):
+    for idx2, elem2 in enumerate(numbers):
+        if idx != idx2 and abs(elem - elem2) < threshold:
+            return True
+return False
+
+Thought 2:
+The reference matches option D exactly. The answer is D.
+Action 2: finish
+Action Input 2: {}
+Is_final 2: True
+
+[WRONG TRAJECTORY]
+Thought 1:
+All four options look plausible. Option B is a neat one-liner with `any(...)`, and short idiomatic code is usually the intended answer, so I will go with the most concise version.
+Action 1: finish
+Action Input 1: {}
+Is_final 1: True
+# PITFALL: chose B for BREVITY. B compares only adjacent pairs (zip of numbers with
+# numbers[1:]); it misses close pairs that are not neighbours, so it is a real bug.
+# Concision is not a tie-break when an option changes behaviour. Correct answer: D.
+
+=== FEW-SHOT EXAMPLE 2 ===
+TASK:
+Problem:
+def generate_integers(a, b):
+    \"\"\"
+    Given two positive integers a and b, return the even digits between a
+    and b, in ascending order.
+
+    For example:
+    generate_integers(2, 8) => [2, 4, 6, 8]
+    generate_integers(8, 2) => [2, 4, 6, 8]
+    generate_integers(10, 14) => []
+    \"\"\"
+
+Solution A:     lower = max(2, min(a, b))
+    upper = min(8, max(a, b))
+
+    return [i for i in range(lower, upper+1) if i % 2 != 0]
+Solution B:     lower = max(2, min(a, b))
+    upper = min(8, max(a, b))
+
+    return [i for i in range(lower, upper+1) if i % 2 == 0]
+Solution C:     lower = max(2, min(a, b))
+    upper = min(8, max(a, b))
+
+    return [i for i in range(lower, upper) if i % 2 == 0]
+Solution D:     lower = min(2, min(a, b))
+    upper = max(8, max(a, b))
+
+    return [i for i in range(lower, upper+1) if i % 2 == 0]
+
+[CORRECT TRAJECTORY]
+Thought 1:
+Even digits of [2,8] between a and b, ascending. A keeps ODD values (`i % 2 != 0`): WRONG. D fails to clamp to [2,8] (`min(2,...)`/`max(8,...)`): WRONG. C uses `range(lower, upper)`, dropping the inclusive upper bound 8 for (2,8): WRONG. B clamps to [2,8], iterates inclusively `range(lower, upper+1)`, keeps evens. The answer is B.
+Action 1: finish
+Action Input 1: {}
+Is_final 1: True
+
+[WRONG TRAJECTORY]
+Thought 1:
+Both B and C keep even numbers over the clamped [lower, upper]. `range(lower, upper)` reads naturally as "from lower up to upper", so C looks correct and a bit cleaner without the `+1`. I pick C.
+Action 1: finish
+Action Input 1: {}
+Is_final 1: True
+# PITFALL: `range(lower, upper)` is upper-EXCLUSIVE, so for (2, 8) it yields [2, 4, 6]
+# and drops the required 8. The inclusive `range(lower, upper + 1)` (option B) is needed.
+# Correct answer: B.
+
+=== FEW-SHOT EXAMPLE 3 ===
+TASK:
+Problem:
+def prime_length(string):
+    \"\"\"Write a function that takes a string and returns True if the string
+    length is a prime number or False otherwise
+    Examples
+    prime_length('Hello') == True
+    prime_length('abcdcba') == True
+    prime_length('kittens') == True
+    prime_length('orange') == False
+    \"\"\"
+
+Solution A:     l = len(string)
+    if l == 0 or l == 1:
+        return False
+    return l % 2 != 0
+Solution B:     l = len(string)
+    if l == 0 or l == 1:
+        return False
+    for i in range(2, l):
+        if l % i == 0:
+            return False
+    return True
+Solution C:     l = len(string)
+    if l == 0 or l == 1:
+        return False
+    return l % 3 != 0
+Solution D:     l = len(string)
+    if l == 0 or l == 1:
+        return False
+    return l % 2 == 1
+
+[CORRECT TRAJECTORY]
+Thought 1:
+Return True iff length is prime. A (`l % 2 != 0`) and D (`l % 2 == 1`) both only test ODDness, so length 9 returns True though 9 is not prime: WRONG. C (`l % 3 != 0`) is unrelated to primality: WRONG. B is a real trial-division primality test. The answer is B.
+Action 1: finish
+Action Input 1: {}
+Is_final 1: True
+
+[WRONG TRAJECTORY]
+Thought 1:
+The docstring examples have lengths 5, 7, 7, 6. For the True cases (5, 7) the length is odd; for the False case (6) it is even. So "prime length" seems to coincide with "odd length". Option A returns `l % 2 != 0`, which reproduces every listed example, so I pick A.
+Action 1: finish
+Action Input 1: {}
+Is_final 1: True
+# PITFALL: fitting only the DOCSTRING examples. Odd != prime: length 9 is odd but not
+# prime, and A would wrongly return True. Reason on unseen edge cases, not just the given
+# examples. The real primality test is option B. Correct answer: B.
+"""
+
+
+FEW_SHOT_CONTRASTIVE_COT_MIDDLE = """### FILL_IN_THE_MIDDLE FEW-SHOT EXAMPLES ###
+
+=== FEW-SHOT EXAMPLE 1 ===
+TASK:
+Problem: class Solution:
+  def dominantIndex(self, nums: List[int]) -> int:
+    max = 0
+    secondMax = 0
+
+    for i, num in enumerate(nums):
+      if num > max:
+        secondMax = max
+        max = num
+        ans = i
+      elif num > secondMax:
+        secondMax = num
+
+    _______________
+    return ans if max >= 2 * secondMax else -1 You are given an integer array nums where the largest integer is unique. Determine whether the largest element in the array is at least twice as much as every other number in the array. If it is, return the index of the largest element, or return -1 otherwise.
+
+Solution A:     return ans if max > 2 * secondMax else -1
+Solution B:     return ans if max >= 2 * secondMax else -1
+Solution C:     return ans if max == 2 * secondMax else -1
+Solution D:     return ans if max // 2 >= secondMax else -1
+
+[CORRECT TRAJECTORY]
+Thought 1:
+"At least twice" is `max >= 2 * secondMax`, which is also the line already shown after the blank. A (`>`) and C (`==`) drop or change the equality boundary: WRONG. D rewrites with integer division `max // 2 >= secondMax`, a non-canonical form. B is the direct canonical `>=`. The answer is B.
+Action 1: finish
+Action Input 1: {}
+Is_final 1: True
+
+[WRONG TRAJECTORY]
+Thought 1:
+"Twice as much" sounds like a strict multiple, so the largest must be more than twice the runner-up. `>` captures "more than twice", so I choose A.
+Action 1: finish
+Action Input 1: {}
+Is_final 1: True
+# PITFALL: misread "at LEAST twice" as "strictly more than twice". `>` (A) returns -1
+# when max is exactly 2 * secondMax, which the spec accepts. The canonical `>=` is B.
+# Correct answer: B.
+
+=== FEW-SHOT EXAMPLE 2 ===
+TASK:
+Problem: class Solution:
+  def makeLargestSpecial(self, s: str) -> str:
+    specials = []
+    count = 0
+
+    i = 0
+    for j, c in enumerate(s):
+      count += 1 if c == '1' else -1
+      if count == 0:
+        specials.append(
+            _______________
+            '1' + self.makeLargestSpecial(s[i + 1:j]) + '0')
+        i = j + 1
+
+    return ''.join(sorted(specials)[::-1]) Special binary strings are binary strings with the following two properties: You are given a special binary string s. A move consists of choosing two consecutive, non-empty, special substrings of s, and swapping them. Two strings are consecutive if the last character of the first string is exactly one index before the first character of the second string. Return the lexicographically largest resulting string possible after applying the mentioned operations on the string.
+
+Solution A:             self.makeLargestSpecial(s[i + 1:j]) + '10'
+Solution B:             '10' + self.makeLargestSpecial(s[i + 1:j]) + '0'
+Solution C:             '1' + self.makeLargestSpecial(s[i + 1:j]) + '01'
+Solution D:             '1' + self.makeLargestSpecial(s[i + 1:j]) + '0')
+
+[CORRECT TRAJECTORY]
+Thought 1:
+A balanced block is wrapped as `'1' + makeLargestSpecial(inner) + '0'`, and the fill must also close the `append(` call. The already-shown continuation is `'1' + self.makeLargestSpecial(s[i + 1:j]) + '0')`. A, B and C each mangle the `'1'...'0'` wrap. D reproduces the canonical wrap and closes the parenthesis. The answer is D.
+Action 1: finish
+Action Input 1: {}
+Is_final 1: True
+
+[WRONG TRAJECTORY]
+Thought 1:
+The blank is on its own line, so it is probably a standalone recursive term and the next line completes it. Option A, `self.makeLargestSpecial(s[i + 1:j]) + '10'`, is the shortest recursive-looking expression, so I choose A.
+Action 1: finish
+Action Input 1: {}
+Is_final 1: True
+# PITFALL: ignored that the fill must match the shown `'1' + ... + '0')` continuation and
+# close the append() parenthesis. A drops the leading `'1'` and mis-wraps as `'10'`.
+# Correct answer: D.
+
+=== FEW-SHOT EXAMPLE 3 ===
+TASK:
+Problem: class Solution:
+  def reachingPoints(self, sx: int, sy: int, tx: int, ty: int) -> bool:
+    while sx < tx and sy < ty:
+      tx, ty = tx % ty, ty % tx
+
+    _______________
+    return sx == tx and sy <= ty and (ty - sy) % tx == 0 or \\
+        sy == ty and sx <= tx and (tx - sx) % ty == 0 Given four integers sx, sy, tx, and ty, return true if it is possible to convert the point (sx, sy) to the point (tx, ty) through some operations, or false otherwise. The allowed operation on some point (x, y) is to convert it to either (x, x + y) or (x + y, y).
+
+Solution A:     return sx == tx and sy < ty and (ty + sy) % tx == 0 or \\
+Solution B:     return sx == tx and sy <= ty and (sx - sy) % tx == 0 or \\
+Solution C:     return sx == tx and sy <= ty and (ty - sy) % tx == 0 or \\
+Solution D:     return sx == tx and sy < ty and (ty - sy) % tx == 0 or \\
+
+[CORRECT TRAJECTORY]
+Thought 1:
+The fill is the first line of the two-line return; it must mirror the shown second line as `sx == tx and sy <= ty and (ty - sy) % tx == 0`. A changes `<=`->`<` and `(ty - sy)`->`(ty + sy)`: WRONG. B uses `(sx - sy)`: WRONG. D changes `<=`->`<`: WRONG. C matches exactly. The answer is C.
+Action 1: finish
+Action Input 1: {}
+Is_final 1: True
+
+[WRONG TRAJECTORY]
+Thought 1:
+C and D both use `(ty - sy) % tx == 0`, which matches the mirrored line. Between `sy < ty` and `sy <= ty` the strict `<` looks safer against division-by-zero style edge cases, so I pick D.
+Action 1: finish
+Action Input 1: {}
+Is_final 1: True
+# PITFALL: swapped `<=` for `<`, dropping the boundary case sy == ty that the symmetric
+# second line (`sx <= tx`) clearly keeps. The canonical mirror uses `<=` -> option C.
+# Correct answer: C.
+"""
+
+
+# ---- auto_cot: compact reasoning trajectory ending with the chosen letter ----
+FEW_SHOT_AUTO_COT_CODE = """### CODE_COMPLETION FEW-SHOT EXAMPLES ###
+
+=== FEW-SHOT EXAMPLE 1 ===
+TASK:
+Problem: def has_close_elements(numbers, threshold): return True if any two numbers are closer than `threshold`, else False. Examples: [1.0,2.0,3.0],0.5 -> False; [1.0,2.8,3.0,4.0,5.0,2.0],0.3 -> True.
+
+Solution A: nested loop, returns False when a pair is `> threshold` (inverted).
+Solution B: `any(abs(a-b) < threshold for a,b in zip(numbers, numbers[1:]))` (adjacent pairs only).
+Solution C: nested loop over all pairs, returns True when `< threshold`, else False.
+Solution D: nested enumerate over all pairs with `idx != idx2`, returns True when `< threshold`, else False.
+
+Thought 1: A is inverted (fires on far pairs). B compares only adjacent neighbours, missing non-adjacent close pairs. C and D both scan every pair correctly and are equivalent; D is the canonical reference form.
+Action 1: finish
+Action Input 1: {}
+Is_final 1: True
+Answer: D
+
+=== FEW-SHOT EXAMPLE 2 ===
+TASK:
+Problem: def generate_integers(a, b): return the even digits in [2, 8] that lie between a and b, ascending. generate_integers(2,8) -> [2,4,6,8]; generate_integers(10,14) -> [].
+
+Solution A: clamp [2,8] inclusive, keep `i % 2 != 0` (odd).
+Solution B: clamp [2,8] inclusive `range(lower, upper+1)`, keep `i % 2 == 0`.
+Solution C: clamp [2,8] but `range(lower, upper)` (upper-exclusive), keep evens.
+Solution D: bounds `min(2,...)`/`max(8,...)` (not clamped), inclusive, keep evens.
+
+Thought 1: A returns odds. C drops the inclusive upper bound (loses 8). D fails to clamp to [2,8]. B clamps correctly and iterates inclusively over evens.
+Action 1: finish
+Action Input 1: {}
+Is_final 1: True
+Answer: B
+
+=== FEW-SHOT EXAMPLE 3 ===
+TASK:
+Problem: def prime_length(string): return True iff len(string) is prime. 'Hello' -> True (5), 'orange' -> False (6).
+
+Solution A: `return l % 2 != 0` (odd check).
+Solution B: trial division `for i in range(2, l): if l % i == 0: return False; return True`.
+Solution C: `return l % 3 != 0`.
+Solution D: `return l % 2 == 1` (odd check).
+
+Thought 1: A and D only test oddness (length 9 is odd but not prime). C tests divisibility by 3, unrelated to primality. B is a genuine trial-division primality test.
+Action 1: finish
+Action Input 1: {}
+Is_final 1: True
+Answer: B
+"""
+
+
+FEW_SHOT_AUTO_COT_MIDDLE = """### FILL_IN_THE_MIDDLE FEW-SHOT EXAMPLES ###
+
+=== FEW-SHOT EXAMPLE 1 ===
+TASK:
+Problem: dominantIndex fills the blank before `return ans if max >= 2 * secondMax else -1`; the spec wants "at least twice as much".
+
+Solution A: `return ans if max > 2 * secondMax else -1`
+Solution B: `return ans if max >= 2 * secondMax else -1`
+Solution C: `return ans if max == 2 * secondMax else -1`
+Solution D: `return ans if max // 2 >= secondMax else -1`
+
+Thought 1: "At least twice" is `max >= 2 * secondMax`. A (`>`) and C (`==`) change the equality boundary; D uses non-canonical integer division. B is the direct canonical form and matches the shown line.
+Action 1: finish
+Action Input 1: {}
+Is_final 1: True
+Answer: B
+
+=== FEW-SHOT EXAMPLE 2 ===
+TASK:
+Problem: makeLargestSpecial fills the blank inside `specials.append(...)`; the shown continuation is `'1' + self.makeLargestSpecial(s[i + 1:j]) + '0')`, so a block is wrapped as `'1' + rec + '0'`.
+
+Solution A: `self.makeLargestSpecial(s[i + 1:j]) + '10'`
+Solution B: `'10' + self.makeLargestSpecial(s[i + 1:j]) + '0'`
+Solution C: `'1' + self.makeLargestSpecial(s[i + 1:j]) + '01'`
+Solution D: `'1' + self.makeLargestSpecial(s[i + 1:j]) + '0')`
+
+Thought 1: The fill must reproduce the `'1' + rec + '0'` wrap and close the append() paren. A, B and C each mangle the wrapping characters. D matches the canonical wrap and closes the parenthesis.
+Action 1: finish
+Action Input 1: {}
+Is_final 1: True
+Answer: D
+
+=== FEW-SHOT EXAMPLE 3 ===
+TASK:
+Problem: reachingPoints fills the first line of a two-line return; the shown second line is `sy == ty and sx <= tx and (tx - sx) % ty == 0`, so the fill is its mirror.
+
+Solution A: `sx == tx and sy < ty and (ty + sy) % tx == 0 or \\`
+Solution B: `sx == tx and sy <= ty and (sx - sy) % tx == 0 or \\`
+Solution C: `sx == tx and sy <= ty and (ty - sy) % tx == 0 or \\`
+Solution D: `sx == tx and sy < ty and (ty - sy) % tx == 0 or \\`
+
+Thought 1: The canonical mirror is `sx == tx and sy <= ty and (ty - sy) % tx == 0`. A changes `<=`->`<` and `-`->`+`; B uses `(sx - sy)`; D changes `<=`->`<`. C matches exactly.
+Action 1: finish
+Action Input 1: {}
+Is_final 1: True
+Answer: C
+"""
+
+
+# Trailing marker appended after the examples, right before the live task is concatenated
+# (mirrors the DS-1000 registry, where each few-shot string ends with "=== TASK ===").
+_TASK_MARKER = "\n=== TASK ===\n"
+
+# Keys mirror the DS-1000 registry so `few_shot_type` validation in the pipeline keeps
+# working. Because one pipeline instance runs BOTH sub-splits (code, then middle) with a
+# single few-shot string, the base keys carry the code AND middle examples. The
+# `*_code` / `*_middle` keys expose each sub-type on its own, in case the pipeline is
+# later changed to pick few-shots per sub-type.
 FEW_SHOT_REGISTRY = {
     "zero_shot": "",
-    "cot": "",
-    "contrastive_cot": "",
-    "auto_cot": "",
+    "cot": FEW_SHOT_COT_CODE + "\n" + FEW_SHOT_COT_MIDDLE + _TASK_MARKER,
+    "contrastive_cot": FEW_SHOT_CONTRASTIVE_COT_CODE + "\n" + FEW_SHOT_CONTRASTIVE_COT_MIDDLE + _TASK_MARKER,
+    "auto_cot": FEW_SHOT_AUTO_COT_CODE + "\n" + FEW_SHOT_AUTO_COT_MIDDLE + _TASK_MARKER,
+    "cot_code": FEW_SHOT_COT_CODE + _TASK_MARKER,
+    "cot_middle": FEW_SHOT_COT_MIDDLE + _TASK_MARKER,
+    "contrastive_cot_code": FEW_SHOT_CONTRASTIVE_COT_CODE + _TASK_MARKER,
+    "contrastive_cot_middle": FEW_SHOT_CONTRASTIVE_COT_MIDDLE + _TASK_MARKER,
+   #  "auto_cot_code": FEW_SHOT_AUTO_COT_CODE + _TASK_MARKER,
+   #  "auto_cot_middle": FEW_SHOT_AUTO_COT_MIDDLE + _TASK_MARKER,
 }

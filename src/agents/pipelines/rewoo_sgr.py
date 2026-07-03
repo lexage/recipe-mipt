@@ -2,6 +2,7 @@ from typing import List, Union, Dict, Any, Type
 import logging
 import json
 import re
+import importlib
 
 from pydantic import BaseModel, create_model, Field
 from openai import OpenAI
@@ -10,12 +11,28 @@ from src.agent_constructor.agent import Agent
 from src.agent_constructor.core import Text
 from src.tools import BaseTool, LLMTool
 
+# Reuse the per-sub-split few-shot selection shared with the ReAct-SGR pipeline so the
+# code/middle CodeMMLU splits each load their own examples (e.g. cot_code / cot_middle).
+from src.agents.pipelines.react_sgr import _detect_subset, _resolve_subset_few_shots
 
-from src.agents.pipelines.prompts.ds1000.prompts_rewoo_sgr import (
-    PLANNER_PROMPT,
-    SOLVER_PROMPT,
-    FEW_SHOT_REGISTRY,
-)
+
+_PROMPTS_PACKAGE = "src.agents.pipelines.prompts"
+
+
+def _load_rewoo_sgr_prompts(dataset: str):
+    """Load ReWOO-SGR prompt templates for the given dataset (ds1000, codemmlu, ...).
+
+    Mirrors ``react_sgr._load_react_sgr_prompts``: each dataset package exposes the SAME
+    public names (PLANNER_PROMPT, SOLVER_PROMPT, FEW_SHOT_REGISTRY), so switching
+    benchmarks only changes which module we import — selected via the ``dataset`` param.
+    """
+    module = importlib.import_module(f"{_PROMPTS_PACKAGE}.{dataset}.prompts_rewoo_sgr")
+    return (
+        module.PLANNER_PROMPT,
+        module.SOLVER_PROMPT,
+        module.FEW_SHOT_REGISTRY,
+    )
+
 
 _LOG_SEPARATOR = f"\n{'_' * 20}\n"
 
@@ -57,7 +74,8 @@ class PlannerREWOOSGR(Agent):
         name: str = "rewoo_planner_agent",
         maximum_steps: int = 5,
         tools: List[BaseTool] = None,
-        few_shot_type: str = "zero_shot"
+        few_shot_type: str = "zero_shot",
+        dataset: str = "ds1000",
     ):
         super().__init__(name)
         self.client = OpenAI(base_url=url, api_key="vllm", timeout=600.0, max_retries=2)
@@ -74,13 +92,25 @@ class PlannerREWOOSGR(Agent):
             [t.get_prompt_description() for t in self.tools]
         )
 
-        self.prompt = PLANNER_PROMPT
+        # Dataset selects which prompt package to use (ds1000, codemmlu, ...).
+        self.dataset = dataset
+        planner_prompt, _, few_shot_registry = _load_rewoo_sgr_prompts(dataset)
+        self.prompt = planner_prompt
         self.maximum_steps = maximum_steps
 
-        if few_shot_type not in FEW_SHOT_REGISTRY:
-            raise ValueError(f"Unknown few_shot_type: {few_shot_type}. Available: {list(FEW_SHOT_REGISTRY.keys())}")
-            
-        self.few_shot_examples = FEW_SHOT_REGISTRY[few_shot_type]
+        if few_shot_type not in few_shot_registry:
+            raise ValueError(f"Unknown few_shot_type: {few_shot_type}. Available: {list(few_shot_registry.keys())}")
+
+        # Per-sub-split mapping so the code/middle CodeMMLU splits each get their own
+        # planner few-shots (e.g. cot_code / cot_middle), selected per run().
+        self._few_shots_by_subset = _resolve_subset_few_shots(
+            few_shot_type, few_shot_registry
+        )
+        self.few_shot_examples = few_shot_registry[few_shot_type]
+
+    def _select_few_shots(self, task) -> str:
+        """Pick the few-shot split matching this task's CodeMMLU sub-split."""
+        return self._few_shots_by_subset.get(_detect_subset(task), self.few_shot_examples)
 
     def llm(self, prompt: str) -> BaseModel:
         """Call LLM to get a structured response."""
@@ -103,7 +133,7 @@ class PlannerREWOOSGR(Agent):
         )
 
         # parsed_response = self.llm(REWOO_FEW_SHOT_COT_EXAMPLES + task_prompt)
-        parsed_response = self.llm(self.few_shot_examples + task_prompt)
+        parsed_response = self.llm(self._select_few_shots(task) + task_prompt)
         # parsed_response = self.llm(task_prompt)
 
         logging.info(f"TASK:\n\n{task}")
@@ -209,18 +239,32 @@ class SolverREWOOSGR(Agent):
         model_name: str = None,
         name: str = "rewoo_solver_agent",
         temperature: float = 0.0,
-        few_shot_type: str = "solver_cot"
+        few_shot_type: str = "solver_cot",
+        dataset: str = "ds1000",
     ):
         super().__init__(name)
         self.client = OpenAI(base_url=url, api_key="vllm", timeout=600.0, max_retries=2)
         self.model_name = model_name
         self.temperature = temperature
-        self.prompt = SOLVER_PROMPT
 
-        if few_shot_type not in FEW_SHOT_REGISTRY:
-            raise ValueError(f"Unknown few_shot_type: {few_shot_type}. Available: {list(FEW_SHOT_REGISTRY.keys())}")
-            
-        self.few_shot_examples = FEW_SHOT_REGISTRY[few_shot_type]
+        # Dataset selects which prompt package to use (ds1000, codemmlu, ...).
+        self.dataset = dataset
+        _, solver_prompt, few_shot_registry = _load_rewoo_sgr_prompts(dataset)
+        self.prompt = solver_prompt
+
+        if few_shot_type not in few_shot_registry:
+            raise ValueError(f"Unknown few_shot_type: {few_shot_type}. Available: {list(few_shot_registry.keys())}")
+
+        # Per-sub-split mapping so the code/middle CodeMMLU splits each get their own
+        # solver few-shots (e.g. solver_cot_code / solver_cot_middle), selected per run().
+        self._few_shots_by_subset = _resolve_subset_few_shots(
+            few_shot_type, few_shot_registry
+        )
+        self.few_shot_examples = few_shot_registry[few_shot_type]
+
+    def _select_few_shots(self, task) -> str:
+        """Pick the few-shot split matching this task's CodeMMLU sub-split."""
+        return self._few_shots_by_subset.get(_detect_subset(task), self.few_shot_examples)
 
     # def llm(self, prompt: str) -> str:
     #     """Сalling the llm to get a response."""
@@ -267,8 +311,8 @@ class SolverREWOOSGR(Agent):
     def run(self, task, plan, evidencies):
         completed_plan_str = self._build_completed_plan_str(plan, evidencies)
         solve_prompt = self.prompt.format(plan=completed_plan_str, task=task)
-        
-        full_prompt = self.few_shot_examples + "\n\n" + solve_prompt
+
+        full_prompt = self._select_few_shots(task) + "\n\n" + solve_prompt
         
         parsed_result = self.llm(full_prompt)
         

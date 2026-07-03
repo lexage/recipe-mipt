@@ -202,7 +202,173 @@ BEGIN SOLUTION
 </code>
 """
 
-class AutoCoT(Agent):    
+PROMPT_GET_REACT_TRAJECTORY_CODEMMLU = """You are an expert AI agent that generates data for training AUTO-COT few-shot examples on a MULTIPLE-CHOICE code benchmark (CodeMMLU). Each task gives a Python code problem and four candidate options labelled A, B, C, D; EXACTLY ONE is the reference-correct answer. Your task is to output a COMPACT decision trajectory following the ReAct framework, ending on the reference-correct letter.
+
+Available tools:
+- llm(query: str): Generates reasoning steps or compares options.
+- db_search(query: str): Retrieves the canonical reference implementation and concrete code snippets from a codebase or documentation index.
+
+HOW TO DECIDE THE LETTER
+- Reject any option that changes BEHAVIOUR (wrong comparison/operator/variable, off-by-one, wrong precedence, a dropped guard the spec needs, a wrong formula or algorithm). Keep the option whose result matches EVERY example exactly.
+- If two or more surviving options are FUNCTIONALLY EQUIVALENT, keep the CANONICAL / minimal form (the simplest standard idiom), judging by FORM not position.
+- The trajectory MUST settle on the reference-correct letter provided below.
+
+CRITICAL RULES FOR OUTPUT FORMATTING:
+1. Output ONLY the filled template layout. Do NOT include any introductory text, introductory markdown, explanations, or concluding remarks.
+2. Start your response directly with "=== FEW-SHOT EXAMPLE" and end it immediately after the final "Answer:" line.
+3. Keep it AUTO-COT compact: a concise one-paragraph "Problem:" paraphrase and a one-line compact description per "Solution A/B/C/D".
+4. Emit a MULTI-STEP trajectory: interleave one or more Thought/Action/Observation cycles (use db_search to retrieve the canonical reference, or llm to compare options) BEFORE the final finish step. Vary the number of intermediate steps across examples (typically 1-3); do NOT always finish on the first step. Number every step sequentially (Thought 1/Action 1/..., Thought 2/Action 2/...).
+5. Action Input MUST be a Python dictionary using single quotes for strings: {'query': '...'}; for 'finish' it is the empty dict {}. Do NOT use pure JSON format.
+6. Simulated observations for 'db_search' must look like actual search chunks, for example:
+   "query: your query
+   retrieved context: [CHUNK 12345 | doc=6789]
+   In [1]: ...
+   Out[1]: ..."
+7. The final step MUST be 'finish' with "Is_final N: True", and the final line MUST be "Answer: <letter>" equal to the reference-correct letter.
+8. Generate the COMPLETE block from "=== FEW-SHOT EXAMPLE..." to the "Answer:" line in one response. Do not truncate.
+
+Input Data:
+Problem (with the four options A/B/C/D): <problem>
+Reference-correct answer: <reference_code>
+
+Output Template Layout to fill and return (Output NOTHING else):
+=== FEW-SHOT EXAMPLE ===
+TASK:
+Problem: <Insert a concise paraphrase of the problem here>
+
+Solution A: <one-line compact description of option A>
+Solution B: <one-line compact description of option B>
+Solution C: <one-line compact description of option C>
+Solution D: <one-line compact description of option D>
+
+Thought 1: [compact reasoning about what to verify next: trace examples/boundaries, start rejecting the behaviour-changing options]
+Action 1: db_search
+Action Input 1: {'query': '...'}
+Is_final 1: False
+
+Observation 1: [realistic simulated retrieval with [CHUNK ... | doc=...] and code lines]
+
+Thought 2: ...
+Action 2: ...
+Action Input 2: {'query': '...'}
+Is_final 2: False
+
+Observation 2: ...
+
+Thought N: [confirmation that the reference-correct option is settled; state the single letter]
+Action N: finish
+Action Input N: {}
+Is_final N: True
+Answer: <reference-correct letter A/B/C/D>
+"""
+
+PROMPT_GET_REWOO_TRAJECTORY_CODEMMLU = """You are an expert AI agent that generates data for training AUTO-COT few-shot examples on a MULTIPLE-CHOICE code benchmark (CodeMMLU). Each task gives a Python code problem and four candidate options labelled A, B, C, D; EXACTLY ONE is the reference-correct answer. Your task is to output a COMPACT decision plan following the ReWOO (Reasoning Without Observation) framework, ending on the reference-correct letter.
+
+Available tools:
+- llm(query: str): Generates reasoning steps or compares options.
+- db_search(query: str): Retrieves the canonical reference implementation and concrete code snippets from a codebase or documentation index.
+
+HOW TO DECIDE THE LETTER (drive the plan toward this)
+- Reject any option that changes BEHAVIOUR (wrong comparison/operator/variable, off-by-one, wrong precedence, a dropped guard the spec needs, a wrong formula or algorithm). Keep the option whose result matches EVERY example exactly.
+- If two or more surviving options are FUNCTIONALLY EQUIVALENT, keep the CANONICAL / minimal form (the simplest standard idiom), judging by FORM not position.
+- The plan MUST support settling on the reference-correct letter provided below.
+
+CRITICAL RULES FOR OUTPUT FORMATTING:
+1. Output ONLY the filled template layout. Do NOT include any introductory text, introductory markdown blocks, explanations, or concluding remarks.
+2. Start your response directly with "=== FEW-SHOT EXAMPLE" and end it immediately after the final "Answer:" line.
+3. Keep it AUTO-COT compact: a concise one-paragraph "Problem:" paraphrase, a one-line compact description per "Solution A/B/C/D", a SINGLE inline "THOUGHT:" line, then the plan.
+4. Emit a MULTI-STEP plan: the "steps" list must contain one or more steps, and you should usually produce 2-3 steps (e.g. a db_search retrieval whose evidence a later llm/db_search step depends on). Vary the number of steps across examples; do NOT always emit exactly one step. Number step_id sequentially and wire later steps to earlier evidence via 'depends_on' (e.g. ["#E1"]).
+5. The plan MUST be RAW JSON (no "BEGIN PLAN"/"BEGIN SOLUTION" header, no <code> markdown wrapper): a JSON object with a "steps" list; each step has 'step_id', 'plan', 'tool', 'args' (a dict, e.g. {"query": "..."}), 'evidence_tag', and 'depends_on'.
+6. The final line MUST be "Answer: <letter>" and MUST equal the reference-correct letter.
+7. Generate the COMPLETE block from "=== FEW-SHOT EXAMPLE..." to the "Answer:" line in one single response. Do not truncate.
+
+Input Data:
+Example Number: <example_number>
+Problem (with the four options A/B/C/D): <problem>
+Reference-correct answer: <reference_code>
+
+Output Template Layout to fill and return (Output NOTHING else):
+=== FEW-SHOT EXAMPLE <example_number> ===
+TASK:
+Problem: <Insert a concise paraphrase of the problem here>
+
+Solution A: <one-line compact description of option A>
+Solution B: <one-line compact description of option B>
+Solution C: <one-line compact description of option C>
+Solution D: <one-line compact description of option D>
+
+THOUGHT: <Insert one concise line: reject the behaviour-changing options, name the surviving canonical one, and outline what the plan steps retrieve/decide>
+{
+  "steps": [
+    {
+      "step_id": 1,
+      "plan": "<Insert explicit planning sentence, e.g. retrieve the canonical reference for the described routine>",
+      "tool": "<llm or db_search>",
+      "args": {"query": "<Insert query string for the tool>"},
+      "evidence_tag": "#E1",
+      "depends_on": []
+    },
+    {
+      "step_id": 2,
+      "plan": "<Insert explicit planning sentence, e.g. given reference #E1 decide which option matches, rejecting the behaviour-changing variants>",
+      "tool": "<llm or db_search>",
+      "args": {"query": "<Insert query string for the tool>"},
+      "evidence_tag": "#E2",
+      "depends_on": ["#E1"]
+    }
+  ]
+}
+Answer: <reference-correct letter A/B/C/D>
+"""
+
+PROMPT_GET_REWOO_TRAJECTORY_CODEMMLU_SOLVER = """You are an expert AI agent that generates data for training SOLVER few-shot examples for a ReWOO (Reasoning Without Observation) pipeline on a MULTIPLE-CHOICE code benchmark (CodeMMLU). The SOLVER stage receives an ALREADY-COMPLETED plan — a list of Plan/Evidence pairs — and must output the FINAL answer as a single letter A, B, C, or D (EXACTLY ONE is reference-correct). Your task is to produce one complete SOLVER example: the task, the completed Plan/Evidence bullets, and the final structured RESPONSE, ending on the reference-correct letter.
+
+The evidence would have been gathered with these tools:
+- llm(query: str): Generates reasoning steps or compares options.
+- db_search(query: str): Retrieves the canonical reference implementation and concrete code snippets from a codebase or documentation index.
+
+HOW THE SOLVER DECIDES THE LETTER
+- Reject any option that changes BEHAVIOUR (wrong comparison/operator/variable, off-by-one, wrong precedence, a dropped guard the spec needs, a wrong formula or algorithm). Keep the option whose result matches EVERY example exactly.
+- If two or more surviving options are FUNCTIONALLY EQUIVALENT, keep the CANONICAL / minimal form (the simplest standard idiom), judging by FORM not position.
+- Use the Evidence only when it gives a concrete, verifiable reason; ignore evidence about style, naming, or theoretical edge cases that do not change which option is reference-correct.
+- The RESPONSE MUST settle on the reference-correct letter provided below.
+
+CRITICAL RULES FOR OUTPUT FORMATTING:
+1. Output ONLY the filled template layout. Do NOT include any introductory text, introductory markdown, explanations, or concluding remarks.
+2. Start your response directly with "=== FEW-SHOT EXAMPLE" and end it immediately after the closing brace of the RESPONSE JSON.
+3. Keep it AUTO-COT compact: a concise one-paragraph "Problem:" paraphrase and a one-line compact description per "Solution A/B/C/D".
+4. Emit a MULTI-STEP completed plan: one or more "- Plan:"/"- Evidence:" bullet pairs (usually 2-3), mirroring what the planner would have retrieved (a canonical reference via db_search, then a decision comparing the options). Each Plan/Evidence uses single quotes and a realistic, concise evidence string. Vary the number of pairs across examples; do NOT always emit exactly one pair.
+5. RESPONSE MUST be a JSON object with exactly two keys: "thought" (a concise reconciliation of the evidence) and "response" (EXACTLY ONE character — A, B, C, or D). The "response" value MUST equal the reference-correct letter.
+6. Generate the COMPLETE block from "=== FEW-SHOT EXAMPLE..." to the RESPONSE JSON in one response. Do not truncate.
+
+Input Data:
+Example Number: <example_number>
+Problem (with the four options A/B/C/D): <problem>
+Reference-correct answer: <reference_code>
+
+Output Template Layout to fill and return (Output NOTHING else):
+=== FEW-SHOT EXAMPLE <example_number> ===
+TASK:
+Problem: <Insert a concise paraphrase of the problem here>
+
+Solution A: <one-line compact description of option A>
+Solution B: <one-line compact description of option B>
+Solution C: <one-line compact description of option C>
+Solution D: <one-line compact description of option D>
+
+- Plan: '<Insert the first planning sentence, e.g. retrieve the canonical reference for the described routine>'
+- Evidence: '<Insert the realistic tool result for that step, e.g. the canonical reference implementation>'
+- Plan: '<Insert the second planning sentence, e.g. decide which option matches the reference, rejecting the behaviour-changing variants>'
+- Evidence: '<Insert the realistic reasoning result that names the surviving canonical option>'
+
+RESPONSE:
+{
+  "thought": "<Insert a concise reconciliation: why the behaviour-changing options are rejected and why the surviving canonical option is the answer>",
+  "response": "<reference-correct letter A/B/C/D>"
+}
+"""
+
+class AutoCoT(Agent):
     def __init__(
         self,
         problems: Union[str, List[Dict[str, str]]],

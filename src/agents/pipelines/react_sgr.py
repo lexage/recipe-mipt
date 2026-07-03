@@ -30,6 +30,47 @@ def _load_react_sgr_prompts(dataset: str):
     )
 
 
+# CodeMMLU is evaluated on two sub-splits (code_completion / fill_in_the_middle) by a
+# SINGLE pipeline instance (see codemmlu_agent_pipelines.py). The runner prepends a
+# per-kind steering HINT to every task, and these stable phrases let the agent detect
+# which sub-split the live task belongs to so it can load the matching few-shot split
+# (e.g. `cot_code` vs `cot_middle`) instead of one combined string. On datasets without
+# sub-splits (e.g. DS-1000) no marker matches and the agent keeps its base few-shots.
+_SUBSET_TASK_MARKERS = (
+    ("code", "REAL bugs"),
+    ("middle", "functionally EQUIVALENT"),
+)
+
+
+def _detect_subset(task) -> Optional[str]:
+    """Return the CodeMMLU sub-split ('code' / 'middle') for a task, or None."""
+    text = task if isinstance(task, str) else str(task)
+    for subset, marker in _SUBSET_TASK_MARKERS:
+        if marker in text:
+            return subset
+    return None
+
+
+def _resolve_subset_few_shots(
+    few_shot_type: str, registry: Dict[str, str]
+) -> Dict[Optional[str], str]:
+    """Map each CodeMMLU sub-split to the few-shot string it should use.
+
+    From a base ``few_shot_type`` (e.g. ``cot``) look up the per-sub-split variants
+    ``{base}_code`` / ``{base}_middle`` in the registry. Whichever exist are used for
+    that sub-split; any missing one — and the ``None`` (undetected) case — falls back to
+    the base string. So CodeMMLU gets ``cot_code``/``cot_middle`` automatically, while a
+    dataset without those keys (DS-1000) or an explicit ``*_code``/``zero_shot`` type
+    keeps the previous single-few-shot behaviour unchanged.
+    """
+    base = registry[few_shot_type]
+    return {
+        "code": registry.get(f"{few_shot_type}_code", base),
+        "middle": registry.get(f"{few_shot_type}_middle", base),
+        None: base,
+    }
+
+
 class AgentConfig:
     """Configuration constants for ReActAgent to avoid magic numbers."""
 
@@ -120,6 +161,11 @@ class ReActAgentSGR(Agent):
         if few_shot_type not in few_shot_registry:
             raise ValueError(f"Unknown few_shot_type: {few_shot_type}. Available: {list(few_shot_registry.keys())}")
 
+        # Resolve a per-sub-split few-shot mapping so the code/middle CodeMMLU splits
+        # each get their own examples (e.g. cot_code / cot_middle), selected per run().
+        self._few_shots_by_subset = _resolve_subset_few_shots(
+            few_shot_type, few_shot_registry
+        )
         self.few_shot_examples = few_shot_registry[few_shot_type]
 
         # Runtime state - reset on each run() call
@@ -130,6 +176,11 @@ class ReActAgentSGR(Agent):
 
         logging.info(f"SYSTEM PROMPT: {self.instruction}")
         logging.info(_LOG_SEPARATOR)
+
+    def _select_few_shots(self, task: str) -> str:
+        """Pick the few-shot split matching this task's CodeMMLU sub-split."""
+        subset = _detect_subset(task)
+        return self._few_shots_by_subset.get(subset, self.few_shot_examples)
 
     def _reset_runtime_state(self) -> None:
         """Reset ephemeral state between agent runs to prevent state leakage."""
@@ -375,7 +426,7 @@ class ReActAgentSGR(Agent):
             {"role": "system", "content": self.instruction},
             # {"role": "user", "content": FEW_SHOT_COT_EXAMPLES + task},
             # {"role": "user", "content": FEW_SHOT_CONTRASTIVE_COT + task},
-            {"role": "user", "content": self.few_shot_examples + task},
+            {"role": "user", "content": self._select_few_shots(task) + task},
             # {"role": "user", "content": task},
         ]
 
