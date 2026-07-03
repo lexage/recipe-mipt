@@ -10,6 +10,7 @@ from tqdm import tqdm
 from . import execution
 from .dataset import DatasetDS1000
 from .data_types import ResultsDS1000
+from src.tracing import Tracer
 
 
 class DS1000:
@@ -50,17 +51,30 @@ class DS1000:
         code = code.replace('<code>', '')
         return code
 
-    def _run_method(self, run_method: Callable, preprocess_method: Callable, 
+    def _run_method(self, run_method: Callable, preprocess_method: Callable,
                    file_path: str, num_workers: int):
-        
+
+        def traced_call(task):
+            """Run one task with a per-thread trace bracketing the pipeline call.
+
+            Tracing is a no-op unless ``Tracer.configure`` was called (see ``eval``).
+            """
+            metadata = getattr(task, "metadata", None) or {}
+            Tracer.start(
+                metadata.get("problem_id"),
+                getattr(task, "prompt", None),
+                metadata,
+            )
+            payload = preprocess_method(task) if preprocess_method else task
+            result = run_method(payload)
+            Tracer.finish(result)
+            return result
+
         with open(file_path, 'w', encoding='utf-8') as f:
             with cfuts.ThreadPoolExecutor(max_workers=num_workers) as executor:
                 futures = {
-                    executor.submit(
-                        run_method,
-                        preprocess_method(
-                            task) if preprocess_method else task
-                    ): task for task in self.dataset
+                    executor.submit(traced_call, task): task
+                    for task in self.dataset
                 }
 
                 with tqdm(total=len(futures), desc="Solving Problems") as pbar:
@@ -128,6 +142,7 @@ class DS1000:
             )
             os.makedirs(experiment_save_path, exist_ok=True)
             file_path = os.path.join(experiment_save_path, 'answers.jsonl')
+            Tracer.configure(os.path.join(experiment_save_path, 'traces.jsonl'))
             self._run_method(run_method, preprocess_method, file_path, num_workers)
         else:
             experiment_save_path = os.path.join(

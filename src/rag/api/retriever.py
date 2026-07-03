@@ -6,6 +6,7 @@ from src.agent_constructor.agent import Agent
 from src.agent_constructor.context_engine import Retriever
 from src.agent_constructor.core import Chunk, Text
 from src.agent_constructor.db import IDB
+from src.tracing import Tracer
 
 from src.benchmarks import DataItemDS1000
 
@@ -66,9 +67,18 @@ class APIRetriever(Retriever):
         if metadata.get("library") in self.ignore_libs:
             return []
 
+        raw_apis = self.api_selector.run(prompt)
         selected_apis = self.select_task_apis(
-            raw_apis=self.api_selector.run(prompt),
+            raw_apis=raw_apis,
             task_metadata=metadata,
+        )
+        Tracer.add(
+            "apis",
+            {
+                "library": metadata.get("library"),
+                "raw": raw_apis,
+                "selected": selected_apis,
+            },
         )
 
         chunks: List[Chunk] = []

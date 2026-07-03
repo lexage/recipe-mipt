@@ -8,6 +8,7 @@ from src.agent_constructor.pipeline import Pipeline
 from src.agent_constructor.context_engine import ContextAssembler
 from src.agent_constructor.icl import ICLBlock
 from src.benchmarks.ds1000 import DataItemDS1000
+from src.tracing import Tracer
 
 
 class SimplePipeline(Pipeline):
@@ -53,6 +54,7 @@ class SimplePipeline(Pipeline):
             tasks = self.enhancer.run(task)
         else:
             tasks = [task]
+        Tracer.extend("queries", tasks)
 
         context = []
         if self.retriever:
@@ -62,12 +64,19 @@ class SimplePipeline(Pipeline):
         if self.icl_block:
             context = self.icl_block.apply(context)
 
+        # Capture retrieved chunks generically, before assembly, so the trace
+        # reflects whatever the configured retriever produced.
+        Tracer.record_chunks(context, stage="retrieved")
+
         if self.context_assembler:
             context = self.context_assembler.assemble(context)
-        
+
+        if isinstance(context, str):
+            Tracer.set("context", context)
+
         if context:
             return self.agent.run(task, context)
-        
+
         return self.agent.run(task, "")
 
     def close(self) -> None:

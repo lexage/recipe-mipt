@@ -2,6 +2,7 @@ from enum import Enum
 from src.agent_constructor.agent import Agent
 from openai import OpenAI
 from src.agent_constructor.core import Text
+from src.tracing import Tracer
 from transformers import AutoTokenizer, PreTrainedTokenizerFast
 
 
@@ -60,10 +61,13 @@ class DS1000Solver(Agent):
         else:
             prompt = task
 
+        Tracer.set("final_prompt", prompt)
+
         match self.api:
             case SOLVER_API.COMPLETIONS.value:
                 return self._call_completions(prompt)
             case SOLVER_API.CHAT_COMPLETIONS.value:
+                Tracer.set("system_prompt", self.system_prompt)
                 return self._call_chat(self.system_prompt, prompt)
             case _:
                 raise ValueError(f"invalid API: '{self.api}'")
