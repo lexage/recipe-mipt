@@ -18654,3 +18654,89 @@ rt00761,"class Solution:
     _______________
     return sx == tx and sy <= ty and (ty - sy) % tx == 0 or \
         sy == ty and sx <= tx and (tx - sx) % ty == 0 Given four integers sx, sy, tx, and ty, return true if it is possible to convert the point (sx, sy) to the point (tx, ty) through some operations, or false otherwise. The allowed operation on some point (x, y) is to convert it to either (x, x + y) or (x + y, y).",C,1
+rt00762,"class Solution:
+  def numRabbits(self, answers: List[int]) -> int:
+    ans = 0
+    count = collections.Counter()
+
+    for answer in answers:
+      _______________
+      if count[answer] % (answer + 1) == 0:
+        ans += answer + 1
+      count[answer] += 1
+
+    return ans","['      if (count[answer] + 1) % (answer + 1) == 0:'
+ '      if count[answer] % (answer - 1) == 0:'
+ '      if count[answer] % (answer) == 0:'
+ '      if count[answer] % (answer + 1) == 0:']","There is a forest with an unknown number of rabbits. We asked n rabbits ""How many rabbits have the same color as you?"" and collected the answers in an integer array answers where answers[i] is the answer of the ith rabbit. Given the array answers, return the minimum number of rabbits that could be in the forest.",D,"class Solution:
+  def numRabbits(self, answers: List[int]) -> int:
+    ans = 0
+    count = collections.Counter()
+
+    for answer in answers:
+      _______________
+      if count[answer] % (answer + 1) == 0:
+        ans += answer + 1
+      count[answer] += 1
+
+    return ans There is a forest with an unknown number of rabbits. We asked n rabbits ""How many rabbits have the same color as you?"" and collected the answers in an integer array answers where answers[i] is the answer of the ith rabbit. Given the array answers, return the minimum number of rabbits that could be in the forest.",D,1
+rt00763,"class Solution:
+  def movesToChessboard(self, board: List[List[int]]) -> int:
+    n = len(board)
+
+    if any(board[0][0] ^ board[i][0] ^ board[0][j] ^ board[i][j] for i in range(n) for j in range(n)):
+      return -1
+
+    rowSum = sum(board[0])
+    colSum = sum(board[i][0] for i in range(n))
+
+    _______________
+    if rowSum != n // 2 and rowSum != (n + 1) // 2:
+      return -1
+    if colSum != n // 2 and colSum != (n + 1) // 2:
+      return -1
+
+    rowSwaps = sum(board[i][0] == (i & 1) for i in range(n))
+    colSwaps = sum(board[0][i] == (i & 1) for i in range(n))
+
+    if n & 1:
+      if rowSwaps & 1:
+        rowSwaps = n - rowSwaps
+      if colSwaps & 1:
+        colSwaps = n - colSwaps
+    else:
+      rowSwaps = min(rowSwaps, n - rowSwaps)
+      colSwaps = min(colSwaps, n - colSwaps)
+
+    return (rowSwaps + colSwaps) // 2","['    if rowSum != (n - 1) // 2 and rowSum != (n + 1) // 2:'
+ '    if rowSum != (n + 1) // 2 and rowSum != (n - 2) // 2:'
+ '    if rowSum != n // 2 and rowSum != (n + 1) // 2:'
+ '    if rowSum != n // 2 and rowSum != (n - 1) // 2:']","You are given an n x n binary grid board. In each move, you can swap any two rows with each other, or any two columns with each other. Return the minimum number of moves to transform the board into a chessboard board. If the task is impossible, return -1. A chessboard board is a board where no 0's and no 1's are 4-directionally adjacent.",C,"class Solution:
+  def movesToChessboard(self, board: List[List[int]]) -> int:
+    n = len(board)
+
+    if any(board[0][0] ^ board[i][0] ^ board[0][j] ^ board[i][j] for i in range(n) for j in range(n)):
+      return -1
+
+    rowSum = sum(board[0])
+    colSum = sum(board[i][0] for i in range(n))
+
+    _______________
+    if rowSum != n // 2 and rowSum != (n + 1) // 2:
+      return -1
+    if colSum != n // 2 and colSum != (n + 1) // 2:
+      return -1
+
+    rowSwaps = sum(board[i][0] == (i & 1) for i in range(n))
+    colSwaps = sum(board[0][i] == (i & 1) for i in range(n))
+
+    if n & 1:
+      if rowSwaps & 1:
+        rowSwaps = n - rowSwaps
+      if colSwaps & 1:
+        colSwaps = n - colSwaps
+    else:
+      rowSwaps = min(rowSwaps, n - rowSwaps)
+      colSwaps = min(colSwaps, n - colSwaps)
+
+    return (rowSwaps + colSwaps) // 2 You are given an n x n binary grid board. In each move, you can swap any two rows with each other, or any two columns with each other. Return the minimum number of moves to transform the board into a chessboard board. If the task is impossible, return -1. A chessboard board is a board where no 0's and no 1's are 4-directionally adjacent.",C,1

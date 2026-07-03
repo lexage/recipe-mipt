@@ -1,0 +1,298 @@
+task_id,question,choices,answer,input,output,accuracy
+rt00001,"from typing import List
+
+
+def has_close_elements(numbers: List[float], threshold: float) -> bool:
+    """""" Check if in given list of numbers, are any two numbers closer to each other than
+    given threshold.
+    >>> has_close_elements([1.0, 2.0, 3.0], 0.5)
+    False
+    >>> has_close_elements([1.0, 2.8, 3.0, 4.0, 5.0, 2.0], 0.3)
+    True
+    """"""
+","['  for i in range(len(numbers) - 1):\n    for j in range(i + 1, len(numbers)):\n      if abs(numbers[i] - numbers[j]) > threshold:\n        return False\n  return True'
+ '  return any(abs(a - b) < threshold for a, b in zip(numbers, numbers[1:]))'
+ '  for i in range(len(numbers)):  # Change range to len(numbers)\n    for j in range(i + 1, len(numbers)):\n      if abs(numbers[i] - numbers[j]) < threshold:\n        return True\n  return False'
+ '    for idx, elem in enumerate(numbers):\n        for idx2, elem2 in enumerate(numbers):\n            if idx != idx2:\n                distance = abs(elem - elem2)\n                if distance < threshold:\n                    return True\n\n    return False\n']",D,"from typing import List
+
+
+def has_close_elements(numbers: List[float], threshold: float) -> bool:
+    """""" Check if in given list of numbers, are any two numbers closer to each other than
+    given threshold.
+    >>> has_close_elements([1.0, 2.0, 3.0], 0.5)
+    False
+    >>> has_close_elements([1.0, 2.8, 3.0, 4.0, 5.0, 2.0], 0.3)
+    True
+    """"""
+",D,1
+rt00002,"from typing import List
+
+
+def separate_paren_groups(paren_string: str) -> List[str]:
+    """""" Input to this function is a string containing multiple groups of nested parentheses. Your goal is to
+    separate those group into separate strings and return the list of those.
+    Separate groups are balanced (each open brace is properly closed) and not nested within each other
+    Ignore any spaces in the input string.
+    >>> separate_paren_groups('( ) (( )) (( )( ))')
+    ['()', '(())', '(()())']
+    """"""
+","['  result = []\n  current_group = """"\n  for char in paren_string:\n    if char == ""("":\n      current_group += char\n    elif char == "")"":\n      if current_group:\n        result.append(current_group)\n      current_group = """"\n  if current_group:\n    result.append(current_group)\n  return result'
+ ""    result = []\n    current_string = []\n    current_depth = 0\n\n    for c in paren_string:\n        if c == '(':\n            current_depth += 1\n            current_string.append(c)\n        elif c == ')':\n            current_depth -= 1\n            current_string.append(c)\n\n            if current_depth == 0:\n                result.append(''.join(current_string))\n                current_string.clear()\n\n    return result\n""
+ '  result = []\n  current_group = """"\n  for char in paren_string:\n    if char == ""("":\n      current_group += char\n    elif char == "")"":\n      result.append(current_group)\n      current_group = """"\n  if current_group:\n    result.append(current_group)\n  return result'
+ '  result = []\n  current_group = """"\n  for char in paren_string:\n    if char == ""("":\n      current_group += char\n    elif char == "")"":\n      current_group += char\n      result.append(current_group)\n      current_group = """"\n  return result']",B,"from typing import List
+
+
+def separate_paren_groups(paren_string: str) -> List[str]:
+    """""" Input to this function is a string containing multiple groups of nested parentheses. Your goal is to
+    separate those group into separate strings and return the list of those.
+    Separate groups are balanced (each open brace is properly closed) and not nested within each other
+    Ignore any spaces in the input string.
+    >>> separate_paren_groups('( ) (( )) (( )( ))')
+    ['()', '(())', '(()())']
+    """"""
+",B,1
+rt00003,"
+
+def truncate_number(number: float) -> float:
+    """""" Given a positive floating point number, it can be decomposed into
+    and integer part (largest integer smaller than given number) and decimals
+    (leftover part always smaller than 1).
+
+    Return the decimal part of the number.
+    >>> truncate_number(3.5)
+    0.5
+    """"""
+","['  return ""{:.10f}"".format(number).split(""."")[0]'
+ '    return number % 1.0\n' '  return int(number) - number'
+ '  return number * (number % 1)']",B,"
+
+def truncate_number(number: float) -> float:
+    """""" Given a positive floating point number, it can be decomposed into
+    and integer part (largest integer smaller than given number) and decimals
+    (leftover part always smaller than 1).
+
+    Return the decimal part of the number.
+    >>> truncate_number(3.5)
+    0.5
+    """"""
+",B,1
+rt00004,"from typing import List
+
+
+def below_zero(operations: List[int]) -> bool:
+    """""" You're given a list of deposit and withdrawal operations on a bank account that starts with
+    zero balance. Your task is to detect if at any point the balance of account fallls below zero, and
+    at that point function should return True. Otherwise it should return False.
+    >>> below_zero([1, 2, 3])
+    False
+    >>> below_zero([1, 2, -4, 5])
+    True
+    """"""
+","['    for operation in operations:\n        if operation < 0:\n            return True\n    return False'
+ '    balance = 0\n\n    for op in operations:\n        balance += op\n        if balance < 0:\n            return True\n\n    return False\n'
+ '    current_balance = 0\n    for operation in operations:\n        current_balance += operation\n    return current_balance < 0'
+ '    current_balance = 0\n    for operation in operations:\n        current_balance += operation\n        if current_balance < 0:\n            return False\n    return True']",B,"from typing import List
+
+
+def below_zero(operations: List[int]) -> bool:
+    """""" You're given a list of deposit and withdrawal operations on a bank account that starts with
+    zero balance. Your task is to detect if at any point the balance of account fallls below zero, and
+    at that point function should return True. Otherwise it should return False.
+    >>> below_zero([1, 2, 3])
+    False
+    >>> below_zero([1, 2, -4, 5])
+    True
+    """"""
+",B,1
+rt00005,"from typing import List
+
+
+def mean_absolute_deviation(numbers: List[float]) -> float:
+    """""" For a given list of input numbers, calculate Mean Absolute Deviation
+    around the mean of this dataset.
+    Mean Absolute Deviation is the average absolute difference between each
+    element and a centerpoint (mean in this case):
+    MAD = average | x - x_mean |
+    >>> mean_absolute_deviation([1.0, 2.0, 3.0, 4.0])
+    1.0
+    """"""
+","['  mean = sum(numbers) / len(numbers)\n  return sum(abs(num - mean) for num in numbers) / len(numbers)'
+ ""    if not numbers:\n        return float('nan')\n    mean = sum(numbers) / len(numbers)\n    return sum(abs(x - mean) for x in numbers) / len(numbers)\n""
+ '    mean = sum(numbers) / len(numbers)\n    return sum((num - mean) ** 2 for num in numbers) / len(numbers)'
+ '  median = sorted(numbers)[len(numbers) // 2]\n  return sum(abs(num - median) for num in numbers) / len(numbers)']",B,"from typing import List
+
+
+def mean_absolute_deviation(numbers: List[float]) -> float:
+    """""" For a given list of input numbers, calculate Mean Absolute Deviation
+    around the mean of this dataset.
+    Mean Absolute Deviation is the average absolute difference between each
+    element and a centerpoint (mean in this case):
+    MAD = average | x - x_mean |
+    >>> mean_absolute_deviation([1.0, 2.0, 3.0, 4.0])
+    1.0
+    """"""
+",B,1
+rt00006,"from typing import List
+
+
+def intersperse(numbers: List[int], delimeter: int) -> List[int]:
+    """""" Insert a number 'delimeter' between every two consecutive elements of input list `numbers'
+    >>> intersperse([], 4)
+    []
+    >>> intersperse([1, 2, 3], 4)
+    [1, 4, 2, 4, 3]
+    """"""
+","['    if not numbers:\n        return []\n\n    result = []\n\n    for n in numbers[:-1]:\n        result.append(n)\n        result.append(delimeter)\n\n    result.append(numbers[-1])\n\n    return result\n'
+ '  return list(chain.from_iterable(zip(numbers, repeat(delimiter))))'
+ '  return [num for num, _ in zip(numbers, numbers[1:])] + [numbers[-1]]'
+ '  result = numbers[:]\n  for i in range(len(numbers) - 1):\n    result.insert(2 * i + 1, delimiter)\n  return result']",A,"from typing import List
+
+
+def intersperse(numbers: List[int], delimeter: int) -> List[int]:
+    """""" Insert a number 'delimeter' between every two consecutive elements of input list `numbers'
+    >>> intersperse([], 4)
+    []
+    >>> intersperse([1, 2, 3], 4)
+    [1, 4, 2, 4, 3]
+    """"""
+",A,1
+rt00007,"from typing import List
+
+
+def parse_nested_parens(paren_string: str) -> List[int]:
+    """""" Input to this function is a string represented multiple groups for nested parentheses separated by spaces.
+    For each of the group, output the deepest level of nesting of parentheses.
+    E.g. (()()) has maximum two levels of nesting while ((())) has three.
+
+    >>> parse_nested_parens('(()()) ((())) () ((())()())')
+    [2, 3, 1, 3]
+    """"""
+","[""    results = []\n    current_level = 0\n    max_level = 0\n    for char in paren_string:\n        if char == '(':\n            current_level += 1\n            max_level = max(max_level, current_level)\n        elif char == ')':\n            if current_level > 0:\n                results.append(max_level)\n                current_level -= 1\n    return results""
+ ""    results = []\n    stack = []\n    max_level = 0\n    for char in paren_string:\n        if char == '(':\n            stack.append(max_level)  # Push current max_level for the group\n            max_level += 1\n        elif char == ')':\n            if stack:\n                previous_max = stack.pop()  # Pop previous max for the group\n                results.append(max_level)\n                max_level = max(max_level, previous_max)  # Update max based on previous group\n    return results""
+ ""    def parse_paren_group(s):\n        depth = 0\n        max_depth = 0\n        for c in s:\n            if c == '(':\n                depth += 1\n                max_depth = max(depth, max_depth)\n            else:\n                depth -= 1\n\n        return max_depth\n\n    return [parse_paren_group(x) for x in paren_string.split(' ') if x]\n""
+ ""    def _parse_nested_parens(string, current_level=0, max_level=0, group_results=[]):\n        if not string:\n            return group_results\n        if string[0] == '(':\n            return _parse_nested_parens(string[1:], current_level + 1, max(max_level, current_level), group_results)\n        elif string[0] == ')':\n            if current_level > 0:\n                return _parse_nested_parens(string[1:], current_level - 1, max_level, group_results + [max_level])\n        else:\n            return _parse_nested_parens(string[1:], current_level, max_level, group_results)\n\n    return _parse_nested_parens(paren_string, 0, 0, [])""]",C,"from typing import List
+
+
+def parse_nested_parens(paren_string: str) -> List[int]:
+    """""" Input to this function is a string represented multiple groups for nested parentheses separated by spaces.
+    For each of the group, output the deepest level of nesting of parentheses.
+    E.g. (()()) has maximum two levels of nesting while ((())) has three.
+
+    >>> parse_nested_parens('(()()) ((())) () ((())()())')
+    [2, 3, 1, 3]
+    """"""
+",C,1
+rt00008,"from typing import List
+
+
+def filter_by_substring(strings: List[str], substring: str) -> List[str]:
+    """""" Filter an input list of strings only for ones that contain given substring
+    >>> filter_by_substring([], 'a')
+    []
+    >>> filter_by_substring(['abc', 'bacd', 'cde', 'array'], 'a')
+    ['abc', 'bacd', 'array']
+    """"""
+","['    filtered_strings = []\n    for i in range(len(strings)):\n        if substring in strings:\n            filtered_strings.append(strings)\n    return filtered_strings'
+ '    return [string for string in strings if str not in string]'
+ '    return list(filter(lambda x: substring not in x, strings))'
+ '    return [x for x in strings if substring in x]\n']",D,"from typing import List
+
+
+def filter_by_substring(strings: List[str], substring: str) -> List[str]:
+    """""" Filter an input list of strings only for ones that contain given substring
+    >>> filter_by_substring([], 'a')
+    []
+    >>> filter_by_substring(['abc', 'bacd', 'cde', 'array'], 'a')
+    ['abc', 'bacd', 'array']
+    """"""
+",D,1
+rt00009,"from typing import List, Tuple
+
+
+def sum_product(numbers: List[int]) -> Tuple[int, int]:
+    """""" For a given list of integers, return a tuple consisting of a sum and a product of all the integers in a list.
+    Empty sum should be equal to 0 and empty product should be equal to 1.
+    >>> sum_product([])
+    (0, 1)
+    >>> sum_product([1, 2, 3, 4])
+    (10, 24)
+    """"""
+","['    sum_value = 0\n    prod_value = 1\n\n    for n in numbers:\n        sum_value += n\n        prod_value *= n\n    return sum_value, prod_value\n'
+ '    sum_of_numbers = 0\n    product_of_numbers = 1\n    for num in numbers:\n        sum_of_numbers += num\n        product_of_numbers *= num\n    return sum_of_numbers'
+ '    sum_of_numbers, product_of_numbers = 0, 0\n    for num in numbers:\n        sum_of_numbers += num\n        product_of_numbers *= num\n    return sum_of_numbers, product_of_numbers\n'
+ '  sum_of_numbers = 0\n  product_of_numbers = 1\n  for num in numbers:\n    sum_of_numbers += num\n    product_of_numbers /= num\n  return sum_of_numbers, product_of_numbers']",A,"from typing import List, Tuple
+
+
+def sum_product(numbers: List[int]) -> Tuple[int, int]:
+    """""" For a given list of integers, return a tuple consisting of a sum and a product of all the integers in a list.
+    Empty sum should be equal to 0 and empty product should be equal to 1.
+    >>> sum_product([])
+    (0, 1)
+    >>> sum_product([1, 2, 3, 4])
+    (10, 24)
+    """"""
+",A,1
+rt00010,"from typing import List, Tuple
+
+
+def rolling_max(numbers: List[int]) -> List[int]:
+    """""" From a given list of integers, generate a list of rolling maximum element found until given moment
+    in the sequence.
+    >>> rolling_max([1, 2, 3, 2, 3, 4, 2])
+    [1, 2, 3, 3, 3, 4, 4]
+    """"""
+","['    result = []\n    current_max = 0\n\n    for num in numbers:\n        result.append(current_max)\n\n    return result'
+ '    result = []\n    current_max = float(""-inf"")\n\n    for num in numbers:\n        current_max = max(current_max, num)\n\n    result = [current_max] * len(numbers)\n    return result'
+ '    result = []\n    for i, num in enumerate(numbers):\n        current_max = max(numbers[i:])\n        result.append(current_max)\n    return result'
+ '    running_max = None\n    result = []\n\n    for n in numbers:\n        if running_max is None:\n            running_max = n\n        else:\n            running_max = max(running_max, n)\n\n        result.append(running_max)\n\n    return result\n']",D,"from typing import List, Tuple
+
+
+def rolling_max(numbers: List[int]) -> List[int]:
+    """""" From a given list of integers, generate a list of rolling maximum element found until given moment
+    in the sequence.
+    >>> rolling_max([1, 2, 3, 2, 3, 4, 2])
+    [1, 2, 3, 3, 3, 4, 4]
+    """"""
+",D,1
+rt00011,"
+
+def is_palindrome(string: str) -> bool:
+    """""" Test if given string is a palindrome """"""
+    return string == string[::-1]
+
+
+def make_palindrome(string: str) -> str:
+    """""" Find the shortest palindrome that begins with a supplied string.
+    Algorithm idea is simple:
+    - Find the longest postfix of supplied string that is a palindrome.
+    - Append to the end of the string reverse of a string prefix that comes before the palindromic suffix.
+    >>> make_palindrome('')
+    ''
+    >>> make_palindrome('cat')
+    'catac'
+    >>> make_palindrome('cata')
+    'catac'
+    """"""
+","[""    if not string:\n        return ''\n\n    beginning_of_suffix = 0\n\n    while not is_palindrome(string[beginning_of_suffix:]):\n        beginning_of_suffix += 1\n\n    return string + string[:beginning_of_suffix][::-1]\n""
+ '    longest_palindrome = """"\n    for i in range(len(string)):\n        for j in range(i, len(string)):\n            if string[i:j+1] == string[i:j+1][::-1]:\n                if len(string[i:j+1]) > len(longest_palindrome):\n                    longest_palindrome = string[i:j+1]\n\n    return string + longest_palindrome[::-1]'
+ '    longest_palindrome = """"\n    for i in range(len(string) - 1, -1, -1):\n        if string[i] == string[0]:\n            longest_palindrome = string[i:]\n        break\n    while not longest_palindrome:\n        longest_palindrome += string[0]\n    return string + longest_palindrome[::-1]'
+ '    longest_palindrome = """"\n    for i in range(len(string) - 1, -1, -1):\n        if string[i] == string[0]:\n            longest_palindrome = string[i:]\n            break\n    return string + longest_palindrome']",A,"
+
+def is_palindrome(string: str) -> bool:
+    """""" Test if given string is a palindrome """"""
+    return string == string[::-1]
+
+
+def make_palindrome(string: str) -> str:
+    """""" Find the shortest palindrome that begins with a supplied string.
+    Algorithm idea is simple:
+    - Find the longest postfix of supplied string that is a palindrome.
+    - Append to the end of the string reverse of a string prefix that comes before the palindromic suffix.
+    >>> make_palindrome('')
+    ''
+    >>> make_palindrome('cat')
+    'catac'
+    >>> make_palindrome('cata')
+    'catac'
+    """"""
+",A,1

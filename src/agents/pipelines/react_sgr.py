@@ -420,13 +420,16 @@ class ReActAgentSGR(Agent):
 
         logging.info(f"TASK:\n{task}")
         logging.info(_LOG_SEPARATOR)
+        
+        few_shot_ex = self._select_few_shots(task)
 
+        logging.info(f"FEW_SHOT_EXAMPLES:\n{few_shot_ex}")
 
         self.memory = [
             {"role": "system", "content": self.instruction},
             # {"role": "user", "content": FEW_SHOT_COT_EXAMPLES + task},
             # {"role": "user", "content": FEW_SHOT_CONTRASTIVE_COT + task},
-            {"role": "user", "content": self._select_few_shots(task) + task},
+            {"role": "user", "content": few_shot_ex + task},
             # {"role": "user", "content": task},
         ]
 

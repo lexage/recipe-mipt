@@ -1,0 +1,2523 @@
+task_id,question,choices,answer,input,output,accuracy
+rt00001,"from typing import List
+
+
+def has_close_elements(numbers: List[float], threshold: float) -> bool:
+    """""" Check if in given list of numbers, are any two numbers closer to each other than
+    given threshold.
+    >>> has_close_elements([1.0, 2.0, 3.0], 0.5)
+    False
+    >>> has_close_elements([1.0, 2.8, 3.0, 4.0, 5.0, 2.0], 0.3)
+    True
+    """"""
+","['  for i in range(len(numbers) - 1):\n    for j in range(i + 1, len(numbers)):\n      if abs(numbers[i] - numbers[j]) > threshold:\n        return False\n  return True'
+ '  return any(abs(a - b) < threshold for a, b in zip(numbers, numbers[1:]))'
+ '  for i in range(len(numbers)):  # Change range to len(numbers)\n    for j in range(i + 1, len(numbers)):\n      if abs(numbers[i] - numbers[j]) < threshold:\n        return True\n  return False'
+ '    for idx, elem in enumerate(numbers):\n        for idx2, elem2 in enumerate(numbers):\n            if idx != idx2:\n                distance = abs(elem - elem2)\n                if distance < threshold:\n                    return True\n\n    return False\n']",D,"from typing import List
+
+
+def has_close_elements(numbers: List[float], threshold: float) -> bool:
+    """""" Check if in given list of numbers, are any two numbers closer to each other than
+    given threshold.
+    >>> has_close_elements([1.0, 2.0, 3.0], 0.5)
+    False
+    >>> has_close_elements([1.0, 2.8, 3.0, 4.0, 5.0, 2.0], 0.3)
+    True
+    """"""
+",C,0
+rt00002,"from typing import List
+
+
+def separate_paren_groups(paren_string: str) -> List[str]:
+    """""" Input to this function is a string containing multiple groups of nested parentheses. Your goal is to
+    separate those group into separate strings and return the list of those.
+    Separate groups are balanced (each open brace is properly closed) and not nested within each other
+    Ignore any spaces in the input string.
+    >>> separate_paren_groups('( ) (( )) (( )( ))')
+    ['()', '(())', '(()())']
+    """"""
+","['  result = []\n  current_group = """"\n  for char in paren_string:\n    if char == ""("":\n      current_group += char\n    elif char == "")"":\n      if current_group:\n        result.append(current_group)\n      current_group = """"\n  if current_group:\n    result.append(current_group)\n  return result'
+ ""    result = []\n    current_string = []\n    current_depth = 0\n\n    for c in paren_string:\n        if c == '(':\n            current_depth += 1\n            current_string.append(c)\n        elif c == ')':\n            current_depth -= 1\n            current_string.append(c)\n\n            if current_depth == 0:\n                result.append(''.join(current_string))\n                current_string.clear()\n\n    return result\n""
+ '  result = []\n  current_group = """"\n  for char in paren_string:\n    if char == ""("":\n      current_group += char\n    elif char == "")"":\n      result.append(current_group)\n      current_group = """"\n  if current_group:\n    result.append(current_group)\n  return result'
+ '  result = []\n  current_group = """"\n  for char in paren_string:\n    if char == ""("":\n      current_group += char\n    elif char == "")"":\n      current_group += char\n      result.append(current_group)\n      current_group = """"\n  return result']",B,"from typing import List
+
+
+def separate_paren_groups(paren_string: str) -> List[str]:
+    """""" Input to this function is a string containing multiple groups of nested parentheses. Your goal is to
+    separate those group into separate strings and return the list of those.
+    Separate groups are balanced (each open brace is properly closed) and not nested within each other
+    Ignore any spaces in the input string.
+    >>> separate_paren_groups('( ) (( )) (( )( ))')
+    ['()', '(())', '(()())']
+    """"""
+",B,1
+rt00003,"
+
+def truncate_number(number: float) -> float:
+    """""" Given a positive floating point number, it can be decomposed into
+    and integer part (largest integer smaller than given number) and decimals
+    (leftover part always smaller than 1).
+
+    Return the decimal part of the number.
+    >>> truncate_number(3.5)
+    0.5
+    """"""
+","['  return ""{:.10f}"".format(number).split(""."")[0]'
+ '    return number % 1.0\n' '  return int(number) - number'
+ '  return number * (number % 1)']",B,"
+
+def truncate_number(number: float) -> float:
+    """""" Given a positive floating point number, it can be decomposed into
+    and integer part (largest integer smaller than given number) and decimals
+    (leftover part always smaller than 1).
+
+    Return the decimal part of the number.
+    >>> truncate_number(3.5)
+    0.5
+    """"""
+",B,1
+rt00004,"from typing import List
+
+
+def below_zero(operations: List[int]) -> bool:
+    """""" You're given a list of deposit and withdrawal operations on a bank account that starts with
+    zero balance. Your task is to detect if at any point the balance of account fallls below zero, and
+    at that point function should return True. Otherwise it should return False.
+    >>> below_zero([1, 2, 3])
+    False
+    >>> below_zero([1, 2, -4, 5])
+    True
+    """"""
+","['    for operation in operations:\n        if operation < 0:\n            return True\n    return False'
+ '    balance = 0\n\n    for op in operations:\n        balance += op\n        if balance < 0:\n            return True\n\n    return False\n'
+ '    current_balance = 0\n    for operation in operations:\n        current_balance += operation\n    return current_balance < 0'
+ '    current_balance = 0\n    for operation in operations:\n        current_balance += operation\n        if current_balance < 0:\n            return False\n    return True']",B,"from typing import List
+
+
+def below_zero(operations: List[int]) -> bool:
+    """""" You're given a list of deposit and withdrawal operations on a bank account that starts with
+    zero balance. Your task is to detect if at any point the balance of account fallls below zero, and
+    at that point function should return True. Otherwise it should return False.
+    >>> below_zero([1, 2, 3])
+    False
+    >>> below_zero([1, 2, -4, 5])
+    True
+    """"""
+",B,1
+rt00005,"from typing import List
+
+
+def mean_absolute_deviation(numbers: List[float]) -> float:
+    """""" For a given list of input numbers, calculate Mean Absolute Deviation
+    around the mean of this dataset.
+    Mean Absolute Deviation is the average absolute difference between each
+    element and a centerpoint (mean in this case):
+    MAD = average | x - x_mean |
+    >>> mean_absolute_deviation([1.0, 2.0, 3.0, 4.0])
+    1.0
+    """"""
+","['  mean = sum(numbers) / len(numbers)\n  return sum(abs(num - mean) for num in numbers) / len(numbers)'
+ ""    if not numbers:\n        return float('nan')\n    mean = sum(numbers) / len(numbers)\n    return sum(abs(x - mean) for x in numbers) / len(numbers)\n""
+ '    mean = sum(numbers) / len(numbers)\n    return sum((num - mean) ** 2 for num in numbers) / len(numbers)'
+ '  median = sorted(numbers)[len(numbers) // 2]\n  return sum(abs(num - median) for num in numbers) / len(numbers)']",B,"from typing import List
+
+
+def mean_absolute_deviation(numbers: List[float]) -> float:
+    """""" For a given list of input numbers, calculate Mean Absolute Deviation
+    around the mean of this dataset.
+    Mean Absolute Deviation is the average absolute difference between each
+    element and a centerpoint (mean in this case):
+    MAD = average | x - x_mean |
+    >>> mean_absolute_deviation([1.0, 2.0, 3.0, 4.0])
+    1.0
+    """"""
+",B,1
+rt00006,"from typing import List
+
+
+def intersperse(numbers: List[int], delimeter: int) -> List[int]:
+    """""" Insert a number 'delimeter' between every two consecutive elements of input list `numbers'
+    >>> intersperse([], 4)
+    []
+    >>> intersperse([1, 2, 3], 4)
+    [1, 4, 2, 4, 3]
+    """"""
+","['    if not numbers:\n        return []\n\n    result = []\n\n    for n in numbers[:-1]:\n        result.append(n)\n        result.append(delimeter)\n\n    result.append(numbers[-1])\n\n    return result\n'
+ '  return list(chain.from_iterable(zip(numbers, repeat(delimiter))))'
+ '  return [num for num, _ in zip(numbers, numbers[1:])] + [numbers[-1]]'
+ '  result = numbers[:]\n  for i in range(len(numbers) - 1):\n    result.insert(2 * i + 1, delimiter)\n  return result']",A,"from typing import List
+
+
+def intersperse(numbers: List[int], delimeter: int) -> List[int]:
+    """""" Insert a number 'delimeter' between every two consecutive elements of input list `numbers'
+    >>> intersperse([], 4)
+    []
+    >>> intersperse([1, 2, 3], 4)
+    [1, 4, 2, 4, 3]
+    """"""
+",D,0
+rt00007,"from typing import List
+
+
+def parse_nested_parens(paren_string: str) -> List[int]:
+    """""" Input to this function is a string represented multiple groups for nested parentheses separated by spaces.
+    For each of the group, output the deepest level of nesting of parentheses.
+    E.g. (()()) has maximum two levels of nesting while ((())) has three.
+
+    >>> parse_nested_parens('(()()) ((())) () ((())()())')
+    [2, 3, 1, 3]
+    """"""
+","[""    results = []\n    current_level = 0\n    max_level = 0\n    for char in paren_string:\n        if char == '(':\n            current_level += 1\n            max_level = max(max_level, current_level)\n        elif char == ')':\n            if current_level > 0:\n                results.append(max_level)\n                current_level -= 1\n    return results""
+ ""    results = []\n    stack = []\n    max_level = 0\n    for char in paren_string:\n        if char == '(':\n            stack.append(max_level)  # Push current max_level for the group\n            max_level += 1\n        elif char == ')':\n            if stack:\n                previous_max = stack.pop()  # Pop previous max for the group\n                results.append(max_level)\n                max_level = max(max_level, previous_max)  # Update max based on previous group\n    return results""
+ ""    def parse_paren_group(s):\n        depth = 0\n        max_depth = 0\n        for c in s:\n            if c == '(':\n                depth += 1\n                max_depth = max(depth, max_depth)\n            else:\n                depth -= 1\n\n        return max_depth\n\n    return [parse_paren_group(x) for x in paren_string.split(' ') if x]\n""
+ ""    def _parse_nested_parens(string, current_level=0, max_level=0, group_results=[]):\n        if not string:\n            return group_results\n        if string[0] == '(':\n            return _parse_nested_parens(string[1:], current_level + 1, max(max_level, current_level), group_results)\n        elif string[0] == ')':\n            if current_level > 0:\n                return _parse_nested_parens(string[1:], current_level - 1, max_level, group_results + [max_level])\n        else:\n            return _parse_nested_parens(string[1:], current_level, max_level, group_results)\n\n    return _parse_nested_parens(paren_string, 0, 0, [])""]",C,"from typing import List
+
+
+def parse_nested_parens(paren_string: str) -> List[int]:
+    """""" Input to this function is a string represented multiple groups for nested parentheses separated by spaces.
+    For each of the group, output the deepest level of nesting of parentheses.
+    E.g. (()()) has maximum two levels of nesting while ((())) has three.
+
+    >>> parse_nested_parens('(()()) ((())) () ((())()())')
+    [2, 3, 1, 3]
+    """"""
+",C,1
+rt00008,"from typing import List
+
+
+def filter_by_substring(strings: List[str], substring: str) -> List[str]:
+    """""" Filter an input list of strings only for ones that contain given substring
+    >>> filter_by_substring([], 'a')
+    []
+    >>> filter_by_substring(['abc', 'bacd', 'cde', 'array'], 'a')
+    ['abc', 'bacd', 'array']
+    """"""
+","['    filtered_strings = []\n    for i in range(len(strings)):\n        if substring in strings:\n            filtered_strings.append(strings)\n    return filtered_strings'
+ '    return [string for string in strings if str not in string]'
+ '    return list(filter(lambda x: substring not in x, strings))'
+ '    return [x for x in strings if substring in x]\n']",D,"from typing import List
+
+
+def filter_by_substring(strings: List[str], substring: str) -> List[str]:
+    """""" Filter an input list of strings only for ones that contain given substring
+    >>> filter_by_substring([], 'a')
+    []
+    >>> filter_by_substring(['abc', 'bacd', 'cde', 'array'], 'a')
+    ['abc', 'bacd', 'array']
+    """"""
+",D,1
+rt00009,"from typing import List, Tuple
+
+
+def sum_product(numbers: List[int]) -> Tuple[int, int]:
+    """""" For a given list of integers, return a tuple consisting of a sum and a product of all the integers in a list.
+    Empty sum should be equal to 0 and empty product should be equal to 1.
+    >>> sum_product([])
+    (0, 1)
+    >>> sum_product([1, 2, 3, 4])
+    (10, 24)
+    """"""
+","['    sum_value = 0\n    prod_value = 1\n\n    for n in numbers:\n        sum_value += n\n        prod_value *= n\n    return sum_value, prod_value\n'
+ '    sum_of_numbers = 0\n    product_of_numbers = 1\n    for num in numbers:\n        sum_of_numbers += num\n        product_of_numbers *= num\n    return sum_of_numbers'
+ '    sum_of_numbers, product_of_numbers = 0, 0\n    for num in numbers:\n        sum_of_numbers += num\n        product_of_numbers *= num\n    return sum_of_numbers, product_of_numbers\n'
+ '  sum_of_numbers = 0\n  product_of_numbers = 1\n  for num in numbers:\n    sum_of_numbers += num\n    product_of_numbers /= num\n  return sum_of_numbers, product_of_numbers']",A,"from typing import List, Tuple
+
+
+def sum_product(numbers: List[int]) -> Tuple[int, int]:
+    """""" For a given list of integers, return a tuple consisting of a sum and a product of all the integers in a list.
+    Empty sum should be equal to 0 and empty product should be equal to 1.
+    >>> sum_product([])
+    (0, 1)
+    >>> sum_product([1, 2, 3, 4])
+    (10, 24)
+    """"""
+",A,1
+rt00010,"from typing import List, Tuple
+
+
+def rolling_max(numbers: List[int]) -> List[int]:
+    """""" From a given list of integers, generate a list of rolling maximum element found until given moment
+    in the sequence.
+    >>> rolling_max([1, 2, 3, 2, 3, 4, 2])
+    [1, 2, 3, 3, 3, 4, 4]
+    """"""
+","['    result = []\n    current_max = 0\n\n    for num in numbers:\n        result.append(current_max)\n\n    return result'
+ '    result = []\n    current_max = float(""-inf"")\n\n    for num in numbers:\n        current_max = max(current_max, num)\n\n    result = [current_max] * len(numbers)\n    return result'
+ '    result = []\n    for i, num in enumerate(numbers):\n        current_max = max(numbers[i:])\n        result.append(current_max)\n    return result'
+ '    running_max = None\n    result = []\n\n    for n in numbers:\n        if running_max is None:\n            running_max = n\n        else:\n            running_max = max(running_max, n)\n\n        result.append(running_max)\n\n    return result\n']",D,"from typing import List, Tuple
+
+
+def rolling_max(numbers: List[int]) -> List[int]:
+    """""" From a given list of integers, generate a list of rolling maximum element found until given moment
+    in the sequence.
+    >>> rolling_max([1, 2, 3, 2, 3, 4, 2])
+    [1, 2, 3, 3, 3, 4, 4]
+    """"""
+",D,1
+rt00011,"
+
+def is_palindrome(string: str) -> bool:
+    """""" Test if given string is a palindrome """"""
+    return string == string[::-1]
+
+
+def make_palindrome(string: str) -> str:
+    """""" Find the shortest palindrome that begins with a supplied string.
+    Algorithm idea is simple:
+    - Find the longest postfix of supplied string that is a palindrome.
+    - Append to the end of the string reverse of a string prefix that comes before the palindromic suffix.
+    >>> make_palindrome('')
+    ''
+    >>> make_palindrome('cat')
+    'catac'
+    >>> make_palindrome('cata')
+    'catac'
+    """"""
+","[""    if not string:\n        return ''\n\n    beginning_of_suffix = 0\n\n    while not is_palindrome(string[beginning_of_suffix:]):\n        beginning_of_suffix += 1\n\n    return string + string[:beginning_of_suffix][::-1]\n""
+ '    longest_palindrome = """"\n    for i in range(len(string)):\n        for j in range(i, len(string)):\n            if string[i:j+1] == string[i:j+1][::-1]:\n                if len(string[i:j+1]) > len(longest_palindrome):\n                    longest_palindrome = string[i:j+1]\n\n    return string + longest_palindrome[::-1]'
+ '    longest_palindrome = """"\n    for i in range(len(string) - 1, -1, -1):\n        if string[i] == string[0]:\n            longest_palindrome = string[i:]\n        break\n    while not longest_palindrome:\n        longest_palindrome += string[0]\n    return string + longest_palindrome[::-1]'
+ '    longest_palindrome = """"\n    for i in range(len(string) - 1, -1, -1):\n        if string[i] == string[0]:\n            longest_palindrome = string[i:]\n            break\n    return string + longest_palindrome']",A,"
+
+def is_palindrome(string: str) -> bool:
+    """""" Test if given string is a palindrome """"""
+    return string == string[::-1]
+
+
+def make_palindrome(string: str) -> str:
+    """""" Find the shortest palindrome that begins with a supplied string.
+    Algorithm idea is simple:
+    - Find the longest postfix of supplied string that is a palindrome.
+    - Append to the end of the string reverse of a string prefix that comes before the palindromic suffix.
+    >>> make_palindrome('')
+    ''
+    >>> make_palindrome('cat')
+    'catac'
+    >>> make_palindrome('cata')
+    'catac'
+    """"""
+",A,1
+rt00012,"from typing import List
+
+
+def string_xor(a: str, b: str) -> str:
+    """""" Input are two strings a and b consisting only of 1s and 0s.
+    Perform binary XOR on these inputs and return result also as a string.
+    >>> string_xor('010', '110')
+    '100'
+    """"""
+","['    result = """"\n    for i in enumerate(a):\n        result += str((int(a[i]) ^ int(b[i])))\n    return result'
+ 'from typing import List\n\n\ndef string_xor(a: str, b: str) -> str:\n    """""" Input are two strings a and b consisting only of 1s and 0s.\n    Perform binary XOR on these inputs and return result also as a string.\n    >>> string_xor(\'010\', \'110\')\n    \'100\'\n    """"""\n'
+ '    result = """"\n    for i in range(len(a)):\n        result += str(int(a[i] == b[i]))\n    return result'
+ '    result = """"\n    for i in range(len(a)):\n        result += str((int(a[i]) ^ int(b[i])))\n    return result']",B,"from typing import List
+
+
+def string_xor(a: str, b: str) -> str:
+    """""" Input are two strings a and b consisting only of 1s and 0s.
+    Perform binary XOR on these inputs and return result also as a string.
+    >>> string_xor('010', '110')
+    '100'
+    """"""
+",D,0
+rt00013,"from typing import List, Optional
+
+
+def longest(strings: List[str]) -> Optional[str]:
+    """""" Out of list of strings, return the longest one. Return the first one in case of multiple
+    strings of the same length. Return None in case the input list is empty.
+    >>> longest([])
+
+    >>> longest(['a', 'b', 'c'])
+    'a'
+    >>> longest(['a', 'bb', 'ccc'])
+    'ccc'
+    """"""
+","['    if not strings:\n        return None\n    longest_string = """"\n    for string in strings:\n        longest_string = string if len(string) > len(longest_string) else None\n    return longest_string'
+ '    longest_string = strings[0]\n    for string in strings:\n        if len(string) > len(longest_string):\n            longest_string = string\n    return longest_string'
+ '    if not strings:\n        return None\n\n    maxlen = max(len(x) for x in strings)\n    for s in strings:\n        if len(s) == maxlen:\n            return s\n'
+ '    if not strings:\n        return None\n    longest_string = """"\n    for string in strings:\n        if len(string) >= len(longest_string):\n            longest_string = string\n    return longest_string']",C,"from typing import List, Optional
+
+
+def longest(strings: List[str]) -> Optional[str]:
+    """""" Out of list of strings, return the longest one. Return the first one in case of multiple
+    strings of the same length. Return None in case the input list is empty.
+    >>> longest([])
+
+    >>> longest(['a', 'b', 'c'])
+    'a'
+    >>> longest(['a', 'bb', 'ccc'])
+    'ccc'
+    """"""
+",C,1
+rt00014,"
+
+def greatest_common_divisor(a: int, b: int) -> int:
+    """""" Return a greatest common divisor of two integers a and b
+    >>> greatest_common_divisor(3, 5)
+    1
+    >>> greatest_common_divisor(25, 15)
+    5
+    """"""
+","['    while b != 0:\n        a, b = b, b % a\n    return a'
+ '    factors_a = []\n    for i in range(1, a):\n        if a % i == 0:\n            factors_a.append(i)\n    factors_b = []\n    for i in range(1, b):\n        if b % i == 0:\n            factors_b.append(i)\n    return max(set(factors_a) & set(factors_b))'
+ '    if b == 0:\n        return a\n    else:\n        return greatest_common_divisor(b, b % a)'
+ '    while b:\n        a, b = b, a % b\n    return a\n']",D,"
+
+def greatest_common_divisor(a: int, b: int) -> int:
+    """""" Return a greatest common divisor of two integers a and b
+    >>> greatest_common_divisor(3, 5)
+    1
+    >>> greatest_common_divisor(25, 15)
+    5
+    """"""
+",D,1
+rt00015,"from typing import List
+
+
+def all_prefixes(string: str) -> List[str]:
+    """""" Return list of all prefixes from shortest to longest of the input string
+    >>> all_prefixes('abc')
+    ['a', 'ab', 'abc']
+    """"""
+","['    result = []\n\n    for i in range(len(string)):\n        result.append(string[:i+1])\n    return result\n'
+ '    def _prefixes(string: str):\n        for i in range(len(string) + 1):\n            yield string[:i]\n    return list(_prefixes(string))'
+ 'for i in range(len(string)):\n        yield string[:i]\n'
+ '    prefixes = ["""".join(string[i:]) for i in range(len(string) + 1)]\n    return prefixes']",A,"from typing import List
+
+
+def all_prefixes(string: str) -> List[str]:
+    """""" Return list of all prefixes from shortest to longest of the input string
+    >>> all_prefixes('abc')
+    ['a', 'ab', 'abc']
+    """"""
+",A,1
+rt00016,"
+
+def string_sequence(n: int) -> str:
+    """""" Return a string containing space-delimited numbers starting from 0 upto n inclusive.
+    >>> string_sequence(0)
+    '0'
+    >>> string_sequence(5)
+    '0 1 2 3 4 5'
+    """"""
+","[""    return ' '.join([str(x) for x in range(n + 1)])\n""
+ 'return "" "".join(map(str, range(n + 1))'
+ '    string = """"\n    for i in range(n):\n        string += str(i) + "" ""\n    return string'
+ '    string = """"\n    for i in range(n):\n        string += i + "" ""\n    return string']",A,"
+
+def string_sequence(n: int) -> str:
+    """""" Return a string containing space-delimited numbers starting from 0 upto n inclusive.
+    >>> string_sequence(0)
+    '0'
+    >>> string_sequence(5)
+    '0 1 2 3 4 5'
+    """"""
+",A,1
+rt00017,"
+
+def count_distinct_characters(string: str) -> int:
+    """""" Given a string, find out how many distinct characters (regardless of case) does it consist of
+    >>> count_distinct_characters('xyzXYZ')
+    3
+    >>> count_distinct_characters('Jerry')
+    4
+    """"""
+","['    count = 0\n    for i in range(len(string)):\n        distinct = True\n        for j in range(i):\n            if string[i].lower() == string[j].lower():\n                distinct = False\n            else:\n                break\n        if distinct:\n            count += 1\n    return count'
+ '    seen = set()\n    for i in range(len(string)):\n        char = string[i]\n        if char not in seen:\n            seen.add(char)\n    return len(seen)'
+ '    return len(set(string.lower()))\n'
+ '    char_count = {}\n    for char in string:\n        char_count[char.lower()] = char_count.get(char.lower(), 0) + 1\n    return sum(value == 1 for value in char_count.values())']",C,"
+
+def count_distinct_characters(string: str) -> int:
+    """""" Given a string, find out how many distinct characters (regardless of case) does it consist of
+    >>> count_distinct_characters('xyzXYZ')
+    3
+    >>> count_distinct_characters('Jerry')
+    4
+    """"""
+",C,1
+rt00018,"from typing import List
+
+
+def parse_music(music_string: str) -> List[int]:
+    """""" Input to this function is a string representing musical notes in a special ASCII format.
+    Your task is to parse this string and return list of integers corresponding to how many beats does each
+    not last.
+
+    Here is a legend:
+    'o' - whole note, lasts four beats
+    'o|' - half note, lasts two beats
+    '.|' - quater note, lasts one beat
+
+    >>> parse_music('o o| .| o| o| .| .| .| .| o o')
+    [4, 2, 1, 2, 2, 1, 1, 1, 1, 4, 4]
+    """"""
+","[""    note_map = {'o': 4, 'o|': 2, '.|': 1}\n    return [note_map[x] for x in music_string.split(' ') if x]\n""
+ '    pattern = r""o|o\\||\\.""\n    durations = [int(match.group(0)[:-1]) if len(match.group(0)) > 1 else 4 \n                for match in re.findall(pattern, music_str)]\n    return durations'
+ ""    return [4 if 'o' in note else 2 if note == 'o|' else 1 for note in music_str.split()]""
+ ""    durations = []\n    for note in music_str.split():\n        if 'o|' in note:\n            durations.append(2)\n        if 'o' in note:\n            durations.append(4)\n        else:\n            durations.append(1)\n    return durations""]",A,"from typing import List
+
+
+def parse_music(music_string: str) -> List[int]:
+    """""" Input to this function is a string representing musical notes in a special ASCII format.
+    Your task is to parse this string and return list of integers corresponding to how many beats does each
+    not last.
+
+    Here is a legend:
+    'o' - whole note, lasts four beats
+    'o|' - half note, lasts two beats
+    '.|' - quater note, lasts one beat
+
+    >>> parse_music('o o| .| o| o| .| .| .| .| o o')
+    [4, 2, 1, 2, 2, 1, 1, 1, 1, 4, 4]
+    """"""
+",A,1
+rt00019,"
+
+def how_many_times(string: str, substring: str) -> int:
+    """""" Find how many times a given substring can be found in the original string. Count overlaping cases.
+    >>> how_many_times('', 'a')
+    0
+    >>> how_many_times('aaa', 'a')
+    3
+    >>> how_many_times('aaaa', 'aa')
+    3
+    """"""
+","['    return text.count(substring)'
+ '    count = 0\n    start = 0\n    while True:\n        index = text.find(substring, start)\n        if index == -1:\n            break\n        count += 1\n        start = index\n    return count'
+ '    times = 0\n\n    for i in range(len(string) - len(substring) + 1):\n        if string[i:i+len(substring)] == substring:\n            times += 1\n\n    return times\n'
+ '    return len(re.findall(substring, text))']",C,"
+
+def how_many_times(string: str, substring: str) -> int:
+    """""" Find how many times a given substring can be found in the original string. Count overlaping cases.
+    >>> how_many_times('', 'a')
+    0
+    >>> how_many_times('aaa', 'a')
+    3
+    >>> how_many_times('aaaa', 'aa')
+    3
+    """"""
+",C,1
+rt00020,"from typing import List
+
+
+def sort_numbers(numbers: str) -> str:
+    """""" Input is a space-delimited string of numberals from 'zero' to 'nine'.
+    Valid choices are 'zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight' and 'nine'.
+    Return the string with numbers sorted from smallest to largest
+    >>> sort_numbers('three one five')
+    'one three five'
+    """"""
+","[""    value_map = {\n        'zero': 0,\n        'one': 1,\n        'two': 2,\n        'three': 3,\n        'four': 4,\n        'five': 5,\n        'six': 6,\n        'seven': 7,\n        'eight': 8,\n        'nine': 9\n    }\n    return ' '.join(sorted([x for x in numbers.split(' ') if x], key=lambda x: value_map[x]))\n""
+ ""num_list = numbers.split()\n    ordered_num_list = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine']\n    sorted_num_list = [ordered_num_list[num_list.index(num)] for num in num_list]\n    return ' '.join(sorted_num_list)""
+ '    word_list = numbers.split()\n\n    # Sort the list of words using the `sorted` function\n    # and the `key` argument to specify a custom sorting function\n    # that maps each word to its integer value\n    sorted_list = sorted(word_list, key=lambda word: int(word))\n\n    # Join the sorted list of words back into a string\n    # with spaces between the words\n    sorted_numbers = "" "".join(sorted_list)\n\n    return sorted_numbers'
+ ""nums = {'zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine'}\n    return ' '.join(sorted([num for num in numbers.split() if num in nums]))""]",A,"from typing import List
+
+
+def sort_numbers(numbers: str) -> str:
+    """""" Input is a space-delimited string of numberals from 'zero' to 'nine'.
+    Valid choices are 'zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight' and 'nine'.
+    Return the string with numbers sorted from smallest to largest
+    >>> sort_numbers('three one five')
+    'one three five'
+    """"""
+",A,1
+rt00021,"from typing import List, Tuple
+
+
+def find_closest_elements(numbers: List[float]) -> Tuple[float, float]:
+    """""" From a supplied list of numbers (of length at least two) select and return two that are the closest to each
+    other and return them in order (smaller number, larger number).
+    >>> find_closest_elements([1.0, 2.0, 3.0, 4.0, 5.0, 2.2])
+    (2.0, 2.2)
+    >>> find_closest_elements([1.0, 2.0, 3.0, 4.0, 5.0, 2.0])
+    (2.0, 2.0)
+    """"""
+","['\n    closest_pair = (numbers[0], numbers[1])\n    distance = abs(numbers[0] - numbers[1])\n\n    for i in range(len(numbers)):\n        for j in range(i + 1, len(numbers)):\n            if abs(numbers[i] - numbers[j]) < distance:\n                distance = abs(numbers[i] - numbers[j])\n                closest_pair = (numbers[i], numbers[j])  \n    return closest_pair\n'
+ ""numbers = sorted(set(numbers))  \n    min_diff = float('inf')\n    closest_pair = ()\n    for i in range(len(numbers) - 1):\n        diff = numbers[i + 1] - numbers[i]\n        if diff < min_diff:\n            min_diff = diff\n            closest_pair = (numbers[i], numbers[i + 1])""
+ '    closest_pair = None\n    distance = None\n\n    for idx, elem in enumerate(numbers):\n        for idx2, elem2 in enumerate(numbers):\n            if idx != idx2:\n                if distance is None:\n                    distance = abs(elem - elem2)\n                    closest_pair = tuple(sorted([elem, elem2]))\n                else:\n                    new_distance = abs(elem - elem2)\n                    if new_distance < distance:\n                        distance = new_distance\n                        closest_pair = tuple(sorted([elem, elem2]))\n\n    return closest_pair\n'
+ "" max_diff = float('inf')\n    closest_pair = None\n    for elem in numbers:\n        for elem2 in numbers:\n            if elem != elem2:\n                diff = abs(elem - elem2)\n                if diff < max_diff:\n                    max_diff = diff\n                    closest_pair = (elem, elem2)\n    return closest_pair""]",C,"from typing import List, Tuple
+
+
+def find_closest_elements(numbers: List[float]) -> Tuple[float, float]:
+    """""" From a supplied list of numbers (of length at least two) select and return two that are the closest to each
+    other and return them in order (smaller number, larger number).
+    >>> find_closest_elements([1.0, 2.0, 3.0, 4.0, 5.0, 2.2])
+    (2.0, 2.2)
+    >>> find_closest_elements([1.0, 2.0, 3.0, 4.0, 5.0, 2.0])
+    (2.0, 2.0)
+    """"""
+",A,0
+rt00022,"from typing import List
+
+
+def rescale_to_unit(numbers: List[float]) -> List[float]:
+    """""" Given list of numbers (of at least two elements), apply a linear transform to that list,
+    such that the smallest number will become 0 and the largest will become 1
+    >>> rescale_to_unit([1.0, 2.0, 3.0, 4.0, 5.0])
+    [0.0, 0.25, 0.5, 0.75, 1.0]
+    """"""
+","[""return ' '.join(sorted([num for num in numbers.split() if num in nums]))""
+ '  min_number = min(numbers)\n    max_number = max(numbers)\n    if max_number == min_number:\n        return [0 for x in numbers] \n    return [(x - min_number) / (max_number - min_number) for x in numbers]\n'
+ 'min_number = min(numbers)\nmax_number = max(numbers)\nrange_val = max_number - min_number\nreturn [(x - min_number) / range_val for x in numbers if x != min_number]'
+ '    min_number = min(numbers)\n    max_number = max(numbers)\n    return [(x - min_number) / (max_number - min_number) for x in numbers]\n']",D,"from typing import List
+
+
+def rescale_to_unit(numbers: List[float]) -> List[float]:
+    """""" Given list of numbers (of at least two elements), apply a linear transform to that list,
+    such that the smallest number will become 0 and the largest will become 1
+    >>> rescale_to_unit([1.0, 2.0, 3.0, 4.0, 5.0])
+    [0.0, 0.25, 0.5, 0.75, 1.0]
+    """"""
+",B,0
+rt00023,"from typing import List, Any
+
+
+def filter_integers(values: List[Any]) -> List[int]:
+    """""" Filter given list of any python values only for integers
+    >>> filter_integers(['a', 3.14, 5])
+    [5]
+    >>> filter_integers([1, 2, 3, 'abc', {}, []])
+    [1, 2, 3]
+    """"""
+","['    return [x for x in values if isinstance(x, int)]\n'
+ 'return [x for x in values if isinstance(x, str)]'
+ 'return [x for x in values if isinstance(x, (int, float))]'
+ 'return [int(x) for x in values if isinstance(x, (int, float, str))]']",A,"from typing import List, Any
+
+
+def filter_integers(values: List[Any]) -> List[int]:
+    """""" Filter given list of any python values only for integers
+    >>> filter_integers(['a', 3.14, 5])
+    [5]
+    >>> filter_integers([1, 2, 3, 'abc', {}, []])
+    [1, 2, 3]
+    """"""
+",A,1
+rt00024,"
+
+def strlen(string: str) -> int:
+    """""" Return length of given string
+    >>> strlen('')
+    0
+    >>> strlen('abc')
+    3
+    """"""
+","['count = 1\n    for char in string:\n        count += 1\n    return count'
+ 'if string:\n        return len(string) + 1\n    else:\n        return 0'
+ 'return len(string) - 1' '    return len(string)\n']",D,"
+
+def strlen(string: str) -> int:
+    """""" Return length of given string
+    >>> strlen('')
+    0
+    >>> strlen('abc')
+    3
+    """"""
+",D,1
+rt00025,"
+
+def largest_divisor(n: int) -> int:
+    """""" For a given number n, find the largest number that divides n evenly, smaller than n
+    >>> largest_divisor(15)
+    5
+    """"""
+","['if n % 2 == 0:\n        return 2  \nelse:\n        for i in reversed(range(1, n)):\n            if n % i == 0:\n                return i'
+ 'return n / 2'
+ 'for i in range(1, n): \n        if n % i == 0:\n            return i'
+ '    for i in reversed(range(n)):\n        if n % i == 0:\n            return i\n']",D,"
+
+def largest_divisor(n: int) -> int:
+    """""" For a given number n, find the largest number that divides n evenly, smaller than n
+    >>> largest_divisor(15)
+    5
+    """"""
+",D,1
+rt00026,"from typing import List
+
+
+def factorize(n: int) -> List[int]:
+    """""" Return list of prime factors of given integer in the order from smallest to largest.
+    Each of the factors should be listed number of times corresponding to how many times it appeares in factorization.
+    Input number should be equal to the product of all factors
+    >>> factorize(8)
+    [2, 2, 2]
+    >>> factorize(25)
+    [5, 5]
+    >>> factorize(70)
+    [2, 5, 7]
+    """"""
+","['    fact = []\n    i = 2\n    while i <= int(math.sqrt(n) + 1):\n        fact.append(i) \n        n //= i\n        i += 1\n    return fact'
+ '    fact = []\n    i = 2\n    while i <= n: \n        while n % i == 0:\n            fact.append(i)\n            n //= i\n        i += 1\n    return fact'
+ '    import math\n    fact = []\n    i = 2\n    while i <= int(math.sqrt(n) + 1):\n        if n % i == 0:\n            fact.append(i)\n            n //= i\n        else:\n            i += 1\n\n    if n > 1:\n        fact.append(n)\n    return fact\n'
+ '    fact = []\n    i = 2\n    while i <= int(math.sqrt(n) + 1):\n        if n % i == 0:\n            fact.append(int(math.sqrt(n))) \n            n //= i\n        else:\n            i += 1\n    if n > 1:\n        fact.append(n)\n    return fact']",C,"from typing import List
+
+
+def factorize(n: int) -> List[int]:
+    """""" Return list of prime factors of given integer in the order from smallest to largest.
+    Each of the factors should be listed number of times corresponding to how many times it appeares in factorization.
+    Input number should be equal to the product of all factors
+    >>> factorize(8)
+    [2, 2, 2]
+    >>> factorize(25)
+    [5, 5]
+    >>> factorize(70)
+    [2, 5, 7]
+    """"""
+",B,0
+rt00027,"from typing import List
+
+
+def remove_duplicates(numbers: List[int]) -> List[int]:
+    """""" From a list of integers, remove all elements that occur more than once.
+    Keep order of elements left the same as in the input.
+    >>> remove_duplicates([1, 2, 3, 2, 4])
+    [1, 3, 4]
+    """"""
+","['    import collections\n    c = collections.Counter(numbers)\n    return [n for n in numbers if c[n] <= 1]\n'
+ '    c = collections.Counter(numbers)\n    return [n for n in numbers if c[n] > 1]'
+ 'return [n for n in numbers if not (n in seen or seen.add(n))]'
+ '    unique_numbers = []\n    for number in numbers:\n        if number not in unique_numbers:\n            unique_numbers.append(number)\n    return numbers']",A,"from typing import List
+
+
+def remove_duplicates(numbers: List[int]) -> List[int]:
+    """""" From a list of integers, remove all elements that occur more than once.
+    Keep order of elements left the same as in the input.
+    >>> remove_duplicates([1, 2, 3, 2, 4])
+    [1, 3, 4]
+    """"""
+",A,1
+rt00028,"
+
+def flip_case(string: str) -> str:
+    """""" For a given string, flip lowercase characters to uppercase and uppercase to lowercase.
+    >>> flip_case('Hello')
+    'hELLO'
+    """"""
+","[""return ''.join([char.lower() if char.islower() else char.upper() for char in string]) ""
+ "" return ''.join([char.lower() if char == char.upper() else char.upper() for char in string])""
+ '    return string.swapcase()\n' 'return string.lower()']",C,"
+
+def flip_case(string: str) -> str:
+    """""" For a given string, flip lowercase characters to uppercase and uppercase to lowercase.
+    >>> flip_case('Hello')
+    'hELLO'
+    """"""
+",C,1
+rt00029,"from typing import List
+
+
+def concatenate(strings: List[str]) -> str:
+    """""" Concatenate list of strings into a single string
+    >>> concatenate([])
+    ''
+    >>> concatenate(['a', 'b', 'c'])
+    'abc'
+    """"""
+","[""    return ''.join(strings)\n"" ""    return ''.join(set(strings))""
+ ""    return ''.join(strings[::-1])"" ""    return ' '.join(strings)""]",A,"from typing import List
+
+
+def concatenate(strings: List[str]) -> str:
+    """""" Concatenate list of strings into a single string
+    >>> concatenate([])
+    ''
+    >>> concatenate(['a', 'b', 'c'])
+    'abc'
+    """"""
+",A,1
+rt00030,"from typing import List
+
+
+def filter_by_prefix(strings: List[str], prefix: str) -> List[str]:
+    """""" Filter an input list of strings only for ones that start with a given prefix.
+    >>> filter_by_prefix([], 'a')
+    []
+    >>> filter_by_prefix(['abc', 'bcd', 'cde', 'array'], 'a')
+    ['abc', 'array']
+    """"""
+","['return [x for x in strings if x.startswith(prefix) and len(x) > len(prefix)]'
+ ' return [x for x in strings if x.startswith(prefix)]'
+ 'return [x for x in strings if x[:len(prefix)] == prefix]'
+ '    return [x for x in strings if x.startswith(prefix)]\n']",D,"from typing import List
+
+
+def filter_by_prefix(strings: List[str], prefix: str) -> List[str]:
+    """""" Filter an input list of strings only for ones that start with a given prefix.
+    >>> filter_by_prefix([], 'a')
+    []
+    >>> filter_by_prefix(['abc', 'bcd', 'cde', 'array'], 'a')
+    ['abc', 'array']
+    """"""
+",B,0
+rt00031,"
+
+def get_positive(l: list):
+    """"""Return only positive numbers in the list.
+    >>> get_positive([-1, 2, -4, 5, 6])
+    [2, 5, 6]
+    >>> get_positive([5, 3, -5, 2, -3, 3, 9, 0, 123, 1, -10])
+    [5, 3, 2, 3, 9, 123, 1]
+    """"""
+","['return [e for e in l if e < 0]' 'return [e for e in l if e >= 0] '
+ 'return [e for e in l if abs(e) > 0] '
+ '    return [e for e in l if e > 0]\n']",D,"
+
+def get_positive(l: list):
+    """"""Return only positive numbers in the list.
+    >>> get_positive([-1, 2, -4, 5, 6])
+    [2, 5, 6]
+    >>> get_positive([5, 3, -5, 2, -3, 3, 9, 0, 123, 1, -10])
+    [5, 3, 2, 3, 9, 123, 1]
+    """"""
+",B,0
+rt00032,"
+
+def is_prime(n):
+    """"""Return true if a given number is prime, and false otherwise.
+    >>> is_prime(6)
+    False
+    >>> is_prime(101)
+    True
+    >>> is_prime(11)
+    True
+    >>> is_prime(13441)
+    True
+    >>> is_prime(61)
+    True
+    >>> is_prime(4)
+    False
+    >>> is_prime(1)
+    False
+    """"""
+","['    if n < 2:\n        return False\n    for k in range(2, n - 1):\n        if n % k == 0:\n            return False\n    return True\n'
+ '    if n < 2:\n        return False\n    for k in range(2, n // 2): \n        if n % k == 0:\n            return False\n    return True'
+ '    if n < 2:\n        return False\n    for k in range(2, int(n ** 0.5)): \n        if n % k == 0:\n            return False\n    return True'
+ '    if n < 3:\n        return False\n    for k in range(2, n // 2): \n        if n % k == 0:\n            return False\n    return True']",A,"
+
+def is_prime(n):
+    """"""Return true if a given number is prime, and false otherwise.
+    >>> is_prime(6)
+    False
+    >>> is_prime(101)
+    True
+    >>> is_prime(11)
+    True
+    >>> is_prime(13441)
+    True
+    >>> is_prime(61)
+    True
+    >>> is_prime(4)
+    False
+    >>> is_prime(1)
+    False
+    """"""
+",C,0
+rt00033,"import math
+
+
+def poly(xs: list, x: float):
+    """"""
+    Evaluates polynomial with coefficients xs at point x.
+    return xs[0] + xs[1] * x + xs[1] * x^2 + .... xs[n] * x^n
+    """"""
+    return sum([coeff * math.pow(x, i) for i, coeff in enumerate(xs)])
+
+
+def find_zero(xs: list):
+    """""" xs are coefficients of a polynomial.
+    find_zero find x such that poly(x) = 0.
+    find_zero returns only only zero point, even if there are many.
+    Moreover, find_zero only takes list xs having even number of coefficients
+    and largest non zero coefficient as it guarantees
+    a solution.
+    >>> round(find_zero([1, 2]), 2) # f(x) = 1 + 2x
+    -0.5
+    >>> round(find_zero([-6, 11, -6, 1]), 2) # (x - 1) * (x - 2) * (x - 3) = -6 + 11x - 6x^2 + x^3
+    1.0
+    """"""
+","['  begin, end = -1.0, 1.0 \n  while end - begin > 1e-10:\n      center = (begin + end) / 2.0\n      if poly(xs, center) * poly(xs, begin) > 0:\n          end = center  \n      else:\n          begin = center\n  return begin'
+ 'begin, end = -1., 1.\nwhile poly(xs, begin) * poly(xs, end) < 0: \n    begin *= 2.0\n    end *= 2.0\nwhile end - begin > 1e-10:\n    center = (begin + end) / 2.0\n    if poly(xs, center) * poly(xs, begin) > 0:\n        begin = center\n    else:\n        end = center\nreturn begin'
+ '  begin, end = -1.0, 1.0 \n  while end - begin > 1e-5: \n      center = (begin + end) / 2.0\n      if poly(xs, center) * poly(xs, begin) > 0:\n          begin = center\n      else:\n          end = center\n  return begin'
+ '    begin, end = -1., 1.\n    while poly(xs, begin) * poly(xs, end) > 0:\n        begin *= 2.0\n        end *= 2.0\n    while end - begin > 1e-10:\n        center = (begin + end) / 2.0\n        if poly(xs, center) * poly(xs, begin) > 0:\n            begin = center\n        else:\n            end = center\n    return begin\n']",D,"import math
+
+
+def poly(xs: list, x: float):
+    """"""
+    Evaluates polynomial with coefficients xs at point x.
+    return xs[0] + xs[1] * x + xs[1] * x^2 + .... xs[n] * x^n
+    """"""
+    return sum([coeff * math.pow(x, i) for i, coeff in enumerate(xs)])
+
+
+def find_zero(xs: list):
+    """""" xs are coefficients of a polynomial.
+    find_zero find x such that poly(x) = 0.
+    find_zero returns only only zero point, even if there are many.
+    Moreover, find_zero only takes list xs having even number of coefficients
+    and largest non zero coefficient as it guarantees
+    a solution.
+    >>> round(find_zero([1, 2]), 2) # f(x) = 1 + 2x
+    -0.5
+    >>> round(find_zero([-6, 11, -6, 1]), 2) # (x - 1) * (x - 2) * (x - 3) = -6 + 11x - 6x^2 + x^3
+    1.0
+    """"""
+",D,1
+rt00034,"
+
+def sort_third(l: list):
+    """"""This function takes a list l and returns a list l' such that
+    l' is identical to l in the indicies that are not divisible by three, while its values at the indicies that are divisible by three are equal
+    to the values of the corresponding indicies of l, but sorted.
+    >>> sort_third([1, 2, 3])
+    [1, 2, 3]
+    >>> sort_third([5, 6, 3, 4, 8, 9, 2])
+    [2, 6, 3, 4, 8, 9, 5]
+    """"""
+","['    l = list(l)\n    l[::3] = sorted(l[::3], reverse=True)\n    return l'
+ '  l = list(l)\n  l[1::2] = sorted(l[1::2])\n  return l'
+ '    l = list(l)\n    l[::3] = sorted(l[::3])\n    return l\n'
+ '    l = list(l)\n    sorted_l = sorted(l)\n    l[::3] = sorted_l[::3]\n    return l\n']",C,"
+
+def sort_third(l: list):
+    """"""This function takes a list l and returns a list l' such that
+    l' is identical to l in the indicies that are not divisible by three, while its values at the indicies that are divisible by three are equal
+    to the values of the corresponding indicies of l, but sorted.
+    >>> sort_third([1, 2, 3])
+    [1, 2, 3]
+    >>> sort_third([5, 6, 3, 4, 8, 9, 2])
+    [2, 6, 3, 4, 8, 9, 5]
+    """"""
+",C,1
+rt00035,"
+
+def unique(l: list):
+    """"""Return sorted unique elements in a list
+    >>> unique([5, 3, 5, 2, 3, 3, 9, 0, 123])
+    [0, 2, 3, 5, 9, 123]
+    """"""
+","['return sorted(list(l))' '    return sorted(list(set(l)))\n'
+ ' return sorted(l)' 'return l']",B,"
+
+def unique(l: list):
+    """"""Return sorted unique elements in a list
+    >>> unique([5, 3, 5, 2, 3, 3, 9, 0, 123])
+    [0, 2, 3, 5, 9, 123]
+    """"""
+",B,1
+rt00036,"
+
+def max_element(l: list):
+    """"""Return maximum element in the list.
+    >>> max_element([1, 2, 3])
+    3
+    >>> max_element([5, 3, -5, 2, -3, 3, 9, 0, 123, 1, -10])
+    123
+    """"""
+","['    m = l[0]\n    for e in l:\n        if e > m-1:\n            m = e\n    return m\n'
+ '    m = l[0]\n    for e in l:\n        if e >= m+1:\n            m = e\n    return m\n'
+ '    m = l[0]\n    for e in l:\n        if e >= m:\n            m = e\n    return m\n'
+ '    m = l[0]\n    for e in l:\n        if e > m:\n            m = e\n    return m\n']",D,"
+
+def max_element(l: list):
+    """"""Return maximum element in the list.
+    >>> max_element([1, 2, 3])
+    3
+    >>> max_element([5, 3, -5, 2, -3, 3, 9, 0, 123, 1, -10])
+    123
+    """"""
+",D,1
+rt00037,"
+
+def fizz_buzz(n: int):
+    """"""Return the number of times the digit 7 appears in integers less than n which are divisible by 11 or 13.
+    >>> fizz_buzz(50)
+    0
+    >>> fizz_buzz(78)
+    2
+    >>> fizz_buzz(79)
+    3
+    """"""
+","[""    ns = []\n    for i in range(n):\n        if i % 11 == 0 or i % 13 == 0:\n            ns.append(i)\n    s = ''.join(list(map(str, ns)))\n    ans = 0\n    for c in s:\n        ans += int(c) \n    return ans""
+ ""    ns = []\n    for i in range(n):\n        if i % 10 == 0 or i % 13 == 0:\n            ns.append(i)\n    s = ''.join(list(map(str, ns)))\n    ans = 0\n    for c in s:\n        ans += (c == '7')\n    return ans""
+ ""    ns = []\n    for i in range(n):\n        if i % 11 == 0 or i % 13 == 0:\n            ns.append(i)\n    s = ''.join(list(map(str, ns)))\n    ans = 0\n    for c in s:\n        ans += (c == '7')\n    return ans\n""
+ ""    ns = []\n    for i in range(n-1):\n        if i % 11 == 0 or i % 13 == 0:\n            ns.append(i)\n    s = ''.join(list(map(str, ns)))\n    ans = 0\n    for c in s:\n        ans += (c == '7')\n    return ans""]",C,"
+
+def fizz_buzz(n: int):
+    """"""Return the number of times the digit 7 appears in integers less than n which are divisible by 11 or 13.
+    >>> fizz_buzz(50)
+    0
+    >>> fizz_buzz(78)
+    2
+    >>> fizz_buzz(79)
+    3
+    """"""
+",C,1
+rt00038,"
+
+def sort_even(l: list):
+    """"""This function takes a list l and returns a list l' such that
+    l' is identical to l in the odd indicies, while its values at the even indicies are equal
+    to the values of the even indicies of l, but sorted.
+    >>> sort_even([1, 2, 3])
+    [1, 2, 3]
+    >>> sort_even([5, 6, 3, 4])
+    [3, 6, 5, 4]
+    """"""
+","['    evens = l[::2]\n    odds = l[1::2]\n    evens.sort(reverse=True)  \n    ans = []\n    for i in range(len(evens)):\n        ans.append(evens[i])\n        if i < len(odds):\n            ans.append(odds[i])\n    if len(evens) > len(odds):\n        ans.append(evens[-1])\n    return ans\n'
+ '    evens = l[::2]\n    odds = l[1::2]\n    evens.sort()\n    ans = []\n    for e, o in zip(evens, odds):\n        ans.extend([e, o])\n    if len(evens) > len(odds):\n        ans.append(evens[-1])\n    return ans\n'
+ '    evens = l[::2]\n    odds = l[1::2]\n    evens.sort()\n    ans = []\n    for e, o in zip(evens, odds):\n        ans.extend([e, o])\n    return ans'
+ '    odds = l[1::2]\n    odds.sort()\n    ans = []\n    for i in range(len(l)):\n        if i % 2 == 0:\n            ans.append(l[i])\n        else:\n            ans.append(odds.pop(0))\n    return ans']",B,"
+
+def sort_even(l: list):
+    """"""This function takes a list l and returns a list l' such that
+    l' is identical to l in the odd indicies, while its values at the even indicies are equal
+    to the values of the even indicies of l, but sorted.
+    >>> sort_even([1, 2, 3])
+    [1, 2, 3]
+    >>> sort_even([5, 6, 3, 4])
+    [3, 6, 5, 4]
+    """"""
+",B,1
+rt00039,"
+
+def encode_cyclic(s: str):
+    """"""
+    returns encoded string by cycling groups of three characters.
+    """"""
+    # split string to groups. Each of length 3.
+    groups = [s[(3 * i):min((3 * i + 3), len(s))] for i in range((len(s) + 2) // 3)]
+    # cycle elements in each group. Unless group has fewer elements than 3.
+    groups = [(group[1:] + group[0]) if len(group) == 3 else group for group in groups]
+    return """".join(groups)
+
+
+def decode_cyclic(s: str):
+    """"""
+    takes as input string encoded with encode_cyclic function. Returns decoded string.
+    """"""
+","['    return encode_cyclic(encode_cyclic( s[::-1]))' '    return s[::-1]'
+ '    groups = [s[(3 * i):min((3 * i + 3), len(s))] for i in range((len(s) + 2) // 3)]\n    if len(groups[0]) == 3:\n        groups[0] = groups[0][-1] + groups[0][:-1]\n    return """".join(groups)'
+ '    return encode_cyclic(encode_cyclic(s))\n']",D,"
+
+def encode_cyclic(s: str):
+    """"""
+    returns encoded string by cycling groups of three characters.
+    """"""
+    # split string to groups. Each of length 3.
+    groups = [s[(3 * i):min((3 * i + 3), len(s))] for i in range((len(s) + 2) // 3)]
+    # cycle elements in each group. Unless group has fewer elements than 3.
+    groups = [(group[1:] + group[0]) if len(group) == 3 else group for group in groups]
+    return """".join(groups)
+
+
+def decode_cyclic(s: str):
+    """"""
+    takes as input string encoded with encode_cyclic function. Returns decoded string.
+    """"""
+",C,0
+rt00040,"
+
+def prime_fib(n: int):
+    """"""
+    prime_fib returns n-th number that is a Fibonacci number and it's also prime.
+    >>> prime_fib(1)
+    2
+    >>> prime_fib(2)
+    3
+    >>> prime_fib(3)
+    5
+    >>> prime_fib(4)
+    13
+    >>> prime_fib(5)
+    89
+    """"""
+","['    import math\n\n    def is_prime(p):\n        if p < 2:\n            return False\n        for k in range(2, min(int(math.sqrt(p)) + 1, p - 1)):\n            if p % k == 0:\n                return False\n        return True\n    f = [0, 1]\n    while True:\n        f.append(f[-1] + f[-2])\n        if is_prime(f[-1]):\n            n -= 1\n        if n == 0:\n            return f[-1]\n'
+ '    import math\n    def is_prime(p):\n        if p < 2:\n            return False\n        for k in range(2, int(math.sqrt(p)) + 1):\n            if p % k == 0:\n                return False\n        return True\n    f = [1, 1] \n    count = 0\n    index = 1\n    while count < n:\n        next_fib = f[-1] + f[-2]\n        f.append(next_fib)\n        if is_prime(next_fib):\n            count += 1\n            index += 1\n    return f[index]'
+ '    import math\n    def is_prime(p):\n        if p <= 2:\n            return False\n        for k in range(2, int(math.sqrt(p)) + 1):\n            if p % k == 0:\n                return False\n        return True\n    f = [0, 1]\n    count = 0\n    while count < n:\n        next_fib = f[-1] + f[-2]\n        f.append(next_fib)\n        if is_prime(next_fib):\n            count += 1\n    return f[count]'
+ 'import math\n    def is_prime(p):\n        if p < 2:\n            return False\n        for k in range(2, p):\n            if p % k == 0:\n                return False\n        return True\n\n    f = [0, 1]\n    found = 0\n    idx = 2\n    while found < n:\n        f.append(f[idx - 1] + f[idx - 2])\n        if is_prime(f[-1]):\n            found += 1\n        idx += 1\n        if found == n:\n            return f[-1]\n\n']",A,"
+
+def prime_fib(n: int):
+    """"""
+    prime_fib returns n-th number that is a Fibonacci number and it's also prime.
+    >>> prime_fib(1)
+    2
+    >>> prime_fib(2)
+    3
+    >>> prime_fib(3)
+    5
+    >>> prime_fib(4)
+    13
+    >>> prime_fib(5)
+    89
+    """"""
+",D,0
+rt00041,"
+
+def triples_sum_to_zero(l: list):
+    """"""
+    triples_sum_to_zero takes a list of integers as an input.
+    it returns True if there are three distinct elements in the list that
+    sum to zero, and False otherwise.
+
+    >>> triples_sum_to_zero([1, 3, 5, 0])
+    False
+    >>> triples_sum_to_zero([1, 3, -2, 1])
+    True
+    >>> triples_sum_to_zero([1, 2, 3, 7])
+    False
+    >>> triples_sum_to_zero([2, 4, -5, 3, 9, 7])
+    True
+    >>> triples_sum_to_zero([1])
+    False
+    """"""
+","['    count = 0\n    for i in range(len(l)):\n        for j in range(i + 1, len(l)):\n            for k in range(j + 1, len(l)):\n                count += 1\n                if count == 5:\n                    return True\n    return False'
+ '    for i in range(len(l) - 2):\n        for j in range(i + 1, len(l) - 1):\n            for k in range(j + 1, len(l) - 1):\n                if l[i] + l[j] + l[k] == 0:\n                    return True\n    return False\n'
+ '    for i in range(len(l) - 2):\n        if l[i] + l[i + 1] + l[i + 2] == 0:\n            return True\n    return False'
+ '    for i in range(len(l)):\n        for j in range(i + 1, len(l)):\n            for k in range(j + 1, len(l)):\n                if l[i] + l[j] + l[k] == 0:\n                    return True\n    return False\n']",D,"
+
+def triples_sum_to_zero(l: list):
+    """"""
+    triples_sum_to_zero takes a list of integers as an input.
+    it returns True if there are three distinct elements in the list that
+    sum to zero, and False otherwise.
+
+    >>> triples_sum_to_zero([1, 3, 5, 0])
+    False
+    >>> triples_sum_to_zero([1, 3, -2, 1])
+    True
+    >>> triples_sum_to_zero([1, 2, 3, 7])
+    False
+    >>> triples_sum_to_zero([2, 4, -5, 3, 9, 7])
+    True
+    >>> triples_sum_to_zero([1])
+    False
+    """"""
+",D,1
+rt00042,"
+
+def car_race_collision(n: int):
+    """"""
+    Imagine a road that's a perfectly straight infinitely long line.
+    n cars are driving left to right;  simultaneously, a different set of n cars
+    are driving right to left.   The two sets of cars start out being very far from
+    each other.  All cars move in the same speed.  Two cars are said to collide
+    when a car that's moving left to right hits a car that's moving right to left.
+    However, the cars are infinitely sturdy and strong; as a result, they continue moving
+    in their trajectory as if they did not collide.
+
+    This function outputs the number of such collisions.
+    """"""
+","['    return n**2\n' 'reutrn n * (n - 1)' 'return (n/2) * n'
+ 'return (n/2) * n']",A,"
+
+def car_race_collision(n: int):
+    """"""
+    Imagine a road that's a perfectly straight infinitely long line.
+    n cars are driving left to right;  simultaneously, a different set of n cars
+    are driving right to left.   The two sets of cars start out being very far from
+    each other.  All cars move in the same speed.  Two cars are said to collide
+    when a car that's moving left to right hits a car that's moving right to left.
+    However, the cars are infinitely sturdy and strong; as a result, they continue moving
+    in their trajectory as if they did not collide.
+
+    This function outputs the number of such collisions.
+    """"""
+",A,1
+rt00043,"
+
+def incr_list(l: list):
+    """"""Return list with elements incremented by 1.
+    >>> incr_list([1, 2, 3])
+    [2, 3, 4]
+    >>> incr_list([5, 3, 5, 2, 3, 3, 9, 0, 123])
+    [6, 4, 6, 3, 4, 4, 10, 1, 124]
+    """"""
+","['return [(e * 2) for e in l]' ""[str(e) + '1' for e in l]""
+ 'return [(e - 1) for e in l]' '    return [(e + 1) for e in l]\n']",D,"
+
+def incr_list(l: list):
+    """"""Return list with elements incremented by 1.
+    >>> incr_list([1, 2, 3])
+    [2, 3, 4]
+    >>> incr_list([5, 3, 5, 2, 3, 3, 9, 0, 123])
+    [6, 4, 6, 3, 4, 4, 10, 1, 124]
+    """"""
+",D,1
+rt00044,"
+
+def pairs_sum_to_zero(l):
+    """"""
+    pairs_sum_to_zero takes a list of integers as an input.
+    it returns True if there are two distinct elements in the list that
+    sum to zero, and False otherwise.
+    >>> pairs_sum_to_zero([1, 3, 5, 0])
+    False
+    >>> pairs_sum_to_zero([1, 3, -2, 1])
+    False
+    >>> pairs_sum_to_zero([1, 2, 3, 7])
+    False
+    >>> pairs_sum_to_zero([2, 4, -5, 3, 5, 7])
+    True
+    >>> pairs_sum_to_zero([1])
+    False
+    """"""
+","['    for i, l1 in enumerate(l):\n        for j in range(i + 1, len(l)):\n            if l1 + l[j] == 0:\n                return True\n    return False\n'
+ '    for i, l1 in enumerate(l):\n        for j in range(len(l)):  \n            if l1 + l[j] == 0:\n                return True \n    return False\n'
+ '   for i, l1 in enumerate(l):\n        for j in range(i + 1, len(l)):\n            if not (l1 + l[j] == 0): \n                continue\n            return True\n    return False'
+ '    for i, l1 in enumerate(l):\n        for j in range(len(l)): \n            if l1 + l[j] == 0:\n                return True\n    return False']",A,"
+
+def pairs_sum_to_zero(l):
+    """"""
+    pairs_sum_to_zero takes a list of integers as an input.
+    it returns True if there are two distinct elements in the list that
+    sum to zero, and False otherwise.
+    >>> pairs_sum_to_zero([1, 3, 5, 0])
+    False
+    >>> pairs_sum_to_zero([1, 3, -2, 1])
+    False
+    >>> pairs_sum_to_zero([1, 2, 3, 7])
+    False
+    >>> pairs_sum_to_zero([2, 4, -5, 3, 5, 7])
+    True
+    >>> pairs_sum_to_zero([1])
+    False
+    """"""
+",A,1
+rt00045,"
+
+def change_base(x: int, base: int):
+    """"""Change numerical base of input number x to base.
+    return string representation after the conversion.
+    base numbers are less than 10.
+    >>> change_base(8, 3)
+    '22'
+    >>> change_base(8, 2)
+    '1000'
+    >>> change_base(7, 2)
+    '111'
+    """"""
+","['    if x == 0:\n        return ""1""  \n    ret = """"\n    while x > 0:\n        ret = str(x % base) + ret\n        x //= base\n    return ret\n'
+ '    ret = """"\n    while x > 0:\n        digit = x % base\n        ret = str((digit + 1) % base) + ret  \n        x //= base\n    return ret'
+ '  if x == base:\n        return str(base) \n    ret = """"\n    while x > 0:\n        ret = str(x % base) + ret\n        x //= base\n    return ret'
+ '    ret = """"\n    while x > 0:\n        ret = str(x % base) + ret\n        x //= base\n    return ret\n']",D,"
+
+def change_base(x: int, base: int):
+    """"""Change numerical base of input number x to base.
+    return string representation after the conversion.
+    base numbers are less than 10.
+    >>> change_base(8, 3)
+    '22'
+    >>> change_base(8, 2)
+    '1000'
+    >>> change_base(7, 2)
+    '111'
+    """"""
+",D,1
+rt00046,"
+
+def triangle_area(a, h):
+    """"""Given length of a side and high return area for a triangle.
+    >>> triangle_area(5, 3)
+    7.5
+    """"""
+","['return a * h // 2'
+ '    if h > 5:\n        return a * h / 2.0\n    else:\n        return a * (h + 1) / 2.0 \n'
+ 'return a * h / 3' '    return a * h / 2.0\n']",D,"
+
+def triangle_area(a, h):
+    """"""Given length of a side and high return area for a triangle.
+    >>> triangle_area(5, 3)
+    7.5
+    """"""
+",D,1
+rt00047,"
+
+def fib4(n: int):
+    """"""The Fib4 number sequence is a sequence similar to the Fibbonacci sequnece that's defined as follows:
+    fib4(0) -> 0
+    fib4(1) -> 0
+    fib4(2) -> 2
+    fib4(3) -> 0
+    fib4(n) -> fib4(n-1) + fib4(n-2) + fib4(n-3) + fib4(n-4).
+    Please write a function to efficiently compute the n-th element of the fib4 number sequence.  Do not use recursion.
+    >>> fib4(5)
+    4
+    >>> fib4(6)
+    8
+    >>> fib4(7)
+    14
+    """"""
+","['    if n < 4:\n        return [0, 0, 2, 0][n]\n    results = [0, 0, 2, 0, 1]  # Extra initial condition\n    for _ in range(5, n + 1):\n        results.append(sum(results[-4:]))\n        results.pop(0)\n    return results[-1]'
+ '    if n < 4:\n        return [0, 0, 2, 0][n]\n    results = [0, 0, 2, 0]\n    for _ in range(4, n + 1):\n        results.append(results[-1] + results[-2] + results[-3] + results[-2])\n        results.pop(0)\n    return results[-1]'
+ '    results = [0, 0, 2, 0]\n    if n < 4:\n        return results[n]\n\n    for _ in range(4, n + 1):\n        results.append(results[-1] + results[-2] + results[-3] + results[-4])\n        results.pop(0)\n\n    return results[-1]\n'
+ '    if n < 4:\n        return [0, 0, 2, 0][n]\n    results = [0, 0, 2, 1] \n    for _ in range(4, n + 1):\n        results.append(sum(results))\n        results.pop(0)\n    return results[-1]\n']",C,"
+
+def fib4(n: int):
+    """"""The Fib4 number sequence is a sequence similar to the Fibbonacci sequnece that's defined as follows:
+    fib4(0) -> 0
+    fib4(1) -> 0
+    fib4(2) -> 2
+    fib4(3) -> 0
+    fib4(n) -> fib4(n-1) + fib4(n-2) + fib4(n-3) + fib4(n-4).
+    Please write a function to efficiently compute the n-th element of the fib4 number sequence.  Do not use recursion.
+    >>> fib4(5)
+    4
+    >>> fib4(6)
+    8
+    >>> fib4(7)
+    14
+    """"""
+",C,1
+rt00048,"
+
+def median(l: list):
+    """"""Return median of elements in the list l.
+    >>> median([3, 1, 2, 4, 5])
+    3
+    >>> median([-10, 4, 6, 1000, 10, 20])
+    15.0
+    """"""
+","['    l = sorted(l)\n    if len(l) % 2 == 0:\n        return (l[len(l) // 2] + l[len(l) // 2 - 1]) / 2\n    else:\n        return l[len(l) // 2 + 1]'
+ '    l = sorted(l)\n    if len(l) % 2 == 1:\n        return l[len(l) // 2]\n    else:\n        return (l[len(l) // 2 - 1] + l[len(l) // 2]) / 2.0\n'
+ '    l = sorted(l)\n    if len(l) % 2 == 1:\n        return l[len(l) // 2]\n    else:\n        return (l[len(l) // 2 - 2] + l[len(l) // 2 - 1]) / 2.0\n'
+ '    l = sorted(l)\n    if len(l) % 2 == 0:\n        return (l[len(l) // 2] + l[len(l) // 2 + 1]) / 2.0\n    else:\n        return l[len(l) // 2]\n']",B,"
+
+def median(l: list):
+    """"""Return median of elements in the list l.
+    >>> median([3, 1, 2, 4, 5])
+    3
+    >>> median([-10, 4, 6, 1000, 10, 20])
+    15.0
+    """"""
+",B,1
+rt00049,"
+
+def is_palindrome(text: str):
+    """"""
+    Checks if given string is a palindrome
+    >>> is_palindrome('')
+    True
+    >>> is_palindrome('aba')
+    True
+    >>> is_palindrome('aaaaa')
+    True
+    >>> is_palindrome('zbcd')
+    False
+    """"""
+","['    for i in range(len(text) // 2):\n        if text[i] != text[i]:\n            return False\n    return True'
+ '    for i in range(len(text)):\n        if text[0] != text[-1]:\n            return False\n    return True'
+ '    for i in range(len(text)):\n        if text[i] != text[len(text) - 1 - i]:\n            return False\n    return True\n'
+ '    for i in range(len(text)):\n        if text[i] != text[i]:\n            return False\n    return True']",C,"
+
+def is_palindrome(text: str):
+    """"""
+    Checks if given string is a palindrome
+    >>> is_palindrome('')
+    True
+    >>> is_palindrome('aba')
+    True
+    >>> is_palindrome('aaaaa')
+    True
+    >>> is_palindrome('zbcd')
+    False
+    """"""
+",C,1
+rt00050,"
+
+def modp(n: int, p: int):
+    """"""Return 2^n modulo p (be aware of numerics).
+    >>> modp(3, 5)
+    3
+    >>> modp(1101, 101)
+    2
+    >>> modp(0, 101)
+    1
+    >>> modp(3, 11)
+    8
+    >>> modp(100, 101)
+    1
+    """"""
+","['    ret = 2\n    for i in range(n):\n        ret = (2 * ret) % p\n    return ret'
+ '    ret = 1\n    for i in range(n):\n        ret = 2 * ret\n    return ret'
+ '    ret = 1\n    for i in range(n):\n        ret = (2 + ret) % p\n    return ret'
+ '    ret = 1\n    for i in range(n):\n        ret = (2 * ret) % p\n    return ret\n']",D,"
+
+def modp(n: int, p: int):
+    """"""Return 2^n modulo p (be aware of numerics).
+    >>> modp(3, 5)
+    3
+    >>> modp(1101, 101)
+    2
+    >>> modp(0, 101)
+    1
+    >>> modp(3, 11)
+    8
+    >>> modp(100, 101)
+    1
+    """"""
+",D,1
+rt00051,"
+
+def encode_shift(s: str):
+    """"""
+    returns encoded string by shifting every character by 5 in the alphabet.
+    """"""
+    return """".join([chr(((ord(ch) + 5 - ord(""a"")) % 26) + ord(""a"")) for ch in s])
+
+
+def decode_shift(s: str):
+    """"""
+    takes as input string encoded with encode_shift function. Returns decoded string.
+    """"""
+","['    return """".join([chr(((ord(ch) - 5 - ord(""a"")) % 26) + ord(""a"")) for ch in s])\n'
+ '    return """".join([chr(((ord(ch) - 5 - ord(""A"")) % 26) + ord(""A"")) for ch in s])'
+ 'return """".join([chr(((ord(ch) - 6 - ord(""a"")) % 26) + ord(""a"")) for ch in s])'
+ '    return """".join([chr(((ord(ch) + 5 - ord(""a"")) % 26) + ord(""a"")) for ch in s])']",A,"
+
+def encode_shift(s: str):
+    """"""
+    returns encoded string by shifting every character by 5 in the alphabet.
+    """"""
+    return """".join([chr(((ord(ch) + 5 - ord(""a"")) % 26) + ord(""a"")) for ch in s])
+
+
+def decode_shift(s: str):
+    """"""
+    takes as input string encoded with encode_shift function. Returns decoded string.
+    """"""
+",A,1
+rt00052,"
+
+def remove_vowels(text):
+    """"""
+    remove_vowels is a function that takes string and returns string without vowels.
+    >>> remove_vowels('')
+    ''
+    >>> remove_vowels(""abcdef\nghijklm"")
+    'bcdf\nghjklm'
+    >>> remove_vowels('abcdef')
+    'bcdf'
+    >>> remove_vowels('aaaaa')
+    ''
+    >>> remove_vowels('aaBAA')
+    'B'
+    >>> remove_vowels('zbcd')
+    'zbcd'
+    """"""
+","['    return """".join([s for s in text if s.lower() not in list(set(""abcdefghijklmnopqrstuvwxyz"") - set(""aeiou""))])\n'
+ 'return """".join([s for s in text if s.lower() in [""a"", ""e"", ""i"", ""o"", ""u""]])'
+ '    return """".join([s for s in text if s.lower() not in [""b"", ""c"", ""d"", ""f"", ""g"", ""h"", ""j"", ""k"", ""l"", ""m"", ""n"", ""p"", ""q"", ""r"", ""s"", ""t"", ""v"", ""w"", ""x"", ""y"", ""z""]])'
+ '    return """".join([s for s in text if s.lower() not in [""a"", ""e"", ""i"", ""o"", ""u""]])\n']",D,"
+
+def remove_vowels(text):
+    """"""
+    remove_vowels is a function that takes string and returns string without vowels.
+    >>> remove_vowels('')
+    ''
+    >>> remove_vowels(""abcdef\nghijklm"")
+    'bcdf\nghjklm'
+    >>> remove_vowels('abcdef')
+    'bcdf'
+    >>> remove_vowels('aaaaa')
+    ''
+    >>> remove_vowels('aaBAA')
+    'B'
+    >>> remove_vowels('zbcd')
+    'zbcd'
+    """"""
+",D,1
+rt00053,"
+
+def below_threshold(l: list, t: int):
+    """"""Return True if all numbers in the list l are below threshold t.
+    >>> below_threshold([1, 2, 4, 10], 100)
+    True
+    >>> below_threshold([1, 20, 4, 10], 5)
+    False
+    """"""
+","['    for e in l:\n        if e >= t:\n            return True\n    return True'
+ '    for e in l:\n        if e >= t:\n            return True\n    return False'
+ '    for e in l:\n        if e <= t:\n            return False\n    return True'
+ '    for e in l:\n        if e >= t:\n            return False\n    return True\n']",D,"
+
+def below_threshold(l: list, t: int):
+    """"""Return True if all numbers in the list l are below threshold t.
+    >>> below_threshold([1, 2, 4, 10], 100)
+    True
+    >>> below_threshold([1, 20, 4, 10], 5)
+    False
+    """"""
+",D,1
+rt00054,"
+
+def add(x: int, y: int):
+    """"""Add two numbers x and y
+    >>> add(2, 3)
+    5
+    >>> add(5, 7)
+    12
+    """"""
+",['return x+y-y' 'return x-y' 'return x+y+1' '    return x + y\n'],D,"
+
+def add(x: int, y: int):
+    """"""Add two numbers x and y
+    >>> add(2, 3)
+    5
+    >>> add(5, 7)
+    12
+    """"""
+",D,1
+rt00055,"
+
+def same_chars(s0: str, s1: str):
+    """"""
+    Check if two words have the same characters.
+    >>> same_chars('eabcdzzzz', 'dddzzzzzzzddeddabc')
+    True
+    >>> same_chars('abcd', 'dddddddabc')
+    True
+    >>> same_chars('dddddddabc', 'abcd')
+    True
+    >>> same_chars('eabcd', 'dddddddabc')
+    False
+    >>> same_chars('abcd', 'dddddddabce')
+    False
+    >>> same_chars('eabcdzzzz', 'dddzzzzzzzddddabc')
+    False
+    """"""
+","['    return all(char in s1 for char in s0)'
+ '    return len(s0) == len(s1) ' '    return set(s0) == set(s1)\n'
+ '    return sorted(s0) == sorted(s1) ']",C,"
+
+def same_chars(s0: str, s1: str):
+    """"""
+    Check if two words have the same characters.
+    >>> same_chars('eabcdzzzz', 'dddzzzzzzzddeddabc')
+    True
+    >>> same_chars('abcd', 'dddddddabc')
+    True
+    >>> same_chars('dddddddabc', 'abcd')
+    True
+    >>> same_chars('eabcd', 'dddddddabc')
+    False
+    >>> same_chars('abcd', 'dddddddabce')
+    False
+    >>> same_chars('eabcdzzzz', 'dddzzzzzzzddddabc')
+    False
+    """"""
+",C,1
+rt00056,"
+
+def fib(n: int):
+    """"""Return n-th Fibonacci number.
+    >>> fib(10)
+    55
+    >>> fib(1)
+    1
+    >>> fib(8)
+    21
+    """"""
+","['    if n == 0:\n        return 0\n    if n == 1:\n        return 1\n    return fib(n - 3) + fib(n - 2) '
+ '    if n == 0:\n        return 0\n    if n == 1:\n        return 1\n    return fib(n - 2) + fib(n - 2) '
+ '    if n == 0:\n        return 0\n    if n == 1:\n        return 1\n    return fib(n - 1) + fib(n - 2)\n'
+ '    if n <= 1:\n        return 1 \n    return fib(n - 1) + fib(n - 2)']",C,"
+
+def fib(n: int):
+    """"""Return n-th Fibonacci number.
+    >>> fib(10)
+    55
+    >>> fib(1)
+    1
+    >>> fib(8)
+    21
+    """"""
+",C,1
+rt00057,"
+
+def correct_bracketing(brackets: str):
+    """""" brackets is a string of ""<"" and "">"".
+    return True if every opening bracket has a corresponding closing bracket.
+
+    >>> correct_bracketing(""<"")
+    False
+    >>> correct_bracketing(""<>"")
+    True
+    >>> correct_bracketing(""<<><>>"")
+    True
+    >>> correct_bracketing(""><<>"")
+    False
+    """"""
+","['    depth = 0\n    for b in brackets:\n        if b == ""<"":\n            depth += 1\n        elif b == "">"":\n            depth -= 1\n        if depth == 0 and b == "">"":\n            return False  \n    return depth == 0'
+ '    depth = 0\n    for b in brackets:\n        if b == ""<"":\n            depth += 1\n        elif b == "">"":\n            if depth == 0:\n                return False\n            depth -= 1\n    return True'
+ '    depth = 0\n    for b in brackets:\n        if b == ""<"":\n            depth += 1\n        else:\n            depth -= 1\n    return depth == 0 and brackets[-1] != ""<"" '
+ '    depth = 0\n    for b in brackets:\n        if b == ""<"":\n            depth += 1\n        else:\n            depth -= 1\n        if depth < 0:\n            return False\n    return depth == 0\n']",D,"
+
+def correct_bracketing(brackets: str):
+    """""" brackets is a string of ""<"" and "">"".
+    return True if every opening bracket has a corresponding closing bracket.
+
+    >>> correct_bracketing(""<"")
+    False
+    >>> correct_bracketing(""<>"")
+    True
+    >>> correct_bracketing(""<<><>>"")
+    True
+    >>> correct_bracketing(""><<>"")
+    False
+    """"""
+",D,1
+rt00058,"
+
+def monotonic(l: list):
+    """"""Return True is list elements are monotonically increasing or decreasing.
+    >>> monotonic([1, 2, 4, 20])
+    True
+    >>> monotonic([1, 20, 4, 10])
+    False
+    >>> monotonic([4, 1, 0, -10])
+    True
+    """"""
+","['    if l == sorted(l) or l == l[::-1]:\n        return True\n    return False'
+ '    if l == l or l == l[::-1]:\n        return False\n    return True\n'
+ '    if l == sorted(l) or l == sorted(l, reverse=True):\n        return True\n    return False\n'
+ '    if l == l or l == l[::-1]:\n        return True\n    return False']",C,"
+
+def monotonic(l: list):
+    """"""Return True is list elements are monotonically increasing or decreasing.
+    >>> monotonic([1, 2, 4, 20])
+    True
+    >>> monotonic([1, 20, 4, 10])
+    False
+    >>> monotonic([4, 1, 0, -10])
+    True
+    """"""
+",C,1
+rt00059,"
+
+def common(l1: list, l2: list):
+    """"""Return sorted unique common elements for two lists.
+    >>> common([1, 4, 3, 34, 653, 2, 5], [5, 7, 1, 5, 9, 653, 121])
+    [1, 5, 653]
+    >>> common([5, 3, 2, 8], [3, 2])
+    [2, 3]
+
+    """"""
+","['    ret = set(l1)  \n    return sorted(list(ret))'
+ '    ret = set()\n    for e1 in l1:\n        for e2 in l2:\n            if e1 != e2:  # \n                ret.add(e1)\n    return sorted(list(ret))'
+ '    ret = set()\n    for e1 in l1:\n        for e2 in l2:\n            if e1 == e2:\n                ret.add(e1)\n    return sorted(list(ret))\n'
+ '    ret = set()\n    for e1 in l1:\n        ret.add(e1)  # Adds all elements from the first list\n    return sorted(list(ret))']",C,"
+
+def common(l1: list, l2: list):
+    """"""Return sorted unique common elements for two lists.
+    >>> common([1, 4, 3, 34, 653, 2, 5], [5, 7, 1, 5, 9, 653, 121])
+    [1, 5, 653]
+    >>> common([5, 3, 2, 8], [3, 2])
+    [2, 3]
+
+    """"""
+",C,1
+rt00060,"
+
+def largest_prime_factor(n: int):
+    """"""Return the largest prime factor of n. Assume n > 1 and is not a prime.
+    >>> largest_prime_factor(13195)
+    29
+    >>> largest_prime_factor(2048)
+    2
+    """"""
+","['    def is_prime(k):\n        if k < 2:\n            return False\n        for i in range(2, k - 1):\n            if k % i == 0:\n                return False\n        return True\n    largest = 1\n    for j in range(2, n + 1):\n        if n % j == 0 and is_prime(j):\n            largest = max(largest, j)\n    return largest\n'
+ '    def is_prime(k):\n        if k < 2:\n            return False\n        for i in range(2, k - 1):\n            if k % i == 0:\n                return False\n        return True\n    largest = 1\n    for j in range(2, n + 1):\n        if n % j == 0 and not is_prime(j):\n            largest = max(largest, j)\n    return largest'
+ '    def is_prime(k):\n        if k < 2:\n            return False\n        for i in range(2, k - 1):\n            if k % i == 0:\n                return False\n        return True\n    largest = 1\n    for j in range(2, n + 1):\n        if n % j == 0 and is_prime(j):\n            largest = min(largest, j)\n    return largest'
+ '    def is_prime(k):\n        if k < 2:\n            return False\n        for i in range(2, k - 1):\n            if k % i == 0:\n                return False\n        return True\n    largest = 1\n    for j in range(2, n + 1):\n        if n % j != 0 and is_prime(j):\n            largest = max(largest, j)\n    return largest']",A,"
+
+def largest_prime_factor(n: int):
+    """"""Return the largest prime factor of n. Assume n > 1 and is not a prime.
+    >>> largest_prime_factor(13195)
+    29
+    >>> largest_prime_factor(2048)
+    2
+    """"""
+",A,1
+rt00061,"
+
+def sum_to_n(n: int):
+    """"""sum_to_n is a function that sums numbers from 1 to n.
+    >>> sum_to_n(30)
+    465
+    >>> sum_to_n(100)
+    5050
+    >>> sum_to_n(5)
+    15
+    >>> sum_to_n(10)
+    55
+    >>> sum_to_n(1)
+    1
+    """"""
+","[' return sum(range(n))' '    return sum(range(n + 1))\n'
+ 'return sum(range(1, n))' 'return sum(range(1, n * n + 1))']",B,"
+
+def sum_to_n(n: int):
+    """"""sum_to_n is a function that sums numbers from 1 to n.
+    >>> sum_to_n(30)
+    465
+    >>> sum_to_n(100)
+    5050
+    >>> sum_to_n(5)
+    15
+    >>> sum_to_n(10)
+    55
+    >>> sum_to_n(1)
+    1
+    """"""
+",B,1
+rt00062,"
+
+def correct_bracketing(brackets: str):
+    """""" brackets is a string of ""("" and "")"".
+    return True if every opening bracket has a corresponding closing bracket.
+
+    >>> correct_bracketing(""("")
+    False
+    >>> correct_bracketing(""()"")
+    True
+    >>> correct_bracketing(""(()())"")
+    True
+    >>> correct_bracketing("")(()"")
+    False
+    """"""
+","['    depth = 0\n    for b in brackets:\n        if b == ""("":\n            depth += 1\n        else:\n            depth -= 1\n        if depth < -1:  \n            return False\n    return depth == 0'
+ '    depth = 0\n    for b in brackets:\n        if b == ""("":\n            depth += 1\n        else:\n            depth -= 1\n        if depth < 0:\n            return False\n    return True '
+ '    depth = 0\n    for b in brackets:\n        if b == ""("":\n            depth += 1\n        else:\n            depth -= 1\n        if depth < 0:\n            return False\n    return depth == 1  '
+ '    depth = 0\n    for b in brackets:\n        if b == ""("":\n            depth += 1\n        else:\n            depth -= 1\n        if depth < 0:\n            return False\n    return depth == 0\n']",D,"
+
+def correct_bracketing(brackets: str):
+    """""" brackets is a string of ""("" and "")"".
+    return True if every opening bracket has a corresponding closing bracket.
+
+    >>> correct_bracketing(""("")
+    False
+    >>> correct_bracketing(""()"")
+    True
+    >>> correct_bracketing(""(()())"")
+    True
+    >>> correct_bracketing("")(()"")
+    False
+    """"""
+",D,1
+rt00063,"
+
+def derivative(xs: list):
+    """""" xs represent coefficients of a polynomial.
+    xs[0] + xs[1] * x + xs[2] * x^2 + ....
+     Return derivative of this polynomial in the same form.
+    >>> derivative([3, 1, 2, 4, 5])
+    [1, 4, 12, 20]
+    >>> derivative([1, 2, 3])
+    [2, 6]
+    """"""
+","['return [(i * x) for i, x in enumerate(xs)][2:]'
+ '    if len(xs) <= 1:\n        return [0] \n    return [(i * x) for i, x in enumerate(xs)][1:]'
+ 'return [(i * x if i != 1 else (i + 1) * x) for i, x in enumerate(xs)][1:]'
+ '    return [(i * x) for i, x in enumerate(xs)][1:]\n']",D,"
+
+def derivative(xs: list):
+    """""" xs represent coefficients of a polynomial.
+    xs[0] + xs[1] * x + xs[2] * x^2 + ....
+     Return derivative of this polynomial in the same form.
+    >>> derivative([3, 1, 2, 4, 5])
+    [1, 4, 12, 20]
+    >>> derivative([1, 2, 3])
+    [2, 6]
+    """"""
+",B,0
+rt00064,"
+
+def fibfib(n: int):
+    """"""The FibFib number sequence is a sequence similar to the Fibbonacci sequnece that's defined as follows:
+    fibfib(0) == 0
+    fibfib(1) == 0
+    fibfib(2) == 1
+    fibfib(n) == fibfib(n-1) + fibfib(n-2) + fibfib(n-3).
+    Please write a function to efficiently compute the n-th element of the fibfib number sequence.
+    >>> fibfib(1)
+    0
+    >>> fibfib(5)
+    4
+    >>> fibfib(8)
+    24
+    """"""
+","['    if n == 0:\n        return 0\n    if n == 1:\n        return 0\n    if n == 2:\n        return 1\n    return fibfib(n - 1) + fibfib(n - 2) + fibfib(n - 3)\n'
+ '    if n == 0:\n        return 0\n    if n == 1:\n        return 0\n    if n == 2:\n        return 1\n    return fibfib(n - 1) + fibfib(n - 2)'
+ '    if n == 0:\n        return 1\n    if n == 1:\n        return 1\n    if n == 2:\n        return 1\n    return fibfib(n - 1) + fibfib(n - 2) + fibfib(n - 3)'
+ '    if n == 0:\n        return 0\n    if n == 1:\n        return 0\n    if n == 2:\n        return 2\n    return fibfib(n - 1) + fibfib(n - 2) + fibfib(n - 3)']",A,"
+
+def fibfib(n: int):
+    """"""The FibFib number sequence is a sequence similar to the Fibbonacci sequnece that's defined as follows:
+    fibfib(0) == 0
+    fibfib(1) == 0
+    fibfib(2) == 1
+    fibfib(n) == fibfib(n-1) + fibfib(n-2) + fibfib(n-3).
+    Please write a function to efficiently compute the n-th element of the fibfib number sequence.
+    >>> fibfib(1)
+    0
+    >>> fibfib(5)
+    4
+    >>> fibfib(8)
+    24
+    """"""
+",A,1
+rt00065,"
+FIX = """"""
+Add more test cases.
+""""""
+
+def vowels_count(s):
+    """"""Write a function vowels_count which takes a string representing
+    a word as input and returns the number of vowels in the string.
+    Vowels in this case are 'a', 'e', 'i', 'o', 'u'. Here, 'y' is also a
+    vowel, but only when it is at the end of the given word.
+
+    Example:
+    >>> vowels_count(""abcde"")
+    2
+    >>> vowels_count(""ACEDY"")
+    3
+    """"""
+","['    vowels = ""aeiouAEIOU""\n    n_vowels = sum(c in vowels for c in s)\n    n_vowels += 1\n    return n_vowels'
+ '    vowels = ""aeiouAEIOU""\n    n_vowels = sum(c in vowels for c in s)\n    if s[-1] == \'y\' or s[-1] == \'Y\':\n        n_vowels += 1\n    return n_vowels\n'
+ '    vowels = ""aeiou""\n    n_vowels = sum(c in vowels for c in s)\n    if s[-1] == \'y\':\n        n_vowels += 1\n    return n_vowels'
+ '    vowels = ""bcdfghjklmnpqrstvwxyzBCDFGHJKLMNPQRSTVWXYZ""\n    n_vowels = sum(c in vowels for c in s)\n    if s[-1] == \'y\' or s[-1] == \'Y\':\n        n_vowels += 1\n    return n_vowels']",B,"
+FIX = """"""
+Add more test cases.
+""""""
+
+def vowels_count(s):
+    """"""Write a function vowels_count which takes a string representing
+    a word as input and returns the number of vowels in the string.
+    Vowels in this case are 'a', 'e', 'i', 'o', 'u'. Here, 'y' is also a
+    vowel, but only when it is at the end of the given word.
+
+    Example:
+    >>> vowels_count(""abcde"")
+    2
+    >>> vowels_count(""ACEDY"")
+    3
+    """"""
+",B,1
+rt00066,"
+def circular_shift(x, shift):
+    """"""Circular shift the digits of the integer x, shift the digits right by shift
+    and return the result as a string.
+    If shift > number of digits, return digits reversed.
+    >>> circular_shift(12, 1)
+    ""21""
+    >>> circular_shift(12, 2)
+    ""12""
+    """"""
+","['    s = str(x)\n    if shift > len(s):\n        return s[::-1]\n    else:\n        return s[len(s) - shift - 1:] + s[:len(s) - shift - 1]  '
+ '    s = str(x)\n    shift = shift % len(s) \n    if shift == 0:\n        return s[::-1] \n    else:\n        return s[-shift:] + s[:-shift]'
+ '    s = str(x)\n    if shift >= len(s):\n        return s  \n    else:\n        return s[-shift:] + s[:-shift]'
+ '    s = str(x)\n    if shift > len(s):\n        return s[::-1]\n    else:\n        return s[len(s) - shift:] + s[:len(s) - shift]\n']",D,"
+def circular_shift(x, shift):
+    """"""Circular shift the digits of the integer x, shift the digits right by shift
+    and return the result as a string.
+    If shift > number of digits, return digits reversed.
+    >>> circular_shift(12, 1)
+    ""21""
+    >>> circular_shift(12, 2)
+    ""12""
+    """"""
+",D,1
+rt00067,"
+def digitSum(s):
+    """"""Task
+    Write a function that takes a string as input and returns the sum of the upper characters only'
+    ASCII codes.
+
+    Examples:
+        digitSum("""") => 0
+        digitSum(""abAB"") => 131
+        digitSum(""abcCd"") => 67
+        digitSum(""helloE"") => 69
+        digitSum(""woArBld"") => 131
+        digitSum(""aAaaaXa"") => 153
+    """"""
+","['    if s == """": \n        return 0\n    return sum(ord(char) for char in s if char.islower())'
+ '    if s == """": return 0\n    return sum(ord(char) if char.isupper() else 0 for char in s)\n'
+ '    if s == """": \n        return 1\n    return sum(ord(char) if char.isupper() else 0 for char in s)'
+ '    if s == """": \n        return 0\n    return sum(ord(char) for char in s if char.isalpha())']",B,"
+def digitSum(s):
+    """"""Task
+    Write a function that takes a string as input and returns the sum of the upper characters only'
+    ASCII codes.
+
+    Examples:
+        digitSum("""") => 0
+        digitSum(""abAB"") => 131
+        digitSum(""abcCd"") => 67
+        digitSum(""helloE"") => 69
+        digitSum(""woArBld"") => 131
+        digitSum(""aAaaaXa"") => 153
+    """"""
+",B,1
+rt00068,"
+def fruit_distribution(s,n):
+    """"""
+    In this task, you will be given a string that represents a number of apples and oranges 
+    that are distributed in a basket of fruit this basket contains 
+    apples, oranges, and mango fruits. Given the string that represents the total number of 
+    the oranges and apples and an integer that represent the total number of the fruits 
+    in the basket return the number of the mango fruits in the basket.
+    for examble:
+    fruit_distribution(""5 apples and 6 oranges"", 19) ->19 - 5 - 6 = 8
+    fruit_distribution(""0 apples and 1 oranges"",3) -> 3 - 0 - 1 = 2
+    fruit_distribution(""2 apples and 3 oranges"", 100) -> 100 - 2 - 3 = 95
+    fruit_distribution(""100 apples and 1 oranges"",120) -> 120 - 100 - 1 = 19
+    """"""
+","['    numbers = [int(num) for num in s if num.isdigit()]\n    return n - sum(numbers)\n'
+ ""    lis = list()\n    for i in s.split(' '):\n        if i.isdigit():\n            lis.append(int(i))\n    return n - sum(lis)\n""
+ '    numbers = [int(num) for num in s.split() if num.isdigit()]\n    return n - sum(numbers[:1])\n'
+ ""    apples, oranges = s.split(' and ')\n    apples = int(apples.split()[0])\n    oranges = int(oranges.split()[0])\n    return n - apples + oranges\n""]",B,"
+def fruit_distribution(s,n):
+    """"""
+    In this task, you will be given a string that represents a number of apples and oranges 
+    that are distributed in a basket of fruit this basket contains 
+    apples, oranges, and mango fruits. Given the string that represents the total number of 
+    the oranges and apples and an integer that represent the total number of the fruits 
+    in the basket return the number of the mango fruits in the basket.
+    for examble:
+    fruit_distribution(""5 apples and 6 oranges"", 19) ->19 - 5 - 6 = 8
+    fruit_distribution(""0 apples and 1 oranges"",3) -> 3 - 0 - 1 = 2
+    fruit_distribution(""2 apples and 3 oranges"", 100) -> 100 - 2 - 3 = 95
+    fruit_distribution(""100 apples and 1 oranges"",120) -> 120 - 100 - 1 = 19
+    """"""
+",B,1
+rt00069,"
+def pluck(arr):
+    """"""
+    ""Given an array representing a branch of a tree that has non-negative integer nodes
+    your task is to pluck one of the nodes and return it.
+    The plucked node should be the node with the smallest even value.
+    If multiple nodes with the same smallest even value are found return the node that has smallest index.
+
+    The plucked node should be returned in a list, [ smalest_value, its index ],
+    If there are no even values or the given array is empty, return [].
+
+    Example 1:
+        Input: [4,2,3]
+        Output: [2, 1]
+        Explanation: 2 has the smallest even value, and 2 has the smallest index.
+
+    Example 2:
+        Input: [1,2,3]
+        Output: [2, 1]
+        Explanation: 2 has the smallest even value, and 2 has the smallest index. 
+
+    Example 3:
+        Input: []
+        Output: []
+    
+    Example 4:
+        Input: [5, 0, 3, 0, 4, 2]
+        Output: [0, 1]
+        Explanation: 0 is the smallest value, but  there are two zeros,
+                     so we will choose the first zero, which has the smallest index.
+
+    Constraints:
+        * 1 <= nodes.length <= 10000
+        * 0 <= node.value
+    """"""
+","['    if(len(arr) == 0): return []\n    evens = list(filter(lambda x: x%2 == 0, arr))\n    if(evens == []): return []\n    return [min(evens), arr.index(min(evens))]\n'
+ '    if len(arr) == 0:\n        return []\n    evens = arr\n    if evens == []:\n        return []\n    return [min(evens), arr.index(min(evens))]'
+ '    if len(arr) == 0:\n        return []\n    evens = list(filter(lambda x: x%2 != 0, arr))\n    if evens == []:\n        return []\n    return [min(evens), arr.index(min(evens))]'
+ '    if len(arr) == 0:\n        return []\n    evens = list(filter(lambda x: x%2 == 0, arr))\n    if evens == []:\n        return []\n    min_even = min(evens)\n    return [min_even, evens.index(min_even)]']",A,"
+def pluck(arr):
+    """"""
+    ""Given an array representing a branch of a tree that has non-negative integer nodes
+    your task is to pluck one of the nodes and return it.
+    The plucked node should be the node with the smallest even value.
+    If multiple nodes with the same smallest even value are found return the node that has smallest index.
+
+    The plucked node should be returned in a list, [ smalest_value, its index ],
+    If there are no even values or the given array is empty, return [].
+
+    Example 1:
+        Input: [4,2,3]
+        Output: [2, 1]
+        Explanation: 2 has the smallest even value, and 2 has the smallest index.
+
+    Example 2:
+        Input: [1,2,3]
+        Output: [2, 1]
+        Explanation: 2 has the smallest even value, and 2 has the smallest index. 
+
+    Example 3:
+        Input: []
+        Output: []
+    
+    Example 4:
+        Input: [5, 0, 3, 0, 4, 2]
+        Output: [0, 1]
+        Explanation: 0 is the smallest value, but  there are two zeros,
+                     so we will choose the first zero, which has the smallest index.
+
+    Constraints:
+        * 1 <= nodes.length <= 10000
+        * 0 <= node.value
+    """"""
+",A,1
+rt00070,"
+def search(lst):
+    '''
+    You are given a non-empty list of positive integers. Return the greatest integer that is greater than 
+    zero, and has a frequency greater than or equal to the value of the integer itself. 
+    The frequency of an integer is the number of times it appears in the list.
+    If no such a value exist, return -1.
+    Examples:
+        search([4, 1, 2, 2, 3, 1]) == 2
+        search([1, 2, 2, 3, 3, 3, 4, 4, 4]) == 3
+        search([5, 5, 4, 4, 4]) == -1
+    '''
+","['    for i in range(0, max(lst)):\n        if lst.count(i) == 0:\n            continue\n        if lst.count(i) >= i:\n            return i\n    return -1'
+ '    frq = [0] * (max(lst) + 1)\n    for i in lst:\n        frq[i] += 1;\n\n    ans = -1\n    for i in range(1, len(frq)):\n        if frq[i] >= i:\n            ans = i\n    \n    return ans\n'
+ '    for i in range(max(lst), 0, -1):\n        if lst.count(i) > i:\n            return i\n    return -1'
+ '    return max(i for i in set(lst) if lst.count(i) >= i)']",B,"
+def search(lst):
+    '''
+    You are given a non-empty list of positive integers. Return the greatest integer that is greater than 
+    zero, and has a frequency greater than or equal to the value of the integer itself. 
+    The frequency of an integer is the number of times it appears in the list.
+    If no such a value exist, return -1.
+    Examples:
+        search([4, 1, 2, 2, 3, 1]) == 2
+        search([1, 2, 2, 3, 3, 3, 4, 4, 4]) == 3
+        search([5, 5, 4, 4, 4]) == -1
+    '''
+",B,1
+rt00071,"
+def strange_sort_list(lst):
+    '''
+    Given list of integers, return list in strange order.
+    Strange sorting, is when you start with the minimum value,
+    then maximum of the remaining integers, then minimum and so on.
+
+    Examples:
+    strange_sort_list([1, 2, 3, 4]) == [1, 4, 2, 3]
+    strange_sort_list([5, 5, 5, 5]) == [5, 5, 5, 5]
+    strange_sort_list([]) == []
+    '''
+","['    res, switch = [], True\n    while lst:\n        res.append(min(lst) if switch else max(lst))\n        lst.remove(res[-1])\n    return res\n'
+ '    res, switch = [], False \n    while lst:\n        res.append(min(lst) if switch else max(lst))\n        lst.remove(res[-1])\n        switch = not switch\n    return res'
+ '    res, switch = [], True\n    while lst:\n        res.append(min(lst) if switch else max(lst))\n        lst.remove(res[-1])\n        switch = not switch\n    return res\n'
+ '    res, switch = [], True\n    sorted_lst = sorted(lst) \n    while lst:\n        element = min(sorted_lst) if switch else max(sorted_lst)\n        res.append(element)\n        lst.remove(element)\n        sorted_lst.remove(element) \n        switch = switch\n    return res']",C,"
+def strange_sort_list(lst):
+    '''
+    Given list of integers, return list in strange order.
+    Strange sorting, is when you start with the minimum value,
+    then maximum of the remaining integers, then minimum and so on.
+
+    Examples:
+    strange_sort_list([1, 2, 3, 4]) == [1, 4, 2, 3]
+    strange_sort_list([5, 5, 5, 5]) == [5, 5, 5, 5]
+    strange_sort_list([]) == []
+    '''
+",C,1
+rt00072,"
+def triangle_area(a, b, c):
+    '''
+    Given the lengths of the three sides of a triangle. Return the area of
+    the triangle rounded to 2 decimal points if the three sides form a valid triangle. 
+    Otherwise return -1
+    Three sides make a valid triangle when the sum of any two sides is greater 
+    than the third side.
+    Example:
+    triangle_area(3, 4, 5) == 6.00
+    triangle_area(1, 2, 10) == -1
+    '''
+","['    if a + b <= c or a + c <= b or b + c <= a:\n        return -1\n    s = a + b + c \n    area = (s * (s - a) * (s - b) * (s - c)) ** 0.5\n    return round(area, 2)\n'
+ '    if a + b <= c or a + c <= b or b + c <= a:\n        return -1\n    s = (a + b + c) / 3  \n    area = (s * (s - a) * (s - b) * (s - c)) ** 0.5\n    return round(area, 2)'
+ '    if a + b <= c or a + c <= b or b + c <= a:\n        return -1 \n    s = (a + b + c)/2    \n    area = (s * (s - a) * (s - b) * (s - c)) ** 0.5\n    area = round(area, 2)\n    return area\n'
+ '    if a + b <= c or a + c <= b or b + c <= a:\n        return -1\n    s = (a + b + c) / 2\n    area = (s * (s - a) * (s - b) * (s - c)) ** 0.5\n    return round(area) \n']",C,"
+def triangle_area(a, b, c):
+    '''
+    Given the lengths of the three sides of a triangle. Return the area of
+    the triangle rounded to 2 decimal points if the three sides form a valid triangle. 
+    Otherwise return -1
+    Three sides make a valid triangle when the sum of any two sides is greater 
+    than the third side.
+    Example:
+    triangle_area(3, 4, 5) == 6.00
+    triangle_area(1, 2, 10) == -1
+    '''
+",C,1
+rt00073,"
+def will_it_fly(q,w):
+    '''
+    Write a function that returns True if the object q will fly, and False otherwise.
+    The object q will fly if it's balanced (it is a palindromic list) and the sum of its elements is less than or equal the maximum possible weight w.
+
+    Example:
+    will_it_fly([1, 2], 5) ➞ False 
+    # 1+2 is less than the maximum possible weight, but it's unbalanced.
+
+    will_it_fly([3, 2, 3], 1) ➞ False
+    # it's balanced, but 3+2+3 is more than the maximum possible weight.
+
+    will_it_fly([3, 2, 3], 9) ➞ True
+    # 3+2+3 is less than the maximum possible weight, and it's balanced.
+
+    will_it_fly([3], 5) ➞ True
+    # 3 is less than the maximum possible weight, and it's balanced.
+    '''
+","['    if sum(q) >= w:\n        return False\n\n    i, j = 0, len(q) - 1\n    while i < j:\n        if q[i] == q[j]:  \n            return False\n        i += 1\n        j -= 1\n    return True'
+ '    if sum(q) < w:\n        return False\n\n    i, j = 0, len(q) - 1\n    while i < j:\n        if q[i] != q[j]:\n            return False\n        i += 1\n        j -= 1\n    return True'
+ '    if sum(q) > w:\n        return True\n\n    i, j = 0, len(q) - 1\n    while i < j:\n        if q[i] != q[j]:\n            return True\n        i += 1\n        j -= 1\n    return True'
+ '    if sum(q) > w:\n        return False\n\n    i, j = 0, len(q)-1\n    while i<j:\n        if q[i] != q[j]:\n            return False\n        i+=1\n        j-=1\n    return True\n']",D,"
+def will_it_fly(q,w):
+    '''
+    Write a function that returns True if the object q will fly, and False otherwise.
+    The object q will fly if it's balanced (it is a palindromic list) and the sum of its elements is less than or equal the maximum possible weight w.
+
+    Example:
+    will_it_fly([1, 2], 5) ➞ False 
+    # 1+2 is less than the maximum possible weight, but it's unbalanced.
+
+    will_it_fly([3, 2, 3], 1) ➞ False
+    # it's balanced, but 3+2+3 is more than the maximum possible weight.
+
+    will_it_fly([3, 2, 3], 9) ➞ True
+    # 3+2+3 is less than the maximum possible weight, and it's balanced.
+
+    will_it_fly([3], 5) ➞ True
+    # 3 is less than the maximum possible weight, and it's balanced.
+    '''
+",D,1
+rt00074,"
+def smallest_change(arr):
+    """"""
+    Given an array arr of integers, find the minimum number of elements that
+    need to be changed to make the array palindromic. A palindromic array is an array that
+    is read the same backwards and forwards. In one change, you can change one element to any other element.
+
+    For example:
+    smallest_change([1,2,3,5,4,7,9,6]) == 4
+    smallest_change([1, 2, 3, 4, 3, 2, 2]) == 1
+    smallest_change([1, 2, 3, 2, 1]) == 0
+    """"""
+","['    ans = 0\n    for i in range(len(arr)):  \n        if arr[i] != arr[len(arr) - 1 - i]:\n            ans += 1\n    return ans'
+ '    ans = 0\n    for i in range(len(arr) // 2):\n        if arr[i] != arr[len(arr) - 1 - i]:\n            ans += 2  \n    return ans'
+ '    ans = 0\n    for i in range(1, len(arr) // 2):  \n        if arr[i] != arr[len(arr) - 1 - i]:\n            ans += 1\n    return ans'
+ '    ans = 0\n    for i in range(len(arr) // 2):\n        if arr[i] != arr[len(arr) - i - 1]:\n            ans += 1\n    return ans\n']",D,"
+def smallest_change(arr):
+    """"""
+    Given an array arr of integers, find the minimum number of elements that
+    need to be changed to make the array palindromic. A palindromic array is an array that
+    is read the same backwards and forwards. In one change, you can change one element to any other element.
+
+    For example:
+    smallest_change([1,2,3,5,4,7,9,6]) == 4
+    smallest_change([1, 2, 3, 4, 3, 2, 2]) == 1
+    smallest_change([1, 2, 3, 2, 1]) == 0
+    """"""
+",D,1
+rt00075,"
+def total_match(lst1, lst2):
+    '''
+    Write a function that accepts two lists of strings and returns the list that has 
+    total number of chars in the all strings of the list less than the other list.
+
+    if the two lists have the same number of chars, return the first list.
+
+    Examples
+    total_match([], []) ➞ []
+    total_match(['hi', 'admin'], ['hI', 'Hi']) ➞ ['hI', 'Hi']
+    total_match(['hi', 'admin'], ['hi', 'hi', 'admin', 'project']) ➞ ['hi', 'admin']
+    total_match(['hi', 'admin'], ['hI', 'hi', 'hi']) ➞ ['hI', 'hi', 'hi']
+    total_match(['4'], ['1', '2', '3', '4', '5']) ➞ ['4']
+    '''
+","['    if len(lst1) <= len(lst2):  \n        return lst1\n    else:\n        return lst2'
+ '    l1 = len(lst1)  \n    l2 = len(lst2) \n    \n    if l1 <= l2:\n        return lst1\n    else:\n        return lst2'
+ '    l1 = sum(len(st) for st in lst1)\n    l2 = sum(len(st) for st in lst2)\n    \n    if l1 < l2:\n        return lst1\n    else:\n        return lst2 '
+ '    l1 = 0\n    for st in lst1:\n        l1 += len(st)\n    \n    l2 = 0\n    for st in lst2:\n        l2 += len(st)\n    \n    if l1 <= l2:\n        return lst1\n    else:\n        return lst2\n']",D,"
+def total_match(lst1, lst2):
+    '''
+    Write a function that accepts two lists of strings and returns the list that has 
+    total number of chars in the all strings of the list less than the other list.
+
+    if the two lists have the same number of chars, return the first list.
+
+    Examples
+    total_match([], []) ➞ []
+    total_match(['hi', 'admin'], ['hI', 'Hi']) ➞ ['hI', 'Hi']
+    total_match(['hi', 'admin'], ['hi', 'hi', 'admin', 'project']) ➞ ['hi', 'admin']
+    total_match(['hi', 'admin'], ['hI', 'hi', 'hi']) ➞ ['hI', 'hi', 'hi']
+    total_match(['4'], ['1', '2', '3', '4', '5']) ➞ ['4']
+    '''
+",C,0
+rt00076,"
+def is_multiply_prime(a):
+    """"""Write a function that returns true if the given number is the multiplication of 3 prime numbers
+    and false otherwise.
+    Knowing that (a) is less then 100. 
+    Example:
+    is_multiply_prime(30) == True
+    30 = 2 * 3 * 5
+    """"""
+","['    def is_prime(n):\n        for j in range(2, n):\n            if n % j == 0:\n                return False\n        return True\n\n    for i in range(2, 101):\n        if not is_prime(i): continue\n        for j in range(2, 101):\n            if not is_prime(j): continue\n            for k in range(2, 101):\n                if not is_prime(k): continue\n                if i * j * j == a: return True  \n    return False'
+ '    def is_prime(n):\n        for j in range(2, n):\n            if n % j == 0:\n                return False\n        return True\n\n    for i in range(2, 101):\n        if not is_prime(i): continue\n        for j in range(2, 101):\n            for k in range(2, 101):\n                if i * j * k == a: return True  \n    return False'
+ '    def is_prime(n):\n        for j in range(2,n):\n            if n%j == 0:\n                return False\n        return True\n\n    for i in range(2,101):\n        if not is_prime(i): continue\n        for j in range(2,101):\n            if not is_prime(j): continue\n            for k in range(2,101):\n                if not is_prime(k): continue\n                if i*j*k == a: return True\n    return False\n'
+ '    def is_prime(n):\n        for j in range(2, n):\n            if n % j == 0:\n                return False\n        return True\n\n    for i in range(2, 101):\n        if not is_prime(i): continue\n        for j in range(2, 101):\n            if not is_prime(j): continue\n            for k in range(2, 101):\n                if not is_prime(k): continue\n                if i * j * i == a: return True  \n    return False']",C,"
+def is_multiply_prime(a):
+    """"""Write a function that returns true if the given number is the multiplication of 3 prime numbers
+    and false otherwise.
+    Knowing that (a) is less then 100. 
+    Example:
+    is_multiply_prime(30) == True
+    30 = 2 * 3 * 5
+    """"""
+",B,0
+rt00077,"
+def is_simple_power(x, n):
+    """"""Your task is to write a function that returns true if a number x is a simple
+    power of n and false in other cases.
+    x is a simple power of n if n**int=x
+    For example:
+    is_simple_power(1, 4) => true
+    is_simple_power(2, 2) => true
+    is_simple_power(8, 2) => true
+    is_simple_power(3, 2) => false
+    is_simple_power(3, 1) => false
+    is_simple_power(5, 3) => false
+    """"""
+","['    if (n == 1):\n        return (x == 1)\n    power = 1\n    while (power < x):\n        power = power * x \n    return (power == x)'
+ '    if (n == 1):\n        return (x == 1)\n    if x < n: \n        return False\n    power = 1\n    while (power < x):\n        power = power * n\n    return (power == x)\n'
+ '    if (n == 1):\n        return (x == 1)\n    power = 1\n    while (power < x):\n        power = power * x \n    return (power == n)'
+ '    if (n == 1): \n        return (x == 1) \n    power = 1\n    while (power < x): \n        power = power * n \n    return (power == x) \n']",D,"
+def is_simple_power(x, n):
+    """"""Your task is to write a function that returns true if a number x is a simple
+    power of n and false in other cases.
+    x is a simple power of n if n**int=x
+    For example:
+    is_simple_power(1, 4) => true
+    is_simple_power(2, 2) => true
+    is_simple_power(8, 2) => true
+    is_simple_power(3, 2) => false
+    is_simple_power(3, 1) => false
+    is_simple_power(5, 3) => false
+    """"""
+",D,1
+rt00078,"
+def iscube(a):
+    '''
+    Write a function that takes an integer a and returns True 
+    if this ingeger is a cube of some integer number.
+    Note: you may assume the input is always valid.
+    Examples:
+    iscube(1) ==> True
+    iscube(2) ==> False
+    iscube(-1) ==> True
+    iscube(64) ==> True
+    iscube(0) ==> True
+    iscube(180) ==> False
+    '''
+","['    a = abs(a)\n    return int(round(a ** (1. / 3))) ** 4 == a '
+ '    a = abs(a)\n    return int(a ** (1. / 3)) ** 3 == a '
+ '    a = abs(a)\n    return int(round(a ** (1. / 3))) ** 3 == a\n'
+ '    a = abs(a)\n    return int(a ** (1. / 3) + 1) ** 3 == a ']",C,"
+def iscube(a):
+    '''
+    Write a function that takes an integer a and returns True 
+    if this ingeger is a cube of some integer number.
+    Note: you may assume the input is always valid.
+    Examples:
+    iscube(1) ==> True
+    iscube(2) ==> False
+    iscube(-1) ==> True
+    iscube(64) ==> True
+    iscube(0) ==> True
+    iscube(180) ==> False
+    '''
+",C,1
+rt00079,"
+def hex_key(num):
+    """"""You have been tasked to write a function that receives 
+    a hexadecimal number as a string and counts the number of hexadecimal 
+    digits that are primes (prime number, or a prime, is a natural number 
+    greater than 1 that is not a product of two smaller natural numbers).
+    Hexadecimal digits are 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, A, B, C, D, E, F.
+    Prime numbers are 2, 3, 5, 7, 11, 13, 17,...
+    So you have to determine a number of the following digits: 2, 3, 5, 7, 
+    B (=decimal 11), D (=decimal 13).
+    Note: you may assume the input is always correct or empty string, 
+    and symbols A,B,C,D,E,F are always uppercase.
+    Examples:
+    For num = ""AB"" the output should be 1.
+    For num = ""1077E"" the output should be 2.
+    For num = ""ABED1A33"" the output should be 4.
+    For num = ""123456789ABCDEF0"" the output should be 6.
+    For num = ""2020"" the output should be 2.
+    """"""
+","[""    primes = ('2', '3', '5', '7', 'B', 'D')\n    total = 0\n    for i in range(0, len(num)):\n        if num[i] not in primes:  \n            total += 1\n    return total\n""
+ ""    primes = ('2', '3', '5', '7', 'B', 'D')\n    total = 0\n    for i in range(0, len(num)):\n        if num[i] in 'ABCDEF':  \n            total += 1\n    return total""
+ ""    primes = ('2', '3', '5', '7', 'B', 'D')\n    total = 0\n    for i in range(0, len(num)):\n        if num[i].isdigit():  \n            total += 1\n    return total""
+ ""    primes = ('2', '3', '5', '7', 'B', 'D')\n    total = 0\n    for i in range(0, len(num)):\n        if num[i] in primes:\n            total += 1\n    return total\n""]",D,"
+def hex_key(num):
+    """"""You have been tasked to write a function that receives 
+    a hexadecimal number as a string and counts the number of hexadecimal 
+    digits that are primes (prime number, or a prime, is a natural number 
+    greater than 1 that is not a product of two smaller natural numbers).
+    Hexadecimal digits are 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, A, B, C, D, E, F.
+    Prime numbers are 2, 3, 5, 7, 11, 13, 17,...
+    So you have to determine a number of the following digits: 2, 3, 5, 7, 
+    B (=decimal 11), D (=decimal 13).
+    Note: you may assume the input is always correct or empty string, 
+    and symbols A,B,C,D,E,F are always uppercase.
+    Examples:
+    For num = ""AB"" the output should be 1.
+    For num = ""1077E"" the output should be 2.
+    For num = ""ABED1A33"" the output should be 4.
+    For num = ""123456789ABCDEF0"" the output should be 6.
+    For num = ""2020"" the output should be 2.
+    """"""
+",D,1
+rt00080,"
+def decimal_to_binary(decimal):
+    """"""You will be given a number in decimal form and your task is to convert it to
+    binary format. The function should return a string, with each character representing a binary
+    number. Each character in the string will be '0' or '1'.
+
+    There will be an extra couple of characters 'db' at the beginning and at the end of the string.
+    The extra characters are there to help with the format.
+
+    Examples:
+    decimal_to_binary(15)   # returns ""db1111db""
+    decimal_to_binary(32)   # returns ""db100000db""
+    """"""
+","['    return ""db"" + bin(decimal) + ""db"" '
+ 'return ""db"" + bin(decimal)[2:][::-1] + ""db"" '
+ '    return ""db"" + oct(decimal)[2:] + ""db""'
+ '    return ""db"" + bin(decimal)[2:] + ""db""\n']",D,"
+def decimal_to_binary(decimal):
+    """"""You will be given a number in decimal form and your task is to convert it to
+    binary format. The function should return a string, with each character representing a binary
+    number. Each character in the string will be '0' or '1'.
+
+    There will be an extra couple of characters 'db' at the beginning and at the end of the string.
+    The extra characters are there to help with the format.
+
+    Examples:
+    decimal_to_binary(15)   # returns ""db1111db""
+    decimal_to_binary(32)   # returns ""db100000db""
+    """"""
+",D,1
+rt00081,"
+def is_happy(s):
+    """"""You are given a string s.
+    Your task is to check if the string is happy or not.
+    A string is happy if its length is at least 3 and every 3 consecutive letters are distinct
+    For example:
+    is_happy(a) => False
+    is_happy(aa) => False
+    is_happy(abcd) => True
+    is_happy(aabb) => False
+    is_happy(adb) => True
+    is_happy(xyy) => False
+    """"""
+","['    if len(s) < 3:\n      return False\n\n    for i in range(len(s) - 2):\n      \n      if s[i] == s[i+1] or s[i+1] == s[i+2] or s[i] == s[i+2]:\n        return False\n    return True\n'
+ '    if len(s) < 3:\n        return False\n\n    for i in range(len(s) - 1):  \n        if s[i] == s[i + 1]: \n            return False\n    return True'
+ '    if len(s) < 3:\n        return False\n\n    if len(set(s)) != len(s):  \n        return False\n    return True'
+ '    if len(s) < 3:\n        return True \n\n    for i in range(len(s) - 2):\n        if s[i] == s[i + 1] or s[i + 1] == s[i + 2] or s[i] == s[i + 2]:\n            return False\n    return True']",A,"
+def is_happy(s):
+    """"""You are given a string s.
+    Your task is to check if the string is happy or not.
+    A string is happy if its length is at least 3 and every 3 consecutive letters are distinct
+    For example:
+    is_happy(a) => False
+    is_happy(aa) => False
+    is_happy(abcd) => True
+    is_happy(aabb) => False
+    is_happy(adb) => True
+    is_happy(xyy) => False
+    """"""
+",A,1
+rt00082,"
+def numerical_letter_grade(grades):
+    """"""It is the last week of the semester and the teacher has to give the grades
+    to students. The teacher has been making her own algorithm for grading.
+    The only problem is, she has lost the code she used for grading.
+    She has given you a list of GPAs for some students and you have to write 
+    a function that can output a list of letter grades using the following table:
+             GPA       |    Letter grade
+              4.0                A+
+            > 3.7                A 
+            > 3.3                A- 
+            > 3.0                B+
+            > 2.7                B 
+            > 2.3                B-
+            > 2.0                C+
+            > 1.7                C
+            > 1.3                C-
+            > 1.0                D+ 
+            > 0.7                D 
+            > 0.0                D-
+              0.0                E
+    
+
+    Example:
+    grade_equation([4.0, 3, 1.7, 2, 3.5]) ==> ['A+', 'B', 'C-', 'C', 'A-']
+    """"""
+","['\n   \n    letter_grade = []\n    for gpa in grades:\n        if gpa == 4.0:\n            letter_grade.append(""A+"")\n        elif gpa > 3.7:\n            letter_grade.append(""A"")\n        elif gpa > 3.3:\n            letter_grade.append(""A-"")\n        elif gpa > 3.0:\n            letter_grade.append(""B+"")\n        elif gpa > 2.7:\n            letter_grade.append(""B"")\n        elif gpa > 2.3:\n            letter_grade.append(""B-"")\n        elif gpa > 2.0:\n            letter_grade.append(""C"")\n        elif gpa > 1.7:\n            letter_grade.append(""C"")\n        elif gpa > 1.3:\n            letter_grade.append(""C-"")\n        elif gpa > 1.0:\n            letter_grade.append(""D+"")\n        elif gpa > 0.7:\n            letter_grade.append(""D"")\n        elif gpa > 0.0:\n            letter_grade.append(""D-"")\n        else:\n            letter_grade.append(""E"")\n    return letter_grade\n'
+ '\n   \n    letter_grade = []\n    for gpa in grades:\n        if gpa == 4.0:\n            letter_grade.append(""A+"")\n        elif gpa > 3.7:\n            letter_grade.append(""A"")\n        elif gpa > 3.3:\n            letter_grade.append(""A-"")\n        elif gpa > 3.0:\n            letter_grade.append(""B"")\n        elif gpa > 2.7:\n            letter_grade.append(""B"")\n        elif gpa > 2.3:\n            letter_grade.append(""B-"")\n        elif gpa > 2.0:\n            letter_grade.append(""C+"")\n        elif gpa > 1.7:\n            letter_grade.append(""C"")\n        elif gpa > 1.3:\n            letter_grade.append(""C-"")\n        elif gpa > 1.0:\n            letter_grade.append(""D+"")\n        elif gpa > 0.7:\n            letter_grade.append(""D"")\n        elif gpa > 0.0:\n            letter_grade.append(""D-"")\n        else:\n            letter_grade.append(""E"")\n    return letter_grade\n'
+ '\n   \n    letter_grade = []\n    for gpa in grades:\n        if gpa == 4.0:\n            letter_grade.append(""A+"")\n        elif gpa > 3.7:\n            letter_grade.append(""A"")\n        elif gpa > 3.3:\n            letter_grade.append(""A-"")\n        elif gpa > 3.0:\n            letter_grade.append(""B+"")\n        elif gpa > 2.7:\n            letter_grade.append(""B"")\n        elif gpa > 2.3:\n            letter_grade.append(""B-"")\n        elif gpa > 2.0:\n            letter_grade.append(""C+"")\n        elif gpa > 1.7:\n            letter_grade.append(""C"")\n        elif gpa > 1.3:\n            letter_grade.append(""C-"")\n        elif gpa > 1.0:\n            letter_grade.append(""D+"")\n        elif gpa > 0.7:\n            letter_grade.append(""D"")\n        elif gpa > 0.0:\n            letter_grade.append(""D-"")\n        else:\n            letter_grade.append(""E"")\n    return letter_grade\n'
+ '    letter_grade = []\n    for gpa in grades:\n        if gpa == 4.0:\n            letter_grade.append(""A+"")\n        elif gpa == 3.7:\n            letter_grade.append(""A"")\n        elif gpa == 3.3:\n            letter_grade.append(""A-"")\n        elif gpa == 3.0:\n            letter_grade.append(""B+"")\n        elif gpa == 2.7:\n            letter_grade.append(""B"")\n        elif gpa == 2.3:\n            letter_grade.append(""B-"")\n        elif gpa == 2.0:\n            letter_grade.append(""C+"")\n        elif gpa == 1.7:\n            letter_grade.append(""C"")\n        elif gpa == 1.3:\n            letter_grade.append(""C-"")\n        elif gpa == 1.0:\n            letter_grade.append(""D+"")\n        elif gpa == 0.7:\n            letter_grade.append(""D"")\n        elif gpa == 0.0:\n            letter_grade.append(""E"")\n        else:\n            letter_grade.append(""D-"") \n    return letter_grade']",C,"
+def numerical_letter_grade(grades):
+    """"""It is the last week of the semester and the teacher has to give the grades
+    to students. The teacher has been making her own algorithm for grading.
+    The only problem is, she has lost the code she used for grading.
+    She has given you a list of GPAs for some students and you have to write 
+    a function that can output a list of letter grades using the following table:
+             GPA       |    Letter grade
+              4.0                A+
+            > 3.7                A 
+            > 3.3                A- 
+            > 3.0                B+
+            > 2.7                B 
+            > 2.3                B-
+            > 2.0                C+
+            > 1.7                C
+            > 1.3                C-
+            > 1.0                D+ 
+            > 0.7                D 
+            > 0.0                D-
+              0.0                E
+    
+
+    Example:
+    grade_equation([4.0, 3, 1.7, 2, 3.5]) ==> ['A+', 'B', 'C-', 'C', 'A-']
+    """"""
+",C,1
+rt00083,"
+def prime_length(string):
+    """"""Write a function that takes a string and returns True if the string
+    length is a prime number or False otherwise
+    Examples
+    prime_length('Hello') == True
+    prime_length('abcdcba') == True
+    prime_length('kittens') == True
+    prime_length('orange') == False
+    """"""
+","['    l = len(string)\n    if l == 0 or l == 1:\n        return False\n    return l % 2 != 0'
+ '    l = len(string)\n    if l == 0 or l == 1:\n        return False\n    for i in range(2, l):\n        if l % i == 0:\n            return False\n    return True\n'
+ '    l = len(string)\n    if l == 0 or l == 1:\n        return False\n    return l % 3 != 0'
+ '    l = len(string)\n    if l == 0 or l == 1:\n        return False\n    return l % 2 == 1']",B,"
+def prime_length(string):
+    """"""Write a function that takes a string and returns True if the string
+    length is a prime number or False otherwise
+    Examples
+    prime_length('Hello') == True
+    prime_length('abcdcba') == True
+    prime_length('kittens') == True
+    prime_length('orange') == False
+    """"""
+",B,1
+rt00084,"
+def starts_one_ends(n):
+    """"""
+    Given a positive integer n, return the count of the numbers of n-digit
+    positive integers that start or end with 1.
+    """"""
+","['    if n == 1: return 1\n    return 18 * (10 ** (n - 2))\n'
+ '    if n == 1: return 1\n    return 9 * (10 ** (n - 1))'
+ '    if n == 1: return 0\n    return 8 * (10 ** (n - 2))'
+ '    if n == 1: return 1\n    return 9 * (10 ** (n - 2))']",A,"
+def starts_one_ends(n):
+    """"""
+    Given a positive integer n, return the count of the numbers of n-digit
+    positive integers that start or end with 1.
+    """"""
+",D,0
+rt00085,"
+def solve(N):
+    """"""Given a positive integer N, return the total sum of its digits in binary.
+    
+    Example
+        For N = 1000, the sum of digits will be 1 the output should be ""1"".
+        For N = 150, the sum of digits will be 6 the output should be ""110"".
+        For N = 147, the sum of digits will be 12 the output should be ""1100"".
+    
+    Variables:
+        @N integer
+             Constraints: 0 ≤ N ≤ 10000.
+    Output:
+         a string of binary number
+    """"""
+","['    return bin(N + sum(int(i) for i in str(N)))[2:]'
+ '    return bin(sum(int(i) ** 2 for i in str(N)))[2:]'
+ '    return bin(sum(int(i) for i in str(N)))[2:]\n'
+ '    return bin(sum(int(bin(int(i))[2:]) for i in str(N)))[2:]']",C,"
+def solve(N):
+    """"""Given a positive integer N, return the total sum of its digits in binary.
+    
+    Example
+        For N = 1000, the sum of digits will be 1 the output should be ""1"".
+        For N = 150, the sum of digits will be 6 the output should be ""110"".
+        For N = 147, the sum of digits will be 12 the output should be ""1100"".
+    
+    Variables:
+        @N integer
+             Constraints: 0 ≤ N ≤ 10000.
+    Output:
+         a string of binary number
+    """"""
+",C,1
+rt00086,"
+def add(lst):
+    """"""Given a non-empty list of integers lst. add the even elements that are at odd indices..
+
+
+    Examples:
+        add([4, 2, 6, 7]) ==> 2 
+    """"""
+","['    return sum([lst[i] for i in range(0, len(lst), 2) if lst[i] % 2 == 0])'
+ '    return sum([lst[i] for i in range(1, len(lst), 2)])'
+ '    return sum([lst[i] for i in range(1, len(lst), 2) if lst[i]%2 == 0])\n'
+ '    return sum([lst[i] for i in range(1, len(lst), 2) if lst[i] % 2 == 1])\n']",C,"
+def add(lst):
+    """"""Given a non-empty list of integers lst. add the even elements that are at odd indices..
+
+
+    Examples:
+        add([4, 2, 6, 7]) ==> 2 
+    """"""
+",C,1
+rt00087,"
+def anti_shuffle(s):
+    """"""
+    Write a function that takes a string and returns an ordered version of it.
+    Ordered version of string, is a string where all words (separated by space)
+    are replaced by a new word where all the characters arranged in
+    ascending order based on ascii value.
+    Note: You should keep the order of words and blank spaces in the sentence.
+
+    For example:
+    anti_shuffle('Hi') returns 'Hi'
+    anti_shuffle('hello') returns 'ehllo'
+    anti_shuffle('Hello World!!!') returns 'Hello !!!Wdlor'
+    """"""
+","[""    return ' '.join([''.join(sorted(list(i))) for i in s.split(' ')])\n""
+ ""    return ''.join(sorted(s))""
+ ""    words = s.split(' ')\n    words[0] = ''.join(sorted(list(words[0])))\n    return ' '.join(words)\n""
+ ""    return ' '.join([''.join(reversed(list(i))) for i in s.split(' ')])""]",A,"
+def anti_shuffle(s):
+    """"""
+    Write a function that takes a string and returns an ordered version of it.
+    Ordered version of string, is a string where all words (separated by space)
+    are replaced by a new word where all the characters arranged in
+    ascending order based on ascii value.
+    Note: You should keep the order of words and blank spaces in the sentence.
+
+    For example:
+    anti_shuffle('Hi') returns 'Hi'
+    anti_shuffle('hello') returns 'ehllo'
+    anti_shuffle('Hello World!!!') returns 'Hello !!!Wdlor'
+    """"""
+",A,1
