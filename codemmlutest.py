@@ -220,7 +220,7 @@ def _letter_report(df, title):
     return "\n".join(lines)
 
 
-def run_experiment(config_path, exp_name=None, out_dir="results"):
+def run_experiment(config_path, exp_name=None, out_dir="results", fresh=False):
     """Build the pipeline from `config_path`, run the CodeMMLU code + middle
     benchmarks, and save a titled results notebook (results/<exp_name>.txt) with
     the experiment name, its parameters (Retriever, flags, models, ...), and the
@@ -248,12 +248,45 @@ def run_experiment(config_path, exp_name=None, out_dir="results"):
         lambda row: get_prompt_middle(row["question"], row["problem_description"]), axis=1)
     ds_code["input"] = ds_code.apply(lambda row: get_prompt_code(row["question"]), axis=1)
 
-    ds_code["output"] = ds_code.apply(
-        lambda row: get_prompt_answer(row["input"], row["choices"], pipeline,
-                                      kind="code", task_id=row["task_id"]), axis=1)
-    ds_middle["output"] = ds_middle.apply(
-        lambda row: get_prompt_answer(row["input"], row["choices"], pipeline,
-                                      kind="middle", task_id=row["task_id"]), axis=1)
+    import csv
+
+    def compute_resumable(df, kind):
+        """Compute one answer per task, checkpointing to
+        results/<exp_name>_<kind>.progress.csv after EVERY task (flushed). If the
+        run dies mid-way, re-running with the same --name skips the task_ids
+        already recorded there and continues from where it stopped."""
+        prog = os.path.join(out_dir, f"{exp_name}_{kind}.progress.csv")
+        if fresh and os.path.exists(prog):
+            os.remove(prog)
+        cache = {}
+        if os.path.exists(prog):
+            with open(prog, encoding="utf-8") as pf:
+                for r in csv.DictReader(pf):
+                    cache[r["task_id"]] = r["output"]
+            print(f"[resume] {kind}: {len(cache)}/{len(df)} tasks already done, continuing")
+        need_header = (not os.path.exists(prog)) or os.path.getsize(prog) == 0
+        pf = open(prog, "a", encoding="utf-8", newline="")
+        writer = csv.writer(pf)
+        if need_header:
+            writer.writerow(["task_id", "output"])
+            pf.flush()
+        outputs = []
+        for _, row in df.iterrows():
+            tid = row["task_id"]
+            if tid in cache:
+                outputs.append(cache[tid])
+                continue
+            out = get_prompt_answer(row["input"], row["choices"], pipeline,
+                                    kind=kind, task_id=tid)
+            writer.writerow([tid, out])
+            pf.flush()
+            cache[tid] = out
+            outputs.append(out)
+        pf.close()
+        return outputs
+
+    ds_code["output"] = compute_resumable(ds_code, "code")
+    ds_middle["output"] = compute_resumable(ds_middle, "middle")
 
     ds_code["accuracy"] = (ds_code["output"] == ds_code["answer"]).astype(int)
     ds_middle["accuracy"] = (ds_middle["output"] == ds_middle["answer"]).astype(int)
@@ -290,6 +323,13 @@ def run_experiment(config_path, exp_name=None, out_dir="results"):
                 f"{params['top_k']},{ds_code['accuracy'].mean():.4f},"
                 f"{ds_middle['accuracy'].mean():.4f},{ts}\n")
 
+    # completed successfully -> drop the per-task checkpoints so the next run of
+    # this name starts fresh (a crashed run leaves them in place to resume).
+    for kind in ("code", "middle"):
+        prog = os.path.join(out_dir, f"{exp_name}_{kind}.progress.csv")
+        if os.path.exists(prog):
+            os.remove(prog)
+
     print(text)
     print(f"[saved] {notebook}")
     return notebook
@@ -304,5 +344,7 @@ if __name__ == "__main__":
     ap.add_argument("--name", default=None,
                     help="experiment name (default: config file stem); used for the results file")
     ap.add_argument("--out", default="results", help="output directory for result notebooks")
+    ap.add_argument("--fresh", action="store_true",
+                    help="ignore any saved per-task checkpoint and start this run over")
     args = ap.parse_args()
-    run_experiment(args.config, args.name, args.out)
+    run_experiment(args.config, args.name, args.out, fresh=args.fresh)
