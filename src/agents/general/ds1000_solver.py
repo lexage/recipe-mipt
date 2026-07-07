@@ -5,7 +5,11 @@ from src.agent_constructor.core import Text
 from transformers import AutoTokenizer, PreTrainedTokenizerFast
 
 
-DEFAULT_SYSTEM_PROMPT = """Write a short code following the given format and indentation. Place the executable code between <code> and </code> tags, without any other non-executable things."""
+DEFAULT_SYSTEM_PROMPT = """You are solving a Python data-science problem. Write only the code that solves it and place it between <code> and </code>, with nothing else (no explanations, no comments, no test code).
+Rules:
+- Output only the solution snippet. Do NOT repeat or redefine anything already given in the prompt: do not re-import libraries, do not recreate the input data, and do not redefine helper functions such as load_data(). Use the variables and data exactly as they are already provided.
+- Assign the final answer to the variable `result`, unless the problem explicitly asks for a different variable name.
+- Keep the solution minimal and follow the required format and indentation."""
 
 
 class SOLVER_API(Enum):
@@ -109,7 +113,8 @@ class DS1000Solver(Agent):
         if context.strip():
             return (
                 f"{context}\n\n"
-                f"# Task ({DEFAULT_SYSTEM_PROMPT})\n\n"
+                f"# Instructions\n{self.system_prompt}\n\n"
+                f"# Task\n\n"
                 f"{task}"
             )
         return task
