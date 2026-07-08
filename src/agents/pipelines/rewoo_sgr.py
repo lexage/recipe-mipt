@@ -1214,6 +1214,9 @@ class PlannerREWOOSGR(Agent):
             tools_formatted=self.tools_prompt
         )
 
+        logging.info(f"PLANNER FEW_SHOT_EXAMPLES:\n{self.few_shot_examples}")
+
+
         # parsed_response = self.llm(REWOO_FEW_SHOT_COT_EXAMPLES + task_prompt)
         parsed_response = self.llm(self.few_shot_examples + task_prompt)
         # parsed_response = self.llm(task_prompt)
@@ -1321,7 +1324,7 @@ class SolverREWOOSGR(Agent):
         model_name: str = None,
         name: str = "rewoo_solver_agent",
         temperature: float = 0.0,
-        few_shot_type: str = "solver_cot"
+        few_shot_type: str = "zero_shot"
     ):
         super().__init__(name)
         self.client = OpenAI(base_url=url, api_key="vllm")
@@ -1353,15 +1356,33 @@ class SolverREWOOSGR(Agent):
         )
         return response.choices[0].message.parsed
 
+    # def _build_completed_plan_str(self, plan, evidencies) -> str:
+    #     completed_plan = []
+    #     for step in plan.steps:
+    #         step_descr = step.plan
+    #         evidence_tag = step.evidence_tag
+    #         evidence_result = evidencies.get(evidence_tag, {}).get("tool_result", "No evidence available")
+    #         completed_plan.append(f"\t- Plan: '{step_descr}'\n\t- Evidence: '{evidence_result}'")
+    #     return "\n".join(completed_plan)
+      
     def _build_completed_plan_str(self, plan, evidencies) -> str:
         completed_plan = []
-        for step in plan.steps:
-            step_descr = step.plan
-            evidence_tag = step.evidence_tag
-            evidence_result = evidencies.get(evidence_tag, {}).get("tool_result", "No evidence available")
+        # Если plan пришел в виде словаря, получаем список шагов безопасно
+        steps = plan.steps if hasattr(plan, 'steps') else plan.get('steps', [])
+        
+        for step in steps:
+            if isinstance(step, dict):
+                step_descr = step.get("plan")
+                evidence_tag = step.get("evidence_tag")
+            else:
+                step_descr = step.plan
+                evidence_tag = step.evidence_tag
+                
+            evidence_result = (evidencies or {}).get(evidence_tag, {}).get("tool_result", "No evidence available")
             completed_plan.append(f"\t- Plan: '{step_descr}'\n\t- Evidence: '{evidence_result}'")
         return "\n".join(completed_plan)
-      
+
+
     # def run(self, task, plan, evidencies):
     #     # plan format: {"steps": matches, "plan_string": response}
     #     # evidence format: {"tool": tool, "tool_input": tool_input,"tool_result": tool_result}
@@ -1376,40 +1397,96 @@ class SolverREWOOSGR(Agent):
     #     logging.info(_LOG_SEPARATOR)
     #     return final_answer
       
-    def run(self, task, plan, evidencies):
+    # def run(self, task, plan, evidencies):
+    #     completed_plan_str = self._build_completed_plan_str(plan, evidencies)
+    #     solve_prompt = self.prompt.format(plan=completed_plan_str, task=task)
+    #     logging.info(f"SOLVER FEW_SHOT_EXAMPLES:\n{self.few_shot_examples}")
+        
+    #     full_prompt = self.few_shot_examples + "\n\n" + solve_prompt
+        
+    #     parsed_result = self.llm(full_prompt)
+        
+    #     logging.info(f"SOLVE PROMPT:\n\n{full_prompt}")
+    #     logging.info(_LOG_SEPARATOR)
+    #     logging.info(f"SOLVER INTERNAL THOUGHT:\n\n{parsed_result.thought}")
+    #     logging.info(_LOG_SEPARATOR)
+    #     logging.info(f"FINAL ANSWER (RESPONSE ONLY):\n\n{parsed_result.response}")
+    #     logging.info(_LOG_SEPARATOR)
+        
+    #     return parsed_result.response
+
+    # def run_after_critic(self, task, plan, evidencies, critic):
+    #     # plan format: {"steps": matches, "plan_string": response}
+    #     # evidence format: {"tool": tool, "tool_input": tool_input,"tool_result": tool_result}
+    #     completed_plan = []
+    #     for step in plan.steps:
+    #         step_descr = step.plan
+    #         evidence_tag = step.evidence_tag
+    #         evidence_result = evidencies.get(evidence_tag, {}).get("tool_result", "No evidence available")
+    #         completed_plan.append(f"\t- Plan: '{step_descr}'\n\t- Evidence: '{evidence_result}'")
+        
+    #     completed_plan_str = "\n".join(completed_plan) + "\nCritic: " + critic
+    #     solve_prompt = self.prompt.format(plan=completed_plan_str, task=task)
+        
+    #     final_answer = self.llm(solve_prompt).strip()
+        
+    #     logging.info(f"SOLVE PROMPT:\n\n{solve_prompt}")
+    #     logging.info(_LOG_SEPARATOR)
+    #     logging.info(f"FINAL ANSWER AFTER CRITIC:\n\n{final_answer}")
+    #     logging.info(_LOG_SEPARATOR)
+    #     return final_answer
+
+    # def run_after_critic(self, task, plan, evidencies, critic):
+    #     # plan format: {"steps": matches, "plan_string": response}
+    #     # evidence format: {"tool": tool, "tool_input": tool_input,"tool_result": tool_result}
+    #     completed_plan = []
+    #     for step in plan.steps:
+    #         step_descr = step.plan
+    #         evidence_tag = step.evidence_tag
+    #         evidence_result = evidencies.get(evidence_tag, {}).get("tool_result", "No evidence available")
+    #         completed_plan.append(f"\t- Plan: '{step_descr}'\n\t- Evidence: '{evidence_result}'")
+        
+    #     completed_plan_str = "\n".join(completed_plan) + "\nCritic: " + critic
+    #     solve_prompt = self.prompt.format(plan=completed_plan_str, task=task)
+        
+    #     # 1. Добавляем few-shot примеры, как в методе run
+    #     full_prompt = self.few_shot_examples + "\n\n" + solve_prompt
+        
+    #     # 2. Вызываем LLM и получаем структурированный объект вместо .strip()
+    #     parsed_result = self.llm(full_prompt)
+        
+    #     # 3. Логируем по аналогии с run, включая мыслительную цепочку (thought)
+    #     logging.info(f"SOLVE PROMPT:\n\n{full_prompt}")
+    #     logging.info(_LOG_SEPARATOR)
+    #     logging.info(f"SOLVER INTERNAL THOUGHT:\n\n{parsed_result.thought}")
+    #     logging.info(_LOG_SEPARATOR)
+    #     logging.info(f"FINAL ANSWER AFTER CRITIC (RESPONSE ONLY):\n\n{parsed_result.response}")
+    #     logging.info(_LOG_SEPARATOR)
+        
+    #     # 4. Возвращаем только финальный ответ
+    #     return parsed_result.response
+
+    def run(self, task, plan, evidencies, critic_feedback=None):
         completed_plan_str = self._build_completed_plan_str(plan, evidencies)
-        solve_prompt = self.prompt.format(plan=completed_plan_str, task=task)
         
+        # Если критик передан, добавляем его в промпт
+        if critic_feedback is not None:
+            completed_plan_str += "\nCritic: " + str(critic_feedback)
+        
+        solve_prompt = self.prompt.replace("{plan}", completed_plan_str).replace("{task}", str(task))
+        # solve_prompt = self.prompt.format(plan=completed_plan_str, task=task)
+        logging.info(f"SOLVER FEW_SHOT_EXAMPLES:\n{self.few_shot_examples}")
+
         full_prompt = self.few_shot_examples + "\n\n" + solve_prompt
-        
         parsed_result = self.llm(full_prompt)
         
         logging.info(f"SOLVE PROMPT:\n\n{full_prompt}")
         logging.info(_LOG_SEPARATOR)
         logging.info(f"SOLVER INTERNAL THOUGHT:\n\n{parsed_result.thought}")
         logging.info(_LOG_SEPARATOR)
-        logging.info(f"FINAL ANSWER (RESPONSE ONLY):\n\n{parsed_result.response}")
+        
+        log_msg = "FINAL ANSWER AFTER CRITIC" if critic_feedback else "FINAL ANSWER"
+        logging.info(f"{log_msg} (RESPONSE ONLY):\n\n{parsed_result.response}")
         logging.info(_LOG_SEPARATOR)
         
         return parsed_result.response
-
-    def run_after_critic(self, task, plan, evidencies, critic):
-        # plan format: {"steps": matches, "plan_string": response}
-        # evidence format: {"tool": tool, "tool_input": tool_input,"tool_result": tool_result}
-        completed_plan = []
-        for step in plan.steps:
-            step_descr = step.plan
-            evidence_tag = step.evidence_tag
-            evidence_result = evidencies.get(evidence_tag, {}).get("tool_result", "No evidence available")
-            completed_plan.append(f"\t- Plan: '{step_descr}'\n\t- Evidence: '{evidence_result}'")
-        
-        completed_plan_str = "\n".join(completed_plan) + "\nCritic: " + critic
-        solve_prompt = self.prompt.format(plan=completed_plan_str, task=task)
-        
-        final_answer = self.llm(solve_prompt).strip()
-        
-        logging.info(f"SOLVE PROMPT:\n\n{solve_prompt}")
-        logging.info(_LOG_SEPARATOR)
-        logging.info(f"FINAL ANSWER AFTER CRITIC:\n\n{final_answer}")
-        logging.info(_LOG_SEPARATOR)
-        return final_answer
