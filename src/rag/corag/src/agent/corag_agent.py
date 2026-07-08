@@ -266,6 +266,13 @@ class CoRagAgent:
                     new_candidate.past_chunks.append(chunks)
                     new_candidates.append(new_candidate)
 
+            # If no subqueries were produced this step (e.g. the model returned an
+            # empty expansion), keep the candidates from the previous step instead
+            # of overwriting them with an empty list — otherwise candidates[0]
+            # below raises IndexError.
+            if not new_candidates:
+                break
+
             if len(new_candidates) > beam_size:
                 scores: List[float] = []
                 for path in new_candidates:

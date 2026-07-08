@@ -37,7 +37,9 @@ class CodeMMLUSolver(Agent):
             temperature=0.2, 
             top_p=0.95, 
             max_tokens=1024,
-            max_context_lenght: int = 24000,
+            # Total input budget: kept below the served window (14000) minus the
+            # requested output (max_tokens) so input + output stays under the limit.
+            max_context_lenght: int = 12500,
             stop_tokens=["</code>", "# SOLUTION END"]):
         
         super().__init__("ds_1000_solver")
@@ -70,10 +72,13 @@ class CodeMMLUSolver(Agent):
 
     def run(self, task: Text, context: Text, response_format: Type[T]) -> Text:
 
-        tokens = self.tokenizer.encode(context, add_special_tokens=False)
-
-        if len(tokens) > self.max_context_lenght:
-            context = self.tokenizer.decode(tokens[:self.max_context_lenght])
+        if context:
+            # Same policy as DS1000Solver.run: reserve the task tokens, then
+            # truncate the retrieved context to whatever budget remains so the
+            # request stays inside the served model window.
+            task_tokens = len(self.tokenizer.encode(task, add_special_tokens=False))
+            budget = self.max_context_lenght - task_tokens
+            context = self._truncate_context(context, budget)
 
         prompt = self._create_prompt(task, context)
 
@@ -84,7 +89,16 @@ class CodeMMLUSolver(Agent):
                 return self._call_chat(self.system_prompt, prompt)
             case _:
                 raise ValueError(f"invalid API: '{self.api}'")
-    
+
+    def _truncate_context(self, context: Text, token_budget: int) -> Text:
+        # Truncate whole context by a token budget (mirrors DS1000Solver).
+        if token_budget <= 0:
+            return ""
+        tokens = self.tokenizer.encode(context, add_special_tokens=False)
+        if len(tokens) <= token_budget:
+            return context
+        return self.tokenizer.decode(tokens[:token_budget], skip_special_tokens=True)
+
     @staticmethod
     def _extract_letter(text: Text) -> Text:
         """Robustly reduce any model output to a single choice letter A-D.
