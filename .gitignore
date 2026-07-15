@@ -177,3 +177,4 @@ notebooks/
 venv
 venv/
 data/docs_database.db
+results_codemmlu/

@@ -60,7 +60,7 @@ class CodeMMLUSolver(Agent):
         self.system_prompt = system_prompt
 
         # Honour the model from config; fall back to whatever the server serves.
-        self.model_name = model_name or self.client.models.list().data[0].id
+        self.model_name = model_name #or self.client.models.list().data[0].id
 
         self.temperature=temperature
         self.top_p=top_p
@@ -70,8 +70,11 @@ class CodeMMLUSolver(Agent):
 
         self.context_after_task = context_after_task
 
-        self.tokenizer: PreTrainedTokenizerFast = AutoTokenizer.from_pretrained(self.model_name)
-            
+        # self.tokenizer: PreTrainedTokenizerFast = AutoTokenizer.from_pretrained("mistralai/Devstral-Small-2-24B-Instruct-2512")
+        self.tokenizer = PreTrainedTokenizerFast.from_pretrained(
+            "mistralai/Devstral-Small-2-24B-Instruct-2512",
+            extra_special_tokens={},
+        )
     def run(self, task: Text, context: Text = "", response_format: Type[T] = AnswerFormat) -> Text:
     # def run(self, task: Text, context: Text, response_format: Type[T]) -> Text:
 

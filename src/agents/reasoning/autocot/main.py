@@ -368,6 +368,7 @@ RESPONSE:
 }
 """
 
+
 class AutoCoT(Agent):
     def __init__(
         self,
@@ -438,7 +439,8 @@ class AutoCoT(Agent):
 
         # rationale_prompt = PROMPT_GET_REACT_TRAJECTORY.replace("<problem>", problem).replace("<reference_code>", reference_code)
         # rationale_prompt = PROMPT_GET_REACT_TRAJECTORY.format(problem=problem, reference_code=reference_code)
-        rationale_prompt = PROMPT_GET_REWOO_TRAJECTORY.replace("<problem>", problem).replace("<reference_code>", reference_code)
+        # rationale_prompt = PROMPT_GET_REWOO_TRAJECTORY.replace("<problem>", problem).replace("<reference_code>", reference_code)
+        rationale_prompt = PROMPT_GET_REACT_TRAJECTORY_CODEMMLU.replace("<problem>", problem).replace("<reference_code>", reference_code)
 
         return self.llm(rationale_prompt)
 
@@ -580,7 +582,10 @@ if __name__=="""__main__""":
 
     encoder_name = "all-MiniLM-L6-v2"
     model_name = "Qwen/Qwen2.5-32B-Instruct"
-    data_path = "/workspace/proj/grant/recipe-mipt/data/ds1000_auto_cot.json" 
+    # data_path = "/workspace/proj/grant/recipe-mipt/data/ds1000_auto_cot.json"
+    data_path = "/workspace/proj/grant_codemmlu/recipe-mipt/src/agents/reasoning/autocot/codemmlu/code_mmlu_auto_cot_code.json" 
+    # data_path = "/workspace/proj/grant_codemmlu/recipe-mipt/src/agents/reasoning/autocot/codemmlu/code_mmlu_auto_cot_middle.json" 
+
     auto_cot_agent = AutoCoT(problems=data_path,
                              name="AutoCoT", 
                              encoder_name=encoder_name, # is used in original implementation
@@ -596,9 +601,9 @@ if __name__=="""__main__""":
     }
 
 
-    # with open(f"/workspace/proj/grant/recipe-mipt/data/ds1000/auto_cot/{encoder_name}_example_react_trajectory.json", "w", encoding="utf-8") as f:
-    #     json.dump(final_example, f, indent=4, ensure_ascii=False)
-
-    with open(f"/workspace/proj/grant/recipe-mipt/data/ds1000/auto_cot/{encoder_name}_example_rewoo_trajectory.json", "w", encoding="utf-8") as f:
+    with open(f"/workspace/proj/grant/recipe-mipt/data/ds1000/auto_cot/{encoder_name}_example_react_trajectory_code.json", "w", encoding="utf-8") as f:
         json.dump(final_example, f, indent=4, ensure_ascii=False)
+
+    # with open(f"/workspace/proj/grant/recipe-mipt/data/ds1000/auto_cot/{encoder_name}_example_rewoo_trajectory.json", "w", encoding="utf-8") as f:
+    #     json.dump(final_example, f, indent=4, ensure_ascii=False)
 

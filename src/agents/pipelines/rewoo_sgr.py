@@ -267,24 +267,24 @@ class SolverREWOOSGR(Agent):
         """Pick the few-shot split matching this task's CodeMMLU sub-split."""
         return self._few_shots_by_subset.get(_detect_subset(task), self.few_shot_examples)
 
-    def llm(self, prompt: str) -> str:
-        """Сalling the llm to get a response."""
-        response = self.client.chat.completions.create(
-            model=self.model_name,
-            messages=[{"role": "user", "content": prompt}],
-            temperature=self.temperature,
-        )
-        return response.choices[0].message.content
-
-    # def llm(self, prompt: str) -> SolverResponse:
-    #     """LLM calling"""
-    #     response = self.client.chat.completions.parse(
+    # def llm(self, prompt: str) -> str:
+    #     """Сalling the llm to get a response."""
+    #     response = self.client.chat.completions.create(
     #         model=self.model_name,
     #         messages=[{"role": "user", "content": prompt}],
     #         temperature=self.temperature,
-    #         response_format=SolverResponse
     #     )
-    #     return response.choices[0].message.parsed
+    #     return response.choices[0].message.content
+
+    def llm(self, prompt: str) -> SolverResponse:
+        """LLM calling"""
+        response = self.client.chat.completions.parse(
+            model=self.model_name,
+            messages=[{"role": "user", "content": prompt}],
+            temperature=self.temperature,
+            response_format=SolverResponse
+        )
+        return response.choices[0].message.parsed
 
     def _build_completed_plan_str(self, plan, evidencies) -> str:
         completed_plan = []
@@ -295,41 +295,41 @@ class SolverREWOOSGR(Agent):
             completed_plan.append(f"\t- Plan: '{step_descr}'\n\t- Evidence: '{evidence_result}'")
         return "\n".join(completed_plan)
       
-    def run(self, task, plan, evidencies):
-        # plan format: {"steps": matches, "plan_string": response}
-        # evidence format: {"tool": tool, "tool_input": tool_input,"tool_result": tool_result}
-        completed_plan_str = self._build_completed_plan_str(plan, evidencies)
-        solve_prompt = self.prompt.format(plan=completed_plan_str, task=task)
-        few_shot_ex = self._select_few_shots(task)
-        
-        logging.info(f"FEW_SHOT_EXAMPLES:\n{few_shot_ex}")
-        
-        full_prompt = few_shot_ex + "\n\n" + solve_prompt
-
-        final_answer = self.llm(full_prompt).strip()
-        
-        logging.info(f"SOLVE PROMPT:\n\n{full_prompt}")
-        logging.info(_LOG_SEPARATOR)
-        logging.info(f"FINAL ANSWER:\n\n{final_answer}")
-        logging.info(_LOG_SEPARATOR)
-        return final_answer
-      
     # def run(self, task, plan, evidencies):
+    #     # plan format: {"steps": matches, "plan_string": response}
+    #     # evidence format: {"tool": tool, "tool_input": tool_input,"tool_result": tool_result}
     #     completed_plan_str = self._build_completed_plan_str(plan, evidencies)
     #     solve_prompt = self.prompt.format(plan=completed_plan_str, task=task)
-
-    #     full_prompt = self._select_few_shots(task) + "\n\n" + solve_prompt
+    #     few_shot_ex = self._select_few_shots(task)
         
-    #     parsed_result = self.llm(full_prompt)
+    #     logging.info(f"FEW_SHOT_EXAMPLES:\n{few_shot_ex}")
+        
+    #     full_prompt = few_shot_ex + "\n\n" + solve_prompt
+
+    #     final_answer = self.llm(full_prompt).strip()
         
     #     logging.info(f"SOLVE PROMPT:\n\n{full_prompt}")
     #     logging.info(_LOG_SEPARATOR)
-    #     logging.info(f"SOLVER INTERNAL THOUGHT:\n\n{parsed_result.thought}")
+    #     logging.info(f"FINAL ANSWER:\n\n{final_answer}")
     #     logging.info(_LOG_SEPARATOR)
-    #     logging.info(f"FINAL ANSWER (RESPONSE ONLY):\n\n{parsed_result.response}")
-    #     logging.info(_LOG_SEPARATOR)
+    #     return final_answer
+      
+    def run(self, task, plan, evidencies):
+        completed_plan_str = self._build_completed_plan_str(plan, evidencies)
+        solve_prompt = self.prompt.format(plan=completed_plan_str, task=task)
+
+        full_prompt = self._select_few_shots(task) + "\n\n" + solve_prompt
         
-    #     return parsed_result.response
+        parsed_result = self.llm(full_prompt)
+        
+        logging.info(f"SOLVE PROMPT:\n\n{full_prompt}")
+        logging.info(_LOG_SEPARATOR)
+        logging.info(f"SOLVER INTERNAL THOUGHT:\n\n{parsed_result.thought}")
+        logging.info(_LOG_SEPARATOR)
+        logging.info(f"FINAL ANSWER (RESPONSE ONLY):\n\n{parsed_result.response}")
+        logging.info(_LOG_SEPARATOR)
+        
+        return parsed_result.response
 
     def run_after_critic(self, task, plan, evidencies, critic):
         # plan format: {"steps": matches, "plan_string": response}

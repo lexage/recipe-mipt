@@ -1,0 +1,27 @@
+﻿folder_name,total_examples,correct_examples,calculated_accuracy,updated_accuracy,task_0 (rt00001),task_82 (rt00083),task_163 (rt00164),task_125 (rt00126),task_155 (rt00156),task_136 (rt00137)
+react_exp_temp_0.7_19_fix_db_search_qwen2_5_corag_codemmlu,164,134,0.8171,0.8199,0,1,1,0,1,1
+react_exp_temp_0.7_19_fix_db_search_qwen2_5_instruct_rag_codemmlu,164,138,0.8415,0.8447,0,1,1,0,1,1
+react_exp_temp_0.7_19_fix_db_search_qwen2_5_simple_rag_codemmlu,164,131,0.7988,0.8012,0,1,1,0,1,1
+react_sgr_exp_temp_0.7_10_fix_db_search_qwen2_5_decrim_codemmlu,164,125,0.7622,0.764,0,1,1,0,1,1
+react_sgr_exp_temp_0.7_10_fix_db_search_qwen2_5_decrim_codemmlu_simple_retriever,164,132,0.8049,0.8075,0,1,1,0,1,1
+react_sgr_exp_temp_0.7_11_fix_db_search_qwen2_5_reflexion_codemmlu,164,120,0.7317,0.7329,0,1,1,0,1,1
+react_sgr_exp_temp_0.7_11_fix_db_search_qwen2_5_reflexion_codemmlu_simple_retriever,164,121,0.7378,0.7391,0,1,1,0,1,1
+react_sgr_exp_temp_0.7_32_fix_db_search_qwen2_5_auto_cot_codemmlu,164,136,0.8293,0.8323,0,1,1,0,1,1
+react_sgr_exp_temp_0.7_32_fix_db_search_qwen2_5_contrastive_cot_codemmlu,164,138,0.8415,0.8385,1,1,1,0,1,1
+react_sgr_exp_temp_0.7_32_fix_db_search_qwen2_5_cot_codemmlu,164,131,0.7988,0.795,1,1,1,0,1,1
+react_sgr_exp_temp_0.7_9_fix_db_search_qwen2_5_baseline_codemmlu,164,133,0.811,0.8137,0,1,1,0,1,1
+react_sgr_exp_temp_0.7_9_fix_db_search_qwen2_5_critic_codemmlu,164,138,0.8415,0.8447,0,1,1,0,1,1
+react_sgr_exp_temp_0.7_9_fix_db_search_qwen2_5_critic_codemmlu_simple_retriever,164,137,0.8354,0.8385,0,1,1,0,1,1
+react_sgr_exp_temp_0.7_9_fix_db_search_qwen2_5_self_refine_codemmlu,164,131,0.7988,0.8012,0,1,1,0,1,1
+react_sgr_exp_temp_0.7_9_fix_db_search_qwen2_5_self_refine_codemmlu_simple_retriever,164,127,0.7744,0.7764,0,1,1,0,1,1
+react_sgr_temp_0.7_26_critic_codemmlu,164,129,0.7866,0.7888,0,1,1,0,1,1
+react_sgr_temp_0.7_26_reflexion_codemmlu,164,126,0.7683,0.7764,0,1,0,0,1,1
+rewoo_sgr_exp_temp_0.7_32_fix_db_search_qwen2_5_auto_cot_planner_codemmlu,164,136,0.8293,0.8323,0,1,1,0,1,1
+rewoo_sgr_exp_temp_0.7_32_fix_db_search_qwen2_5_auto_cot_planner_solver_codemmlu,164,131,0.7988,0.8012,0,1,1,0,1,1
+rewoo_sgr_exp_temp_0.7_32_fix_db_search_qwen2_5_auto_cot_solver_codemmlu,164,130,0.7927,0.7888,0,1,1,1,1,1
+rewoo_sgr_exp_temp_0.7_32_fix_db_search_qwen2_5_contrastive_cot_planner_codemmlu,164,136,0.8293,0.8323,0,1,1,0,1,1
+rewoo_sgr_exp_temp_0.7_32_fix_db_search_qwen2_5_contrastive_cot_planner_solver_codemmlu,164,138,0.8415,0.8447,0,1,1,0,1,1
+rewoo_sgr_exp_temp_0.7_32_fix_db_search_qwen2_5_contrastive_cot_solver_codemmlu,164,132,0.8049,0.8075,0,1,1,0,1,1
+rewoo_sgr_exp_temp_0.7_32_fix_db_search_qwen2_5_cot_planner_codemmlu,164,137,0.8354,0.8385,0,1,1,0,1,1
+rewoo_sgr_exp_temp_0.7_32_fix_db_search_qwen2_5_cot_planner_solver_codemmlu,164,130,0.7927,0.7888,1,1,1,0,1,1
+rewoo_sgr_exp_temp_0.7_32_fix_db_search_qwen2_5_cot_solver_codemmlu,164,130,0.7927,0.795,0,1,1,0,1,1

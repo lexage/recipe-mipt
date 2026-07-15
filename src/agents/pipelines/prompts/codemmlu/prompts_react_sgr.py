@@ -684,101 +684,11 @@ Is_final 1: True
 
 # ---- auto_cot: compact reasoning trajectory ending with the chosen letter ----
 FEW_SHOT_AUTO_COT_CODE = """### CODE_COMPLETION FEW-SHOT EXAMPLES ###
-
-=== FEW-SHOT EXAMPLE 1 ===
-TASK:
-Problem: def has_close_elements(numbers, threshold): return True if any two numbers are closer than `threshold`, else False. Examples: [1.0,2.0,3.0],0.5 -> False; [1.0,2.8,3.0,4.0,5.0,2.0],0.3 -> True.
-
-Solution A: nested loop, returns False when a pair is `> threshold` (inverted).
-Solution B: `any(abs(a-b) < threshold for a,b in zip(numbers, numbers[1:]))` (adjacent pairs only).
-Solution C: nested loop over all pairs, returns True when `< threshold`, else False.
-Solution D: nested enumerate over all pairs with `idx != idx2`, returns True when `< threshold`, else False.
-
-Thought 1: A is inverted (fires on far pairs). B compares only adjacent neighbours, missing non-adjacent close pairs. C and D both scan every pair correctly and are equivalent; D is the canonical reference form.
-Action 1: finish
-Action Input 1: {}
-Is_final 1: True
-Answer: D
-
-=== FEW-SHOT EXAMPLE 2 ===
-TASK:
-Problem: def generate_integers(a, b): return the even digits in [2, 8] that lie between a and b, ascending. generate_integers(2,8) -> [2,4,6,8]; generate_integers(10,14) -> [].
-
-Solution A: clamp [2,8] inclusive, keep `i % 2 != 0` (odd).
-Solution B: clamp [2,8] inclusive `range(lower, upper+1)`, keep `i % 2 == 0`.
-Solution C: clamp [2,8] but `range(lower, upper)` (upper-exclusive), keep evens.
-Solution D: bounds `min(2,...)`/`max(8,...)` (not clamped), inclusive, keep evens.
-
-Thought 1: A returns odds. C drops the inclusive upper bound (loses 8). D fails to clamp to [2,8]. B clamps correctly and iterates inclusively over evens.
-Action 1: finish
-Action Input 1: {}
-Is_final 1: True
-Answer: B
-
-=== FEW-SHOT EXAMPLE 3 ===
-TASK:
-Problem: def prime_length(string): return True iff len(string) is prime. 'Hello' -> True (5), 'orange' -> False (6).
-
-Solution A: `return l % 2 != 0` (odd check).
-Solution B: trial division `for i in range(2, l): if l % i == 0: return False; return True`.
-Solution C: `return l % 3 != 0`.
-Solution D: `return l % 2 == 1` (odd check).
-
-Thought 1: A and D only test oddness (length 9 is odd but not prime). C tests divisibility by 3, unrelated to primality. B is a genuine trial-division primality test.
-Action 1: finish
-Action Input 1: {}
-Is_final 1: True
-Answer: B
-"""
+=== FEW-SHOT EXAMPLE 1===\nTASK:\nProblem: Implement a function that splits a given string into words based on spaces or commas, or counts the number of lowercase letters with even order in the alphabet if neither space nor comma is present.\n\nSolution A: Splits on spaces, then commas, otherwise counts lowercase letters with even order.\nSolution B: Splits on spaces, then commas, otherwise counts all letters with even order.\nSolution C: Splits on spaces, then commas, otherwise counts lowercase letters with odd order.\nSolution D: Splits on spaces, then commas, otherwise counts all lowercase letters.\n\nThought 1: Verify which solution correctly counts lowercase letters with even order in the alphabet when no spaces or commas are present.\nAction 1: llm\nAction Input 1: {'query': 'Compare solutions A, B, C, D for the case where no spaces or commas exist in the input.'}\nIs_final 1: False\n\nObservation 1: Solution A correctly implements the logic to count lowercase letters with even order in the alphabet when there are no spaces or commas in the input.\n\nThought 2: Confirm that the remaining solutions either have incorrect logic for counting letters or deviate from the specified behavior.\nAction 2: llm\nAction Input 2: {'query': 'Identify any deviations in solutions B, C, D from the correct behavior described in solution A.'}\nIs_final 2: False\n\nObservation 2: Solutions B, C, and D deviate from the required behavior by either counting all letters with even order (B), counting lowercase letters with odd order (C), or counting all lowercase letters (D).\n\nThought 3: Settle on the reference-correct option A as it adheres to the specified behavior.\nAction 3: finish\nAction Input 3: {}\nIs_final 3: True\nAnswer: A\nAnswer: Answer: A\n\n=== FEW-SHOT EXAMPLE 2===\nTASK:\nProblem: Given an integer, return a tuple indicating the count of even and odd digits.\n\nSolution A: Incorrectly increments even_count for odd numbers and vice versa.\nSolution B: Only counts even numbers, ignoring odd counts.\nSolution C: Incorrectly increments odd_count for even numbers and vice versa.\nSolution D: Correctly counts even and odd digits.\n\nThought 1: Need to check which solutions correctly count even and odd digits.\nAction 1: db_search\nAction Input 1: {'query': 'python count even and odd digits in integer'}\nIs_final 1: False\n\nObservation 1: query: python count even and odd digits in integer\nretrieved context: [CHUNK 12345 | doc=6789]\nIn [1]: def correct_even_odd_count(num):\n   ...:     even_count = 0\n   ...:     odd_count = 0\n   ...:     for i in str(abs(num)):\n   ...:         if int(i) % 2 == 0:\n   ...:             even_count += 1\n   ...:         else:\n   ...:             odd_count += 1\n   ...:     return (even_count, odd_count)\n   ...: \n   ...: print(correct_even_odd_count(-12))  # (1, 1)\n   ...: print(correct_even_odd_count(123))  # (1, 2)\n   ...: \n\nThought 2: Comparing the reference implementation with the given options, Solution D matches the reference-correct behavior.\nAction 2: finish\nAction Input 2: {}\nIs_final 2: True\nAnswer: D\nAnswer: Answer: D\n\n=== FEW-SHOT EXAMPLE 3===\nTASK:\nProblem: Define a function that takes a list and returns a tuple containing the largest negative integer and the smallest positive integer. Return None for missing values.\n\nSolution A: Filters negatives and non-negatives, returning their max/min, respectively.\nSolution B: Filters non-positive and positives, returning their max/min, respectively.\nSolution C: Filters negatives and positives, returning their min/max, respectively.\nSolution D: Filters negatives and positives, returning their max/min, respectively.\n\nThought 1: Check which solutions correctly filter and compute the max/min for negative and positive integers.\nAction 1: db_search\nAction Input 1: {'query': 'python filter max min on list'}\nIs_final 1: False\n\nObservation 1: \nquery: python filter max min on list\nretrieved context: [CHUNK 12345 | doc=6789]\nIn [1]: help(filter)\nOut[1]: Built-in functions\nfilter(function or None, iterable) --> filter object\nReturn an iterator yielding those items of iterable for which function(item) is true. If function is None, return the items that are true.\n\nThought 2: Compare options A through D based on their behavior in handling the filtering and calculation of max and min values for negative and positive integers.\nAction 2: llm\nAction Input 2: {'query': 'Compare Solution A, B, C, D for correct filtering and max/min computation for negative and positive integers.'}\nIs_final 2: False\n\nObservation 2: Solutions A and B incorrectly include zero in their filtering criteria, while Solution C returns the minimum negative and maximum positive integers instead of the maximum negative and minimum positive integers. Solution D correctly identifies the largest negative and smallest positive integers.\n\nThought 3: Confirm that Solution D is the only one that correctly implements the intended logic without changing the behavior.\nAction 3: finish\nAction Input 3: {}\nIs_final 3: True\nAnswer: D\nAnswer: Answer: D\n\n"""
 
 
 FEW_SHOT_AUTO_COT_MIDDLE = """### FILL_IN_THE_MIDDLE FEW-SHOT EXAMPLES ###
-
-=== FEW-SHOT EXAMPLE 1 ===
-TASK:
-Problem: dominantIndex fills the blank before `return ans if max >= 2 * secondMax else -1`; the spec wants "at least twice as much".
-
-Solution A: `return ans if max > 2 * secondMax else -1`
-Solution B: `return ans if max >= 2 * secondMax else -1`
-Solution C: `return ans if max == 2 * secondMax else -1`
-Solution D: `return ans if max // 2 >= secondMax else -1`
-
-Thought 1: "At least twice" is `max >= 2 * secondMax`. A (`>`) and C (`==`) change the equality boundary; D uses non-canonical integer division. B is the direct canonical form and matches the shown line.
-Action 1: finish
-Action Input 1: {}
-Is_final 1: True
-Answer: B
-
-=== FEW-SHOT EXAMPLE 2 ===
-TASK:
-Problem: makeLargestSpecial fills the blank inside `specials.append(...)`; the shown continuation is `'1' + self.makeLargestSpecial(s[i + 1:j]) + '0')`, so a block is wrapped as `'1' + rec + '0'`.
-
-Solution A: `self.makeLargestSpecial(s[i + 1:j]) + '10'`
-Solution B: `'10' + self.makeLargestSpecial(s[i + 1:j]) + '0'`
-Solution C: `'1' + self.makeLargestSpecial(s[i + 1:j]) + '01'`
-Solution D: `'1' + self.makeLargestSpecial(s[i + 1:j]) + '0')`
-
-Thought 1: The fill must reproduce the `'1' + rec + '0'` wrap and close the append() paren. A, B and C each mangle the wrapping characters. D matches the canonical wrap and closes the parenthesis.
-Action 1: finish
-Action Input 1: {}
-Is_final 1: True
-Answer: D
-
-=== FEW-SHOT EXAMPLE 3 ===
-TASK:
-Problem: reachingPoints fills the first line of a two-line return; the shown second line is `sy == ty and sx <= tx and (tx - sx) % ty == 0`, so the fill is its mirror.
-
-Solution A: `sx == tx and sy < ty and (ty + sy) % tx == 0 or \\`
-Solution B: `sx == tx and sy <= ty and (sx - sy) % tx == 0 or \\`
-Solution C: `sx == tx and sy <= ty and (ty - sy) % tx == 0 or \\`
-Solution D: `sx == tx and sy < ty and (ty - sy) % tx == 0 or \\`
-
-Thought 1: The canonical mirror is `sx == tx and sy <= ty and (ty - sy) % tx == 0`. A changes `<=`->`<` and `-`->`+`; B uses `(sx - sy)`; D changes `<=`->`<`. C matches exactly.
-Action 1: finish
-Action Input 1: {}
-Is_final 1: True
-Answer: C
-"""
+=== FEW-SHOT EXAMPLE 1===\nTASK:\nProblem: Given a tree structure defined by parent-child relationships and genetic values for each node, find the smallest missing genetic value for each subtree rooted at each node.\n\nSolution A: Initializes the answer array with 1s.\nSolution B: Initializes the answer array with -1s.\nSolution C: Initializes the answer array with infinity.\nSolution D: Initializes the answer array with 0s.\n\nThought 1: The correct initialization should ensure that the initial smallest missing genetic value is 1, as the genetic values range from 1 to 10^5.\nAction 1: db_search\nAction Input 1: {'query': 'smallestMissingValueSubtree problem canonical solution'}\nIs_final 1: False\n\nObservation 1: query: smallestMissingValueSubtree problem canonical solution\nretrieved context: [CHUNK 56789 | doc=12345]\nIn [1]: ans = [1] * n\nOut[1]: [1, 1, 1, ..., 1]  # n times\n\nThought 2: Option A correctly initializes the answer array with 1s, which aligns with the canonical solution and ensures the correct starting point for finding the smallest missing genetic value.\nAction 2: finish\nAction Input 2: {}\nIs_final 2: True\nAnswer: A\nAnswer: Answer: A\n\n=== FEW-SHOT EXAMPLE 2===\nTASK:\nProblem: Given an integer array, calculate the sum of beauty values for elements between indices 1 and nums.length - 2 based on specific conditions.\n\nSolution A: Initializes minOfRight with zeros of length n.\nSolution B: Initializes minOfRight with zeros of length n-1 and the last element of nums.\nSolution C: Initializes minOfRight with the last element of nums repeated n times.\nSolution D: Initializes minOfRight with the first element of nums repeated n-1 times and the last element of nums.\n\nThought 1: Determine which initialization of minOfRight correctly aligns with the logic needed for calculating the sum of beauties.\nAction 1: db_search\nAction Input 1: {'query': 'initialization of minOfRight in sumOfBeauties'}\nIs_final 1: False\n\nObservation 1: query: initialization of minOfRight in sumOfBeauties\nretrieved context: [CHUNK 12345 | doc=6789]\nIn [1]: minOfRight = [0] * (n - 1) + [nums[-1]]\n\nThought 2: Option B correctly initializes minOfRight with zeros of length n-1 followed by the last element of nums, aligning with the reference implementation.\nAction 2: llm\nAction Input 2: {'query': 'compare solutions A, B, C, D based on correctness of minOfRight initialization'}\nIs_final 2: False\n\nObservation 2: Solutions A, C, and D do not initialize minOfRight correctly according to the problem's requirements. Only B follows the correct pattern.\n\nThought 3: Confirming B as the correct solution due to its accurate initialization of minOfRight.\nAction 3: finish\nAction Input 3: {}\nIs_final 3: True\nAnswer: B\nAnswer: Answer: B\n\n=== FEW-SHOT EXAMPLE 3===\nTASK:\nProblem: Calculate the total appeal of all substrings of a given string, where appeal is defined as the number of distinct characters in each substring.\n\nSolution A: Subtracts the difference between the current index and the last seen index from dp.\nSolution B: Adds the sum of the current index and the last seen index to dp.\nSolution C: Adds the difference between the last seen index and the current index to dp.\nSolution D: Adds the difference between the current index and the last seen index to dp.\n\nThought 1: To determine the correct solution, we need to understand how the appeal of substrings is calculated and which operation aligns with this calculation.\nAction 1: db_search\nAction Input 1: {'query': 'appeal of substrings calculation'}\nIs_final 1: False\n\nObservation 1: query: appeal of substrings calculation\nretrieved context: [CHUNK 12345 | doc=6789]\nIn [1]: The appeal of a substring is the number of distinct characters in it. For calculating the total appeal, one approach is to maintain a running total (dp) that increments based on the current character's index and its last seen position.\n\nThought 2: Based on the observation, the correct approach involves adding the difference between the current index and the last seen index of the character to dp. This ensures the total appeal reflects the correct count of distinct characters in all substrings.\nAction 2: llm\nAction Input 2: {'query': 'Compare solutions A, B, C, D for correctness.'}\nIs_final 2: False\n\nObservation 2: Comparing the solutions, only D correctly implements the logic for maintaining a running total that reflects the appeal of all substrings by considering the current character's position and its last seen position.\n\nThought 3: After verifying the logic, it is clear that Solution D correctly calculates the appeal of all substrings.\nAction 3: finish\nAction Input 3: {}\nIs_final 3: True\nAnswer: D\nAnswer: Answer: D\n\n"""
 
 
 # Trailing marker appended after the examples, right before the live task is concatenated
@@ -799,6 +709,6 @@ FEW_SHOT_REGISTRY = {
     "cot_middle": FEW_SHOT_COT_MIDDLE + _TASK_MARKER,
     "contrastive_cot_code": FEW_SHOT_CONTRASTIVE_COT_CODE + _TASK_MARKER,
     "contrastive_cot_middle": FEW_SHOT_CONTRASTIVE_COT_MIDDLE + _TASK_MARKER,
-   #  "auto_cot_code": FEW_SHOT_AUTO_COT_CODE + _TASK_MARKER,
-   #  "auto_cot_middle": FEW_SHOT_AUTO_COT_MIDDLE + _TASK_MARKER,
+    "auto_cot_code": FEW_SHOT_AUTO_COT_CODE + _TASK_MARKER,
+    "auto_cot_middle": FEW_SHOT_AUTO_COT_MIDDLE + _TASK_MARKER,
 }

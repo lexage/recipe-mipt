@@ -943,156 +943,17 @@ mirror is the error.
 
 # ---- auto_cot: compact THOUGHT + plan, ending with the chosen letter ----------------
 FEW_SHOT_AUTO_COT_CODE = """### CODE_COMPLETION FEW-SHOT EXAMPLES (PLANNER, AUTO-COT) ###
-
-=== FEW-SHOT EXAMPLE 1 ===
-TASK:
-Problem: def has_close_elements(numbers, threshold): return True if any two numbers are closer than `threshold`, else False. Examples: [1.0,2.0,3.0],0.5 -> False; [1.0,2.8,3.0,4.0,5.0,2.0],0.3 -> True.
-
-Solution A: nested loop, returns False when a pair is `> threshold` (inverted).
-Solution B: `any(abs(a-b) < threshold for a,b in zip(numbers, numbers[1:]))` (adjacent pairs only).
-Solution C: nested loop over all pairs, returns True when `< threshold`, else False.
-Solution D: nested enumerate over all pairs with `idx != idx2`, returns True when `< threshold`, else False.
-
-THOUGHT: A is inverted; B checks only adjacent pairs; C and D are equivalent full pairwise scans and D is the canonical enumerate form. Retrieve the reference, then decide.
-{
-  "steps": [
-    {
-      "step_id": 1,
-      "plan": "Retrieve the canonical pairwise reference and pick the matching canonical option.",
-      "tool": "db_search",
-      "args": {"query": "return true if any two elements closer than threshold pairwise enumerate"},
-      "evidence_tag": "#E1",
-      "depends_on": []
-    }
-  ]
-}
-Answer: D
-
-=== FEW-SHOT EXAMPLE 2 ===
-TASK:
-Problem: def generate_integers(a, b): return the even digits in [2, 8] that lie between a and b, ascending. generate_integers(2,8) -> [2,4,6,8]; generate_integers(10,14) -> [].
-
-Solution A: clamp [2,8] inclusive, keep `i % 2 != 0` (odd).
-Solution B: clamp [2,8] inclusive `range(lower, upper+1)`, keep `i % 2 == 0`.
-Solution C: clamp [2,8] but `range(lower, upper)` (upper-exclusive), keep evens.
-Solution D: bounds `min(2,...)`/`max(8,...)` (not clamped), inclusive, keep evens.
-
-THOUGHT: A returns odds; C drops the inclusive upper bound; D fails to clamp to [2,8]; B clamps correctly and iterates inclusively over evens. Retrieve the inclusive-clamp reference, then decide.
-{
-  "steps": [
-    {
-      "step_id": 1,
-      "plan": "Retrieve the inclusive-clamp reference (clamp [2,8], keep evens over range(lower, upper+1)) and pick the matching option.",
-      "tool": "db_search",
-      "args": {"query": "inclusive range clamp keep even numbers list comprehension max min"},
-      "evidence_tag": "#E1",
-      "depends_on": []
-    }
-  ]
-}
-Answer: B
-
-=== FEW-SHOT EXAMPLE 3 ===
-TASK:
-Problem: def prime_length(string): return True iff len(string) is prime. 'Hello' -> True (5), 'orange' -> False (6).
-
-Solution A: `return l % 2 != 0` (odd check).
-Solution B: trial division `for i in range(2, l): if l % i == 0: return False; return True`.
-Solution C: `return l % 3 != 0`.
-Solution D: `return l % 2 == 1` (odd check).
-
-THOUGHT: A and D only test oddness (length 9 is odd but not prime); C tests divisibility by 3; B is a genuine trial-division primality test. Retrieve the trial-division reference, then decide.
-{
-  "steps": [
-    {
-      "step_id": 1,
-      "plan": "Retrieve the trial-division primality reference and pick the genuine primality test.",
-      "tool": "db_search",
-      "args": {"query": "primality test trial division for i in range 2 to n return false if divisible"},
-      "evidence_tag": "#E1",
-      "depends_on": []
-    }
-  ]
-}
-Answer: B
-"""
+=== FEW-SHOT EXAMPLE 1 ===\nTASK:\nProblem: Implement a function that splits input text into words based on spaces or commas, or counts lowercase letters with even alphabetical order positions if neither are present.\n\nSolution A: Splits on spaces, then commas, otherwise counts lowercase letters with even alphabetical positions.\nSolution B: Splits on spaces, then commas, otherwise counts all letters with even alphabetical positions.\nSolution C: Splits on spaces, then commas, otherwise counts lowercase letters with odd alphabetical positions.\nSolution D: Splits on spaces, then commas, otherwise counts all lowercase letters.\n\nTHOUGHT: Reject solutions B, C, and D for changing behavior in the else case; Solution A is the canonical form matching the problem's requirements.\n{\n  \"steps\": [\n    {\n      \"step_id\": 1,\n      \"plan\": \"Retrieve the canonical reference implementation for splitting strings on spaces and commas.\",\n      \"tool\": \"db_search\",\n      \"args\": {\"query\": \"python split string on space or comma\"},\n      \"evidence_tag\": \"#E1\",\n      \"depends_on\": []\n    },\n    {\n      \"step_id\": 2,\n      \"plan\": \"Compare the retrieved reference with the provided options to identify the correct behavior for the else clause.\",\n      \"tool\": \"llm\",\n      \"args\": {\"query\": \"Given the canonical method for splitting strings on spaces or commas, which of the following options correctly handles the else case by counting lowercase letters with even alphabetical positions: A, B, C, D?\"},\n      \"evidence_tag\": \"#E2\",\n      \"depends_on\": [\"#E1\"]\n    }\n  ]\n}\nAnswer: A\nAnswer: Answer: A\n\n=== FEW-SHOT EXAMPLE 2 ===\nTASK:\nProblem: Write a function to count even and odd digits in an integer, returning a tuple with counts.\n\nSolution A: Incorrectly increments even_count for odd numbers.\nSolution B: Only counts even numbers, missing odd count.\nSolution C: Incorrectly increments odd_count for even numbers.\nSolution D: Correctly counts even and odd digits.\n\nTHOUGHT: Reject options A, B, and C for incorrect logic, confirm D as canonical.\n{\n  \"steps\": [\n    {\n      \"step_id\": 1,\n      \"plan\": \"Retrieve the canonical reference implementation for counting even and odd digits.\",\n      \"tool\": \"db_search\",\n      \"args\": {\"query\": \"canonical implementation for counting even and odd digits in an integer\"},\n      \"evidence_tag\": \"#E1\",\n      \"depends_on\": []\n    },\n    {\n      \"step_id\": 2,\n      \"plan\": \"Compare retrieved canonical implementation with provided options, rejecting behavior-changing options.\",\n      \"tool\": \"llm\",\n      \"args\": {\"query\": \"Given the canonical implementation in #E1, compare and identify the correct option among A, B, C, D.\"},\n      \"evidence_tag\": \"#E2\",\n      \"depends_on\": [\"#E1\"]\n    }\n  ]\n}\nAnswer: D\nAnswer: Answer: D\n\n=== FEW-SHOT EXAMPLE 3 ===\nTASK:\nProblem: Define a function that finds the largest negative and smallest positive integers in a list, returning them as a tuple. Return None for missing types.\n\nSolution A: Filters negatives and positives inclusively, returning their max and min.\nSolution B: Filters negatives and positives inclusively, returning their max and min.\nSolution C: Filters negatives and positives exclusively but returns min and max oppositely.\nSolution D: Filters negatives and positives exclusively, correctly returning their max and min.\n\nTHOUGHT: Reject A and B due to inclusive filtering, C due to incorrect order, keep D as canonical.\n{\n  \"steps\": [\n    {\n      \"step_id\": 1,\n      \"plan\": \"Retrieve the canonical reference implementation for finding the largest negative and smallest positive integers.\",\n      \"tool\": \"db_search\",\n      \"args\": {\"query\": \"find largest negative and smallest positive integers in a list python\"},\n      \"evidence_tag\": \"#E1\",\n      \"depends_on\": []\n    },\n    {\n      \"step_id\": 2,\n      \"plan\": \"Compare the retrieved reference with solutions A, B, C, D, rejecting those with incorrect behavior and selecting the canonical form.\",\n      \"tool\": \"llm\",\n      \"args\": {\"query\": \"Given the canonical reference #E1, compare with solutions A, B, C, D and select the correct one.\"},\n      \"evidence_tag\": \"#E2\",\n      \"depends_on\": [\"#E1\"]\n    }\n  ]\n}\nAnswer: D\nAnswer: Answer: D\n\n"""
 
 
 FEW_SHOT_AUTO_COT_MIDDLE = """### FILL_IN_THE_MIDDLE FEW-SHOT EXAMPLES (PLANNER, AUTO-COT) ###
+=== FEW-SHOT EXAMPLE 1 ===\nTASK:\nProblem: Given a family tree and genetic values for each node, find the smallest missing genetic value for each subtree.\n\nSolution A: Initializes ans with 1s.\nSolution B: Initializes ans with -1s.\nSolution C: Initializes ans with infinity.\nSolution D: Initializes ans with 0s.\n\nTHOUGHT: Reject options changing initial behavior, keep canonical initialization with 1s.\n{\n  \"steps\": [\n    {\n      \"step_id\": 1,\n      \"plan\": \"Retrieve the canonical reference implementation for initializing the answer array.\",\n      \"tool\": \"db_search\",\n      \"args\": {\"query\": \"canonical implementation for initializing answer array in genetic value subtree problems\"},\n      \"evidence_tag\": \"#E1\",\n      \"depends_on\": []\n    },\n    {\n      \"step_id\": 2,\n      \"plan\": \"Compare the retrieved canonical implementation with the provided options, rejecting those that change the initial behavior.\",\n      \"tool\": \"llm\",\n      \"args\": {\"query\": \"Given the canonical implementation #E1, compare with options A, B, C, D, and identify the correct initialization method.\"},\n      \"evidence_tag\": \"#E2\",\n      \"depends_on\": [\"#E1\"]\n    }\n  ]\n}\nAnswer: A\nAnswer: Answer: A\n\n=== FEW-SHOT EXAMPLE 2 ===\nTASK:\nProblem: Given an array, calculate the sum of beauties for elements at indices between 1 and length-2, where beauty is defined based on comparisons with neighboring elements.\n\nSolution A: Initializes minOfRight as an array of zeros of length n.\nSolution B: Initializes minOfRight with zeros for n-1 elements followed by the last element of nums.\nSolution C: Initializes minOfRight as an array of the last element of nums repeated n times.\nSolution D: Initializes minOfRight as an array of the first element of nums repeated n-1 times followed by the last element of nums.\n\nTHOUGHT: Reject options that initialize minOfRight incorrectly, keeping the canonical initialization that matches the behavior described.\n{\n  \"steps\": [\n    {\n      \"step_id\": 1,\n      \"plan\": \"Retrieve the canonical reference implementation for initializing minOfRight.\",\n      \"tool\": \"db_search\",\n      \"args\": {\"query\": \"canonical implementation for initializing minOfRight in sumOfBeauties\"},\n      \"evidence_tag\": \"#E1\",\n      \"depends_on\": []\n    },\n    {\n      \"step_id\": 2,\n      \"plan\": \"Compare the retrieved reference with options A, C, and D to confirm they alter the intended behavior, while B matches the canonical form.\",\n      \"tool\": \"llm\",\n      \"args\": {\"query\": \"Compare the canonical reference #E1 with options A, C, and D to confirm they alter the intended behavior, while B matches the canonical form.\"},\n      \"evidence_tag\": \"#E2\",\n      \"depends_on\": [\"#E1\"]\n    }\n  ]\n}\nAnswer: B\nAnswer: Answer: B\n\n=== FEW-SHOT EXAMPLE 3 ===\nTASK:\nProblem: Calculate the total appeal of all substrings of a given string, where appeal is defined as the number of distinct characters in a substring.\n\nSolution A: Subtracts the difference between the current index and the last seen index of the character from dp.\nSolution B: Adds the sum of the current index and the last seen index of the character to dp.\nSolution C: Adds the difference between the last seen index and the current index of the character to dp.\nSolution D: Adds the difference between the current index and the last seen index of the character to dp.\n\nTHOUGHT: Options A, B, and C change the behavior of the algorithm, while D maintains the correct logic, updating dp based on the current and last seen indices of the character.\n{\n  \"steps\": [\n    {\n      \"step_id\": 1,\n      \"plan\": \"Retrieve the canonical implementation for calculating the appeal of all substrings.\",\n      \"tool\": \"db_search\",\n      \"args\": {\"query\": \"canonical implementation for calculating the appeal of all substrings\"},\n      \"evidence_tag\": \"#E1\",\n      \"depends_on\": []\n    },\n    {\n      \"step_id\": 2,\n      \"plan\": \"Compare the retrieved canonical implementation with the provided solutions, rejecting those that alter the intended behavior.\",\n      \"tool\": \"llm\",\n      \"args\": {\"query\": \"Given the canonical implementation #E1, compare and identify the solution that correctly updates dp without altering the algorithm's intended behavior.\"},\n      \"evidence_tag\": \"#E2\",\n      \"depends_on\": [\"#E1\"]\n    }\n  ]\n}\nAnswer: D\nAnswer: Answer: D\n\n"""
 
-=== FEW-SHOT EXAMPLE 1 ===
-TASK:
-Problem: dominantIndex fills the blank before `return ans if max >= 2 * secondMax else -1`; the spec wants "at least twice as much".
+FEW_SHOT_AUTO_COT_CODE_SOLVER = """### CODE_COMPLETION FEW-SHOT EXAMPLES (PLANNER, AUTO-COT) ###
+=== FEW-SHOT EXAMPLE 1 ===\nTASK:\nProblem: Implement a function that splits a given string into words based on spaces or commas, or counts lowercase letters with even alphabetical positions if neither exists.\n\nSolution A: Splits on spaces or commas, or counts lowercase letters with even positions.\nSolution B: Splits on spaces or commas, or counts all letters with even positions.\nSolution C: Splits on spaces or commas, or counts lowercase letters with odd positions.\nSolution D: Splits on spaces or commas, or counts all lowercase letters.\n\n- Plan: 'Retrieve the canonical reference implementation for handling string splitting and character counting.'\n- Evidence: 'The reference solution correctly handles splitting based on spaces and commas, and specifies counting lowercase letters with even positions if neither exists.'\n- Plan: 'Compare each solution against the reference to identify the correct behavior.'\n- Evidence: 'Solution A matches the reference behavior exactly, while others deviate.'\n\nRESPONSE:\n{\n  \"thought\": \"Solutions B, C, and D alter the required behavior by changing the conditions for counting letters, thus only Solution A is correct.\",\n  \"response\": \"A\"\n}\nAnswer: Answer: A\n\n=== FEW-SHOT EXAMPLE 2 ===\nTASK:\nProblem: Write a function `even_odd_count` that counts the number of even and odd digits in an integer and returns them as a tuple.\n\nSolution A: Incorrectly increments even count for odd numbers.\nSolution B: Only counts even numbers, ignoring odd counts.\nSolution C: Incorrectly increments odd count for even numbers.\nSolution D: Correctly counts even and odd digits and returns them as a tuple.\n\n- Plan: 'Retrieve the canonical reference for counting even and odd digits in an integer.'\n- Evidence: 'The canonical method involves iterating over each digit of the absolute value of the input number, checking if it is even or odd, and incrementing respective counters.'\n- Plan: 'Compare the provided solutions against the canonical reference to identify the correct behavior.'\n- Evidence: 'Solution D correctly implements the canonical method by accurately counting even and odd digits.'\n\nRESPONSE:\n{\n  \"thought\": \"Solutions A and C incorrectly increment counts based on wrong conditions, while Solution B does not account for odd digits at all. Solution D accurately follows the canonical method.\",\n  \"response\": \"D\"\n}\nAnswer: Answer: D\n\n=== FEW-SHOT EXAMPLE 3 ===\nTASK:\nProblem: Define a function that returns a tuple containing the largest negative integer and the smallest positive integer from a given list. Return `None` for missing categories.\n\nSolution A: Filters negatives and positives, returning max of negatives and min of positives, including zero in positives.\nSolution B: Filters non-positives and positives, returning max of non-positives and min of positives.\nSolution C: Filters negatives and positives, but incorrectly returns min of negatives and max of positives.\nSolution D: Filters negatives and positives, correctly returning max of negatives and min of positives.\n\n- Plan: 'Retrieve the canonical reference for handling negative and positive integers in lists.'\n- Evidence: 'Canonical implementation should filter negatives separately from positives and handle edge cases like empty lists and zeros appropriately.'\n- Plan: 'Compare the options to ensure they match the canonical reference and reject those changing behavior.'\n- Evidence: 'Option D correctly filters negatives and positives without including zero in either category and handles edge cases as expected.'\n\nRESPONSE:\n{\n  \"thought\": \"Options A and B incorrectly include zero in their filtering criteria, while Option C incorrectly calculates the extremes. Only Option D correctly identifies and returns the largest negative and smallest positive integers.\",\n  \"response\": \"D\"\n}\nAnswer: Answer: D\n\n"""
 
-Solution A: `return ans if max > 2 * secondMax else -1`
-Solution B: `return ans if max >= 2 * secondMax else -1`
-Solution C: `return ans if max == 2 * secondMax else -1`
-Solution D: `return ans if max // 2 >= secondMax else -1`
-
-THOUGHT: "At least twice" is `max >= 2 * secondMax`; A (`>`) and C (`==`) change the equality boundary; D uses non-canonical integer division. B matches the shown line. Confirm the canonical form, then decide.
-{
-  "steps": [
-    {
-      "step_id": 1,
-      "plan": "Confirm the canonical 'at least twice' comparison `x >= 2 * y` and pick the matching option.",
-      "tool": "db_search",
-      "args": {"query": "at least twice canonical greater than or equal 2 times keep equality"},
-      "evidence_tag": "#E1",
-      "depends_on": []
-    }
-  ]
-}
-Answer: B
-
-=== FEW-SHOT EXAMPLE 2 ===
-TASK:
-Problem: makeLargestSpecial fills the blank inside `specials.append(...)`; the shown continuation is `'1' + self.makeLargestSpecial(s[i + 1:j]) + '0')`, so a block is wrapped as `'1' + rec + '0'`.
-
-Solution A: `self.makeLargestSpecial(s[i + 1:j]) + '10'`
-Solution B: `'10' + self.makeLargestSpecial(s[i + 1:j]) + '0'`
-Solution C: `'1' + self.makeLargestSpecial(s[i + 1:j]) + '01'`
-Solution D: `'1' + self.makeLargestSpecial(s[i + 1:j]) + '0')`
-
-THOUGHT: The fill must reproduce the `'1' + rec + '0'` wrap and close the append() paren. A, B and C each mangle the wrap; D matches and closes the parenthesis. Confirm the wrap, then decide.
-{
-  "steps": [
-    {
-      "step_id": 1,
-      "plan": "Confirm the canonical `'1' + rec + '0'` wrap and pick the option that closes the append paren.",
-      "tool": "db_search",
-      "args": {"query": "makeLargestSpecial wrap '1' + recurse + '0' append"},
-      "evidence_tag": "#E1",
-      "depends_on": []
-    }
-  ]
-}
-Answer: D
-
-=== FEW-SHOT EXAMPLE 3 ===
-TASK:
-Problem: reachingPoints fills the first line of a two-line return; the shown second line is `sy == ty and sx <= tx and (tx - sx) % ty == 0`, so the fill is its mirror.
-
-Solution A: `sx == tx and sy < ty and (ty + sy) % tx == 0 or \\`
-Solution B: `sx == tx and sy <= ty and (sx - sy) % tx == 0 or \\`
-Solution C: `sx == tx and sy <= ty and (ty - sy) % tx == 0 or \\`
-Solution D: `sx == tx and sy < ty and (ty - sy) % tx == 0 or \\`
-
-THOUGHT: The canonical mirror is `sx == tx and sy <= ty and (ty - sy) % tx == 0`. A changes `<=`->`<` and `-`->`+`; B uses `(sx - sy)`; D changes `<=`->`<`. C matches exactly. Confirm the symmetry, then decide.
-{
-  "steps": [
-    {
-      "step_id": 1,
-      "plan": "Confirm the symmetric mirror `sx == tx and sy <= ty and (ty - sy) % tx == 0` and pick the matching option.",
-      "tool": "db_search",
-      "args": {"query": "reachingPoints symmetric return sy <= ty (ty - sy) % tx == 0 mirror"},
-      "evidence_tag": "#E1",
-      "depends_on": []
-    }
-  ]
-}
-Answer: C
-"""
-
+FEW_SHOT_AUTO_COT_MIDDLE_SOLVER = """### FILL_IN_THE_MIDDLE FEW-SHOT EXAMPLES (PLANNER, AUTO-COT) ###
+=== FEW-SHOT EXAMPLE 1 ===\nTASK:\nProblem: Given a family tree and genetic values for each node, find the smallest missing genetic value for each subtree.\n\nSolution A: Initializes ans with 1s.\nSolution B: Initializes ans with -1s.\nSolution C: Initializes ans with infinity.\nSolution D: Initializes ans with 0s.\n\n- Plan: 'Retrieve the canonical reference for initializing the ans array.'\n- Evidence: 'The canonical reference initializes ans with 1s, matching Solution A.'\n- Plan: 'Compare the behavior of each solution against the reference.'\n- Evidence: 'Only Solution A correctly initializes the ans array with 1s, which is consistent with the reference.'\n\nRESPONSE:\n{\n  \"thought\": \"Options B, C, and D initialize the ans array with incorrect values that change the behavior of the algorithm. Only Solution A correctly initializes the array with 1s, matching the reference.\",\n  \"response\": \"A\"\n}\nAnswer: Answer: A\n\n=== FEW-SHOT EXAMPLE 2 ===\nTASK:\nProblem: Calculate the sum of beauties for each element in the middle of an integer array, where beauty depends on comparisons with adjacent elements.\n\nSolution A: Initializes `minOfRight` as an array of zeros of length `n`.\nSolution B: Initializes `minOfRight` as an array of zeros of length `n-1` followed by the last element of `nums`.\nSolution C: Initializes `minOfRight` as an array of the last element of `nums` repeated `n` times.\nSolution D: Initializes `minOfRight` as an array of the first element of `nums` repeated `n-1` times followed by the last element.\n\n- Plan: 'Retrieve the canonical reference implementation for initializing the `minOfRight` array.'\n- Evidence: 'The canonical approach initializes `minOfRight` with zeros up to `n-1` and sets the last element to the last element of `nums`.'\n- Plan: 'Compare each solution option against the canonical implementation.'\n- Evidence: 'Only Solution B matches the canonical approach by initializing `minOfRight` correctly.'\n\nRESPONSE:\n{\n  \"thought\": \"Options A, C, and D either initialize `minOfRight` incorrectly or with values that do not align with the intended behavior, while Option B correctly initializes `minOfRight` as required.\",\n  \"response\": \"B\"\n}\nAnswer: Answer: B\n\n=== FEW-SHOT EXAMPLE 3 ===\nTASK:\nProblem: Calculate the total appeal of all substrings of a given string `s` where the appeal of a string is defined as the number of distinct characters in it.\n\nSolution A: Decreases `dp` by the difference between the current index and the last seen index of the character.\nSolution B: Increases `dp` by the sum of the current index and the last seen index of the character.\nSolution C: Increases `dp` by the difference between the last seen index of the character and the current index.\nSolution D: Increases `dp` by the difference between the current index and the last seen index of the character.\n\n- Plan: 'Retrieve the canonical reference implementation for calculating the total appeal of all substrings.'\n- Evidence: 'Canonical implementation involves updating `dp` based on the current index and the last occurrence of each character.'\n- Plan: 'Compare each option against the canonical implementation to identify the correct behavior.'\n- Evidence: 'Option D correctly implements the logic by adding the difference between the current index and the last seen index of the character to `dp`.'\n\nRESPONSE:\n{\n  \"thought\": \"Options A, B, and C alter the behavior incorrectly by either subtracting the wrong values or adding incorrect sums. Option D matches the canonical reference and correctly calculates the appeal.\",\n  \"response\": \"D\"\n}\nAnswer: Answer: D\n\n"""
 
 # =====================================================================================
 # SOLVER FEW-SHOT EXAMPLES
@@ -1634,8 +1495,10 @@ FEW_SHOT_REGISTRY = {
     "cot_middle": FEW_SHOT_COT_MIDDLE,
     "contrastive_cot_code": FEW_SHOT_CONTRASTIVE_COT_CODE,
     "contrastive_cot_middle": FEW_SHOT_CONTRASTIVE_COT_MIDDLE,
-    # "auto_cot_code": FEW_SHOT_AUTO_COT_CODE,
-    # "auto_cot_middle": FEW_SHOT_AUTO_COT_MIDDLE,
+    "auto_cot_code": FEW_SHOT_AUTO_COT_CODE,
+    "auto_cot_middle": FEW_SHOT_AUTO_COT_MIDDLE,
+    "solver_auto_cot_code":FEW_SHOT_AUTO_COT_CODE_SOLVER,
+    "solver_auto_cot_middle":FEW_SHOT_AUTO_COT_MIDDLE_SOLVER,
     "solver_cot_code": SOLVER_FEW_SHOT_COT_CODE,
     "solver_cot_middle": SOLVER_FEW_SHOT_COT_MIDDLE,
     "solver_contrastive_cot_code": SOLVER_FEW_SHOT_CONTRASTIVE_COT_CODE,
