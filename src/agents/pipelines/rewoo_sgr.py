@@ -1,14 +1,32 @@
-from typing import List, Union, Dict, Any, Type
-import logging
+from typing import Any, Dict, List, Optional, Type, Union
 import json
+import logging
 import re
+import traceback
 
-from pydantic import BaseModel, create_model, Field
-from openai import OpenAI
+from pydantic import BaseModel, Field, ValidationError, create_model
+
+from openai import (
+    OpenAI,
+    OpenAIError,
+    APIConnectionError,
+    APITimeoutError,
+    APIStatusError,
+    BadRequestError,
+    RateLimitError,
+)
+
+try:
+    from transformers import AutoTokenizer
+except Exception:
+    AutoTokenizer = None
 
 from src.agent_constructor.agent import Agent
 from src.agent_constructor.core import Text
 from src.tools import BaseTool, LLMTool
+
+
+MAX_SOLVER_EVIDENCE_CHARS = 4000
 
 
 PLANNER_PROMPT = """For the following task, make plans that can solve the problem step by step. For each plan, indicate \
@@ -1132,6 +1150,20 @@ FEW_SHOT_REGISTRY = {
 _LOG_SEPARATOR = f"\n{'_' * 20}\n"
 
 
+MAX_EVIDENCE_SUBSTITUTION_CHARS = 1500
+
+
+def _truncate_for_log_or_prompt(text: Any, max_chars: int, label: str) -> str:
+    text = str(text)
+
+    if len(text) <= max_chars:
+        return text
+
+    return (
+        text[:max_chars]
+        + f"\n...[TRUNCATED {label}: original_chars={len(text)}, kept_chars={max_chars}]"
+    )
+
 def _create_step_model(tools: List[BaseTool]) -> Type[BaseModel]:
     """Create dynamic Step model with proper tool argument types."""
     tool_args_types = [tool.args for tool in tools if hasattr(tool, 'args') and tool.args is not None]
@@ -1245,6 +1277,40 @@ class WorkerREWOOSGR(Agent):
         self.tools_dict = {t.name: t for t in self.tools}
         self.worker_evidences = {}
 
+    def _format_evidence_for_substitution(self, evidence_tag: str) -> str:
+        """
+        Full evidence stays in self.worker_evidences[evidence_tag]["tool_result"].
+
+        But when #E is substituted into the next tool input, we insert only
+        a bounded textual view to prevent exponential context growth.
+        """
+        evidence = self.worker_evidences.get(evidence_tag, {})
+
+        tool = evidence.get("tool", "unknown_tool")
+        tool_input = evidence.get("tool_input", "")
+        tool_result = str(evidence.get("tool_result", ""))
+
+        result_view = _truncate_for_log_or_prompt(
+            tool_result,
+            max_chars=MAX_EVIDENCE_SUBSTITUTION_CHARS,
+            label=f"FOR SUBSTITUTION evidence={evidence_tag}, tool={tool}",
+        )
+
+        logging.info(
+            f"WORKER SUBSTITUTION SIZE: "
+            f"evidence={evidence_tag}, "
+            f"tool={tool}, "
+            f"raw_chars={len(tool_result)}, "
+            f"used_chars={len(result_view)}"
+        )
+
+        return (
+            f"{evidence_tag} "
+            f"tool={tool}; "
+            f"tool_input={tool_input}; "
+            f"tool_result={result_view}"
+    )
+
     def _get_expected_args(self, tool: BaseTool) -> List[str]:
         """Get expected argument names for a tool."""
         if hasattr(tool, 'args') and tool.args is not None and hasattr(tool.args, '__annotations__'):
@@ -1263,25 +1329,66 @@ class WorkerREWOOSGR(Agent):
         except Exception as e:
             return f"Error executing tool {tool_name}: {str(e)}"
     
-    def _substitute_evidence_variables(self, tool_input: Union[Dict[str, Any], str], depends_on: List[str] = None) -> Union[Dict[str, Any], str]:
-        """Replace evidence variables (#E1, #E2, etc.) with actual tool_result values.
+    # def _substitute_evidence_variables(self, tool_input: Union[Dict[str, Any], str], depends_on: List[str] = None) -> Union[Dict[str, Any], str]:
+    #     """Replace evidence variables (#E1, #E2, etc.) with actual tool_result values.
         
-        If depends_on is provided, only substitute variables that are in the depends_on list.
-        This ensures that steps only access evidence they explicitly depend on.
+    #     If depends_on is provided, only substitute variables that are in the depends_on list.
+    #     This ensures that steps only access evidence they explicitly depend on.
+    #     """
+    #     if isinstance(tool_input, str):
+    #         for var in re.findall(r"#E\d+", tool_input):
+    #             if depends_on is None or var in depends_on:
+    #                 if var in self.worker_evidences:
+    #                     tool_input = tool_input.replace(
+    #                         var, f"[{self.worker_evidences[var]['tool_result']}]"
+    #                     )
+    #         return tool_input
+    #     elif isinstance(tool_input, dict):
+    #         return {
+    #             key: self._substitute_evidence_variables(value, depends_on) 
+    #             for key, value in tool_input.items()
+    #         }
+    #     return tool_input
+
+    def _substitute_evidence_variables(
+        self,
+        tool_input: Union[Dict[str, Any], List[Any], str],
+        depends_on: List[str] = None,
+    ) -> Union[Dict[str, Any], List[Any], str]:
         """
+        Substitute #E variables in tool_input.
+
+        Important:
+        - raw evidence is NOT modified;
+        - only the representation inserted into the next tool input is truncated.
+        """
+
         if isinstance(tool_input, str):
             for var in re.findall(r"#E\d+", tool_input):
-                if depends_on is None or var in depends_on:
-                    if var in self.worker_evidences:
-                        tool_input = tool_input.replace(
-                            var, f"[{self.worker_evidences[var]['tool_result']}]"
-                        )
+                if depends_on is not None and var not in depends_on:
+                    continue
+
+                if var not in self.worker_evidences:
+                    logging.warning(f"Evidence variable {var} not found during substitution.")
+                    continue
+
+                replacement = self._format_evidence_for_substitution(var)
+                tool_input = tool_input.replace(var, f"[{replacement}]")
+
             return tool_input
-        elif isinstance(tool_input, dict):
+
+        if isinstance(tool_input, dict):
             return {
-                key: self._substitute_evidence_variables(value, depends_on) 
+                key: self._substitute_evidence_variables(value, depends_on)
                 for key, value in tool_input.items()
             }
+
+        if isinstance(tool_input, list):
+            return [
+                self._substitute_evidence_variables(item, depends_on)
+                for item in tool_input
+            ]
+
         return tool_input
 
     def run(self, plan) -> Dict[str, Any]:
@@ -1302,13 +1409,25 @@ class WorkerREWOOSGR(Agent):
 
             tool_result = self.execute_tool(tool_name, tool_input)
 
+            # self.worker_evidences[evidence_tag] = {
+            #     "tool": tool_name,
+            #     "tool_input": tool_input,
+            #     "tool_result": tool_result,
+            # }
+
             self.worker_evidences[evidence_tag] = {
                 "tool": tool_name,
                 "tool_input": tool_input,
-                "tool_result": tool_result,
+                "tool_result": tool_result,  # full raw result is preserved
             }
 
-        logging.info(f"WORKER EVIDENCES:\n\n{json.dumps(self.worker_evidences, indent=4)}")
+        logging.info(
+            f"WORKER EVIDENCE SIZE: "
+            f"evidence={evidence_tag}, "
+            f"tool={tool_name}, "
+            f"tool_result_chars={len(str(tool_result))}"
+        )
+        # logging.info(f"WORKER EVIDENCES:\n\n{json.dumps(self.worker_evidences, indent=4)}")
         logging.info(_LOG_SEPARATOR)
         return self.worker_evidences
 
@@ -1490,3 +1609,416 @@ class SolverREWOOSGR(Agent):
         logging.info(_LOG_SEPARATOR)
         
         return parsed_result.response
+
+
+# def count_tokens_approx(text: str, model_name: Optional[str] = None) -> int:
+#     """
+#     Fallback token counter.
+
+#     Used only when the real model tokenizer is unavailable.
+#     For Qwen/Llama/Mistral this is less accurate than AutoTokenizer.
+#     """
+#     text = str(text)
+
+#     try:
+#         import tiktoken
+
+#         try:
+#             enc = tiktoken.encoding_for_model(model_name or "")
+#         except Exception:
+#             enc = tiktoken.get_encoding("cl100k_base")
+
+#         return len(enc.encode(text))
+
+#     except Exception:
+#         return max(1, len(text) // 4)
+
+
+# def truncate_text(text: Any, max_chars: int, label: str = "text") -> str:
+#     text = str(text)
+
+#     if len(text) <= max_chars:
+#         return text
+
+#     return (
+#         text[:max_chars]
+#         + f"\n...[TRUNCATED {label}: original_chars={len(text)}, kept_chars={max_chars}]"
+#     )
+
+
+# class SolverResponse(BaseModel):
+#     thought: str = Field(
+#         description="Brief reasoning summary before writing the final solution."
+#     )
+#     response: str = Field(
+#         description="The final direct answer, code snippet, or solution with no extra conversational words."
+#     )
+
+
+# class SolverLLMError(RuntimeError):
+#     pass
+
+
+# class SolverREWOOSGR(Agent):
+
+#     def __init__(
+#         self,
+#         url: str = None,
+#         model_name: str = None,
+#         name: str = "rewoo_solver_agent",
+#         temperature: float = 0.0,
+#         few_shot_type: str = "zero_shot",
+#         max_prompt_preview_chars: int = 5000,
+#         raise_on_llm_error: bool = True,
+#         max_solver_evidence_chars: int = MAX_SOLVER_EVIDENCE_CHARS,
+#         max_output_tokens: int = 1200,
+#     ):
+#         super().__init__(name)
+
+#         self.client = OpenAI(base_url=url, api_key="vllm")
+#         self.model_name = model_name
+#         self.temperature = temperature
+#         self.prompt = SOLVER_PROMPT
+
+#         self.max_prompt_preview_chars = max_prompt_preview_chars
+#         self.raise_on_llm_error = raise_on_llm_error
+#         self.max_solver_evidence_chars = max_solver_evidence_chars
+#         self.max_output_tokens = max_output_tokens
+
+#         if few_shot_type not in FEW_SHOT_REGISTRY:
+#             raise ValueError(
+#                 f"Unknown few_shot_type: {few_shot_type}. "
+#                 f"Available: {list(FEW_SHOT_REGISTRY.keys())}"
+#             )
+
+#         self.few_shot_examples = FEW_SHOT_REGISTRY[few_shot_type]
+
+#         self.tokenizer = None
+#         self._init_tokenizer()
+
+#         logging.warning("SOLVER_VERSION=minimal_context_guard_v1")
+#         logging.warning(f"SOLVER_MODEL={self.model_name}")
+#         logging.warning(
+#             f"SOLVER_LIMITS: "
+#             f"max_solver_evidence_chars={self.max_solver_evidence_chars}, "
+#             f"max_output_tokens={self.max_output_tokens}"
+#         )
+
+#     def _init_tokenizer(self) -> None:
+#         """
+#         Load the real tokenizer for the model.
+
+#         This is important for Qwen/Qwen2.5 models because tiktoken can be
+#         very inaccurate for them.
+#         """
+#         if AutoTokenizer is None:
+#             logging.warning(
+#                 "AutoTokenizer is not available. "
+#                 "Falling back to approximate token counter."
+#             )
+#             return
+
+#         if not self.model_name:
+#             logging.warning(
+#                 "model_name is None. "
+#                 "Falling back to approximate token counter."
+#             )
+#             return
+
+#         try:
+#             self.tokenizer = AutoTokenizer.from_pretrained(
+#                 self.model_name,
+#                 trust_remote_code=True,
+#             )
+#             logging.info(f"Loaded tokenizer for {self.model_name}")
+
+#         except Exception as exc:
+#             self.tokenizer = None
+#             logging.warning(
+#                 f"Failed to load tokenizer for {self.model_name}. "
+#                 f"Fallback to tiktoken. "
+#                 f"Error: {type(exc).__name__}: {exc}"
+#             )
+
+#     def _count_tokens(self, text: str) -> int:
+#         """
+#         Count prompt tokens using the model tokenizer if available.
+
+#         apply_chat_template is used because the actual request is sent as:
+#             messages=[{"role": "user", "content": prompt}]
+
+#         So the model sees chat-template special tokens too.
+#         """
+#         text = str(text)
+
+#         if self.tokenizer is not None:
+#             try:
+#                 messages = [{"role": "user", "content": text}]
+
+#                 return len(
+#                     self.tokenizer.apply_chat_template(
+#                         messages,
+#                         tokenize=True,
+#                         add_generation_prompt=True,
+#                     )
+#                 )
+
+#             except Exception:
+#                 try:
+#                     return len(self.tokenizer.encode(text))
+#                 except Exception:
+#                     pass
+
+#         return count_tokens_approx(text, self.model_name)
+
+#     def _log_prompt_stats(self, full_prompt: str, stage: str) -> None:
+#         prompt_chars = len(full_prompt)
+#         prompt_tokens = self._count_tokens(full_prompt)
+
+#         logging.info(
+#             f"{stage} PROMPT STATS: "
+#             f"chars={prompt_chars}, "
+#             f"tokens={prompt_tokens}, "
+#             f"model={self.model_name}"
+#         )
+#         logging.info(_LOG_SEPARATOR)
+
+#         logging.info(
+#             f"{stage} PROMPT PREVIEW BEFORE LLM "
+#             f"(first {self.max_prompt_preview_chars} chars):\n\n"
+#             f"{full_prompt[:self.max_prompt_preview_chars]}"
+#         )
+#         logging.info(_LOG_SEPARATOR)
+
+#     def llm(self, prompt: str) -> SolverResponse:
+#         """
+#         LLM call with structured response validation.
+
+#         max_tokens is explicitly set because vLLM/OpenAI-compatible servers
+#         may otherwise behave unexpectedly.
+#         """
+#         response = self.client.chat.completions.parse(
+#             model=self.model_name,
+#             messages=[{"role": "user", "content": prompt}],
+#             temperature=self.temperature,
+#             max_tokens=self.max_output_tokens,
+#             response_format=SolverResponse,
+#         )
+
+#         parsed = response.choices[0].message.parsed
+
+#         if parsed is None:
+#             raw_content = response.choices[0].message.content
+#             raise SolverLLMError(
+#                 "LLM returned no parsed SolverResponse. "
+#                 f"Raw content preview: {str(raw_content)[:1000]}"
+#             )
+
+#         return parsed
+
+#     def _get_steps(self, plan):
+#         if hasattr(plan, "steps"):
+#             return plan.steps
+
+#         if isinstance(plan, dict):
+#             return plan.get("steps", [])
+
+#         return []
+
+#     def _get_step_fields(self, step):
+#         if isinstance(step, dict):
+#             return (
+#                 step.get("plan"),
+#                 step.get("evidence_tag"),
+#                 step.get("tool"),
+#             )
+
+#         return (
+#             getattr(step, "plan", None),
+#             getattr(step, "evidence_tag", None),
+#             getattr(step, "tool", None),
+#         )
+
+#     def _get_evidence_result_for_solver(
+#         self,
+#         evidencies,
+#         evidence_tag,
+#         tool_name=None,
+#     ) -> str:
+#         """
+#         Returns a bounded evidence representation for Solver prompt.
+
+#         Important:
+#         - raw evidence in evidencies is not changed;
+#         - only the text inserted into Solver prompt is truncated.
+#         """
+#         evidence = (evidencies or {}).get(evidence_tag, {})
+
+#         if not evidence:
+#             return "No evidence available"
+
+#         raw_evidence_result = evidence.get("tool_result", "No evidence available")
+#         raw_evidence_result = str(raw_evidence_result)
+
+#         evidence_result = truncate_text(
+#             raw_evidence_result,
+#             max_chars=self.max_solver_evidence_chars,
+#             label=f"FOR SOLVER evidence={evidence_tag}, tool={tool_name}",
+#         )
+
+#         logging.info(
+#             f"SOLVER EVIDENCE SIZE: "
+#             f"evidence={evidence_tag}, "
+#             f"tool={tool_name}, "
+#             f"raw_chars={len(raw_evidence_result)}, "
+#             f"used_chars={len(evidence_result)}"
+#         )
+
+#         return evidence_result
+
+#     def _build_completed_plan_str(self, plan, evidencies) -> str:
+#         """
+#         Build completed ReWOO plan for Solver.
+
+#         Minimal context guard:
+#         each evidence inserted into Solver prompt is capped at
+#         self.max_solver_evidence_chars.
+#         """
+#         completed_plan = []
+#         steps = self._get_steps(plan)
+
+#         for step in steps:
+#             step_descr, evidence_tag, tool_name = self._get_step_fields(step)
+
+#             evidence_result = self._get_evidence_result_for_solver(
+#                 evidencies=evidencies,
+#                 evidence_tag=evidence_tag,
+#                 tool_name=tool_name,
+#             )
+
+#             completed_plan.append(
+#                 f"\t- Plan: '{step_descr}'\n"
+#                 f"\t- Tool: '{tool_name}'\n"
+#                 f"\t- Evidence tag: '{evidence_tag}'\n"
+#                 f"\t- Evidence: '{evidence_result}'"
+#             )
+
+#         return "\n".join(completed_plan)
+
+#     def _handle_llm_error(self, exc: Exception, full_prompt: str, stage: str) -> str:
+#         prompt_chars = len(full_prompt)
+#         prompt_tokens = self._count_tokens(full_prompt)
+
+#         logging.error(
+#             f"{stage} LLM CALL FAILED: "
+#             f"type={type(exc).__name__}, "
+#             f"chars={prompt_chars}, "
+#             f"tokens={prompt_tokens}, "
+#             f"model={self.model_name}"
+#         )
+#         logging.error(_LOG_SEPARATOR)
+
+#         logging.error(f"{stage} LLM ERROR MESSAGE:\n{str(exc)}")
+#         logging.error(_LOG_SEPARATOR)
+
+#         logging.error(f"{stage} TRACEBACK:\n{traceback.format_exc()}")
+#         logging.error(_LOG_SEPARATOR)
+
+#         if isinstance(exc, BadRequestError):
+#             logging.error(
+#                 f"{stage} BAD REQUEST. "
+#                 f"Possible context length / input_tokens / schema issue. "
+#                 f"Prompt tokens={prompt_tokens}."
+#             )
+
+#         elif isinstance(exc, APITimeoutError):
+#             logging.error(f"{stage} TIMEOUT while calling LLM.")
+
+#         elif isinstance(exc, APIConnectionError):
+#             logging.error(f"{stage} CONNECTION ERROR while calling LLM.")
+
+#         elif isinstance(exc, RateLimitError):
+#             logging.error(f"{stage} RATE LIMIT ERROR while calling LLM.")
+
+#         elif isinstance(exc, APIStatusError):
+#             logging.error(
+#                 f"{stage} API STATUS ERROR: "
+#                 f"status_code={getattr(exc, 'status_code', None)}"
+#             )
+
+#         elif isinstance(exc, ValidationError):
+#             logging.error(f"{stage} STRUCTURED OUTPUT VALIDATION ERROR.")
+
+#         elif isinstance(exc, SolverLLMError):
+#             logging.error(f"{stage} SOLVER PARSE ERROR.")
+
+#         if self.raise_on_llm_error:
+#             raise exc
+
+#         return (
+#             "ERROR: Solver LLM call failed. "
+#             f"type={type(exc).__name__}; "
+#             f"tokens={prompt_tokens}; "
+#             f"chars={prompt_chars}. "
+#             "See logs for prompt preview and traceback."
+#         )
+
+#     def run(self, task, plan, evidencies, critic_feedback=None):
+#         stage = "SOLVER_AFTER_CRITIC" if critic_feedback else "SOLVER_INITIAL"
+
+#         logging.warning("ENTERED UPDATED SolverREWOOSGR.run minimal_context_guard_v1")
+
+#         completed_plan_str = self._build_completed_plan_str(plan, evidencies)
+
+#         if critic_feedback is not None:
+#             completed_plan_str += "\nCritic: " + str(critic_feedback)
+
+#         solve_prompt = self.prompt.replace("{plan}", completed_plan_str).replace(
+#             "{task}", str(task)
+#         )
+
+#         full_prompt = self.few_shot_examples + "\n\n" + solve_prompt
+
+#         logging.info(f"{stage} FEW_SHOT_CHARS={len(self.few_shot_examples)}")
+#         logging.info(f"{stage} COMPLETED_PLAN_CHARS={len(completed_plan_str)}")
+#         logging.info(f"{stage} TASK_CHARS={len(str(task))}")
+#         logging.info(f"{stage} HAS_CRITIC={critic_feedback is not None}")
+#         logging.info(_LOG_SEPARATOR)
+
+#         # Important: log prompt stats BEFORE LLM call.
+#         self._log_prompt_stats(full_prompt, stage)
+
+#         try:
+#             parsed_result = self.llm(full_prompt)
+
+#         except (
+#             BadRequestError,
+#             APITimeoutError,
+#             APIConnectionError,
+#             RateLimitError,
+#             APIStatusError,
+#             ValidationError,
+#             SolverLLMError,
+#             OpenAIError,
+#             Exception,
+#         ) as exc:
+#             return self._handle_llm_error(exc, full_prompt, stage)
+
+#         logging.info(f"{stage} SOLVE PROMPT FULL:\n\n{full_prompt}")
+#         logging.info(_LOG_SEPARATOR)
+
+#         logging.info(
+#             f"{stage} SOLVER REASONING SUMMARY:\n\n"
+#             f"{parsed_result.thought}"
+#         )
+#         logging.info(_LOG_SEPARATOR)
+
+#         log_msg = "FINAL ANSWER AFTER CRITIC" if critic_feedback else "FINAL ANSWER"
+
+#         logging.info(
+#             f"{stage} {log_msg} (RESPONSE ONLY):\n\n"
+#             f"{parsed_result.response}"
+#         )
+#         logging.info(_LOG_SEPARATOR)
+
+#         return parsed_result.response
