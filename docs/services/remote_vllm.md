@@ -1,52 +1,87 @@
 # Запуск vLLM на удалённом кластере
 Чтобы настроить у себя доступ, нужно:
 
-## 1. Добавить SSH конфиги
+## 1. Настроить SSH-доступ к кластеру
 
-### Windows/MacOS/Linux
+### Шаг 1.1. Добавить хост кластера в ssh-config
 
-#### (НЕ АКТУАЛЬНО используем логин/пароль) 1.1. Добавить в свой ssh-config (~/.ssh/config) вот это
+Открыть (или создать) файл `~/.ssh/config` и добавить туда:
 
 ```
 Host mipt_aigrant_cluster
   HostName proxy2.cod.phystech.edu
   Port 10209
-  User mipt-user
-  IdentityFile ~/.ssh/mipt/rsa_asap
+  User <username>
+  IdentityFile ~/.ssh/mipt/opt_mipt
   IdentitiesOnly yes
-
-Host mipt_aigrant_asap
-  HostName 127.0.0.1
-  Port 2222
-  User dev
-  ProxyJump mipt_aigrant_cluster
-  IdentityFile ~/.ssh/mipt/rsa_asap
-  IdentitiesOnly yes
-  ServerAliveInterval 30
-  ServerAliveCountMax 4
-  HostKeyAlias mipt_aigrant_asap
-  LocalForward localhost:3000 172.18.0.2:3000
-  LocalForward localhost:3001 172.18.0.2:3001
-
-Host mipt_aigrant_recipe
-  HostName 127.0.0.1
-  Port 2223
-  User dev
-  ProxyJump mipt_aigrant_cluster
-  IdentityFile ~/.ssh/mipt/rsa_asap
-  IdentitiesOnly yes
-  ServerAliveInterval 30
-  ServerAliveCountMax 4
-  HostKeyAlias mipt_aigrant_asap
-  LocalForward localhost:3002 0.0.0.0:3002
-  LocalForward localhost:3003 0.0.0.0:3003
+  ServerAliveInterval 60
+  ServerAliveCountMax 3
+  TCPKeepAlive yes
+  Compression yes
 ```
 
-#### 1.2. Добавить файл с ключом в папку `~/.ssh/mipt/rsa_asap`. 
+`<username>` — ваш логин на кластере.
 
-Ключ можно найти в общем тг канале исследования. 
-Либо попросить у tg: @german_deer
+С таким конфигом подключение уже работает, но при каждом `ssh` придётся вводить пароль пользователя. Чтобы этого избежать, нужно сгенерировать пару SSH-ключей (шаги 1.2–1.4).
 
+### Шаг 1.2. Сгенерировать пару SSH-ключей
+
+Пара состоит из приватного ключа (хранится только на вашем компьютере, никому не передаётся) и публичного (кладётся на сервер). Рекомендуемый алгоритм — `ed25519`:
+
+```shell
+ssh-keygen -t ed25519 -f ~/.ssh/opt_mipt
+```
+
+Команда создаст два файла:
+
+- `~/.ssh/opt_mipt` — приватный ключ;
+- `~/.ssh/opt_mipt.pub` — публичный ключ.
+
+> **NOTE:** При генерации будет предложено задать пароль (passphrase) на приватный ключ. Это необязательно, но рекомендуется для дополнительной защиты.
+
+### Шаг 1.3. Скопировать публичный ключ на сервер
+
+Проще всего через `ssh-copy-id` (потребуется один раз ввести пароль пользователя):
+
+```shell
+ssh-copy-id -i ~/.ssh/opt_mipt -p 10209 <username>@proxy2.cod.phystech.edu
+```
+
+Порт зависит от выданного вам узла — это может быть `10209`, `10096` или `10210`.
+
+Команда сама добавит содержимое публичного ключа в `~/.ssh/authorized_keys` на сервере.
+
+**Альтернатива, если `ssh-copy-id` недоступен** (например, на Windows) — скопировать ключ вручную:
+
+```shell
+# 1. Показать содержимое публичного ключа и скопировать его
+cat ~/.ssh/opt_mipt.pub
+
+# 2. Подключиться к серверу по паролю
+ssh -p 10209 <username>@proxy2.cod.phystech.edu
+
+# 3. Уже на сервере — добавить ключ и выставить права
+mkdir -p ~/.ssh
+echo "ваш_публичный_ключ" >> ~/.ssh/authorized_keys
+chmod 600 ~/.ssh/authorized_keys
+chmod 700 ~/.ssh
+```
+
+### Шаг 1.4. Положить ключ туда, где его ждёт конфиг
+
+В конфиге из шага 1.1 указан путь `~/.ssh/mipt/opt_mipt`, поэтому переносим ключи в папку `~/.ssh/mipt`:
+
+```shell
+mkdir -p ~/.ssh/mipt
+mv ~/.ssh/opt_mipt ~/.ssh/opt_mipt.pub ~/.ssh/mipt/
+chmod 600 ~/.ssh/mipt/opt_mipt
+```
+
+После этого подключение проходит без ввода пароля:
+
+```shell
+ssh mipt_aigrant_cluster
+```
 
 ## 2. Подключиться к контейнеру на кластере 
 
