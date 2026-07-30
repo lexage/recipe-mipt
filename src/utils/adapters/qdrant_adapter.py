@@ -22,7 +22,8 @@ class QdrantDocsAdapter:
     
     def __init__(self, embedder: Agent, collection_name: str, path_to_db: str,
                  embed_batch_size: int = 64, num_workers: int = 4,
-                 max_embed_chars: int = 60000, embed_max_items: int = 256):
+                 max_embed_chars: int = 8000, embed_max_items: int = 256,
+                 max_text_chars: int = 8000):
 
         self.client = QdrantClient(path=path_to_db)
         self.embedder = embedder
@@ -30,10 +31,13 @@ class QdrantDocsAdapter:
         self.batch_size = 10
         self.embed_batch_size = int(embed_batch_size)   # texts per embedder call
         self.num_workers = int(num_workers)             # parallel embedder calls
-        # Guard the embedder's context limit: truncate any single text longer than
-        # max_embed_chars, and pack a request until either its total chars reach
-        # max_embed_chars or it holds embed_max_items texts (whichever first), so a
-        # batch never overflows the model's max token length.
+        # Two independent guards for the embedder's context limit:
+        #  - max_text_chars: hard cap on a SINGLE input. Chars <= tokens always
+        #    (BPE tokens are >= 1 char), so 8000 chars is guaranteed < an 8192-token
+        #    context regardless of tokenization density. This is the real limit.
+        #  - max_embed_chars / embed_max_items: how many (already-capped) texts to
+        #    pack into one request — a throughput knob, not a safety limit.
+        self.max_text_chars = int(max_text_chars)
         self.max_embed_chars = int(max_embed_chars)
         self.embed_max_items = int(embed_max_items)
         self.sparse_embedder = SparseTextEmbedding(
@@ -70,7 +74,7 @@ class QdrantDocsAdapter:
                 wchunks = chunks[w:w + window]
                 # Truncate over-long texts so no single input exceeds the embedder
                 # context; the stored payload keeps the full text.
-                wtexts = [(c.text or "")[:self.max_embed_chars] for c in wchunks]
+                wtexts = [(c.text or "")[:self.max_text_chars] for c in wchunks]
 
                 # dense: parallel char-budgeted batched calls (order preserved)
                 subs = self._char_batches(wtexts, self.max_embed_chars,

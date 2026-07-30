@@ -1,0 +1,74 @@
+type: SIMPLE
+
+# === ЭКСПЕРИМЕНТ 11: перегон code2doc (в exp10 упал на эмбеддинге, лимит 8192) ===
+# Конфиг: simple_example_gen_code2doc
+#   Оракул: перефраз reference_code ds1000 + текстовое описание, СКЛЕЕНЫ в 1 док
+#   (описание+код), N доков на задачу -> examples.
+#   Индекс = базовые examples + сген. доки (keep_source_docs: True). vs pure_examples.
+#   Свежий индекс vdb_exp11. Требует фикс qdrant_adapter (max_text_chars=8000).
+#   БД: data/docs_database_examples.db
+
+params:
+  top_k: 5
+  keep_source_docs: True
+
+components:
+
+  embedder:
+    type: EMBEDDING_AGENT
+    params:
+      name: embedder
+      url: "http://0.0.0.0:7216/v1"
+      model_name: "Qwen/Qwen3-Embedding-4B"
+
+  data_base:
+    type: LOCAL_DB
+    params:
+      path_to_db: "data/docs_database_examples.db"
+      path_to_vector_db: "data/vdb_exp11/simple_example_gen_code2doc"
+      collection_name: "docs"
+      index_sources: ["examples"]
+      return_full_docs: False
+      return_examples: False
+      merge_examples: False
+
+  chunker:
+    type: RECURSIVE_CHUNKER
+    params:
+      name: chunker
+      max_chunk_size: 1000
+
+  generator:
+    type: CODE_TO_DOC_GENERATOR
+    params:
+      name: code2doc_generator
+      url: "http://0.0.0.0:7215/v1"
+      model_name: "Qwen/Qwen2.5-32B-Instruct"
+      dataset_path: "data/ds1000/ds1000.jsonl.gz"
+      n_paraphrases: 3
+      num_workers: 4
+      temperature: 0.6
+      output_source: "examples"
+
+  context_assembler:
+    type: CORAG_CONTEXT_ASSEMBLER
+    params:
+      name: corag_assembler
+
+  retriever:
+    type: SIMPLE_RETRIEVER
+    params:
+      name: simple_retriever
+
+  agent:
+    type: DS1000_SOLVER_AGENT
+    params:
+      name: ds1000_solver
+      url: "http://0.0.0.0:7215/v1"
+      model_name: "Qwen/Qwen2.5-32B-Instruct"
+      api: chat
+      context_after_task: False
+      temperature: 0.2
+      top_p: 0.95
+      max_tokens: 1024
+      stop_tokens: ["</code>", "# SOLUTION END"]
