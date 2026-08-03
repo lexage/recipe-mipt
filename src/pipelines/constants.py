@@ -154,6 +154,9 @@ class ComponentNames(Enum):
     CODE_TO_DOC_GENERATOR = "src.generation.code2doc.CodeToDocGenerator"
     CODE_TO_TASK_GENERATOR = "src.generation.code2task.CodeToTaskGenerator"
 
+    # ===== Generators: experiment 13 — RAG guide generation (deployable) =====
+    RAG_GUIDE_GENERATOR = "src.generation.rag_guides.RagGuideGenerator"
+
     # ===== TOOLS =====
     DB_SEARCH_TOOL = "src.tools.DBSearchTool"
     LLM_TOOL = "src.tools.LLMTool"

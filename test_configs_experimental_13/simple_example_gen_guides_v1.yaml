@@ -1,0 +1,95 @@
+type: SIMPLE
+
+# === ЭКСПЕРИМЕНТ 13: метод генерации RAG-гайдов (внедряемый, без бенчмарка) ===
+# Конфиг: simple_example_gen_guides_v1 — исходная БД + RagGuideGenerator(policy=v1).
+#   Генератор на этапе билда порождает из корпуса ~400 guide-доков (инструкции
+#   формата / migration-заметки release-notes-стилем / Q&A-рецепты) — попытка
+#   автоматически воспроизвести ручную БД aug (v1).
+# Сравнивать с: simple_example_pure_aug (exp12, ручная v1-БД) и pure_aug_v2 (конфиг 1).
+# БД: data/docs_database_examples.db (оригинал)
+
+params:
+  top_k: 5
+  keep_source_docs: True
+
+components:
+
+  embedder:
+    type: EMBEDDING_AGENT
+    params:
+      name: embedder
+      url: "http://0.0.0.0:7216/v1"
+      model_name: "Qwen/Qwen3-Embedding-4B"
+
+  data_base:
+    type: LOCAL_DB
+    params:
+      path_to_db: "data/docs_database_examples.db"
+      path_to_vector_db: "data/vdb_exp13_gen_v1_rc_1000"
+      collection_name: "docs"
+
+      return_examples: True
+      return_full_docs: False
+      merge_examples: True
+
+      hnsw_space: "cosine"
+      hnsw_m: 16
+      hnsw_construction_ef: 400
+      hnsw_search_ef: 200
+      batch_size: 16
+
+      search_filter:
+        source: "documents"
+
+  chunker:
+    type: RECURSIVE_CHUNKER
+    params:
+      name: chunker
+      max_chunk_size: 1000
+
+  generator:
+    type: RAG_GUIDE_GENERATOR
+    params:
+      name: rag_guide_generator
+      url: "http://0.0.0.0:7215/v1"
+      model_name: "Qwen/Qwen2.5-32B-Instruct"
+      policy: "v1"
+      n_format_docs: 25
+      n_migration_docs: 60
+      n_recipe_docs: 320
+      num_workers: 8
+      temperature: 0.6
+
+  context_assembler:
+    type: CORAG_CONTEXT_ASSEMBLER
+    params:
+      name: simple_assembler
+
+  retriever:
+    type: SIMPLE_RETRIEVER
+    params:
+      name: simple_retriever
+
+  enchancer:
+    type: QUERY_GENERATOR
+    params:
+      name: query_gen
+      url: "http://0.0.0.0:7215/v1"
+      model_name: "Qwen/Qwen2.5-32B-Instruct"
+      options: 1
+
+  agent:
+    type: DS1000_SOLVER_AGENT
+    params:
+      name: ds1000_solver
+
+      url: "http://0.0.0.0:7215/v1"
+      model_name: "Qwen/Qwen2.5-32B-Instruct"
+
+      api: chat
+      context_after_task: False
+
+      temperature: 0.2
+      top_p: 0.95
+      max_tokens: 1024
+      stop_tokens: ["</code>", "# SOLUTION END"]
