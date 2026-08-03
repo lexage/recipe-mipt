@@ -4,6 +4,7 @@ import tempfile
 import types
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 # src.tools exposes LLMTool, whose optional client is irrelevant to these tests.
 openai_stub = types.ModuleType("openai")
@@ -16,6 +17,7 @@ from src.tools import (  # noqa: E402
     ListFilesTool,
     ReadFileTool,
     RepositoryContext,
+    RepositoryPathError,
     RunCommandTool,
     SearchCodeTool,
     bind_repository_context,
@@ -64,6 +66,20 @@ class RepositoryToolsTests(unittest.TestCase):
         self.assertNotIn(".git", output)
         self.assertNotIn(".secret", output)
 
+    def test_list_files_honors_depth_and_entry_limits(self) -> None:
+        nested = self.root / "src" / "nested"
+        nested.mkdir()
+        (nested / "deep.py").write_text("pass\n")
+        (self.root / "another.py").write_text("pass\n")
+        with bind_repository_context(self.context):
+            shallow = ListFilesTool(max_depth=1)("src")
+            bounded = ListFilesTool(max_entries=1)(".")
+            not_directory = ListFilesTool()("src/calculator.py")
+        self.assertIn("nested/", shallow)
+        self.assertNotIn("deep.py", shallow)
+        self.assertIn("output truncated", bounded)
+        self.assertIn("not a directory", not_directory)
+
     def test_read_file_returns_numbered_range_and_rejects_binary(self) -> None:
         (self.root / "binary.dat").write_bytes(b"a\x00b")
         with bind_repository_context(self.context):
@@ -72,12 +88,48 @@ class RepositoryToolsTests(unittest.TestCase):
         self.assertIn("2 |     return left - right", output)
         self.assertIn("Binary file", binary)
 
+    def test_read_file_enforces_ranges_size_and_utf8(self) -> None:
+        (self.root / "large.txt").write_text("too large")
+        (self.root / "invalid.txt").write_bytes(b"\xff\xfe")
+        with bind_repository_context(self.context):
+            invalid_range = ReadFileTool()("src/calculator.py", 3, 2)
+            limited = ReadFileTool(max_lines=1)("src/calculator.py", 1, 20)
+            large = ReadFileTool(max_file_bytes=2)("large.txt")
+            invalid_utf8 = ReadFileTool()("invalid.txt")
+        self.assertIn("Invalid line range", invalid_range)
+        self.assertIn("Lines: 1-1", limited)
+        self.assertIn("too large", large)
+        self.assertIn("not valid UTF-8", invalid_utf8)
+
     def test_search_code_supports_literal_queries_and_globs(self) -> None:
         with bind_repository_context(self.context):
             output = SearchCodeTool()("left - right", glob="*.py")
             missing = SearchCodeTool()("not present")
         self.assertIn("src/calculator.py:2", output)
         self.assertEqual(missing, "No matches found")
+
+    def test_search_code_supports_regex_and_truncates_results(self) -> None:
+        (self.root / "src" / "second.py").write_text("left + right\nleft * right\n")
+        with bind_repository_context(self.context):
+            output = SearchCodeTool(max_results=1)(
+                r"left . right", glob="*.py", regex=True
+            )
+        self.assertIn("src/", output)
+        self.assertIn("output truncated", output)
+
+    def test_search_code_reports_missing_binary_and_timeout(self) -> None:
+        with bind_repository_context(self.context):
+            with patch(
+                "src.tools.search_code.subprocess.run", side_effect=FileNotFoundError
+            ):
+                missing = SearchCodeTool()("value")
+            with patch(
+                "src.tools.search_code.subprocess.run",
+                side_effect=subprocess.TimeoutExpired(["rg"], 1),
+            ):
+                timeout = SearchCodeTool(timeout=1)("value")
+        self.assertIn("not installed", missing)
+        self.assertIn("timed out", timeout)
 
     def test_apply_patch_checks_and_applies_diff(self) -> None:
         patch = """diff --git a/src/calculator.py b/src/calculator.py
@@ -106,12 +158,71 @@ class RepositoryToolsTests(unittest.TestCase):
             result = ApplyPatchTool()(patch)
         self.assertIn("Patch rejected", result)
 
+    def test_apply_patch_creates_and_deletes_files(self) -> None:
+        create_patch = """diff --git a/new.py b/new.py
+new file mode 100644
+--- /dev/null
++++ b/new.py
+@@ -0,0 +1 @@
++created = True
+"""
+        delete_patch = """diff --git a/src/calculator.py b/src/calculator.py
+deleted file mode 100644
+--- a/src/calculator.py
++++ /dev/null
+@@ -1,2 +0,0 @@
+-def add(left, right):
+-    return left - right
+"""
+        with bind_repository_context(self.context):
+            created = ApplyPatchTool()(create_patch)
+            deleted = ApplyPatchTool()(delete_patch)
+        self.assertIn("successfully", created)
+        self.assertEqual((self.root / "new.py").read_text(), "created = True\n")
+        self.assertIn("successfully", deleted)
+        self.assertFalse((self.root / "src" / "calculator.py").exists())
+
+    def test_apply_patch_failure_does_not_modify_file(self) -> None:
+        original = (self.root / "src" / "calculator.py").read_text()
+        bad_patch = """diff --git a/src/calculator.py b/src/calculator.py
+--- a/src/calculator.py
++++ b/src/calculator.py
+@@ -1,2 +1,2 @@
+-content that is not present
++replacement
+"""
+        with bind_repository_context(self.context):
+            result = ApplyPatchTool()(bad_patch)
+        self.assertIn("Patch check failed", result)
+        self.assertEqual((self.root / "src" / "calculator.py").read_text(), original)
+
     def test_run_command_uses_repository_as_working_directory(self) -> None:
         command = f'{sys.executable} -c "import pathlib; print(pathlib.Path.cwd())"'
         with bind_repository_context(self.context):
             output = RunCommandTool()(command)
         self.assertIn("Exit code: 0", output)
         self.assertIn(str(self.root), output)
+
+    def test_run_command_reports_failure_stderr_and_truncation(self) -> None:
+        command = (
+            f"{sys.executable} -c \"import sys; print('x' * 100); "
+            "print('failure', file=sys.stderr); sys.exit(3)\""
+        )
+        with bind_repository_context(self.context):
+            output = RunCommandTool(max_output_chars=120)(command)
+        self.assertIn("Exit code: 3", output)
+        self.assertIn("output truncated", output)
+
+    def test_run_command_reports_timeout_and_invalid_timeout(self) -> None:
+        command = f"{sys.executable} -c \"import time; print('started', flush=True); time.sleep(2)\""
+        with bind_repository_context(self.context):
+            timeout = RunCommandTool(default_timeout=1, max_timeout=2)(command)
+            invalid = RunCommandTool(default_timeout=1, max_timeout=2)(
+                command, timeout=3
+            )
+        self.assertIn("Exit code: timeout", timeout)
+        self.assertIn("started", timeout)
+        self.assertIn("between 1 and 2", invalid)
 
     def test_git_diff_reports_changes_from_base_commit(self) -> None:
         (self.root / "src" / "calculator.py").write_text(
@@ -121,6 +232,26 @@ class RepositoryToolsTests(unittest.TestCase):
             output = GitDiffTool()()
         self.assertIn("M src/calculator.py", output)
         self.assertIn("return left + right", output)
+
+    def test_git_diff_reports_clean_added_deleted_and_stat(self) -> None:
+        with bind_repository_context(self.context):
+            clean = GitDiffTool()()
+        self.assertIn("[clean]", clean)
+        self.assertIn("[no diff]", clean)
+
+        (self.root / "new.py").write_text("new = True\n")
+        (self.root / "src" / "calculator.py").unlink()
+        with bind_repository_context(self.context):
+            output = GitDiffTool()()
+            stat = GitDiffTool()(stat_only=True)
+        self.assertIn("new.py", output)
+        self.assertIn("deleted file", output)
+        self.assertIn("files changed", stat)
+
+    def test_git_diff_rejects_path_escape(self) -> None:
+        with bind_repository_context(self.context):
+            with self.assertRaises(RepositoryPathError):
+                GitDiffTool()("../outside")
 
 
 if __name__ == "__main__":

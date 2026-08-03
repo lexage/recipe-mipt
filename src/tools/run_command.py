@@ -86,8 +86,8 @@ class RunCommandTool(BaseTool):
         except FileNotFoundError:
             return f"Command not found: {arguments[0]}"
         except subprocess.TimeoutExpired as error:
-            stdout = error.stdout or ""
-            stderr = error.stderr or ""
+            stdout = self._as_text(error.stdout)
+            stderr = self._as_text(error.stderr)
             return self._render(
                 command, None, time.monotonic() - started, stdout, stderr, True
             )
@@ -101,6 +101,14 @@ class RunCommandTool(BaseTool):
             False,
         )
 
+    @staticmethod
+    def _as_text(output: str | bytes | None) -> str:
+        if output is None:
+            return ""
+        if isinstance(output, bytes):
+            return output.decode("utf-8", errors="replace")
+        return output
+
     def _render(
         self,
         command: str,
@@ -111,11 +119,12 @@ class RunCommandTool(BaseTool):
         timed_out: bool,
     ) -> str:
         output = (
-            f"Command: {command}\n"
             f"Exit code: {'timeout' if timed_out else exit_code}\n"
             f"Duration: {duration:.3f}s\n\n"
+            f"Command: {command}\n\n"
             f"STDOUT:\n{stdout}\n\nSTDERR:\n{stderr}"
         )
         if len(output) > self.max_output_chars:
-            output = output[: self.max_output_chars] + "\n[output truncated]"
+            marker = "\n[output truncated]"
+            output = output[: self.max_output_chars - len(marker)] + marker
         return output

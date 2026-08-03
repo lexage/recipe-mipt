@@ -50,6 +50,14 @@ class GitDiffTool(BaseTool):
         pathspec = "." if not relative.parts else relative.as_posix()
 
         try:
+            intent_to_add = subprocess.run(
+                ["git", "add", "--intent-to-add", "--", pathspec],
+                cwd=context.root,
+                text=True,
+                capture_output=True,
+                timeout=self.timeout,
+                check=False,
+            )
             status = subprocess.run(
                 ["git", "status", "--short", "--", pathspec],
                 cwd=context.root,
@@ -75,8 +83,16 @@ class GitDiffTool(BaseTool):
         except subprocess.TimeoutExpired:
             return f"Diff command timed out after {self.timeout} seconds"
 
-        if status.returncode != 0 or diff.returncode != 0:
-            detail = status.stderr.strip() or diff.stderr.strip()
+        if (
+            intent_to_add.returncode != 0
+            or status.returncode != 0
+            or diff.returncode != 0
+        ):
+            detail = (
+                intent_to_add.stderr.strip()
+                or status.stderr.strip()
+                or diff.stderr.strip()
+            )
             return f"Diff failed: {detail}"
         status_text = status.stdout.strip() or "[clean]"
         diff_text = diff.stdout.strip() or "[no diff]"
