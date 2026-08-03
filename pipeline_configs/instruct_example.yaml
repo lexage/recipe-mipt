@@ -1,0 +1,95 @@
+type: SIMPLE
+
+params:
+  top_k: 5
+
+components:
+  
+  embedder:
+    type: EMBEDDING_AGENT
+    params:
+      name: embedder
+      url: "http://localhost:7216/v1"
+      model_name: "Qwen/Qwen3-Embedding-4B"
+  
+  data_base:
+    type: LOCAL_DB
+    params:
+      path_to_db: "data/docs_database_examples.db"
+      path_to_vector_db: "data/docs_vdb_rc_1000_meta_ml20"
+      collection_name: "docs"
+      
+      return_examples: True
+      return_full_docs: False
+      merge_examples: True
+
+      hnsw_space: "cosine"
+      hnsw_m: 16
+      hnsw_construction_ef: 400
+      hnsw_search_ef: 200
+      batch_size: 16
+      
+      similarity_threshold: 0.1
+
+      search_filter:
+        source: "documents"
+  
+  chunker:
+    type: RECURSIVE_CHUNKER
+    params:
+      name: chunker
+      max_chunk_size: 1000
+  
+  filter:
+    type: LENGTH_FILTER
+    params:
+      name: filter
+      min_len: 20
+  
+  context_assembler:
+    type: INSTRUCT_CONTEXT_ASSEMBLER
+    params:
+      name: simple_assembler
+  
+  retriever:
+    type: INSTRUCT_RETRIEVER
+    params:
+      name: instruct_retriever
+      documents_as_chunks: False
+
+  rationality_agent:
+    type: INSTRUCT_RATIONALITY_AGENT
+    params:
+      name: instruct_rag_rationality_agent
+
+      url: "http://localhost:7215/v1"
+      model_name: "Qwen/Qwen1.5-32B-Chat-AWQ"
+      
+      temperature: 0.2
+      top_p: 0.95
+      max_tokens: 256
+  
+  enchancer:
+    type: QUERY_GENERATOR
+    params:
+      name: query_gen
+      url: "http://localhost:7215/v1"
+      model_name: "Qwen/Qwen1.5-32B-Chat-AWQ"
+      options: 1
+  
+  agent:
+    type: DS1000_SOLVER_AGENT
+    params:
+      
+      name: simple_agent
+
+      api: chat
+      context_after_task: False
+
+      url: "http://localhost:7215/v1"
+      model_name: "Qwen/Qwen1.5-32B-Chat-AWQ"
+      
+      temperature: 0.2
+      top_p: 0.95
+      max_tokens: 1024
+      stop_tokens: ["</code>", "# SOLUTION END"]

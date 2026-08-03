@@ -1,0 +1,21 @@
+# Core with flexible versions
+numpy>=1.26.0
+pandas>=1.5.0
+scipy>=1.12.0
+scikit-learn>=1.4.0
+matplotlib>=3.8.0
+seaborn>=0.13.0
+
+# ML libraries
+xgboost>=2.0.0
+gensim>=4.3.0
+statsmodels>=0.14.0
+
+# Deep Learning
+torch>=2.2.0
+tensorflow>=2.16.0
+
+# Utilities
+PyYAML
+tqdm
+datasets
