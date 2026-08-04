@@ -1,5 +1,10 @@
 from .data_types import SWERebenchDataError, SWERebenchTask
 from .dataset import DatasetSWERebench
+from .evaluation import (
+    EvaluationConfig,
+    SWERebenchEvaluator,
+    validate_predictions,
+)
 from .images import InstanceImage, InstanceImageError, InstanceImageResolver
 from .predictions import (
     PredictionsWriter,
@@ -24,6 +29,7 @@ from .runtime import (
 __all__ = [
     "CommandResult",
     "DatasetSWERebench",
+    "EvaluationConfig",
     "DockerRepositoryRuntime",
     "InstanceImage",
     "InstanceImageError",
@@ -38,7 +44,9 @@ __all__ = [
     "RepositoryRuntimeError",
     "RunArtifactsWriter",
     "SWERebenchDataError",
+    "SWERebenchEvaluator",
     "SWERebenchTask",
+    "validate_predictions",
     "SWERebenchInferenceRunner",
     "SWERebenchPrediction",
     "SWERebenchPromptBuilder",

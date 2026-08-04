@@ -100,10 +100,34 @@ The evaluator requires a working Docker installation for local execution. The
 number of workers, timeout, image namespace, cache policy, and other harness
 options belong to the evaluation wrapper rather than the prediction generator.
 
+## Pipeline configurations
+
+Ready-to-customize configurations for both target pipelines are provided in
+`pipeline_configs/react_sgr_swe_rebench.yaml` and
+`pipeline_configs/rewoo_sgr_swe_rebench.yaml`. Both expose only repository-bound
+tools during inference. Change their model endpoint and model name for the
+deployment, then pass the selected file to `run_swe_rebench.py --config`.
+
 Before a full run, the wrapper must execute
 `python -m swebench.harness.run_evaluation --help` against the pinned fork and
 fail with an actionable message if the command-line contract above is not
 supported by that revision.
+
+The repository provides that wrapper as `evaluate_swe_rebench.py`. Validate the
+handoff without starting evaluation containers first:
+
+```bash
+python evaluate_swe_rebench.py \
+  --fork-path /path/to/SWE-bench-fork \
+  --predictions-path /absolute/path/to/predictions.jsonl \
+  --run-id react-sgr-smoke \
+  --instance-ids <instance-id> \
+  --check-only
+```
+
+Remove `--check-only` to start the official evaluator. The wrapper validates the
+strict JSONL schema, rejects duplicate predictions, checks the fork's CLI, and
+then launches the harness in a subprocess. It never imports evaluator internals.
 
 ## Stage boundary
 
