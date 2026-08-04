@@ -25,6 +25,7 @@ class SmokeCLITests(unittest.TestCase):
                 "--run-id",
                 "smoke-1",
                 "--evaluation-check-only",
+                "--allow-image-convention",
             ]
             successful = type("Result", (), {"returncode": 0})()
             with (
@@ -65,6 +66,7 @@ class SmokeCLITests(unittest.TestCase):
                 "model",
                 "--run-id",
                 "smoke-1",
+                "--allow-image-convention",
             ]
             failed = type("Result", (), {"returncode": 7})()
             with (

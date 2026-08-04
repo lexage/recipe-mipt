@@ -1,7 +1,9 @@
 """Resolve official per-instance container images for SWE-rebench inference."""
 
+import json
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any, Literal, Optional
 
 from .data_types import SWERebenchTask
@@ -18,7 +20,7 @@ class InstanceImage:
     name: str
     platform: str
     workdir: str = "/testbed"
-    source: Literal["test_spec", "override", "convention"] = "convention"
+    source: Literal["test_spec", "manifest", "override", "convention"] = "manifest"
 
     def __post_init__(self) -> None:
         for field in ("name", "platform", "workdir"):
@@ -30,12 +32,7 @@ class InstanceImage:
 
 
 class InstanceImageResolver:
-    """Resolve images using a pinned harness TestSpec or its naming convention.
-
-    A production runner should provide ``test_spec_factory`` from its pinned
-    SWE-rebench fork. The convention fallback mirrors the SWE-bench harness and
-    is kept configurable for local smoke tests and prebuilt image registries.
-    """
+    """Resolve exact images; naming-convention fallback is explicitly opt-in."""
 
     ARCH_TO_PLATFORM = {
         "x86_64": "linux/x86_64",
@@ -50,7 +47,9 @@ class InstanceImageResolver:
         image_tag: str = "latest",
         workdir: str = "/testbed",
         overrides: Optional[Mapping[str, str]] = None,
+        manifest: Optional[Mapping[str, InstanceImage]] = None,
         test_spec_factory: Optional[Callable[[SWERebenchTask], Any]] = None,
+        allow_convention: bool = False,
     ) -> None:
         if namespace is not None and not isinstance(namespace, str):
             raise InstanceImageError("namespace must be a string or None")
@@ -68,7 +67,9 @@ class InstanceImageResolver:
         self.image_tag = image_tag
         self.workdir = workdir
         self.overrides = dict(overrides or {})
+        self.manifest = dict(manifest or {})
         self.test_spec_factory = test_spec_factory
+        self.allow_convention = allow_convention
 
         for instance_id, image_name in self.overrides.items():
             if not isinstance(instance_id, str) or not instance_id.strip():
@@ -77,6 +78,50 @@ class InstanceImageResolver:
                 raise InstanceImageError(
                     f"Image override for {instance_id!r} must be non-empty"
                 )
+
+        for instance_id, image in self.manifest.items():
+            if not isinstance(instance_id, str) or not instance_id.strip():
+                raise InstanceImageError("Manifest instance IDs must be non-empty")
+            if not isinstance(image, InstanceImage):
+                raise InstanceImageError(
+                    f"Manifest image for {instance_id!r} must be an InstanceImage"
+                )
+
+    @classmethod
+    def from_manifest(
+        cls, path: str | Path, *, workdir: str = "/testbed"
+    ) -> "InstanceImageResolver":
+        """Load pinned image names and platforms exported from the evaluator fork."""
+
+        try:
+            raw = json.loads(Path(path).read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as error:
+            raise InstanceImageError(
+                f"Could not load image manifest {path}: {error}"
+            ) from error
+        if not isinstance(raw, dict) or not raw:
+            raise InstanceImageError("Image manifest must be a non-empty JSON object")
+        manifest: dict[str, InstanceImage] = {}
+        for instance_id, coordinates in raw.items():
+            if not isinstance(coordinates, dict):
+                raise InstanceImageError(
+                    f"Manifest entry for {instance_id!r} must be an object"
+                )
+            try:
+                image_name = (
+                    coordinates.get("name") or coordinates["instance_image_key"]
+                )
+                manifest[instance_id] = InstanceImage(
+                    name=image_name,
+                    platform=coordinates["platform"],
+                    workdir=coordinates.get("workdir", workdir),
+                    source="manifest",
+                )
+            except (KeyError, TypeError, InstanceImageError) as error:
+                raise InstanceImageError(
+                    f"Invalid manifest entry for {instance_id!r}: {error}"
+                ) from error
+        return cls(manifest=manifest, workdir=workdir)
 
     def resolve(self, task: SWERebenchTask) -> InstanceImage:
         """Return the image selected for a validated SWE-rebench task."""
@@ -92,8 +137,17 @@ class InstanceImageResolver:
                 source="override",
             )
 
+        if task.instance_id in self.manifest:
+            return self.manifest[task.instance_id]
+
         if self.test_spec_factory is not None:
             return self._resolve_from_test_spec(self.test_spec_factory(task))
+
+        if not self.allow_convention:
+            raise InstanceImageError(
+                f"No pinned image for {task.instance_id}; provide an image manifest "
+                "or explicitly enable convention fallback for local smoke tests"
+            )
 
         key = (
             f"sweb.eval.{self.architecture}."

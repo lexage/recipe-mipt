@@ -80,7 +80,7 @@ class SWERebenchInferenceRunnerTests(unittest.TestCase):
     def tearDown(self):
         self.temp_dir.cleanup()
 
-    def runner(self, fail_id=None, empty_id=None, max_workers=3):
+    def runner(self, fail_id=None, empty_id=None, max_workers=3, fail_fast=False):
         def pipeline_factory():
             pipeline = FakePipeline(fail_id=fail_id)
             with self.lock:
@@ -101,10 +101,11 @@ class SWERebenchInferenceRunnerTests(unittest.TestCase):
         return SWERebenchInferenceRunner(
             pipeline_factory=pipeline_factory,
             runtime_factory=runtime_factory,
-            image_resolver=InstanceImageResolver(),
+            image_resolver=InstanceImageResolver(allow_convention=True),
             predictions_writer=self.predictions,
             artifacts_writer=self.artifacts,
             max_workers=max_workers,
+            fail_fast=fail_fast,
         )
 
     def test_parallel_tasks_use_fresh_pipeline_and_runtime(self):
@@ -142,6 +143,33 @@ class SWERebenchInferenceRunnerTests(unittest.TestCase):
             for line in (self.root / "errors.jsonl").read_text().splitlines()
         ]
         self.assertEqual(len(errors), 2)
+        records = [
+            json.loads(line)
+            for line in (self.root / "predictions.jsonl").read_text().splitlines()
+        ]
+        self.assertEqual(len(records), 3)
+        patches = {record["instance_id"]: record["model_patch"] for record in records}
+        self.assertEqual(patches["owner__repo-0"], "")
+        self.assertEqual(patches["owner__repo-1"], "")
+        self.assertTrue(patches["owner__repo-2"].startswith("diff --git"))
+
+    def test_fail_fast_still_materializes_all_selected_predictions(self):
+        tasks = [make_task(0), make_task(1)]
+        with self.assertRaisesRegex(RuntimeError, "pipeline failed"):
+            self.runner(fail_id="owner__repo-0", max_workers=1, fail_fast=True).run(
+                tasks
+            )
+
+        records = [
+            json.loads(line)
+            for line in (self.root / "predictions.jsonl").read_text().splitlines()
+        ]
+        self.assertCountEqual(
+            [record["instance_id"] for record in records],
+            [task.instance_id for task in tasks],
+        )
+        patches = {record["instance_id"]: record["model_patch"] for record in records}
+        self.assertEqual(patches["owner__repo-0"], "")
 
 
 if __name__ == "__main__":

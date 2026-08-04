@@ -32,7 +32,7 @@ class InstanceImageTests(unittest.TestCase):
 
 class InstanceImageResolverTests(unittest.TestCase):
     def test_remote_convention_matches_harness_image_key(self) -> None:
-        image = InstanceImageResolver().resolve(make_task())
+        image = InstanceImageResolver(allow_convention=True).resolve(make_task())
 
         self.assertEqual(
             image.name,
@@ -44,7 +44,10 @@ class InstanceImageResolverTests(unittest.TestCase):
 
     def test_local_image_key_keeps_double_underscore(self) -> None:
         image = InstanceImageResolver(
-            namespace=None, architecture="arm64", image_tag="pinned"
+            namespace=None,
+            architecture="arm64",
+            image_tag="pinned",
+            allow_convention=True,
         ).resolve(make_task())
 
         self.assertEqual(
@@ -69,6 +72,41 @@ class InstanceImageResolverTests(unittest.TestCase):
         self.assertEqual(image.name, "registry/custom@sha256:abc")
         self.assertEqual(image.source, "override")
         self.assertEqual(factory_calls, [])
+
+    def test_production_resolution_requires_pinned_coordinates(self) -> None:
+        with self.assertRaisesRegex(InstanceImageError, "No pinned image"):
+            InstanceImageResolver().resolve(make_task())
+
+    def test_loads_exact_coordinates_from_manifest(self) -> None:
+        import json
+        import tempfile
+        from pathlib import Path
+
+        with tempfile.TemporaryDirectory() as temporary:
+            path = Path(temporary) / "images.json"
+            path.write_text(
+                json.dumps(
+                    {
+                        "Owner__Repo-123": {
+                            "instance_image_key": "registry/exact@sha256:abc",
+                            "platform": "linux/amd64",
+                        }
+                    }
+                ),
+                encoding="utf-8",
+            )
+            image = InstanceImageResolver.from_manifest(str(path)).resolve(make_task())
+
+        self.assertEqual(image.name, "registry/exact@sha256:abc")
+        self.assertEqual(image.platform, "linux/amd64")
+        self.assertEqual(image.source, "manifest")
+
+    def test_manifest_must_cover_selected_instance(self) -> None:
+        resolver = InstanceImageResolver(
+            manifest={"another": InstanceImage("registry/another", "linux/amd64")}
+        )
+        with self.assertRaisesRegex(InstanceImageError, "No pinned image"):
+            resolver.resolve(make_task())
 
     def test_pinned_test_spec_factory_is_authoritative(self) -> None:
         received = []

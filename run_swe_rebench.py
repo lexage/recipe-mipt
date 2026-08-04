@@ -37,6 +37,15 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--architecture", default="x86_64")
     parser.add_argument("--image-tag", default="latest")
     parser.add_argument(
+        "--image-manifest",
+        help="Pinned JSON mapping instance IDs to exact image names and platforms",
+    )
+    parser.add_argument(
+        "--allow-image-convention",
+        action="store_true",
+        help="Unsafe opt-in naming fallback for local smoke tests only",
+    )
+    parser.add_argument(
         "--pull-policy", choices=("always", "missing", "never"), default="missing"
     )
     parser.add_argument("--memory-limit")
@@ -94,6 +103,8 @@ def main() -> int:
             "namespace": args.namespace,
             "architecture": args.architecture,
             "image_tag": args.image_tag,
+            "image_manifest": args.image_manifest,
+            "allow_image_convention": args.allow_image_convention,
         }
     )
 
@@ -102,11 +113,20 @@ def main() -> int:
     def pipeline_factory():
         return PipelineBuilder().build(pipeline_config)
 
-    image_resolver = InstanceImageResolver(
-        namespace=args.namespace,
-        architecture=args.architecture,
-        image_tag=args.image_tag,
-    )
+    if not args.image_manifest and not args.allow_image_convention:
+        raise RuntimeError(
+            "Production inference requires --image-manifest with pinned image "
+            "coordinates; use --allow-image-convention only for local smoke tests"
+        )
+    if args.image_manifest:
+        image_resolver = InstanceImageResolver.from_manifest(args.image_manifest)
+    else:
+        image_resolver = InstanceImageResolver(
+            namespace=args.namespace,
+            architecture=args.architecture,
+            image_tag=args.image_tag,
+            allow_convention=args.allow_image_convention,
+        )
 
     def runtime_factory(task, image):
         return DockerRepositoryRuntime.create(

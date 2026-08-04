@@ -20,6 +20,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--namespace", default="swebench")
     parser.add_argument("--architecture", default="x86_64")
     parser.add_argument("--image-tag", default="latest")
+    parser.add_argument("--image-manifest")
+    parser.add_argument("--allow-image-convention", action="store_true")
     parser.add_argument("--evaluation-check-only", action="store_true")
     return parser.parse_args()
 
@@ -63,6 +65,15 @@ def main() -> int:
     ]
     if args.dataset_revision:
         inference.extend(("--dataset-revision", args.dataset_revision))
+    if args.image_manifest:
+        inference.extend(("--image-manifest", args.image_manifest))
+    elif args.allow_image_convention:
+        inference.append("--allow-image-convention")
+    else:
+        raise RuntimeError(
+            "Smoke inference requires --image-manifest or explicit "
+            "--allow-image-convention"
+        )
     inference_result = subprocess.run(inference, check=False)
     if inference_result.returncode:
         return inference_result.returncode

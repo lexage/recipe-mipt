@@ -70,8 +70,8 @@ Field requirements:
 - `model_name_or_path` identifies the pipeline/model combination and must be a
   non-empty string;
 - `model_patch` is the repository diff against `base_commit` and must be a
-  string; an empty patch is a valid harness input but represents no proposed
-  change and should be reported as an unsuccessful generation by the runner.
+  string; the runner writes an empty patch for an empty solution, timeout, or
+  inference failure so every selected instance remains in the score denominator.
 
 Generation logs, final natural-language answers, tool traces, timings, and error
 details do not belong in this file. They must be written to separate metadata,
@@ -141,6 +141,7 @@ python smoke_swe_rebench.py \
   --config pipeline_configs/react_sgr_swe_rebench.yaml \
   --instance-id <instance-id> \
   --fork-path /path/to/SWE-bench-fork \
+  --image-manifest /path/to/pinned-images.json \
   --output-dir runs/react-sgr-smoke \
   --model-name-or-path react-sgr/<model> \
   --run-id react-sgr-smoke
@@ -185,6 +186,27 @@ fresh container from the clean instance image, applies only `model_patch`, and
 runs the official evaluation scripts there. This prevents packages, caches,
 environment changes, or files created during inference but absent from the
 patch from affecting the reported score.
+
+## Pinned inference images
+
+Production inference requires `--image-manifest`; deriving image names from an
+instance ID is disabled by default. The manifest must be exported from the same
+pinned `SWE-rebench/SWE-bench-fork` revision used for evaluation and is a JSON
+object keyed by every selected instance ID:
+
+```json
+{
+  "owner__repo-123": {
+    "instance_image_key": "registry/exact-image@sha256:...",
+    "platform": "linux/amd64",
+    "workdir": "/testbed"
+  }
+}
+```
+
+An absent instance is a hard inference error. Convention-based image names are
+available only through the explicit `--allow-image-convention` escape hatch for
+local smoke tests and must not be used for reported benchmark runs.
 
 ## Compatibility gate
 

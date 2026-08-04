@@ -56,6 +56,7 @@ class SWERebenchInferenceRunner:
         skipped = len(task_list) - len(pending)
         completed = 0
         failed = 0
+        first_error: Exception | None = None
 
         with futures.ThreadPoolExecutor(max_workers=self.max_workers) as executor:
             submitted = {
@@ -71,10 +72,15 @@ class SWERebenchInferenceRunner:
                     self.artifacts_writer.write_error(
                         task.instance_id, "inference", error
                     )
-                    if self.fail_fast:
+                    # Preserve the benchmark denominator: every selected task gets a
+                    # prediction, including infrastructure errors and empty patches.
+                    self.predictions_writer.write(task.instance_id, "")
+                    if self.fail_fast and first_error is None:
+                        first_error = error
                         for other in submitted:
                             other.cancel()
-                        raise
+        if first_error is not None:
+            raise first_error
         return InferenceSummary(len(pending), completed, failed, skipped)
 
     def _run_task(self, task: SWERebenchTask) -> None:
