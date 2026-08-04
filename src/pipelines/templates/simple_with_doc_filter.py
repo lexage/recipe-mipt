@@ -26,6 +26,7 @@ from src.agent_constructor.filters import Filter, DocumentFilter
 from src.agent_constructor.generator import Generator
 from src.agent_constructor.icl import ICLBlock
 from src.agent_constructor.pipeline import Pipeline
+from src.utils.retrieval_log import record_chunks, record_context
 
 
 class SimplePipelineWithDocFilter(Pipeline):
@@ -96,11 +97,16 @@ class SimplePipelineWithDocFilter(Pipeline):
             for query in tasks:
                 context.extend(self.retriever.retrieve(query=query, k=self.top_k))
 
+        # Diagnostic only — read by run_ds1000.py --log-chunks, no-op otherwise.
+        record_chunks(context)
+
         if self.icl_block:
             context = self.icl_block.apply(context)
 
         if self.context_assembler:
             context = self.context_assembler.assemble(context)
+
+        record_context(context if isinstance(context, str) else "")
 
         if context:
             return self.agent.run(task, context)

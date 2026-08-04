@@ -10,6 +10,7 @@ from src.agent_constructor.pipeline import Pipeline
 from src.agent_constructor.context_engine import ContextAssembler
 from src.agent_constructor.icl import ICLBlock
 from src.benchmarks.ds1000 import DataItemDS1000
+from src.utils.retrieval_log import record_chunks, record_context
 
 
 class SimplePipeline(Pipeline):
@@ -77,12 +78,17 @@ class SimplePipeline(Pipeline):
             for query in tasks:
                 context.extend(self.retriever.retrieve(query=query, k=self.top_k))
 
+        # Diagnostic only — read by run_ds1000.py --log-chunks, no-op otherwise.
+        record_chunks(context)
+
         if self.icl_block:
             context = self.icl_block.apply(context)
 
         if self.context_assembler:
             context = self.context_assembler.assemble(context)
-        
+
+        record_context(context if isinstance(context, str) else "")
+
         if context:
             return self.agent.run(task, context)
         

@@ -21,6 +21,7 @@ from src.utils.token_tracker import (
     install_patch as install_token_patch,
     set_active as set_active_tracker,
 )
+from src.utils.retrieval_log import take as take_retrieval_record
 
 
 logging.getLogger("openai").setLevel(logging.ERROR)
@@ -102,6 +103,52 @@ def _write_runtime_stats(target_dir: str | None, stats: dict) -> None:
     logging.info("Wrote runtime stats → %s", out_path)
 
 
+def _log_retrieval(task, records: list, lock, text_chars: int) -> None:
+    """Append this task's retrieval record to `records` (thread-safe).
+
+    Must run on the worker thread that called `pipeline.run` — the pipeline
+    stashes the chunks thread-locally (see src/utils/retrieval_log.py).
+    """
+    record = take_retrieval_record()
+    chunks = record["chunks"]
+    entry = {
+        "problem_id": task.metadata.get("problem_id"),
+        "library": task.metadata.get("library"),
+        "perturbation_type": task.metadata.get("perturbation_type"),
+        "n_chunks": len(chunks),
+        "context_chars": len(record["context"] or ""),
+        "chunks": [
+            {
+                "id": chunk.id,
+                "doc_id": chunk.doc_id,
+                "score": (chunk.metadata or {}).get("score"),
+                "source": (chunk.metadata or {}).get("source"),
+                "library": (chunk.metadata or {}).get("library"),
+                "chars": len(chunk.text or ""),
+                "text": (chunk.text or "") if text_chars <= 0
+                        else (chunk.text or "")[:text_chars],
+            }
+            for chunk in chunks
+        ],
+    }
+    with lock:
+        records.append(entry)
+
+
+def _write_chunk_log(target_dir: str | None, records: list) -> None:
+    """Dump the per-task retrieval log (one JSON object per task)."""
+    if not records:
+        return
+    if not target_dir:
+        logging.warning("Cannot write retrieved_chunks.jsonl: target dir unknown.")
+        return
+    out_path = os.path.join(target_dir, "retrieved_chunks.jsonl")
+    with open(out_path, "w", encoding="utf-8") as f:
+        for record in records:
+            f.write(json.dumps(record, ensure_ascii=False) + "\n")
+    logging.info("Wrote retrieval log (%d tasks) → %s", len(records), out_path)
+
+
 # ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
@@ -125,6 +172,15 @@ def parse_args():
     parser.add_argument(
         "-l", "--limit", type=int, default=0,
         help="Run only N tasks, evenly spaced across the dataset (0 = all).",
+    )
+    parser.add_argument(
+        "--log-chunks", action="store_true",
+        help="Log the chunks the retriever returned for every task into "
+             "retrieved_chunks.jsonl next to runtime_stats.json.",
+    )
+    parser.add_argument(
+        "--log-chunk-chars", type=int, default=800,
+        help="Chars of each chunk's text kept in the log (0 = full text).",
     )
     return parser.parse_args()
 
@@ -204,12 +260,18 @@ def main():
             set(os.listdir(save_dir)) if os.path.isdir(save_dir) else set()
         )
 
+        chunk_log: list = []
+        chunk_log_lock = threading.Lock()
+
         def run_pipeline(task: DataItemDS1000):
             task_start = time.time()
             # Re-arm the active tracker for this worker thread (thread-local).
             set_active_tracker(eval_tracker)
             result = pipeline.run(task.prompt)
             task_time = time.time() - task_start
+            if args.log_chunks:
+                # Same thread that ran the pipeline -> gets this task's record.
+                _log_retrieval(task, chunk_log, chunk_log_lock, args.log_chunk_chars)
             logging.info(
                 f"TASK\t{task.metadata.get('problem_id', 'N/A')}\t{task_time:.3f}s"
             )
@@ -267,6 +329,7 @@ def main():
         }
         experiment_dir = _find_new_subdir(save_dir, before_subdirs)
         _write_runtime_stats(experiment_dir, stats)
+        _write_chunk_log(experiment_dir, chunk_log)
 
         logging.info(
             f"CONFIG\t{config_path.name}\t{config_time:.3f}s\t"
