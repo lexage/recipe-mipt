@@ -127,6 +127,19 @@ The external fork owns:
 The generation process must not import private evaluator internals. Its only
 integration artifact is the prediction JSONL file.
 
+## Container isolation invariant
+
+Real benchmark inference runs in a dedicated container created from the
+instance image for that task. Repository tools operate only on `/testbed` in
+that inference container, and the container is stopped and removed after its
+`model_patch` has been collected.
+
+Evaluation must never reuse an inference container. The external fork creates a
+fresh container from the clean instance image, applies only `model_patch`, and
+runs the official evaluation scripts there. This prevents packages, caches,
+environment changes, or files created during inference but absent from the
+patch from affecting the reported score.
+
 ## Compatibility gate
 
 The integration is ready for a full benchmark run only after all of these checks

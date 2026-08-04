@@ -17,11 +17,73 @@ from src.tools import (  # noqa: E402
     ListFilesTool,
     ReadFileTool,
     RepositoryContext,
-    RepositoryPathError,
     RunCommandTool,
     SearchCodeTool,
     bind_repository_context,
 )
+from src.benchmarks.swe_rebench.runtime import (  # noqa: E402
+    CommandResult,
+    RepositoryRuntime,
+    RepositoryRuntimeError,
+    bind_repository_runtime,
+)
+
+
+class RecordingRuntime(RepositoryRuntime):
+    def __init__(self):
+        super().__init__("owner__repo-1", "deadbeef", "/testbed")
+        self.calls = []
+
+    def list_files(self, path=".", **kwargs):
+        self.calls.append(("list_files", path, kwargs))
+        return "listed"
+
+    def read_file(self, path, **kwargs):
+        self.calls.append(("read_file", path, kwargs))
+        return "read"
+
+    def search_code(self, query, **kwargs):
+        self.calls.append(("search_code", query, kwargs))
+        return "found"
+
+    def apply_patch(self, patch, **kwargs):
+        self.calls.append(("apply_patch", patch, kwargs))
+        return "applied"
+
+    def run_command(self, command, **kwargs):
+        self.calls.append(("run_command", command, kwargs))
+        return CommandResult(command, 0, "done", "", 0.25)
+
+    def get_diff(self, path=".", **kwargs):
+        self.calls.append(("get_diff", path, kwargs))
+        return "diffed"
+
+
+class RepositoryToolDelegationTests(unittest.TestCase):
+    def test_all_tools_delegate_to_bound_runtime(self) -> None:
+        runtime = RecordingRuntime()
+        with bind_repository_runtime(runtime):
+            self.assertEqual(ListFilesTool()("src"), "listed")
+            self.assertEqual(ReadFileTool()("src/a.py", 2, 3), "read")
+            self.assertEqual(SearchCodeTool()("symbol", glob="*.py"), "found")
+            self.assertEqual(ApplyPatchTool()("diff"), "applied")
+            self.assertIn("Exit code: 0", RunCommandTool()("pytest"))
+            self.assertEqual(GitDiffTool()(), "diffed")
+
+        self.assertEqual(
+            [call[0] for call in runtime.calls],
+            [
+                "list_files",
+                "read_file",
+                "search_code",
+                "apply_patch",
+                "run_command",
+                "get_diff",
+            ],
+        )
+        self.assertEqual(runtime.calls[1][2]["start_line"], 2)
+        self.assertEqual(runtime.calls[2][2]["glob"], "*.py")
+        self.assertEqual(runtime.calls[4][2]["timeout"], 120)
 
 
 class RepositoryToolsTests(unittest.TestCase):
@@ -120,11 +182,12 @@ class RepositoryToolsTests(unittest.TestCase):
     def test_search_code_reports_missing_binary_and_timeout(self) -> None:
         with bind_repository_context(self.context):
             with patch(
-                "src.tools.search_code.subprocess.run", side_effect=FileNotFoundError
+                "src.benchmarks.swe_rebench.runtime.local.subprocess.run",
+                side_effect=FileNotFoundError,
             ):
                 missing = SearchCodeTool()("value")
             with patch(
-                "src.tools.search_code.subprocess.run",
+                "src.benchmarks.swe_rebench.runtime.local.subprocess.run",
                 side_effect=subprocess.TimeoutExpired(["rg"], 1),
             ):
                 timeout = SearchCodeTool(timeout=1)("value")
@@ -250,7 +313,7 @@ deleted file mode 100644
 
     def test_git_diff_rejects_path_escape(self) -> None:
         with bind_repository_context(self.context):
-            with self.assertRaises(RepositoryPathError):
+            with self.assertRaises(RepositoryRuntimeError):
                 GitDiffTool()("../outside")
 
 

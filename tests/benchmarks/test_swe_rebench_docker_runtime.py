@@ -17,6 +17,7 @@ class FakeContainer:
             SimpleNamespace(exit_code=0, output=(status, b"")),
         ]
         self.exec_calls = []
+        self.put_archive = Mock(return_value=True)
         self.stop = Mock()
         self.remove = Mock()
 
@@ -49,6 +50,15 @@ class DockerRepositoryRuntimeTests(unittest.TestCase):
             base_commit="deadbeef",
             run_id="test-run",
             **kwargs,
+        )
+
+    def direct_runtime(self, container):
+        return DockerRepositoryRuntime(
+            client=FakeClient(container),
+            container=container,
+            image=self.image,
+            instance_id="owner__repo-1",
+            base_commit="deadbeef",
         )
 
     def test_starts_and_validates_dedicated_inference_container(self):
@@ -126,7 +136,17 @@ class DockerRepositoryRuntimeTests(unittest.TestCase):
         result = runtime.run_command("pytest -q")
 
         command, options = container.exec_calls[-1]
-        self.assertEqual(command, ["/bin/sh", "-lc", "pytest -q"])
+        self.assertEqual(
+            command,
+            [
+                "timeout",
+                "--signal=KILL",
+                "120s",
+                "/bin/sh",
+                "-lc",
+                "pytest -q",
+            ],
+        )
         self.assertEqual(options["workdir"], "/testbed")
         self.assertEqual(result.exit_code, 3)
         self.assertEqual(result.stdout, "stdout\n")
@@ -144,6 +164,93 @@ class DockerRepositoryRuntimeTests(unittest.TestCase):
                 base_commit="deadbeef",
                 run_id="",
             )
+
+    def test_docker_file_listing_reading_and_search(self):
+        listing_container = FakeContainer()
+        listing_container.responses = [
+            SimpleNamespace(exit_code=0, output=(b"", b"")),
+            SimpleNamespace(
+                exit_code=0,
+                output=(b"calculator.py\tf\nnested\td\nextra.py\tf\n", b""),
+            ),
+        ]
+        listing = self.direct_runtime(listing_container).list_files(
+            "src", max_entries=2
+        )
+        self.assertIn("calculator.py", listing)
+        self.assertIn("nested/", listing)
+        self.assertIn("output truncated", listing)
+
+        read_container = FakeContainer()
+        read_container.responses = [
+            SimpleNamespace(exit_code=0, output=(b"", b"")),
+            SimpleNamespace(exit_code=0, output=(b"42\n2\n", b"")),
+            SimpleNamespace(exit_code=0, output=(b"", b"")),
+            SimpleNamespace(exit_code=0, output=(b"first\nsecond\n", b"")),
+        ]
+        content = self.direct_runtime(read_container).read_file("src/calculator.py")
+        self.assertIn("1 | first", content)
+        self.assertIn("2 | second", content)
+
+        search_container = FakeContainer()
+        search_container.responses = [
+            SimpleNamespace(exit_code=0, output=(b"", b"")),
+            SimpleNamespace(
+                exit_code=0,
+                output=(b"src/calculator.py:2:5:left - right\n", b""),
+            ),
+        ]
+        matches = self.direct_runtime(search_container).search_code("left - right")
+        self.assertIn("src/calculator.py:2", matches)
+
+    def test_docker_patch_and_diff_operations(self):
+        patch = """diff --git a/src/calculator.py b/src/calculator.py
+--- a/src/calculator.py
++++ b/src/calculator.py
+@@ -1 +1 @@
+-old
++new
+"""
+        patch_container = FakeContainer()
+        patch_container.responses = [
+            SimpleNamespace(exit_code=0, output=(b"", b"")),
+            SimpleNamespace(exit_code=0, output=(b"", b"")),
+            SimpleNamespace(exit_code=0, output=(b"", b"")),
+            SimpleNamespace(exit_code=0, output=(b"", b"")),
+            SimpleNamespace(exit_code=0, output=(b"", b"")),
+        ]
+        applied = self.direct_runtime(patch_container).apply_patch(patch)
+        self.assertIn("Patch applied successfully", applied)
+        patch_container.put_archive.assert_called_once()
+        self.assertEqual(patch_container.put_archive.call_args.args[0], "/tmp")
+
+        diff_container = FakeContainer()
+        diff_container.responses = [
+            SimpleNamespace(exit_code=0, output=(b"", b"")),
+            SimpleNamespace(exit_code=0, output=(b"", b"")),
+            SimpleNamespace(exit_code=0, output=(b" M src/calculator.py\n", b"")),
+            SimpleNamespace(
+                exit_code=0, output=(b"diff --git a/src/calculator.py\n", b"")
+            ),
+        ]
+        diff = self.direct_runtime(diff_container).get_diff()
+        self.assertIn("M src/calculator.py", diff)
+        self.assertIn("diff --git", diff)
+
+    def test_timeout_is_enforced_inside_container(self):
+        container = FakeContainer()
+        container.responses = [SimpleNamespace(exit_code=124, output=(b"partial", b""))]
+        result = self.direct_runtime(container).run_command("sleep 10", timeout=1)
+        self.assertTrue(result.timed_out)
+        self.assertIsNone(result.exit_code)
+        self.assertEqual(result.stdout, "partial")
+
+    def test_symlink_escape_is_rejected_by_container_realpath(self):
+        container = FakeContainer()
+        container.responses = [SimpleNamespace(exit_code=3, output=(b"", b""))]
+        runtime = self.direct_runtime(container)
+        with self.assertRaisesRegex(RepositoryRuntimeError, "outside"):
+            runtime.read_file("external/file.py")
 
 
 if __name__ == "__main__":

@@ -2,8 +2,9 @@
 
 from typing import Any, Dict
 
+from src.benchmarks.swe_rebench.runtime import get_repository_runtime
+
 from .base_tool import BaseTool
-from .repository_context import resolve_repository_path
 
 
 class ReadFileTool(BaseTool):
@@ -48,35 +49,10 @@ class ReadFileTool(BaseTool):
         }
 
     def __call__(self, path: str, start_line: int = 1, end_line: int = 200) -> str:
-        if start_line < 1 or end_line < start_line:
-            return "Invalid line range: require 1 <= start_line <= end_line"
-        if end_line - start_line + 1 > self.max_lines:
-            end_line = start_line + self.max_lines - 1
-
-        file_path = resolve_repository_path(path)
-        if not file_path.is_file():
-            return f"File does not exist: {path}"
-        if file_path.stat().st_size > self.max_file_bytes:
-            return f"File is too large to read: {path}"
-
-        data = file_path.read_bytes()
-        if b"\x00" in data:
-            return f"Binary file cannot be read: {path}"
-        try:
-            lines = data.decode("utf-8").splitlines()
-        except UnicodeDecodeError:
-            return f"File is not valid UTF-8 text: {path}"
-
-        selected = lines[start_line - 1 : end_line]
-        rendered = "\n".join(
-            f"{number:>6} | {line}"
-            for number, line in enumerate(selected, start=start_line)
-        )
-        actual_end = start_line + len(selected) - 1
-        if not selected:
-            actual_end = start_line - 1
-            rendered = "[no lines in requested range]"
-        return (
-            f"File: {path}\nLines: {start_line}-{actual_end} of {len(lines)}\n\n"
-            f"{rendered}"
+        return get_repository_runtime().read_file(
+            path,
+            start_line=start_line,
+            end_line=end_line,
+            max_lines=self.max_lines,
+            max_file_bytes=self.max_file_bytes,
         )

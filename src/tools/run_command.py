@@ -1,13 +1,10 @@
 """Tool for running a bounded non-interactive command in the task repository."""
 
-import os
-import shlex
-import subprocess
-import time
 from typing import Any, Dict
 
+from src.benchmarks.swe_rebench.runtime import CommandResult, get_repository_runtime
+
 from .base_tool import BaseTool
-from .repository_context import get_repository_context
 
 
 class RunCommandTool(BaseTool):
@@ -51,80 +48,26 @@ class RunCommandTool(BaseTool):
             },
         }
 
-    @staticmethod
-    def _environment(repository_root: str) -> dict[str, str]:
-        allowed = ("PATH", "LANG", "LC_ALL", "TERM", "PYTHONPATH")
-        environment = {key: os.environ[key] for key in allowed if key in os.environ}
-        environment.update({"HOME": repository_root, "GIT_TERMINAL_PROMPT": "0"})
-        return environment
-
     def __call__(self, command: str, timeout: int | None = None) -> str:
-        try:
-            arguments = shlex.split(command)
-        except ValueError as error:
-            return f"Invalid command: {error}"
-        if not arguments:
-            return "Command must not be empty"
-
         effective_timeout = self.default_timeout if timeout is None else timeout
         if effective_timeout < 1 or effective_timeout > self.max_timeout:
             return f"Timeout must be between 1 and {self.max_timeout} seconds"
-
-        context = get_repository_context()
-        started = time.monotonic()
-        try:
-            result = subprocess.run(
-                arguments,
-                cwd=context.root,
-                env=self._environment(str(context.root)),
-                stdin=subprocess.DEVNULL,
-                text=True,
-                capture_output=True,
-                timeout=effective_timeout,
-                check=False,
-            )
-        except FileNotFoundError:
-            return f"Command not found: {arguments[0]}"
-        except subprocess.TimeoutExpired as error:
-            stdout = self._as_text(error.stdout)
-            stderr = self._as_text(error.stderr)
-            return self._render(
-                command, None, time.monotonic() - started, stdout, stderr, True
-            )
-
-        return self._render(
+        result = get_repository_runtime().run_command(
             command,
-            result.returncode,
-            time.monotonic() - started,
-            result.stdout,
-            result.stderr,
-            False,
+            timeout=effective_timeout,
+            max_output_chars=self.max_output_chars,
         )
-
-    @staticmethod
-    def _as_text(output: str | bytes | None) -> str:
-        if output is None:
-            return ""
-        if isinstance(output, bytes):
-            return output.decode("utf-8", errors="replace")
-        return output
-
-    def _render(
-        self,
-        command: str,
-        exit_code: int | None,
-        duration: float,
-        stdout: str,
-        stderr: str,
-        timed_out: bool,
-    ) -> str:
-        output = (
-            f"Exit code: {'timeout' if timed_out else exit_code}\n"
-            f"Duration: {duration:.3f}s\n\n"
-            f"Command: {command}\n\n"
-            f"STDOUT:\n{stdout}\n\nSTDERR:\n{stderr}"
-        )
+        output = self._render(result)
         if len(output) > self.max_output_chars:
             marker = "\n[output truncated]"
-            output = output[: self.max_output_chars - len(marker)] + marker
+            return output[: self.max_output_chars - len(marker)] + marker
         return output
+
+    @staticmethod
+    def _render(result: CommandResult) -> str:
+        return (
+            f"Exit code: {'timeout' if result.timed_out else result.exit_code}\n"
+            f"Duration: {result.duration_seconds:.3f}s\n\n"
+            f"Command: {result.command}\n\n"
+            f"STDOUT:\n{result.stdout}\n\nSTDERR:\n{result.stderr}"
+        )

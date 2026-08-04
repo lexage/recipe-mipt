@@ -1,10 +1,10 @@
 """Tool for inspecting changes in the active task repository."""
 
-import subprocess
 from typing import Any, Dict
 
+from src.benchmarks.swe_rebench.runtime import get_repository_runtime
+
 from .base_tool import BaseTool
-from .repository_context import get_repository_context, resolve_repository_path
 
 
 class GitDiffTool(BaseTool):
@@ -44,59 +44,9 @@ class GitDiffTool(BaseTool):
         }
 
     def __call__(self, path: str = ".", stat_only: bool = False) -> str:
-        context = get_repository_context()
-        selected = resolve_repository_path(path)
-        relative = selected.relative_to(context.root)
-        pathspec = "." if not relative.parts else relative.as_posix()
-
-        try:
-            intent_to_add = subprocess.run(
-                ["git", "add", "--intent-to-add", "--", pathspec],
-                cwd=context.root,
-                text=True,
-                capture_output=True,
-                timeout=self.timeout,
-                check=False,
-            )
-            status = subprocess.run(
-                ["git", "status", "--short", "--", pathspec],
-                cwd=context.root,
-                text=True,
-                capture_output=True,
-                timeout=self.timeout,
-                check=False,
-            )
-            command = ["git", "diff", "--binary"]
-            if stat_only:
-                command.append("--stat")
-            command.extend([context.base_commit, "--", pathspec])
-            diff = subprocess.run(
-                command,
-                cwd=context.root,
-                text=True,
-                capture_output=True,
-                timeout=self.timeout,
-                check=False,
-            )
-        except FileNotFoundError:
-            return "Diff failed: git is not installed"
-        except subprocess.TimeoutExpired:
-            return f"Diff command timed out after {self.timeout} seconds"
-
-        if (
-            intent_to_add.returncode != 0
-            or status.returncode != 0
-            or diff.returncode != 0
-        ):
-            detail = (
-                intent_to_add.stderr.strip()
-                or status.stderr.strip()
-                or diff.stderr.strip()
-            )
-            return f"Diff failed: {detail}"
-        status_text = status.stdout.strip() or "[clean]"
-        diff_text = diff.stdout.strip() or "[no diff]"
-        output = f"Status:\n{status_text}\n\nDiff:\n{diff_text}"
-        if len(output) > self.max_output_chars:
-            output = output[: self.max_output_chars] + "\n[output truncated]"
-        return output
+        return get_repository_runtime().get_diff(
+            path,
+            stat_only=stat_only,
+            timeout=self.timeout,
+            max_output_chars=self.max_output_chars,
+        )

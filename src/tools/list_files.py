@@ -1,10 +1,10 @@
 """Tool for listing files in the active task repository."""
 
-from pathlib import Path
 from typing import Any, Dict
 
+from src.benchmarks.swe_rebench.runtime import get_repository_runtime
+
 from .base_tool import BaseTool
-from .repository_context import resolve_repository_path
 
 
 class ListFilesTool(BaseTool):
@@ -42,31 +42,9 @@ class ListFilesTool(BaseTool):
         }
 
     def __call__(self, path: str = ".") -> str:
-        directory = resolve_repository_path(path)
-        if not directory.exists():
-            return f"Path does not exist: {path}"
-        if not directory.is_dir():
-            return f"Path is not a directory: {path}"
-
-        entries: list[str] = []
-        truncated = False
-        for candidate in sorted(directory.rglob("*")):
-            relative = candidate.relative_to(directory)
-            if len(relative.parts) > self.max_depth:
-                continue
-            if not self.include_hidden and any(
-                part.startswith(".") for part in relative.parts
-            ):
-                continue
-            suffix = "/" if candidate.is_dir() else ""
-            entries.append(f"{relative.as_posix()}{suffix}")
-            if len(entries) == self.max_entries:
-                truncated = True
-                break
-
-        header = f"Directory: {Path(path).as_posix()}"
-        body = "\n".join(entries) if entries else "[empty]"
-        footer = f"\n\n[{len(entries)} entries"
-        if truncated:
-            footer += ", output truncated"
-        return f"{header}\n\n{body}{footer}]"
+        return get_repository_runtime().list_files(
+            path,
+            max_depth=self.max_depth,
+            max_entries=self.max_entries,
+            include_hidden=self.include_hidden,
+        )

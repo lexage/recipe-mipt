@@ -1,10 +1,10 @@
 """Ripgrep-backed search tool scoped to the active repository."""
 
-import subprocess
 from typing import Any, Dict, Optional
 
+from src.benchmarks.swe_rebench.runtime import get_repository_runtime
+
 from .base_tool import BaseTool
-from .repository_context import get_repository_context, resolve_repository_path
 
 
 class SearchCodeTool(BaseTool):
@@ -61,47 +61,12 @@ class SearchCodeTool(BaseTool):
         glob: Optional[str] = None,
         regex: bool = False,
     ) -> str:
-        if not query:
-            return "Search query must not be empty"
-        search_root = resolve_repository_path(path)
-        if not search_root.exists():
-            return f"Search path does not exist: {path}"
-
-        context = get_repository_context()
-        relative_root = search_root.relative_to(context.root)
-        pathspec = "." if not relative_root.parts else relative_root.as_posix()
-        command = ["rg", "--line-number", "--column", "--color", "never"]
-        if not regex:
-            command.append("--fixed-strings")
-        if glob:
-            command.extend(["--glob", glob])
-        command.extend(["--glob", "!.git/**", "--", query, pathspec])
-
-        try:
-            result = subprocess.run(
-                command,
-                cwd=context.root,
-                text=True,
-                capture_output=True,
-                timeout=self.timeout,
-                check=False,
-            )
-        except FileNotFoundError:
-            return "Search failed: ripgrep (rg) is not installed"
-        except subprocess.TimeoutExpired:
-            return f"Search timed out after {self.timeout} seconds"
-
-        if result.returncode == 1:
-            return "No matches found"
-        if result.returncode != 0:
-            return f"Search failed (exit {result.returncode}): {result.stderr.strip()}"
-
-        lines = result.stdout.splitlines()
-        truncated = len(lines) > self.max_results
-        output = "\n".join(lines[: self.max_results])
-        if len(output) > self.max_output_chars:
-            output = output[: self.max_output_chars]
-            truncated = True
-        if truncated:
-            output += "\n[output truncated]"
-        return output
+        return get_repository_runtime().search_code(
+            query,
+            path=path,
+            glob=glob,
+            regex=regex,
+            max_results=self.max_results,
+            timeout=self.timeout,
+            max_output_chars=self.max_output_chars,
+        )
