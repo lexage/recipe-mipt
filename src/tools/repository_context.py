@@ -6,6 +6,11 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterator
 
+from src.benchmarks.swe_rebench.runtime import (
+    LocalRepositoryRuntime,
+    bind_repository_runtime,
+)
+
 
 class RepositoryContextError(RuntimeError):
     """Raised when a repository tool is used without a valid runtime context."""
@@ -27,7 +32,9 @@ class RepositoryContext:
         try:
             root = Path(self.root).expanduser().resolve()
         except (OSError, RuntimeError, TypeError) as error:
-            raise RepositoryContextError("Repository root is not a valid path") from error
+            raise RepositoryContextError(
+                "Repository root is not a valid path"
+            ) from error
         if not root.is_dir():
             raise RepositoryContextError(
                 f"Repository root does not exist or is not a directory: {root}"
@@ -37,6 +44,11 @@ class RepositoryContext:
         if not isinstance(self.base_commit, str) or not self.base_commit.strip():
             raise RepositoryContextError("base_commit must be a non-empty string")
         object.__setattr__(self, "root", root)
+
+    def create_runtime(self) -> LocalRepositoryRuntime:
+        """Create the local runtime used by the compatibility binding."""
+
+        return LocalRepositoryRuntime(self.root, self.instance_id, self.base_commit)
 
 
 _CURRENT_REPOSITORY: ContextVar[RepositoryContext | None] = ContextVar(
@@ -66,7 +78,8 @@ def bind_repository_context(
 
     token = _CURRENT_REPOSITORY.set(context)
     try:
-        yield context
+        with bind_repository_runtime(context.create_runtime()):
+            yield context
     finally:
         _CURRENT_REPOSITORY.reset(token)
 
@@ -90,7 +103,9 @@ def resolve_repository_path(path: str | Path = ".") -> Path:
     try:
         resolved = (context.root / requested).resolve()
     except (OSError, RuntimeError) as error:
-        raise RepositoryPathError(f"Could not resolve repository path: {path}") from error
+        raise RepositoryPathError(
+            f"Could not resolve repository path: {path}"
+        ) from error
 
     if not resolved.is_relative_to(context.root):
         raise RepositoryPathError(f"Path is outside the repository: {path}")

@@ -5,12 +5,14 @@ import threading
 import unittest
 from pathlib import Path
 
+from src.benchmarks.swe_rebench.runtime import get_repository_runtime
+
 # Load this stdlib-only module without importing optional dependencies exposed by
 # src.tools.__init__, so its isolation tests also run in a minimal environment.
-MODULE_PATH = (
-    Path(__file__).parents[2] / "src" / "tools" / "repository_context.py"
+MODULE_PATH = Path(__file__).parents[2] / "src" / "tools" / "repository_context.py"
+SPEC = importlib.util.spec_from_file_location(
+    "repository_context_under_test", MODULE_PATH
 )
-SPEC = importlib.util.spec_from_file_location("repository_context_under_test", MODULE_PATH)
 assert SPEC is not None and SPEC.loader is not None
 repository_context = importlib.util.module_from_spec(SPEC)
 sys.modules[SPEC.name] = repository_context
@@ -44,6 +46,10 @@ class RepositoryContextTests(unittest.TestCase):
 
         with bind_repository_context(self.context):
             self.assertIs(get_repository_context(), self.context)
+            runtime = get_repository_runtime()
+            self.assertEqual(runtime.instance_id, self.context.instance_id)
+            self.assertEqual(runtime.base_commit, self.context.base_commit)
+            self.assertEqual(runtime.workdir, str(self.context.root))
 
         with self.assertRaises(RepositoryContextError):
             get_repository_context()

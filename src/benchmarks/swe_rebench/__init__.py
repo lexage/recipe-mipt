@@ -5,7 +5,10 @@ from .runtime import (
     LocalRepositoryRuntime,
     RepositoryRuntime,
     RepositoryRuntimeClosedError,
+    RepositoryRuntimeContextError,
     RepositoryRuntimeError,
+    bind_repository_runtime,
+    get_repository_runtime,
 )
 
 __all__ = [
@@ -14,7 +17,10 @@ __all__ = [
     "LocalRepositoryRuntime",
     "RepositoryRuntime",
     "RepositoryRuntimeClosedError",
+    "RepositoryRuntimeContextError",
     "RepositoryRuntimeError",
     "SWERebenchDataError",
     "SWERebenchTask",
+    "bind_repository_runtime",
+    "get_repository_runtime",
 ]
