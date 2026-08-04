@@ -58,6 +58,9 @@ class RecordingRuntime(RepositoryRuntime):
         self.calls.append(("get_diff", path, kwargs))
         return "diffed"
 
+    def get_patch(self, **kwargs):
+        return "patch"
+
 
 class RepositoryToolDelegationTests(unittest.TestCase):
     def test_all_tools_delegate_to_bound_runtime(self) -> None:

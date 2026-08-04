@@ -32,6 +32,10 @@ class DummyRuntime(RepositoryRuntime):
         self.ensure_open()
         return path
 
+    def get_patch(self, **kwargs):
+        self.ensure_open()
+        return "patch"
+
 
 class RepositoryRuntimeTests(unittest.TestCase):
     def test_runtime_metadata_and_operations_are_backend_neutral(self) -> None:
@@ -46,6 +50,7 @@ class RepositoryRuntimeTests(unittest.TestCase):
         self.assertEqual(runtime.apply_patch("diff"), "diff")
         self.assertEqual(runtime.run_command("pytest").exit_code, 0)
         self.assertEqual(runtime.get_diff(), ".")
+        self.assertEqual(runtime.get_patch(), "patch")
 
     def test_context_manager_closes_runtime_even_after_error(self) -> None:
         runtime = DummyRuntime("owner__repo-1", "deadbeef", "/testbed")

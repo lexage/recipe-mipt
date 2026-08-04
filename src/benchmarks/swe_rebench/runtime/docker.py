@@ -424,6 +424,26 @@ class DockerRepositoryRuntime(RepositoryRuntime):
             output = output[:max_output_chars] + "\n[output truncated]"
         return output
 
+    def get_patch(
+        self,
+        *,
+        timeout: int = 30,
+        max_output_chars: int = 1_000_000,
+    ) -> str:
+        intent = self.run_command("git add --intent-to-add -- .", timeout=timeout)
+        self._require_success(intent, "Could not collect model patch")
+        diff = self.run_command(
+            f"git diff --binary {shlex.quote(self.base_commit)}",
+            timeout=timeout,
+            max_output_chars=max_output_chars + 1,
+        )
+        self._require_success(diff, "Could not collect model patch")
+        if len(diff.stdout) > max_output_chars:
+            raise RepositoryRuntimeError(
+                f"Model patch exceeds the {max_output_chars}-character limit"
+            )
+        return diff.stdout
+
     def _resolve_path(self, path: str) -> str:
         self.ensure_open()
         if not isinstance(path, str) or not path:

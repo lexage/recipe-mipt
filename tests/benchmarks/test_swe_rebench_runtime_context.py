@@ -36,6 +36,10 @@ class ContextRuntime(RepositoryRuntime):
         self.ensure_open()
         return path
 
+    def get_patch(self, **kwargs):
+        self.ensure_open()
+        return "patch"
+
 
 class RepositoryRuntimeContextTests(unittest.TestCase):
     def make_runtime(self, instance_id: str) -> ContextRuntime:

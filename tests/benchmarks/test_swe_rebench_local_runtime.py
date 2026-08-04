@@ -67,11 +67,14 @@ class LocalRepositoryRuntimeTests(unittest.TestCase):
             f'{sys.executable} -c "from src.calculator import add; assert add(2, 3) == 5"'
         )
         diff = self.runtime.get_diff()
+        model_patch = self.runtime.get_patch()
 
         self.assertIn("Patch applied successfully", applied)
         self.assertEqual(command.exit_code, 0)
         self.assertFalse(command.timed_out)
         self.assertIn("return left + right", diff)
+        self.assertTrue(model_patch.startswith("diff --git"))
+        self.assertNotIn("Status:", model_patch)
 
     def test_diff_includes_new_files(self) -> None:
         (self.root / "new.py").write_text("created = True\n")

@@ -152,3 +152,12 @@ class RepositoryRuntime(ABC):
         max_output_chars: int = 50_000,
     ) -> str:
         """Return status and changes relative to the task base commit."""
+
+    @abstractmethod
+    def get_patch(
+        self,
+        *,
+        timeout: int = 30,
+        max_output_chars: int = 1_000_000,
+    ) -> str:
+        """Return only the evaluator-ready binary diff from the base commit."""

@@ -327,6 +327,24 @@ class LocalRepositoryRuntime(RepositoryRuntime):
             output = output[:max_output_chars] + "\n[output truncated]"
         return output
 
+    def get_patch(
+        self,
+        *,
+        timeout: int = 30,
+        max_output_chars: int = 1_000_000,
+    ) -> str:
+        self._require_positive(timeout=timeout, max_output_chars=max_output_chars)
+        intent = self._git(["add", "--intent-to-add", "--", "."], timeout)
+        diff = self._git(["diff", "--binary", self.base_commit], timeout)
+        if intent.returncode != 0 or diff.returncode != 0:
+            detail = intent.stderr.strip() or diff.stderr.strip()
+            raise RepositoryRuntimeError(f"Could not collect model patch: {detail}")
+        if len(diff.stdout) > max_output_chars:
+            raise RepositoryRuntimeError(
+                f"Model patch exceeds the {max_output_chars}-character limit"
+            )
+        return diff.stdout
+
     def _validate_patch_paths(self, patch: str) -> list[str]:
         paths: list[str] = []
         for line in patch.splitlines():

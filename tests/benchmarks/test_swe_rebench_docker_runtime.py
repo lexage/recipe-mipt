@@ -237,6 +237,16 @@ class DockerRepositoryRuntimeTests(unittest.TestCase):
         self.assertIn("M src/calculator.py", diff)
         self.assertIn("diff --git", diff)
 
+        patch_container = FakeContainer()
+        patch_container.responses = [
+            SimpleNamespace(exit_code=0, output=(b"", b"")),
+            SimpleNamespace(
+                exit_code=0, output=(b"diff --git a/src/calculator.py\n", b"")
+            ),
+        ]
+        model_patch = self.direct_runtime(patch_container).get_patch()
+        self.assertEqual(model_patch, "diff --git a/src/calculator.py\n")
+
     def test_timeout_is_enforced_inside_container(self):
         container = FakeContainer()
         container.responses = [SimpleNamespace(exit_code=124, output=(b"partial", b""))]
