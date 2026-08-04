@@ -1,5 +1,6 @@
 from .data_types import SWERebenchDataError, SWERebenchTask
 from .dataset import DatasetSWERebench
+from .images import InstanceImage, InstanceImageError, InstanceImageResolver
 from .runtime import (
     CommandResult,
     LocalRepositoryRuntime,
@@ -14,6 +15,9 @@ from .runtime import (
 __all__ = [
     "CommandResult",
     "DatasetSWERebench",
+    "InstanceImage",
+    "InstanceImageError",
+    "InstanceImageResolver",
     "LocalRepositoryRuntime",
     "RepositoryRuntime",
     "RepositoryRuntimeClosedError",
