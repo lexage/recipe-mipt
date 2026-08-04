@@ -4,9 +4,11 @@ from .base import (
     RepositoryRuntimeClosedError,
     RepositoryRuntimeError,
 )
+from .local import LocalRepositoryRuntime
 
 __all__ = [
     "CommandResult",
+    "LocalRepositoryRuntime",
     "RepositoryRuntime",
     "RepositoryRuntimeClosedError",
     "RepositoryRuntimeError",
