@@ -17,6 +17,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--timeout", type=int, default=1_800)
     parser.add_argument("--namespace", default="swebench")
     parser.add_argument("--instance-image-tag", default="latest")
+    parser.add_argument("--report-dir", default="swe-rebench-evaluation")
     parser.add_argument("--instance-ids", nargs="*", default=())
     parser.add_argument(
         "--check-only",
@@ -40,6 +41,7 @@ def main() -> int:
             namespace=args.namespace,
             instance_image_tag=args.instance_image_tag,
             instance_ids=tuple(args.instance_ids),
+            report_dir=Path(args.report_dir),
         )
     )
     result = evaluator.run(check_only=args.check_only)

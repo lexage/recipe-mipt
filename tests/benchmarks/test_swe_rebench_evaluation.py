@@ -71,6 +71,12 @@ class EvaluationTests(unittest.TestCase):
         self.assertEqual(command[-2:], ["--instance_ids", "owner__repo-1"])
         self.assertIn(str(self.predictions.resolve()), command)
         self.assertIsNone(evaluator.run(check_only=True))
+        metadata = json.loads(
+            (self.root / "reports" / "evaluation_metadata.json").read_text()
+        )
+        self.assertEqual(metadata["fork_commit"], None)
+        self.assertEqual(metadata["run_id"], "smoke")
+        self.assertEqual(metadata["command"], command)
 
     def test_compatibility_gate_rejects_wrong_fork(self):
         package = self.root / "swebench" / "harness"
@@ -94,6 +100,7 @@ class EvaluationTests(unittest.TestCase):
             split="test",
             run_id="smoke",
             instance_ids=instance_ids,
+            report_dir=self.root / "reports",
         )
 
     def _write_fake_harness(self):
@@ -112,6 +119,7 @@ p.add_argument('--timeout')
 p.add_argument('--run_id')
 p.add_argument('--namespace')
 p.add_argument('--instance_image_tag')
+p.add_argument('--report_dir')
 p.add_argument('--instance_ids', nargs='*')
 p.parse_args()
 """,

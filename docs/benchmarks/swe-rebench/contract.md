@@ -128,6 +128,28 @@ python evaluate_swe_rebench.py \
 Remove `--check-only` to start the official evaluator. The wrapper validates the
 strict JSONL schema, rejects duplicate predictions, checks the fork's CLI, and
 then launches the harness in a subprocess. It never imports evaluator internals.
+It also writes `evaluation_metadata.json` into `--report-dir`, including the
+fork and generator revisions and the exact harness command.
+
+## One-instance smoke run
+
+Before allocating workers for a full run, execute the complete generation to
+evaluation hand-off for one instance:
+
+```bash
+python smoke_swe_rebench.py \
+  --config pipeline_configs/react_sgr_swe_rebench.yaml \
+  --instance-id <instance-id> \
+  --fork-path /path/to/SWE-bench-fork \
+  --output-dir runs/react-sgr-smoke \
+  --model-name-or-path react-sgr/<model> \
+  --run-id react-sgr-smoke
+```
+
+The smoke runner forces one inference worker and one evaluation worker, writes
+the selected ID and predictions under `--output-dir`, and stops immediately if
+inference fails. Add `--evaluation-check-only` to validate the hand-off without
+starting the official evaluation container.
 
 ## Stage boundary
 
