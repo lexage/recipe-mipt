@@ -3,7 +3,9 @@ from .dataset import DatasetSWERebench
 from .images import InstanceImage, InstanceImageError, InstanceImageResolver
 from .runtime import (
     CommandResult,
+    DockerRepositoryRuntime,
     LocalRepositoryRuntime,
+    PullPolicy,
     RepositoryRuntime,
     RepositoryRuntimeClosedError,
     RepositoryRuntimeContextError,
@@ -15,10 +17,12 @@ from .runtime import (
 __all__ = [
     "CommandResult",
     "DatasetSWERebench",
+    "DockerRepositoryRuntime",
     "InstanceImage",
     "InstanceImageError",
     "InstanceImageResolver",
     "LocalRepositoryRuntime",
+    "PullPolicy",
     "RepositoryRuntime",
     "RepositoryRuntimeClosedError",
     "RepositoryRuntimeContextError",

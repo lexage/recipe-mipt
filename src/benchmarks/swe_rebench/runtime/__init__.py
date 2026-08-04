@@ -9,11 +9,14 @@ from .context import (
     bind_repository_runtime,
     get_repository_runtime,
 )
+from .docker import DockerRepositoryRuntime, PullPolicy
 from .local import LocalRepositoryRuntime
 
 __all__ = [
     "CommandResult",
+    "DockerRepositoryRuntime",
     "LocalRepositoryRuntime",
+    "PullPolicy",
     "RepositoryRuntime",
     "RepositoryRuntimeClosedError",
     "RepositoryRuntimeContextError",
