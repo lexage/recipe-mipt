@@ -13,8 +13,11 @@ class FakeContainer:
     def __init__(self, base_commit="deadbeef", status=b""):
         self.responses = [
             SimpleNamespace(exit_code=0, output=(b"", b"")),
+            SimpleNamespace(exit_code=0, output=(b"", b"")),
             SimpleNamespace(exit_code=0, output=(base_commit.encode() + b"\n", b"")),
             SimpleNamespace(exit_code=0, output=(status, b"")),
+            SimpleNamespace(exit_code=0, output=(b"/usr/bin/python\n", b"")),
+            SimpleNamespace(exit_code=0, output=(b"Python 3.12\n", b"")),
         ]
         self.exec_calls = []
         self.put_archive = Mock(return_value=True)
@@ -70,13 +73,15 @@ class DockerRepositoryRuntimeTests(unittest.TestCase):
         self.assertEqual(options["image"], self.image.name)
         self.assertEqual(options["working_dir"], "/testbed")
         self.assertEqual(options["platform"], "linux/x86_64")
-        self.assertEqual(options["command"], ["sleep", "infinity"])
+        self.assertEqual(options["command"], ["tail", "-f", "/dev/null"])
+        self.assertEqual(options["user"], "root")
+        self.assertEqual(options["environment"]["BASH_ENV"], "/root/.bashrc")
         self.assertTrue(options["detach"])
         self.assertTrue(options["network_disabled"])
         self.assertEqual(options["mem_limit"], "4g")
         self.assertEqual(options["nano_cpus"], 2_000_000_000)
         self.assertEqual(options["labels"]["swe-rebench.role"], "inference")
-        self.assertEqual(len(container.exec_calls), 3)
+        self.assertEqual(len(container.exec_calls), 6)
         self.assertFalse(runtime.is_closed)
 
     def test_missing_image_is_pulled_by_default(self):
@@ -142,12 +147,13 @@ class DockerRepositoryRuntimeTests(unittest.TestCase):
                 "timeout",
                 "--signal=KILL",
                 "120s",
-                "/bin/sh",
-                "-lc",
+                "/bin/bash",
+                "-c",
                 "pytest -q",
             ],
         )
         self.assertEqual(options["workdir"], "/testbed")
+        self.assertEqual(options["environment"]["PAGER"], "cat")
         self.assertEqual(result.exit_code, 3)
         self.assertEqual(result.stdout, "stdout\n")
         self.assertEqual(result.stderr, "stderr\n")
@@ -243,6 +249,7 @@ class DockerRepositoryRuntimeTests(unittest.TestCase):
             SimpleNamespace(
                 exit_code=0, output=(b"diff --git a/src/calculator.py\n", b"")
             ),
+            SimpleNamespace(exit_code=0, output=(b"", b"")),
         ]
         model_patch = self.direct_runtime(patch_container).get_patch()
         self.assertEqual(model_patch, "diff --git a/src/calculator.py\n")

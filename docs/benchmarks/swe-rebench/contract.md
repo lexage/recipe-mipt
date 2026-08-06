@@ -21,8 +21,8 @@ The initial defaults for the integration are:
 
 | Setting | Default |
 | --- | --- |
-| Dataset | `SWE-rebench/SWE-rebench` |
-| Split | `test` |
+| Dataset | Explicit CLI value, for example `nebius/SWE-rebench` |
+| Split | Explicit CLI value |
 | Evaluator | a separately checked out `SWE-rebench/SWE-bench-fork` |
 | Prediction serialization | JSONL, one object per line |
 
@@ -83,12 +83,16 @@ Evaluation is a separate stage and is run from the checked-out fork:
 
 ```bash
 python -m swebench.harness.run_evaluation \
-  --dataset_name SWE-rebench/SWE-rebench \
+  --dataset_name nebius/SWE-rebench \
   --split test \
   --predictions_path /absolute/path/to/predictions.jsonl \
   --max_workers 4 \
   --run_id <unique-run-id>
 ```
+
+Use `evaluate_swe_rebench.py` for the actual hand-off; it additionally requires
+the matching inference `run_metadata.json`, an explicit namespace, and verifies
+that dataset, revision, split, and selected IDs match before invoking the fork.
 
 For a smoke run, append the selected identifiers:
 
@@ -189,20 +193,28 @@ patch from affecting the reported score.
 
 ## Pinned inference images
 
-Production inference requires `--image-manifest`; deriving image names from an
-instance ID is disabled by default. The manifest must be exported from the same
-pinned `SWE-rebench/SWE-bench-fork` revision used for evaluation and is a JSON
-object keyed by every selected instance ID:
+Production inference first uses the exact `image_name` or `docker_image` stored
+in the pinned dataset record. A manifest remains supported for replaying an
+older run; deriving image names from an instance ID is disabled by default. A
+manifest must come from the same pinned evaluator revision and is a JSON object
+keyed by every selected instance ID:
 
 ```json
 {
   "owner__repo-123": {
     "instance_image_key": "registry/exact-image@sha256:...",
     "platform": "linux/amd64",
-    "workdir": "/testbed"
+    "workdir": "/testbed",
+    "user": "root",
+    "cap_add": []
   }
 }
 ```
+
+The inference CLI requires explicit `--dataset` and `--split` values. The
+evaluation CLI additionally requires an explicit namespace; pass `swerebench`
+for leaderboard images or an empty value for locally built images, following
+the pinned fork's documentation.
 
 An absent instance is a hard inference error. Convention-based image names are
 available only through the explicit `--allow-image-convention` escape hatch for

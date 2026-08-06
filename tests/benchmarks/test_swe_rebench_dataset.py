@@ -54,6 +54,28 @@ class SWERebenchTaskTests(unittest.TestCase):
         with self.assertRaisesRegex(SWERebenchDataError, "version"):
             SWERebenchTask.from_dict(record)
 
+    def test_official_image_and_safe_docker_run_args_are_retained(self) -> None:
+        record = make_record()
+        record.update(
+            {
+                "image_name": "registry/task@sha256:abc",
+                "install_config": {
+                    "docker_specs": {
+                        "run_args": {
+                            "cap_add": ["SYS_PTRACE"],
+                            "privileged": True,
+                            "volumes": ["/:/host"],
+                        }
+                    }
+                },
+            }
+        )
+        task = SWERebenchTask.from_dict(record)
+
+        self.assertEqual(task.instance_image, "registry/task@sha256:abc")
+        self.assertEqual(task.docker_run_args, {"cap_add": ["SYS_PTRACE"]})
+        self.assertNotIn("privileged", task.docker_run_args)
+
 
 class DatasetSWERebenchTests(unittest.TestCase):
     def setUp(self) -> None:

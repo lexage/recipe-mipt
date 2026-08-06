@@ -20,15 +20,24 @@ class InstanceImage:
     name: str
     platform: str
     workdir: str = "/testbed"
-    source: Literal["test_spec", "manifest", "override", "convention"] = "manifest"
+    source: Literal["dataset", "test_spec", "manifest", "override", "convention"] = (
+        "manifest"
+    )
+    user: str = "root"
+    cap_add: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
-        for field in ("name", "platform", "workdir"):
+        for field in ("name", "platform", "workdir", "user"):
             value = getattr(self, field)
             if not isinstance(value, str) or not value.strip():
                 raise InstanceImageError(f"Image {field} must be a non-empty string")
         if not self.workdir.startswith("/"):
             raise InstanceImageError("Image workdir must be an absolute POSIX path")
+        if not all(
+            isinstance(capability, str) and capability.strip()
+            for capability in self.cap_add
+        ):
+            raise InstanceImageError("Image cap_add must contain non-empty strings")
 
 
 class InstanceImageResolver:
@@ -116,6 +125,8 @@ class InstanceImageResolver:
                     platform=coordinates["platform"],
                     workdir=coordinates.get("workdir", workdir),
                     source="manifest",
+                    user=coordinates.get("user", "root"),
+                    cap_add=tuple(coordinates.get("cap_add", ())),
                 )
             except (KeyError, TypeError, InstanceImageError) as error:
                 raise InstanceImageError(
@@ -135,6 +146,15 @@ class InstanceImageResolver:
                 platform=self.ARCH_TO_PLATFORM[self.architecture],
                 workdir=self.workdir,
                 source="override",
+            )
+
+        if task.image_name or task.docker_image:
+            return InstanceImage(
+                name=task.instance_image,
+                platform=self.ARCH_TO_PLATFORM[self.architecture],
+                workdir=self.workdir,
+                source="dataset",
+                cap_add=tuple((task.docker_run_args or {}).get("cap_add", ())),
             )
 
         if task.instance_id in self.manifest:

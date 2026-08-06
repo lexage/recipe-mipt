@@ -24,6 +24,12 @@ class SmokeCLITests(unittest.TestCase):
                 "react-sgr/model",
                 "--run-id",
                 "smoke-1",
+                "--dataset",
+                "nebius/SWE-rebench",
+                "--split",
+                "test",
+                "--namespace",
+                "swerebench",
                 "--evaluation-check-only",
                 "--allow-image-convention",
             ]
@@ -66,6 +72,12 @@ class SmokeCLITests(unittest.TestCase):
                 "model",
                 "--run-id",
                 "smoke-1",
+                "--dataset",
+                "nebius/SWE-rebench",
+                "--split",
+                "test",
+                "--namespace",
+                "swerebench",
                 "--allow-image-convention",
             ]
             failed = type("Result", (), {"returncode": 7})()

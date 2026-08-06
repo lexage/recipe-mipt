@@ -1,6 +1,7 @@
 import json
 import tempfile
 import threading
+import time
 import unittest
 from pathlib import Path
 
@@ -30,6 +31,11 @@ class FakePipeline:
 
     def close(self):
         self.closed = True
+
+
+class SlowPipeline(FakePipeline):
+    def run(self, prompt):
+        time.sleep(5)
 
 
 class FakeRuntime(RepositoryRuntime):
@@ -170,6 +176,45 @@ class SWERebenchInferenceRunnerTests(unittest.TestCase):
         )
         patches = {record["instance_id"]: record["model_patch"] for record in records}
         self.assertEqual(patches["owner__repo-0"], "")
+
+    def test_process_task_timeout_materializes_empty_prediction(self):
+        def runtime_factory(task, image):
+            return FakeRuntime(task)
+
+        runner = SWERebenchInferenceRunner(
+            pipeline_factory=SlowPipeline,
+            runtime_factory=runtime_factory,
+            image_resolver=InstanceImageResolver(allow_convention=True),
+            predictions_writer=self.predictions,
+            artifacts_writer=self.artifacts,
+            max_workers=1,
+            task_timeout=1,
+        )
+
+        summary = runner.run([make_task(0)])
+
+        self.assertEqual(summary.failed, 1)
+        record = json.loads((self.root / "predictions.jsonl").read_text().strip())
+        self.assertEqual(record["model_patch"], "")
+
+    def test_process_worker_returns_patch_and_artifacts(self):
+        def runtime_factory(task, image):
+            return FakeRuntime(task)
+
+        runner = SWERebenchInferenceRunner(
+            pipeline_factory=FakePipeline,
+            runtime_factory=runtime_factory,
+            image_resolver=InstanceImageResolver(allow_convention=True),
+            predictions_writer=self.predictions,
+            artifacts_writer=self.artifacts,
+            max_workers=1,
+            task_timeout=10,
+        )
+
+        summary = runner.run([make_task(0)])
+
+        self.assertEqual(summary.completed, 1)
+        self.assertTrue((self.root / "patches.jsonl").is_file())
 
 
 if __name__ == "__main__":

@@ -31,6 +31,25 @@ class InstanceImageTests(unittest.TestCase):
 
 
 class InstanceImageResolverTests(unittest.TestCase):
+    def test_dataset_image_precedes_manifest(self) -> None:
+        task = SWERebenchTask(
+            instance_id="Owner__Repo-123",
+            repo="Owner/Repo",
+            base_commit="deadbeef",
+            problem_statement="Fix the issue.",
+            docker_image="registry/official@sha256:123",
+            docker_run_args={"cap_add": ["SYS_PTRACE"]},
+        )
+        resolver = InstanceImageResolver(
+            manifest={task.instance_id: InstanceImage("registry/old", "linux/x86_64")}
+        )
+
+        image = resolver.resolve(task)
+
+        self.assertEqual(image.name, "registry/official@sha256:123")
+        self.assertEqual(image.source, "dataset")
+        self.assertEqual(image.cap_add, ("SYS_PTRACE",))
+
     def test_remote_convention_matches_harness_image_key(self) -> None:
         image = InstanceImageResolver(allow_convention=True).resolve(make_task())
 

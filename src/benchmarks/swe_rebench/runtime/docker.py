@@ -13,6 +13,14 @@ from .base import CommandResult, RepositoryRuntime, RepositoryRuntimeError
 
 PullPolicy = Literal["always", "missing", "never"]
 
+COMMAND_ENVIRONMENT = {
+    "BASH_ENV": "/root/.bashrc",
+    "PAGER": "cat",
+    "MANPAGER": "cat",
+    "PIP_PROGRESS_BAR": "off",
+    "TQDM_DISABLE": "1",
+}
+
 
 class DockerRepositoryRuntime(RepositoryRuntime):
     """Own a dedicated inference container created from an instance image.
@@ -81,7 +89,7 @@ class DockerRepositoryRuntime(RepositoryRuntime):
         }
         options: dict[str, Any] = {
             "image": image.name,
-            "command": ["sleep", "infinity"],
+            "command": ["tail", "-f", "/dev/null"],
             "name": name,
             "detach": True,
             "stdin_open": False,
@@ -90,6 +98,9 @@ class DockerRepositoryRuntime(RepositoryRuntime):
             "platform": image.platform,
             "network_disabled": network_disabled,
             "labels": labels,
+            "user": image.user,
+            "cap_add": list(image.cap_add),
+            "environment": COMMAND_ENVIRONMENT,
         }
         if memory_limit is not None:
             options["mem_limit"] = memory_limit
@@ -126,9 +137,12 @@ class DockerRepositoryRuntime(RepositoryRuntime):
 
         self.ensure_open()
         checks = (
+            ("pwd", "Could not determine task working directory"),
             ("test -d .git", "Task workdir is not a Git checkout"),
             ("git rev-parse HEAD", "Could not determine task checkout commit"),
             ("git status --porcelain", "Could not inspect task checkout status"),
+            ("command -v python", "Task environment has no Python executable"),
+            ("python --version", "Could not inspect task Python version"),
         )
         results: list[CommandResult] = []
         for command, message in checks:
@@ -138,12 +152,12 @@ class DockerRepositoryRuntime(RepositoryRuntime):
                 raise RepositoryRuntimeError(f"{message}: {detail}")
             results.append(result)
 
-        head = results[1].stdout.strip()
+        head = results[2].stdout.strip()
         if head != self.base_commit:
             raise RepositoryRuntimeError(
                 f"Task checkout is at {head}, expected {self.base_commit}"
             )
-        status = results[2].stdout.strip()
+        status = results[3].stdout.strip()
         if status:
             raise RepositoryRuntimeError(
                 "Task checkout is not clean before inference:\n" + status
@@ -175,11 +189,12 @@ class DockerRepositoryRuntime(RepositoryRuntime):
                     "timeout",
                     "--signal=KILL",
                     f"{timeout}s",
-                    "/bin/sh",
-                    "-lc",
+                    "/bin/bash",
+                    "-c",
                     command,
                 ],
                 workdir=self.workdir,
+                environment=COMMAND_ENVIRONMENT,
                 stdin=False,
                 tty=False,
                 demux=True,
@@ -438,6 +453,8 @@ class DockerRepositoryRuntime(RepositoryRuntime):
             max_output_chars=max_output_chars + 1,
         )
         self._require_success(diff, "Could not collect model patch")
+        check = self.run_command("git diff --check", timeout=timeout)
+        self._require_success(check, "Model patch failed git diff --check")
         if len(diff.stdout) > max_output_chars:
             raise RepositoryRuntimeError(
                 f"Model patch exceeds the {max_output_chars}-character limit"

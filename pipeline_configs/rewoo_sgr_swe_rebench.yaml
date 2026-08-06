@@ -4,6 +4,13 @@ components:
     - type: LIST_FILES_TOOL
     - type: READ_FILE_TOOL
     - type: SEARCH_CODE_TOOL
+    - type: LLM_TOOL
+      params:
+        url: http://localhost:7215/v1
+        model_name: Qwen/Qwen1.5-32B-Chat-AWQ
+        temperature: 0.0
+        timeout: 300.0
+        max_retries: 2
     - type: APPLY_PATCH_TOOL
     - type: RUN_COMMAND_TOOL
       params:

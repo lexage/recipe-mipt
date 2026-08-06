@@ -77,12 +77,14 @@ class EvaluationConfig:
     dataset_name: str
     split: str
     run_id: str
+    dataset_revision: str | None = None
     max_workers: int = 4
     timeout: int = 1_800
-    namespace: str = "swebench"
+    namespace: str = ""
     instance_image_tag: str = "latest"
     instance_ids: tuple[str, ...] = ()
     report_dir: Path = Path(".")
+    inference_metadata: Path | None = None
 
     def __post_init__(self) -> None:
         if self.max_workers < 1 or self.timeout < 1:
@@ -142,7 +144,7 @@ class SWERebenchEvaluator:
             "--run_id",
             config.run_id,
             "--namespace",
-            config.namespace,
+            config.namespace or "none",
             "--instance_image_tag",
             config.instance_image_tag,
             "--report_dir",
@@ -163,6 +165,7 @@ class SWERebenchEvaluator:
         metadata = {
             "created_at": datetime.now(timezone.utc).isoformat(),
             "dataset_name": config.dataset_name,
+            "dataset_revision": config.dataset_revision,
             "split": config.split,
             "run_id": config.run_id,
             "predictions_path": str(config.predictions_path.expanduser().resolve()),
@@ -181,7 +184,8 @@ class SWERebenchEvaluator:
     def run(
         self, *, check_only: bool = False
     ) -> subprocess.CompletedProcess[str] | None:
-        validate_predictions(self.config.predictions_path)
+        predictions = validate_predictions(self.config.predictions_path)
+        self._validate_inference_contract(predictions)
         self.check_compatibility()
         self.write_metadata()
         if check_only:
@@ -192,6 +196,50 @@ class SWERebenchEvaluator:
             text=True,
             check=False,
         )
+
+    def _validate_inference_contract(
+        self, predictions: tuple[SWERebenchPrediction, ...]
+    ) -> None:
+        """Require exactly one prediction for every selected inference instance."""
+
+        config = self.config
+        predicted_ids = {prediction.instance_id for prediction in predictions}
+        expected_ids = set(config.instance_ids)
+        if expected_ids and predicted_ids != expected_ids:
+            missing = sorted(expected_ids - predicted_ids)
+            unexpected = sorted(predicted_ids - expected_ids)
+            raise SWERebenchDataError(
+                f"Prediction IDs do not match selected instances; missing={missing}, "
+                f"unexpected={unexpected}"
+            )
+
+        if config.inference_metadata is None:
+            return
+        try:
+            metadata = json.loads(
+                config.inference_metadata.expanduser()
+                .resolve()
+                .read_text(encoding="utf-8")
+            )
+        except (OSError, json.JSONDecodeError) as error:
+            raise SWERebenchDataError(
+                f"Could not read inference metadata: {error}"
+            ) from error
+        for key, expected in (
+            ("dataset", config.dataset_name),
+            ("split", config.split),
+            ("dataset_revision", config.dataset_revision),
+        ):
+            if metadata.get(key) != expected:
+                raise SWERebenchDataError(
+                    f"Inference metadata {key}={metadata.get(key)!r} does not "
+                    f"match evaluation value {expected!r}"
+                )
+        metadata_ids = set(metadata.get("selected_instance_ids", ()))
+        if metadata_ids != predicted_ids:
+            raise SWERebenchDataError(
+                "Inference metadata selected_instance_ids do not match predictions"
+            )
 
     @staticmethod
     def _git_revision(path: Path) -> str | None:

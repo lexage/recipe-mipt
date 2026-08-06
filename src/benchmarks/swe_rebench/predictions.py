@@ -150,3 +150,13 @@ class RunArtifactsWriter:
             with (self.directory / "errors.jsonl").open("a", encoding="utf-8") as file:
                 file.write(encoded)
                 file.flush()
+
+    def write_patch_artifact(self, instance_id: str, details: dict[str, Any]) -> None:
+        """Append non-evaluator patch diagnostics for audit and debugging."""
+
+        record = {"instance_id": instance_id, **details}
+        encoded = json.dumps(record, ensure_ascii=False) + "\n"
+        with self._lock:
+            with (self.directory / "patches.jsonl").open("a", encoding="utf-8") as file:
+                file.write(encoded)
+                file.flush()

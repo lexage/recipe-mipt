@@ -92,15 +92,45 @@ class EvaluationTests(unittest.TestCase):
                 self._config(), python=sys.executable
             ).check_compatibility()
 
-    def _config(self, *, instance_ids=()):
+    def test_evaluation_requires_complete_ids_and_matching_metadata(self):
+        self._write_fake_harness()
+        config = self._config(instance_ids=("owner__repo-1", "owner__repo-2"))
+        with self.assertRaisesRegex(SWERebenchDataError, "missing"):
+            SWERebenchEvaluator(config, python=sys.executable).run(check_only=True)
+
+        metadata = self.root / "run_metadata.json"
+        metadata.write_text(
+            json.dumps(
+                {
+                    "dataset": "nebius/SWE-rebench",
+                    "dataset_revision": "revision-1",
+                    "split": "test",
+                    "selected_instance_ids": ["owner__repo-1"],
+                }
+            ),
+            encoding="utf-8",
+        )
+        config = self._config(
+            instance_ids=("owner__repo-1",),
+            inference_metadata=metadata,
+            dataset_revision="wrong-revision",
+        )
+        with self.assertRaisesRegex(SWERebenchDataError, "dataset_revision"):
+            SWERebenchEvaluator(config, python=sys.executable).run(check_only=True)
+
+    def _config(
+        self, *, instance_ids=(), inference_metadata=None, dataset_revision=None
+    ):
         return EvaluationConfig(
             fork_path=self.root,
             predictions_path=self.predictions,
-            dataset_name="SWE-rebench/SWE-rebench",
+            dataset_name="nebius/SWE-rebench",
+            dataset_revision=dataset_revision,
             split="test",
             run_id="smoke",
             instance_ids=instance_ids,
             report_dir=self.root / "reports",
+            inference_metadata=inference_metadata,
         )
 
     def _write_fake_harness(self):

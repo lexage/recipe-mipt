@@ -14,10 +14,10 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--output-dir", required=True)
     parser.add_argument("--model-name-or-path", required=True)
     parser.add_argument("--run-id", required=True)
-    parser.add_argument("--dataset", default="SWE-rebench/SWE-rebench")
-    parser.add_argument("--split", default="test")
+    parser.add_argument("--dataset", required=True)
+    parser.add_argument("--split", required=True)
     parser.add_argument("--dataset-revision")
-    parser.add_argument("--namespace", default="swebench")
+    parser.add_argument("--namespace", required=True)
     parser.add_argument("--architecture", default="x86_64")
     parser.add_argument("--image-tag", default="latest")
     parser.add_argument("--image-manifest")
@@ -56,6 +56,8 @@ def main() -> int:
         args.run_id,
         "--num-workers",
         "1",
+        "--evaluator-fork-path",
+        args.fork_path,
         "--namespace",
         args.namespace,
         "--architecture",
@@ -69,11 +71,6 @@ def main() -> int:
         inference.extend(("--image-manifest", args.image_manifest))
     elif args.allow_image_convention:
         inference.append("--allow-image-convention")
-    else:
-        raise RuntimeError(
-            "Smoke inference requires --image-manifest or explicit "
-            "--allow-image-convention"
-        )
     inference_result = subprocess.run(inference, check=False)
     if inference_result.returncode:
         return inference_result.returncode
@@ -101,10 +98,28 @@ def main() -> int:
         args.instance_id,
         "--report-dir",
         str(output_dir / "evaluation"),
+        "--inference-metadata",
+        str(output_dir / "run_metadata.json"),
     ]
+    if args.dataset_revision:
+        evaluation.extend(("--dataset-revision", args.dataset_revision))
     if args.evaluation_check_only:
         evaluation.append("--check-only")
-    return subprocess.run(evaluation, check=False).returncode
+    evaluation_result = subprocess.run(evaluation, check=False)
+    if evaluation_result.returncode or args.evaluation_check_only:
+        return evaluation_result.returncode
+    report_dir = output_dir / "evaluation"
+    reports = [
+        path
+        for path in report_dir.rglob("*")
+        if path.is_file() and path.name != "evaluation_metadata.json"
+    ]
+    if not reports:
+        raise RuntimeError(
+            "Evaluator exited successfully but produced no instance report in "
+            f"{report_dir}"
+        )
+    return 0
 
 
 if __name__ == "__main__":
