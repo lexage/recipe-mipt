@@ -1,0 +1,23 @@
+type: REACT
+components:
+  tools:
+    - type: LIST_FILES_TOOL
+    - type: READ_FILE_TOOL
+    - type: SEARCH_CODE_TOOL
+    - type: APPLY_PATCH_TOOL
+    - type: RUN_COMMAND_TOOL
+      params:
+        default_timeout: 120
+        max_timeout: 600
+    - type: GIT_DIFF_TOOL
+
+  agent:
+    type: REACT_AGENT_SGR
+    params:
+      name: react-sgr-swe-rebench
+      url: http://localhost:7215/v1
+      model_name: Qwen/Qwen1.5-32B-Chat-AWQ
+      temperature: 0.0
+      max_iterations: 30
+
+logs_path: react-sgr/swe-rebench/logs
