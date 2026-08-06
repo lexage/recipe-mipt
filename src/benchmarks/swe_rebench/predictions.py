@@ -137,13 +137,18 @@ class RunArtifactsWriter:
         error: BaseException,
         *,
         duration_seconds: Optional[float] = None,
+        error_type: Optional[str] = None,
+        traceback_text: Optional[str] = None,
+        details: Optional[dict[str, Any]] = None,
     ) -> None:
         record = {
             "instance_id": instance_id,
             "stage": stage,
-            "error_type": type(error).__name__,
+            "error_type": error_type or type(error).__name__,
             "message": str(error),
             "duration_seconds": duration_seconds,
+            "traceback": traceback_text,
+            "details": details or {},
         }
         encoded = json.dumps(record, ensure_ascii=False) + "\n"
         with self._lock:

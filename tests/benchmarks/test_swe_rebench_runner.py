@@ -216,6 +216,29 @@ class SWERebenchInferenceRunnerTests(unittest.TestCase):
         self.assertEqual(summary.completed, 1)
         self.assertTrue((self.root / "patches.jsonl").is_file())
 
+    def test_empty_patch_error_contains_agent_and_repository_diagnostics(self):
+        def runtime_factory(task, image):
+            return FakeRuntime(task, patch="")
+
+        runner = SWERebenchInferenceRunner(
+            pipeline_factory=FakePipeline,
+            runtime_factory=runtime_factory,
+            image_resolver=InstanceImageResolver(allow_convention=True),
+            predictions_writer=self.predictions,
+            artifacts_writer=self.artifacts,
+            max_workers=1,
+            task_timeout=10,
+        )
+
+        summary = runner.run([make_task(0)])
+
+        self.assertEqual(summary.failed, 1)
+        error = json.loads((self.root / "errors.jsonl").read_text())
+        self.assertEqual(error["error_type"], "EmptyModelPatchError")
+        self.assertEqual(error["details"]["agent_result"], "ignored final answer")
+        self.assertEqual(error["details"]["git_status"], "[clean]")
+        self.assertIn("Traceback", error["traceback"])
+
 
 if __name__ == "__main__":
     unittest.main()

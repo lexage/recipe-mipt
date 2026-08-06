@@ -5,6 +5,7 @@ import multiprocessing
 import queue
 import signal
 import time
+import traceback
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from typing import Any
@@ -24,6 +25,10 @@ class InferenceSummary:
     completed: int
     failed: int
     skipped: int
+
+
+class EmptyModelPatchError(RuntimeError):
+    """Raised when an agent finishes without changing the task checkout."""
 
 
 class SWERebenchInferenceRunner:
@@ -144,7 +149,14 @@ class SWERebenchInferenceRunner:
                     error = TimeoutError(
                         f"Inference exceeded task timeout of {self.task_timeout} seconds"
                     )
-                    outcome = ("error", type(error).__name__, str(error))
+                    outcome = (
+                        "error",
+                        type(error).__name__,
+                        str(error),
+                        None,
+                        {"termination_reason": "task_timeout"},
+                        time.monotonic() - started,
+                    )
                 else:
                     process.join()
                     if queued_outcome is not None:
@@ -157,6 +169,12 @@ class SWERebenchInferenceRunner:
                                 "error",
                                 "WorkerProcessError",
                                 f"Worker exited with code {process.exitcode} without a result",
+                                None,
+                                {
+                                    "termination_reason": "worker_exited_without_result",
+                                    "worker_exit_code": process.exitcode,
+                                },
+                                time.monotonic() - started,
                             )
                 result_queue.close()
                 del active[process]
@@ -167,9 +185,15 @@ class SWERebenchInferenceRunner:
                     )
                     completed += 1
                 else:
-                    error = RuntimeError(f"{outcome[1]}: {outcome[2]}")
+                    error = RuntimeError(outcome[2])
                     self.artifacts_writer.write_error(
-                        task.instance_id, "inference", error
+                        task.instance_id,
+                        "inference",
+                        error,
+                        duration_seconds=outcome[5],
+                        error_type=outcome[1],
+                        traceback_text=outcome[3],
+                        details=outcome[4],
                     )
                     self.predictions_writer.write(task.instance_id, "")
                     failed += 1
@@ -194,6 +218,10 @@ class SWERebenchInferenceRunner:
 
     def _process_entry(self, task: SWERebenchTask, result_queue: Any) -> None:
         runtime: RepositoryRuntime | None = None
+        started = time.monotonic()
+        image: InstanceImage | None = None
+        agent_result: Any = None
+        diagnostics: dict[str, Any] = {}
 
         def terminate(_signum, _frame):
             if runtime is not None:
@@ -209,11 +237,22 @@ class SWERebenchInferenceRunner:
             with runtime:
                 with bind_repository_runtime(runtime):
                     prompt = self.prompt_builder.build(task, runtime.workdir)
-                    pipeline.run(prompt)
+                    agent_result = pipeline.run(prompt)
                     patch = runtime.get_patch(max_output_chars=self.max_patch_chars)
                     summary = runtime.get_diff(stat_only=True, max_output_chars=30_000)
-            if not patch.strip():
-                raise RuntimeError("Agent produced an empty model patch")
+                    diagnostics = self._diagnostics(
+                        task=task,
+                        image=image,
+                        runtime=runtime,
+                        agent_result=agent_result,
+                        diff_summary=summary,
+                    )
+                    if not patch.strip():
+                        raise EmptyModelPatchError(
+                            "Agent finished without modifying the repository. "
+                            "See details.agent_result, details.git_status, and "
+                            "details.diff_summary for the termination context."
+                        )
             changed_files = sorted(
                 {
                     line.split(" ", 3)[2][2:]
@@ -233,7 +272,19 @@ class SWERebenchInferenceRunner:
                 )
             )
         except BaseException as error:
-            result_queue.put(("error", type(error).__name__, str(error)))
+            if image is not None:
+                diagnostics.setdefault("image", image.name)
+            diagnostics.setdefault("agent_result", self._bounded_text(agent_result))
+            result_queue.put(
+                (
+                    "error",
+                    type(error).__name__,
+                    str(error),
+                    traceback.format_exc(),
+                    diagnostics,
+                    time.monotonic() - started,
+                )
+            )
         finally:
             if pipeline is not None:
                 pipeline.close()
@@ -246,10 +297,15 @@ class SWERebenchInferenceRunner:
             with runtime:
                 with bind_repository_runtime(runtime):
                     prompt = self.prompt_builder.build(task, runtime.workdir)
-                    pipeline.run(prompt)
+                    agent_result = pipeline.run(prompt)
                     patch = runtime.get_patch(max_output_chars=self.max_patch_chars)
-            if not patch.strip():
-                raise RuntimeError("Agent produced an empty model patch")
+                    summary = runtime.get_diff(stat_only=True, max_output_chars=30_000)
+                    if not patch.strip():
+                        raise EmptyModelPatchError(
+                            "Agent finished without modifying the repository. "
+                            f"Agent result: {self._bounded_text(agent_result)}; "
+                            f"repository state: {summary}"
+                        )
             self.predictions_writer.write(task.instance_id, patch)
             self.artifacts_writer.write_patch_artifact(
                 task.instance_id,
@@ -267,3 +323,37 @@ class SWERebenchInferenceRunner:
             )
         finally:
             pipeline.close()
+
+    @classmethod
+    def _diagnostics(
+        cls,
+        *,
+        task: SWERebenchTask,
+        image: InstanceImage,
+        runtime: RepositoryRuntime,
+        agent_result: Any,
+        diff_summary: str,
+    ) -> dict[str, Any]:
+        status = runtime.run_command(
+            "git status --short", timeout=30, max_output_chars=10_000
+        )
+        return {
+            "repo": task.repo,
+            "base_commit": task.base_commit,
+            "image": image.name,
+            "workdir": runtime.workdir,
+            "agent_result": cls._bounded_text(agent_result),
+            "git_status": status.stdout.strip() or "[clean]",
+            "git_status_stderr": status.stderr.strip(),
+            "git_status_exit_code": status.exit_code,
+            "diff_summary": diff_summary,
+        }
+
+    @staticmethod
+    def _bounded_text(value: Any, limit: int = 4_000) -> str | None:
+        if value is None:
+            return None
+        text = str(value)
+        if len(text) <= limit:
+            return text
+        return text[:limit] + "\n[truncated]"

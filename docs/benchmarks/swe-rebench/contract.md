@@ -191,6 +191,11 @@ runs the official evaluation scripts there. This prevents packages, caches,
 environment changes, or files created during inference but absent from the
 patch from affecting the reported score.
 
+Inference failures are written to `errors.jsonl` with the original remote error
+type, traceback, duration, and bounded diagnostics. For an empty patch the
+diagnostics include the pipeline's final result, task image, Git status, and diff
+summary so a model termination can be distinguished from a Docker or Git error.
+
 ## Pinned inference images
 
 Production inference first uses the exact `image_name` or `docker_image` stored
