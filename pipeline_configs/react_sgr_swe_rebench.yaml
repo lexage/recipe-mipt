@@ -15,9 +15,9 @@ components:
     type: REACT_AGENT_SGR
     params:
       name: react-sgr-swe-rebench
-      url: http://localhost:7215/v1
-      model_name: Qwen/Qwen1.5-32B-Chat-AWQ
+      url: http://host.docker.internal:11469/v1
+      model_name: ebircak/gemma-4-31B-it-4bit-W4A16-GPTQ
       temperature: 0.0
       max_iterations: 30
 
-logs_path: react-sgr/swe-rebench/logs
+logs_path: /workspace/swe-rebench-recipe/logs
