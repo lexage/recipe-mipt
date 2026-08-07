@@ -13,9 +13,13 @@ class LLMTool(BaseTool):
         url: str = None,
         model_name: str = None,
         temperature: float = 0.0,
+        timeout: float = 300.0,
+        max_retries: int = 2,
     ):
         super().__init__(name=name, description=description)
-        self.client = OpenAI(base_url=url, api_key="vllm")
+        self.client = OpenAI(
+            base_url=url, api_key="vllm", timeout=timeout, max_retries=max_retries
+        )
         self.model_name = model_name
         self.temperature = temperature
 
