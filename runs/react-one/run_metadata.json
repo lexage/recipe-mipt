@@ -1,0 +1,37 @@
+{
+  "dataset": "/workspace/swe-rebench-recipe/runs/react-one/task.jsonl",
+  "split": "test",
+  "dataset_revision": null,
+  "run_id": "react-two",
+  "model_name_or_path": "react-sgr/",
+  "pipeline": "REACT",
+  "temperature": 0.0,
+  "max_iterations": 30,
+  "history_context": null,
+  "llm_timeout": null,
+  "command_timeout": 120,
+  "selected_instance_ids": [
+    "PennyLaneAI__pennylane-7671"
+  ],
+  "generator_commit": "daf4be6ba0ad1c09367473a7404b4338bc03d2f3",
+  "evaluator_commit": "e4907b7a90eafaa1f0a6428fd04fe31cdd8b4284",
+  "pipeline_config": "/workspace/swe-rebench-recipe/runs/react-one/react_sgr.yaml",
+  "pipeline_config_sha256": "e5fca8ad72918a7286857005d633ad4e2baf475d281e4cc596bd6cff38ebe967",
+  "namespace": null,
+  "architecture": "x86_64",
+  "image_tag": "latest",
+  "image_manifest": null,
+  "allow_image_convention": false,
+  "task_timeout": 3600,
+  "network_enabled": false,
+  "image_by_instance": {
+    "PennyLaneAI__pennylane-7671": {
+      "name": "swerebench/sweb.eval.x86_64.pennylaneai_1776_pennylane-7671:latest",
+      "platform": "linux/x86_64",
+      "source": "dataset",
+      "workdir": "/testbed",
+      "user": "root",
+      "cap_add": []
+    }
+  }
+}
