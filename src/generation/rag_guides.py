@@ -403,7 +403,12 @@ class RagGuideGenerator(Generator):
             jobs = [j for st in by_stage.values() for j in st[: self.limit]]
 
         logger.info("RagGuideGenerator: %d doc jobs (fmt/migr/task)", len(jobs))
+        parsed = self._run_jobs(jobs)
+        return self._package(parsed, documents)
 
+    # --------------------------------------------------------------- helpers
+    def _run_jobs(self, jobs: List[Tuple[str, str, str]]) -> List[Tuple[str, str, str]]:
+        """Execute (lib, prefix, prompt) jobs in parallel; return parsed docs."""
         def work(job):
             lib, prefix, prompt = job
             return self._parse_doc(self._chat(prompt), lib, prefix)
@@ -423,7 +428,11 @@ class RagGuideGenerator(Generator):
                 except Exception as exc:   # one bad call must not kill the run
                     self.stats["drop_call_error"] += 1
                     logger.warning("guide generation call failed: %s", exc)
+        return parsed
 
+    def _package(self, parsed: List[Tuple[str, str, str]],
+                 documents: List[Document]) -> List[Document]:
+        """Dedup, wrap into Documents, dump to jsonl, log yield stats."""
         seen = set()
         ids_offset = len(documents) + 1
         synth_docs: List[Document] = []
