@@ -196,6 +196,12 @@ type, traceback, duration, and bounded diagnostics. For an empty patch the
 diagnostics include the pipeline's final result, task image, Git status, and diff
 summary so a model termination can be distinguished from a Docker or Git error.
 
+The inference CLI configures the existing agent logging statements through the
+shared `create_logging` helper. `--logs-path` overrides the pipeline YAML path;
+the per-run log also records tab-separated `STAGE` events for dataset loading,
+image resolution, worker and pipeline lifecycle, Docker startup/validation,
+patch collection, timeouts, cleanup, and the final run summary.
+
 ## Pinned inference images
 
 Production inference first uses the exact `image_name` or `docker_image` stored

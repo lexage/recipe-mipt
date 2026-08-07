@@ -3,6 +3,7 @@
 import argparse
 import hashlib
 import json
+import logging
 import subprocess
 from pathlib import Path
 
@@ -15,6 +16,11 @@ from src.benchmarks.swe_rebench import (
     SWERebenchInferenceRunner,
     SWERebenchPromptBuilder,
 )
+from src.utils.loggers import create_logging
+
+logging.getLogger("openai").setLevel(logging.ERROR)
+logging.getLogger("httpx").setLevel(logging.ERROR)
+logging.getLogger("httpcore").setLevel(logging.ERROR)
 
 
 def parse_args() -> argparse.Namespace:
@@ -59,6 +65,10 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--fail-fast", action="store_true")
     parser.add_argument("--task-timeout", type=int, default=3_600)
     parser.add_argument(
+        "--logs-path",
+        help="Log directory or file; overrides logs_path from pipeline YAML",
+    )
+    parser.add_argument(
         "--evaluator-fork-path",
         help="Optional pinned SWE-bench-fork checkout recorded in run metadata",
     )
@@ -73,9 +83,33 @@ def main() -> int:
     from src.pipelines.configs import ConfigLoader
     from src.pipelines.pipeline_builder import PipelineBuilder
 
+    pipeline_config = ConfigLoader().load_from_yaml(args.config)
+    output = Path(args.output)
+    logs_path = (
+        args.logs_path or pipeline_config.logs_path or str(output.parent / "logs")
+    )
+    # Parent lifecycle messages go to the main log. Each task process inherits
+    # the routing handler and writes existing agent logs plus stage events to a
+    # dedicated process file, without changing agent implementations.
+    create_logging(
+        log_path=logs_path,
+        tag=args.run_id,
+        n_workers=args.num_workers,
+        route=True,
+    )
+    logging.info(
+        "STAGE\tRUN_START\trun_id=%s\tdataset=%s\tsplit=%s\tworkers=%s",
+        args.run_id,
+        args.dataset,
+        args.split,
+        args.num_workers,
+    )
+    logging.info("STAGE\tCONFIG_LOADED\tpath=%s\tlogs_path=%s", args.config, logs_path)
+
     dataset = DatasetSWERebench.load(
         args.dataset, split=args.split, revision=args.dataset_revision
     )
+    logging.info("STAGE\tDATASET_LOADED\ttasks=%s", len(dataset))
     instance_ids = (
         DatasetSWERebench.read_instance_ids(args.instance_ids_file)
         if args.instance_ids_file
@@ -87,7 +121,11 @@ def main() -> int:
         stop=args.stop,
         limit=args.limit,
     )
-    output = Path(args.output)
+    logging.info(
+        "STAGE\tTASKS_SELECTED\tcount=%s\tinstance_ids=%s",
+        len(tasks),
+        ",".join(task.instance_id for task in tasks),
+    )
     predictions = PredictionsWriter(
         output,
         model_name_or_path=args.model_name_or_path,
@@ -165,11 +203,10 @@ def main() -> int:
         "image_manifest": args.image_manifest,
         "allow_image_convention": args.allow_image_convention,
         "task_timeout": args.task_timeout,
+        "logs_path": str(Path(logs_path).expanduser()),
         "network_enabled": args.allow_network,
         "image_by_instance": {},
     }
-
-    pipeline_config = ConfigLoader().load_from_yaml(args.config)
 
     def pipeline_factory():
         return PipelineBuilder().build(pipeline_config)
@@ -186,6 +223,12 @@ def main() -> int:
     image_by_instance = {}
     for task in tasks:
         resolved_image = image_resolver.resolve(task)
+        logging.info(
+            "STAGE\tIMAGE_RESOLVED\tinstance_id=%s\timage=%s\tsource=%s",
+            task.instance_id,
+            resolved_image.name,
+            resolved_image.source,
+        )
         image_by_instance[task.instance_id] = {
             "name": resolved_image.name,
             "platform": resolved_image.platform,
@@ -223,6 +266,13 @@ def main() -> int:
         task_timeout=args.task_timeout,
     )
     summary = runner.run(tasks)
+    logging.info(
+        "STAGE\tRUN_FINISHED\tsubmitted=%s\tcompleted=%s\tfailed=%s\tskipped=%s",
+        summary.submitted,
+        summary.completed,
+        summary.failed,
+        summary.skipped,
+    )
     print(json.dumps(summary.__dict__, indent=2))
     return 1 if summary.failed else 0
 

@@ -1,4 +1,5 @@
 import json
+import logging
 import tempfile
 import threading
 import time
@@ -15,6 +16,7 @@ from src.benchmarks.swe_rebench import (
     SWERebenchTask,
     get_repository_runtime,
 )
+from src.utils.loggers import create_logging
 
 
 class FakePipeline:
@@ -36,6 +38,12 @@ class FakePipeline:
 class SlowPipeline(FakePipeline):
     def run(self, prompt):
         time.sleep(5)
+
+
+class LoggingPipeline(FakePipeline):
+    def run(self, prompt):
+        logging.info("AGENT_LOG_MARKER")
+        return super().run(prompt)
 
 
 class FakeRuntime(RepositoryRuntime):
@@ -84,6 +92,10 @@ class SWERebenchInferenceRunnerTests(unittest.TestCase):
         self.lock = threading.Lock()
 
     def tearDown(self):
+        root_logger = logging.getLogger()
+        for handler in root_logger.handlers[:]:
+            handler.close()
+            root_logger.removeHandler(handler)
         self.temp_dir.cleanup()
 
     def runner(self, fail_id=None, empty_id=None, max_workers=3, fail_fast=False):
@@ -238,6 +250,33 @@ class SWERebenchInferenceRunnerTests(unittest.TestCase):
         self.assertEqual(error["details"]["agent_result"], "ignored final answer")
         self.assertEqual(error["details"]["git_status"], "[clean]")
         self.assertIn("Traceback", error["traceback"])
+
+    def test_process_worker_and_agent_messages_are_written_to_log_file(self):
+        def runtime_factory(task, image):
+            return FakeRuntime(task)
+
+        logs = self.root / "logs"
+        create_logging(str(logs), tag="test", n_workers=1, route=True)
+        runner = SWERebenchInferenceRunner(
+            pipeline_factory=LoggingPipeline,
+            runtime_factory=runtime_factory,
+            image_resolver=InstanceImageResolver(allow_convention=True),
+            predictions_writer=self.predictions,
+            artifacts_writer=self.artifacts,
+            max_workers=1,
+            task_timeout=10,
+        )
+
+        runner.run([make_task(0)])
+        for handler in logging.getLogger().handlers:
+            handler.flush()
+        process_logs = list(logs.glob("log_test_process_*.log"))
+        self.assertEqual(len(process_logs), 1)
+        content = process_logs[0].read_text()
+
+        self.assertIn("AGENT_LOG_MARKER", content)
+        self.assertIn("STAGE\tPIPELINE_STARTED", content)
+        self.assertIn("STAGE\tPATCH_COLLECTED", content)
 
 
 if __name__ == "__main__":

@@ -1,6 +1,7 @@
 """Inference orchestration with one pipeline and runtime per task."""
 
 import concurrent.futures as futures
+import logging
 import multiprocessing
 import queue
 import signal
@@ -128,6 +129,11 @@ class SWERebenchInferenceRunner:
                     name=f"swe-rebench-{task.instance_id}",
                 )
                 process.start()
+                logging.info(
+                    "STAGE\tTASK_SUBMITTED\tinstance_id=%s\tpid=%s",
+                    task.instance_id,
+                    process.pid,
+                )
                 active[process] = (task, result_queue, time.monotonic())
 
             for process, (task, result_queue, started) in list(active.items()):
@@ -141,6 +147,11 @@ class SWERebenchInferenceRunner:
                 if process.is_alive() and not timed_out and queued_outcome is None:
                     continue
                 if timed_out and process.is_alive():
+                    logging.error(
+                        "STAGE\tTASK_TIMEOUT\tinstance_id=%s\ttimeout_seconds=%s",
+                        task.instance_id,
+                        self.task_timeout,
+                    )
                     process.terminate()
                     process.join(timeout=30)
                     if process.is_alive():
@@ -184,6 +195,11 @@ class SWERebenchInferenceRunner:
                         task.instance_id, outcome[2]
                     )
                     completed += 1
+                    logging.info(
+                        "STAGE\tTASK_COMPLETED\tinstance_id=%s\tduration_seconds=%.3f",
+                        task.instance_id,
+                        time.monotonic() - started,
+                    )
                 else:
                     error = RuntimeError(outcome[2])
                     self.artifacts_writer.write_error(
@@ -197,6 +213,12 @@ class SWERebenchInferenceRunner:
                     )
                     self.predictions_writer.write(task.instance_id, "")
                     failed += 1
+                    logging.error(
+                        "STAGE\tTASK_FAILED\tinstance_id=%s\terror_type=%s\tmessage=%s",
+                        task.instance_id,
+                        outcome[1],
+                        outcome[2],
+                    )
                     if self.fail_fast:
                         stop_submitting = True
                         for other in active:
@@ -222,6 +244,11 @@ class SWERebenchInferenceRunner:
         image: InstanceImage | None = None
         agent_result: Any = None
         diagnostics: dict[str, Any] = {}
+        logging.info(
+            "STAGE\tWORKER_STARTED\tinstance_id=%s\tpid=%s",
+            task.instance_id,
+            multiprocessing.current_process().pid,
+        )
 
         def terminate(_signum, _frame):
             if runtime is not None:
@@ -232,13 +259,45 @@ class SWERebenchInferenceRunner:
         pipeline = None
         try:
             image = self.image_resolver.resolve(task)
+            logging.info(
+                "STAGE\tWORKER_IMAGE_READY\tinstance_id=%s\timage=%s",
+                task.instance_id,
+                image.name,
+            )
             pipeline = self.pipeline_factory()
+            logging.info("STAGE\tPIPELINE_CREATED\tinstance_id=%s", task.instance_id)
             runtime = self.runtime_factory(task, image)
+            container = getattr(runtime, "container", None)
+            logging.info(
+                "STAGE\tCONTAINER_STARTED\tinstance_id=%s\tcontainer_id=%s\tcontainer_name=%s",
+                task.instance_id,
+                getattr(container, "id", "unknown"),
+                getattr(container, "name", "unknown"),
+            )
             with runtime:
                 with bind_repository_runtime(runtime):
                     prompt = self.prompt_builder.build(task, runtime.workdir)
+                    logging.info(
+                        "STAGE\tPROMPT_BUILT\tinstance_id=%s\tchars=%s",
+                        task.instance_id,
+                        len(prompt),
+                    )
+                    pipeline_started = time.monotonic()
+                    logging.info(
+                        "STAGE\tPIPELINE_STARTED\tinstance_id=%s", task.instance_id
+                    )
                     agent_result = pipeline.run(prompt)
+                    logging.info(
+                        "STAGE\tPIPELINE_FINISHED\tinstance_id=%s\tduration_seconds=%.3f",
+                        task.instance_id,
+                        time.monotonic() - pipeline_started,
+                    )
                     patch = runtime.get_patch(max_output_chars=self.max_patch_chars)
+                    logging.info(
+                        "STAGE\tPATCH_COLLECTED\tinstance_id=%s\tchars=%s",
+                        task.instance_id,
+                        len(patch),
+                    )
                     summary = runtime.get_diff(stat_only=True, max_output_chars=30_000)
                     diagnostics = self._diagnostics(
                         task=task,
@@ -272,6 +331,11 @@ class SWERebenchInferenceRunner:
                 )
             )
         except BaseException as error:
+            logging.exception(
+                "STAGE\tWORKER_FAILED\tinstance_id=%s\terror_type=%s",
+                task.instance_id,
+                type(error).__name__,
+            )
             if image is not None:
                 diagnostics.setdefault("image", image.name)
             diagnostics.setdefault("agent_result", self._bounded_text(agent_result))
@@ -288,6 +352,13 @@ class SWERebenchInferenceRunner:
         finally:
             if pipeline is not None:
                 pipeline.close()
+                logging.info("STAGE\tPIPELINE_CLOSED\tinstance_id=%s", task.instance_id)
+            logging.info(
+                "STAGE\tWORKER_FINISHED\tinstance_id=%s\tduration_seconds=%.3f",
+                task.instance_id,
+                time.monotonic() - started,
+            )
+            logging.shutdown()
 
     def _run_task(self, task: SWERebenchTask) -> None:
         image = self.image_resolver.resolve(task)

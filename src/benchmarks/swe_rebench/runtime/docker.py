@@ -1,6 +1,7 @@
 """Docker container lifecycle for SWE-rebench inference runtimes."""
 
 import io
+import logging
 import re
 import shlex
 import tarfile
@@ -81,6 +82,12 @@ class DockerRepositoryRuntime(RepositoryRuntime):
             raise RepositoryRuntimeError("nano_cpus must be positive")
 
         cls._ensure_image(client, image.name, pull_policy)
+        logging.info(
+            "STAGE\tDOCKER_IMAGE_READY\tinstance_id=%s\timage=%s\tpull_policy=%s",
+            instance_id,
+            image.name,
+            pull_policy,
+        )
         name = container_name or cls._container_name(instance_id, run_id)
         labels = {
             "swe-rebench.role": "inference",
@@ -111,6 +118,12 @@ class DockerRepositoryRuntime(RepositoryRuntime):
         runtime = None
         try:
             container = client.containers.run(**options)
+            logging.info(
+                "STAGE\tDOCKER_CONTAINER_CREATED\tinstance_id=%s\tcontainer_id=%s\tcontainer_name=%s",
+                instance_id,
+                getattr(container, "id", "unknown"),
+                getattr(container, "name", name),
+            )
             runtime = cls(
                 client=client,
                 container=container,
@@ -120,6 +133,12 @@ class DockerRepositoryRuntime(RepositoryRuntime):
                 keep_container=keep_container,
             )
             runtime.validate_checkout()
+            logging.info(
+                "STAGE\tDOCKER_CHECKOUT_VALIDATED\tinstance_id=%s\tbase_commit=%s\tworkdir=%s",
+                instance_id,
+                base_commit,
+                image.workdir,
+            )
             return runtime
         except Exception as error:
             if runtime is not None:
@@ -230,6 +249,12 @@ class DockerRepositoryRuntime(RepositoryRuntime):
                     self.container.remove(force=True)
                 except Exception as error:
                     errors.append(f"remove failed: {error}")
+                if not errors:
+                    logging.info(
+                        "STAGE\tDOCKER_CONTAINER_REMOVED\tinstance_id=%s\tcontainer_id=%s",
+                        self.instance_id,
+                        getattr(self.container, "id", "unknown"),
+                    )
         finally:
             super().close()
         if errors:
