@@ -30,6 +30,24 @@ Both the dataset name and split must remain CLI options. A local `.json` or
 `.jsonl` dataset path must also be accepted, because the SWE-bench harness loader
 supports local files and this makes runs reproducible after pinning a snapshot.
 
+For Hub datasets, create that snapshot before inference and pass the resulting
+path to both generation and evaluation. The snapshot intentionally retains the
+evaluator-only fields, while the inference loader strips them before building a
+task or prompt:
+
+```bash
+python snapshot_swe_rebench.py \
+  --dataset nebius/SWE-rebench \
+  --split test \
+  --dataset-revision <immutable-hugging-face-commit> \
+  --instance-ids-file instance_ids.txt \
+  --output /absolute/path/to/pinned-swe-rebench.jsonl
+```
+
+The command also writes `pinned-swe-rebench.jsonl.metadata.json` containing the
+source revision, selected IDs, and SHA-256 digest. A remote dataset without an
+explicit immutable revision is rejected.
+
 ## Dataset record
 
 Prediction generation consumes these fields from every record:
@@ -134,6 +152,12 @@ strict JSONL schema, rejects duplicate predictions, checks the fork's CLI, and
 then launches the harness in a subprocess. It never imports evaluator internals.
 It also writes `evaluation_metadata.json` into `--report-dir`, including the
 fork and generator revisions and the exact harness command.
+
+The pinned evaluator currently writes its aggregate report in the fork checkout
+and instance reports under `logs/run_evaluation`. After a successful run, the
+wrapper copies both into `--report-dir` and fails if no report can be found.
+An empty namespace is passed to the fork verbatim so that `--namespace ""`
+continues to select locally built images.
 
 ## One-instance smoke run
 
@@ -246,3 +270,15 @@ pass for at least one real instance:
 
 If the upstream dataset identifier or CLI differs in the pinned revision, update
 this contract and the integration together before running predictions.
+
+An opt-in real integration check is available for the final compatibility gate:
+
+```bash
+SWE_REBENCH_REAL_TASK=/absolute/path/to/one-pinned-task.jsonl \
+SWE_REBENCH_EVALUATOR_FORK=/absolute/path/to/SWE-bench-fork \
+pytest -q tests/integration/test_swe_rebench_real.py
+```
+
+It starts and removes two independent containers for the same task, validates
+the exact checkout commit, and runs the evaluator compatibility check against
+the real pinned fork.
