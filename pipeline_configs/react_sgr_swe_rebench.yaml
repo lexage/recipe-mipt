@@ -15,8 +15,8 @@ components:
     type: REACT_AGENT_SGR
     params:
       name: react-sgr-swe-rebench
-      url: http://host.docker.internal:11469/v1
-      model_name: ebircak/gemma-4-31B-it-4bit-W4A16-GPTQ
+      url: http://127.0.0.1:11469/v1
+      model_name: Qwen/Qwen2.5-32B-Instruct
       temperature: 0.0
       max_iterations: 30
 
