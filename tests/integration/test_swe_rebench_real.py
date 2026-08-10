@@ -34,19 +34,23 @@ class RealSWERebenchIntegrationTests(unittest.TestCase):
         container_ids = []
 
         for suffix in ("first", "second"):
-            runtime = DockerRepositoryRuntime.create(
-                client=client,
-                image=image,
-                instance_id=task.instance_id,
-                base_commit=task.base_commit,
-                run_id=f"real-integration-{suffix}",
-                pull_policy="missing",
-            )
-            container_ids.append(runtime.container.id)
-            head = runtime.run_command("git rev-parse HEAD")
-            self.assertEqual(head.exit_code, 0)
-            self.assertEqual(head.stdout.strip(), task.base_commit)
-            runtime.close()
+            runtime = None
+            try:
+                runtime = DockerRepositoryRuntime.create(
+                    client=client,
+                    image=image,
+                    instance_id=task.instance_id,
+                    base_commit=task.base_commit,
+                    run_id=f"real-integration-{suffix}",
+                    pull_policy="missing",
+                )
+                container_ids.append(runtime.container.id)
+                head = runtime.run_command("git rev-parse HEAD")
+                self.assertEqual(head.exit_code, 0)
+                self.assertEqual(head.stdout.strip(), task.base_commit)
+            finally:
+                if runtime is not None:
+                    runtime.close()
 
         self.assertNotEqual(container_ids[0], container_ids[1])
         for container_id in container_ids:
