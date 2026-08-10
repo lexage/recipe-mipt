@@ -1,4 +1,5 @@
 import logging
+import multiprocessing
 import threading
 import re
 from pathlib import Path
@@ -8,9 +9,8 @@ class _AutoRouteHandler(logging.Handler):
     """
     Logging handler that auto-routes messages based on thread name.
 
-    Routes logs from ThreadPoolExecutor worker threads to separate files
-    (worker_N.log), while all other logs go to a main file (main.log).
-    Uses thread name pattern matching to identify executor workers.
+    Routes logs from ThreadPoolExecutor workers and multiprocessing workers to
+    separate files, while parent-process logs go to a main file.
     """
 
     def __init__(self, log_dir: str, base_name: str, n_workers: int):
@@ -25,19 +25,23 @@ class _AutoRouteHandler(logging.Handler):
         self._pattern = re.compile(r"ThreadPoolExecutor-\d+_(\d+)")
         self.setFormatter(logging.Formatter("%(message)s"))
 
-    def _make_handler(self, wid: int | None):
+    def _make_handler(self, wid: int | str | None):
         """Create a FileHandler for main log or specific worker."""
-        fname = (
-            f"{self.base}_worker_{wid}.log"
-            if wid is not None
-            else f"{self.base}_main.log"
-        )
+        if isinstance(wid, int):
+            fname = f"{self.base}_worker_{wid}.log"
+        elif isinstance(wid, str):
+            fname = f"{self.base}_process_{wid}.log"
+        else:
+            fname = f"{self.base}_main.log"
         h = logging.FileHandler(self.dir / fname, "a")
         h.setFormatter(self.formatter)
         return h
 
     def _get_wid(self):
         """Extract worker ID from current thread name."""
+        process_name = multiprocessing.current_process().name
+        if process_name != "MainProcess":
+            return re.sub(r"[^a-zA-Z0-9_.-]+", "-", process_name).strip("-_.")
         match = self._pattern.match(threading.current_thread().name)
         return int(match.group(1)) % self.n if match else None
 
@@ -71,8 +75,8 @@ def create_logging(
 
     Supports two modes:
     - route=False: All logs written to a single {name}_main.log file.
-    - route=True: Logs from ThreadPoolExecutor workers routed to worker_N.log
-      files; all other logs go to {name}_main.log.
+    - route=True: Thread workers are routed to worker_N.log, multiprocessing
+      workers to process_<name>.log, and parent logs to {name}_main.log.
 
     Accepts log_path as either a directory or a file path (auto-detected).
     Creates the log directory if it does not exist.
@@ -80,8 +84,8 @@ def create_logging(
     Args:
         log_path: Path to log directory or file.
         tag: Optional suffix for log file names (e.g., config name).
-        n_workers: Number of worker threads (required if route=True).
-        route: Enable auto-routing of worker thread logs.
+        n_workers: Number of workers (required if route=True).
+        route: Enable auto-routing of thread and process worker logs.
 
     Example:
         >>> create_logging("/logs", tag="exp1", n_workers=4, route=True)

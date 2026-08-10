@@ -24,3 +24,30 @@ rst_skip_code_lines_patterns:
     "import ",
   ]
 ignore_internal_functions: True
+
+repo_for_analyzing: Lightning-AI/torchmetrics
+specific_folder_for_analyzing: "" #README.md
+config_for_github_loader:
+  allowed_file_extensions: [".py", ".md", ".rst"]
+  skip_file_patterns: ["test", "pycache", "github", "CHANGELOG", "dockers"]
+min_code_length_for_analyzing: 7
+extract_examples_from_root_readme: True
+readme_root_target_sections: [
+    # "installation",
+    "Module metrics",
+    "Example using DDP",
+    "Implementing your own Module metric",
+    "Functional metrics",
+    "Plotting",
+  ]
+rst_skip_code_lines_patterns:
+  [
+    ".. testcode::",
+    ".. code-block::",
+    ".. code::",
+    ".. plot::",
+    ".. testsetup::",
+    ".. _",
+    "import ",
+  ]
+ignore_internal_functions: True
