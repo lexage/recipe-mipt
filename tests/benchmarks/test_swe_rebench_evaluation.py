@@ -70,6 +70,8 @@ class EvaluationTests(unittest.TestCase):
         command = evaluator.command()
         self.assertEqual(command[-2:], ["--instance_ids", "owner__repo-1"])
         self.assertIn(str(self.predictions.resolve()), command)
+        namespace_index = command.index("--namespace")
+        self.assertEqual(command[namespace_index + 1], "")
         self.assertIsNone(evaluator.run(check_only=True))
         metadata = json.loads(
             (self.root / "reports" / "evaluation_metadata.json").read_text()
@@ -77,6 +79,19 @@ class EvaluationTests(unittest.TestCase):
         self.assertEqual(metadata["fork_commit"], None)
         self.assertEqual(metadata["run_id"], "smoke")
         self.assertEqual(metadata["command"], command)
+
+    def test_successful_evaluation_collects_fork_reports(self):
+        self._write_fake_harness()
+        evaluator = SWERebenchEvaluator(
+            self._config(instance_ids=("owner__repo-1",)), python=sys.executable
+        )
+
+        result = evaluator.run()
+
+        self.assertEqual(result.returncode, 0)
+        report = self.root / "reports" / "react-sgr__model.smoke.json"
+        self.assertTrue(report.is_file())
+        self.assertEqual(json.loads(report.read_text())["run_id"], "smoke")
 
     def test_compatibility_gate_rejects_wrong_fork(self):
         package = self.root / "swebench" / "harness"
@@ -140,6 +155,8 @@ class EvaluationTests(unittest.TestCase):
         (package / "__init__.py").touch()
         (package / "run_evaluation.py").write_text(
             """import argparse
+import json
+from pathlib import Path
 p = argparse.ArgumentParser()
 p.add_argument('--dataset_name')
 p.add_argument('--split')
@@ -151,7 +168,10 @@ p.add_argument('--namespace')
 p.add_argument('--instance_image_tag')
 p.add_argument('--report_dir')
 p.add_argument('--instance_ids', nargs='*')
-p.parse_args()
+args = p.parse_args()
+Path(f"react-sgr__model.{args.run_id}.json").write_text(
+    json.dumps({"run_id": args.run_id})
+)
 """,
             encoding="utf-8",
         )
