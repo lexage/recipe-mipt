@@ -31,6 +31,12 @@ def main() -> int:
     root = Path(__file__).resolve().parent
     output_dir = Path(args.output_dir).expanduser().resolve()
     output_dir.mkdir(parents=True, exist_ok=True)
+    dataset_path = Path(args.dataset).expanduser().resolve()
+    if not dataset_path.is_file():
+        raise ValueError(
+            "Smoke runs require a pinned local dataset snapshot. Create one with "
+            "snapshot_swe_rebench.py and pass its absolute JSONL path."
+        )
     ids_path = output_dir / "instance_ids.txt"
     ids_path.write_text(args.instance_id + "\n", encoding="utf-8")
     predictions_path = output_dir / "predictions.jsonl"
@@ -41,7 +47,7 @@ def main() -> int:
         "--config",
         args.config,
         "--dataset",
-        args.dataset,
+        str(dataset_path),
         "--split",
         args.split,
         "--instance-ids-file",
@@ -83,7 +89,7 @@ def main() -> int:
         "--predictions-path",
         str(predictions_path),
         "--dataset-name",
-        args.dataset,
+        str(dataset_path),
         "--split",
         args.split,
         "--run-id",
