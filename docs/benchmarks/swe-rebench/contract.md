@@ -167,12 +167,15 @@ evaluation hand-off for one instance:
 ```bash
 python smoke_swe_rebench.py \
   --config pipeline_configs/react_sgr_swe_rebench.yaml \
+  --dataset /absolute/path/to/pinned-swe-rebench.jsonl \
+  --split test \
   --instance-id <instance-id> \
   --fork-path /path/to/SWE-bench-fork \
   --image-manifest /path/to/pinned-images.json \
   --output-dir runs/react-sgr-smoke \
   --model-name-or-path react-sgr/<model> \
-  --run-id react-sgr-smoke
+  --run-id react-sgr-smoke \
+  --namespace swerebench
 ```
 
 The smoke runner forces one inference worker and one evaluation worker, writes
