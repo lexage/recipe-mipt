@@ -172,6 +172,9 @@ cython_debug/
 data/repos/copies
 notebooks/
 *logs/
+/runs/
+/swe-rebench-evaluation/
+/=[0-9]*
 
 .venv/
 venv
