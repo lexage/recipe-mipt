@@ -6,8 +6,8 @@ components:
     - type: SEARCH_CODE_TOOL
     - type: LLM_TOOL
       params:
-        url: http://localhost:7215/v1
-        model_name: Qwen/Qwen1.5-32B-Chat-AWQ
+        url: http://127.0.0.1:11469/v1
+        model_name: Qwen/Qwen2.5-32B-Instruct
         temperature: 0.0
         timeout: 300.0
         max_retries: 2
@@ -22,8 +22,8 @@ components:
     type: REWOO_PLANNER
     params:
       name: rewoo-sgr-planner
-      url: http://localhost:7215/v1
-      model_name: Qwen/Qwen1.5-32B-Chat-AWQ
+      url: http://127.0.0.1:11469/v1
+      model_name: Qwen/Qwen2.5-32B-Instruct
       temperature: 0.0
       maximum_steps: 12
 
@@ -31,15 +31,15 @@ components:
     type: REWOO_WORKER
     params:
       name: rewoo-sgr-worker
-      url: http://localhost:7215/v1
-      model_name: Qwen/Qwen1.5-32B-Chat-AWQ
+      url: http://127.0.0.1:11469/v1
+      model_name: Qwen/Qwen2.5-32B-Instruct
 
   solver:
     type: REWOO_SOLVER
     params:
       name: rewoo-sgr-solver
-      url: http://localhost:7215/v1
-      model_name: Qwen/Qwen1.5-32B-Chat-AWQ
+      url: http://127.0.0.1:11469/v1
+      model_name: Qwen/Qwen2.5-32B-Instruct
       temperature: 0.0
 
 logs_path: rewoo-sgr/swe-rebench/logs
