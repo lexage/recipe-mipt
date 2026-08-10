@@ -1,6 +1,7 @@
 """Validated hand-off to the external SWE-rebench evaluation harness."""
 
 import json
+import shutil
 import subprocess
 from datetime import datetime, timezone
 from dataclasses import dataclass
@@ -144,7 +145,7 @@ class SWERebenchEvaluator:
             "--run_id",
             config.run_id,
             "--namespace",
-            config.namespace or "none",
+            config.namespace,
             "--instance_image_tag",
             config.instance_image_tag,
             "--report_dir",
@@ -190,12 +191,64 @@ class SWERebenchEvaluator:
         self.write_metadata()
         if check_only:
             return None
-        return subprocess.run(
+        result = subprocess.run(
             self.command(),
             cwd=self.config.fork_path.expanduser().resolve(),
             text=True,
             check=False,
         )
+        if result.returncode == 0:
+            self.collect_reports(predictions)
+        return result
+
+    def collect_reports(
+        self, predictions: tuple[SWERebenchPrediction, ...]
+    ) -> tuple[Path, ...]:
+        """Copy evaluator outputs into the configured report directory.
+
+        The pinned SWE-rebench fork currently accepts ``--report_dir`` but writes
+        aggregate reports in its working directory and per-instance reports under
+        ``logs/run_evaluation``.  Normalize those locations at the integration
+        boundary so callers do not need to depend on fork-internal paths.
+        """
+
+        config = self.config
+        fork = config.fork_path.expanduser().resolve()
+        report_dir = config.report_dir.expanduser().resolve()
+        report_dir.mkdir(parents=True, exist_ok=True)
+        collected: list[Path] = []
+
+        for model_name in sorted(
+            {prediction.model_name_or_path for prediction in predictions}
+        ):
+            report_name = model_name.replace("/", "__") + f".{config.run_id}.json"
+            source = fork / report_name
+            if not source.is_file():
+                continue
+            destination = report_dir / report_name
+            if source != destination:
+                shutil.copy2(source, destination)
+            collected.append(destination)
+
+        instance_source = fork / "logs" / "run_evaluation" / config.run_id
+        if instance_source.is_dir():
+            instance_destination = report_dir / "instances"
+            shutil.copytree(instance_source, instance_destination, dirs_exist_ok=True)
+            collected.extend(
+                path for path in instance_destination.rglob("*") if path.is_file()
+            )
+
+        collected.extend(
+            path
+            for path in report_dir.glob("*.json")
+            if path.name != "evaluation_metadata.json" and path not in collected
+        )
+        if not collected:
+            raise RuntimeError(
+                "Evaluator exited successfully but produced no report for run_id "
+                f"{config.run_id!r}"
+            )
+        return tuple(collected)
 
     def _validate_inference_contract(
         self, predictions: tuple[SWERebenchPrediction, ...]
