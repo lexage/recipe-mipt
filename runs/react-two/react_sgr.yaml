@@ -18,6 +18,8 @@ components:
       url: http://sm-a5000-1.gpu.cluster:8000/v1
       model_name: mistralai/Devstral-Small-2-24B-Instruct-2512
       temperature: 0.0
-      max_iterations: 30
+      max_iterations: 50
+      history_context: 10
+
 
 logs_path: /workspace/swe-rebench-recipe/logs
