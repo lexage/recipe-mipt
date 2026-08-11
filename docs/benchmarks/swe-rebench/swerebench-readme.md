@@ -1,0 +1,644 @@
+# Запуск и оценка SWE-rebench
+
+Этот документ описывает полный цикл работы с SWE-rebench в данном репозитории: подготовку окружения, фиксацию датасета, запуск инференса, формирование `predictions.jsonl`, официальную оценку и интерпретацию результатов.
+
+Основные точки входа:
+
+- [`snapshot_swe_rebench.py`](../../../snapshot_swe_rebench.py) — создаёт локальный зафиксированный snapshot датасета;
+- [`run_swe_rebench.py`](../../../run_swe_rebench.py) — запускает агента в отдельном контейнере для каждой задачи и формирует predictions;
+- [`evaluate_swe_rebench.py`](../../../evaluate_swe_rebench.py) — проверяет predictions и передаёт их во внешний evaluator;
+- [`SWE-rebench/SWE-bench-fork`](https://github.com/SWE-rebench/SWE-bench-fork) — официальный внешний harness для оценки.
+
+## Содержание
+
+1. [Как устроен запуск](#как-устроен-запуск)
+2. [Требования](#требования)
+3. [Установка](#установка)
+4. [Настройка модели и pipeline](#настройка-модели-и-pipeline)
+5. [Запуск на одной задаче](#запуск-на-одной-задаче)
+6. [Запуск на части датасета](#запуск-на-части-датасета)
+7. [Запуск на всём датасете](#запуск-на-всём-датасете)
+8. [Параметры команд](#параметры-команд)
+9. [Форматы данных и артефакты](#форматы-данных-и-артефакты)
+10. [Логи](#логи)
+11. [Интерпретация оценки](#интерпретация-оценки)
+12. [Воспроизводимость](#воспроизводимость)
+13. [Типовые ошибки](#типовые-ошибки)
+
+## Как устроен запуск
+
+Полный pipeline состоит из двух независимых стадий:
+
+~~~text
+Зафиксированный snapshot датасета
+               |
+               v
+       Выбор набора задач
+               |
+               v
+ Определение Docker-образа каждой задачи
+               |
+               v
+ Отдельный inference-контейнер на задачу
+               |
+               v
+ Агент изменяет репозиторий в /testbed
+               |
+               v
+ Получение git diff в model_patch
+               |
+               v
+         predictions.jsonl
+               |
+               v
+ Отдельный чистый evaluation-контейнер
+               |
+               v
+ Применение model_patch и запуск тестов
+               |
+               v
+       Отчёт официального evaluator
+~~~
+
+Для каждой задачи инференса создаётся собственный контейнер из образа этой задачи. Репозиторий внутри контейнера должен находиться на `base_commit`, рабочая директория — `/testbed`. После завершения работы агента runner получает итоговый Git patch, останавливает и удаляет контейнер, если не передан `--keep-containers`.
+
+Evaluation не переиспользует inference-контейнер. Внешний fork создаёт новый чистый контейнер, применяет только `model_patch` и запускает официальные тесты. Поэтому установленные агентом пакеты, временные файлы и другие изменения, не попавшие в patch, не могут повлиять на итоговую оценку.
+
+### Граница ответственности
+
+Этот репозиторий отвечает за:
+
+1. загрузку и фильтрацию задач;
+2. создание изолированной среды инференса;
+3. запуск pipeline агента;
+4. получение patch относительно `base_commit`;
+5. запись строгого `predictions.jsonl`;
+6. запись metadata, логов и ошибок.
+
+Внешний `SWE-rebench/SWE-bench-fork` отвечает за:
+
+1. создание чистой среды оценки;
+2. применение `model_patch`;
+3. запуск тестов benchmark;
+4. определение `resolved` или `unresolved`;
+5. создание отчётов оценки.
+
+## Требования
+
+Перед запуском необходимы:
+
+- Linux;
+- Python 3.12;
+- Git;
+- Docker Engine;
+- доступ текущего пользователя к Docker daemon;
+- свободное место для Docker-образов задач;
+- OpenAI-compatible endpoint с запущенной моделью;
+- доступ к Hugging Face, если snapshot создаётся из Hub;
+- отдельный checkout `SWE-rebench/SWE-bench-fork`.
+
+Проверьте окружение:
+
+~~~bash
+python3.12 --version
+git --version
+docker version
+docker info
+~~~
+
+Команда `docker info` должна завершаться без ошибки доступа к Docker socket.
+
+## Установка
+
+### 1. Клонирование репозитория
+
+~~~bash
+git clone --branch swe-rebench https://github.com/ansiane/swe-rebench-recipe.git
+cd swe-rebench-recipe
+export RECIPE_DIR="$(pwd)"
+~~~
+
+Все последующие команды предполагают запуск из `$RECIPE_DIR`.
+
+### 2. Виртуальное окружение и зависимости
+
+~~~bash
+python3.12 -m venv .venv
+source .venv/bin/activate
+python -m pip install --upgrade pip
+python -m pip install -r requirements.txt
+~~~
+
+### 3. Установка evaluator fork
+
+Выберите и зафиксируйте конкретный commit evaluator. Не используйте плавающую ветку для воспроизводимых экспериментов.
+
+~~~bash
+export FORK_PARENT=/absolute/path/to/evaluator
+export FORK="$FORK_PARENT/SWE-bench-fork"
+export EVALUATOR_COMMIT=<commit-sha>
+
+git clone https://github.com/SWE-rebench/SWE-bench-fork.git "$FORK"
+git -C "$FORK" checkout "$EVALUATOR_COMMIT"
+python -m pip install -e "$FORK"
+git -C "$FORK" rev-parse HEAD
+~~~
+
+Последняя команда должна вывести тот же SHA, который указан в `$EVALUATOR_COMMIT`.
+
+## Настройка модели и pipeline
+
+В репозитории есть две базовые конфигурации:
+
+- [`pipeline_configs/react_sgr_swe_rebench.yaml`](../../../pipeline_configs/react_sgr_swe_rebench.yaml);
+- [`pipeline_configs/rewoo_sgr_swe_rebench.yaml`](../../../pipeline_configs/rewoo_sgr_swe_rebench.yaml).
+
+Перед запуском проверьте в выбранном YAML:
+
+| Поле | Назначение |
+| --- | --- |
+| `url` | URL OpenAI-compatible endpoint модели |
+| `model_name` | Имя модели, которое принимает endpoint |
+| `temperature` | Температура генерации |
+| `max_iterations` | Максимальное число итераций ReAct |
+| `maximum_steps` | Максимальное число шагов плана ReWOO |
+| `default_timeout` | Стандартный timeout shell-команды |
+| `max_timeout` | Максимально разрешённый timeout shell-команды |
+| `logs_path` | Базовая директория логов; может быть переопределена через CLI |
+
+Проверьте доступность endpoint способом, который поддерживает ваш model server. Значения `url` и `model_name` в примерах конфигураций являются настройками конкретного окружения и не должны без проверки переноситься на другой кластер.
+
+### Инструменты агента
+
+Конфигурации SWE-rebench предоставляют агенту repository-bound инструменты:
+
+| Инструмент | Назначение |
+| --- | --- |
+| `list_files` | Просмотр файлов и каталогов репозитория |
+| `read_file` | Чтение файла или диапазона строк |
+| `search_code` | Поиск текста или регулярного выражения в коде |
+| `apply_patch` | Проверка и применение unified diff |
+| `run_command` | Запуск shell-команд и тестов в контейнере задачи |
+| `git_diff` | Просмотр изменений относительно `base_commit` |
+
+## Запуск на одной задаче
+
+Ниже приведён полный сценарий: от загрузки одной записи до официальной оценки.
+
+### 1. Переменные запуска
+
+Замените значения в угловых скобках на реальные.
+
+~~~bash
+cd "$RECIPE_DIR"
+source .venv/bin/activate
+
+export DATASET=nebius/SWE-rebench
+export DATASET_REVISION=<immutable-hugging-face-commit>
+export SPLIT=test
+export RUN_ID=react-sgr-one
+export RUN_DIR="$RECIPE_DIR/runs/$RUN_ID"
+export TASK_FILE="$RUN_DIR/task.jsonl"
+export INSTANCE_IDS_FILE="$RUN_DIR/instance_ids.txt"
+export CONFIG="$RECIPE_DIR/pipeline_configs/react_sgr_swe_rebench.yaml"
+export MODEL_NAME_OR_PATH=react-sgr/<model-name>
+export EVAL_NAMESPACE=swerebench
+
+mkdir -p "$RUN_DIR"
+~~~
+
+`DATASET_REVISION` должен быть immutable commit SHA датасета. Тот же локальный snapshot далее передаётся и инференсу, и evaluation.
+
+### 2. Формирование одного примера
+
+Чтобы взять первую задачу выбранного split:
+
+~~~bash
+python snapshot_swe_rebench.py   --dataset "$DATASET"   --split "$SPLIT"   --dataset-revision "$DATASET_REVISION"   --limit 1   --output "$TASK_FILE"
+~~~
+
+Команда создаст:
+
+- `$TASK_FILE` — одну полную запись датасета в JSONL;
+- `$TASK_FILE.metadata.json` — источник, revision, SHA-256 snapshot и выбранный `instance_id`.
+
+Получите ID выбранной задачи:
+
+~~~bash
+python -c 'import json,sys; print(json.loads(open(sys.argv[1], encoding="utf-8").readline())["instance_id"])'   "$TASK_FILE" > "$INSTANCE_IDS_FILE"
+
+cat "$INSTANCE_IDS_FILE"
+~~~
+
+Чтобы выбрать не первую, а конкретную задачу, заранее запишите её ID в файл:
+
+~~~bash
+printf '%s
+' '<owner__repo-id>' > "$INSTANCE_IDS_FILE"
+
+python snapshot_swe_rebench.py   --dataset "$DATASET"   --split "$SPLIT"   --dataset-revision "$DATASET_REVISION"   --instance-ids-file "$INSTANCE_IDS_FILE"   --output "$TASK_FILE"
+~~~
+
+### 3. Инференс на одной задаче
+
+~~~bash
+python run_swe_rebench.py   --config "$CONFIG"   --dataset "$TASK_FILE"   --split "$SPLIT"   --instance-ids-file "$INSTANCE_IDS_FILE"   --output "$RUN_DIR/predictions.jsonl"   --model-name-or-path "$MODEL_NAME_OR_PATH"   --run-id "$RUN_ID"   --num-workers 1   --pull-policy missing   --task-timeout 3600   --memory-limit 16g   --nano-cpus 4000000000   --logs-path "$RUN_DIR/logs"   --evaluator-fork-path "$FORK"
+~~~
+
+`--nano-cpus 4000000000` соответствует четырём CPU. Значения CPU, памяти и timeout нужно адаптировать под кластер и задачи.
+
+При успешном инференсе в `$RUN_DIR` появятся:
+
+~~~text
+predictions.jsonl
+run_metadata.json
+patches.jsonl
+logs/
+└── react-sgr-one/
+    ├── log_main.log
+    └── log_process_swe-rebench-*.log
+~~~
+
+`errors.jsonl` создаётся, если хотя бы одна задача завершилась ошибкой.
+
+Проверьте prediction:
+
+~~~bash
+python -m json.tool "$RUN_DIR/run_metadata.json"
+sed -n '1p' "$RUN_DIR/predictions.jsonl"
+~~~
+
+### 4. Оценка одной задачи
+
+Прочитайте `instance_id` в Bash-массив и запустите evaluator:
+
+~~~bash
+mapfile -t INSTANCE_IDS < "$INSTANCE_IDS_FILE"
+
+python evaluate_swe_rebench.py   --fork-path "$FORK"   --predictions-path "$RUN_DIR/predictions.jsonl"   --dataset-name "$TASK_FILE"   --split "$SPLIT"   --run-id "$RUN_ID"   --max-workers 1   --timeout 1800   --namespace "$EVAL_NAMESPACE"   --inference-metadata "$RUN_DIR/run_metadata.json"   --instance-ids "${INSTANCE_IDS[@]}"   --report-dir "$RUN_DIR/evaluation"
+~~~
+
+`--namespace` обязателен для wrapper. Используйте namespace образов из зафиксированной версии evaluator. Пустая строка передаётся как `--namespace ""` и используется только если выбранный fork должен собирать локальные образы.
+
+## Запуск на части датасета
+
+Для воспроизводимости рекомендуется сначала создать отдельный snapshot выбранной части, а затем использовать этот же файл на стадиях инференса и оценки.
+
+### Вариант 1: явный список instance ID
+
+Создайте список:
+
+~~~bash
+export RUN_ID=react-sgr-subset
+export RUN_DIR="$RECIPE_DIR/runs/$RUN_ID"
+export SUBSET_FILE="$RUN_DIR/subset.jsonl"
+export INSTANCE_IDS_FILE="$RUN_DIR/instance_ids.txt"
+mkdir -p "$RUN_DIR"
+
+printf '%s
+'   'owner__repo-123'   'owner__repo-456'   'owner__repo-789' > "$INSTANCE_IDS_FILE"
+~~~
+
+Создайте snapshot:
+
+~~~bash
+python snapshot_swe_rebench.py   --dataset "$DATASET"   --split "$SPLIT"   --dataset-revision "$DATASET_REVISION"   --instance-ids-file "$INSTANCE_IDS_FILE"   --output "$SUBSET_FILE"
+~~~
+
+Запустите инференс:
+
+~~~bash
+python run_swe_rebench.py   --config "$CONFIG"   --dataset "$SUBSET_FILE"   --split "$SPLIT"   --instance-ids-file "$INSTANCE_IDS_FILE"   --output "$RUN_DIR/predictions.jsonl"   --model-name-or-path "$MODEL_NAME_OR_PATH"   --run-id "$RUN_ID"   --num-workers 2   --pull-policy missing   --task-timeout 3600   --logs-path "$RUN_DIR/logs"   --evaluator-fork-path "$FORK"
+~~~
+
+Запустите оценку:
+
+~~~bash
+mapfile -t INSTANCE_IDS < "$INSTANCE_IDS_FILE"
+
+python evaluate_swe_rebench.py   --fork-path "$FORK"   --predictions-path "$RUN_DIR/predictions.jsonl"   --dataset-name "$SUBSET_FILE"   --split "$SPLIT"   --run-id "$RUN_ID"   --max-workers 2   --timeout 1800   --namespace "$EVAL_NAMESPACE"   --inference-metadata "$RUN_DIR/run_metadata.json"   --instance-ids "${INSTANCE_IDS[@]}"   --report-dir "$RUN_DIR/evaluation"
+~~~
+
+### Вариант 2: диапазон задач
+
+`--start` включается в диапазон, `--stop` не включается:
+
+~~~bash
+python snapshot_swe_rebench.py   --dataset "$DATASET"   --split "$SPLIT"   --dataset-revision "$DATASET_REVISION"   --start 100   --stop 110   --output "$RUN_DIR/subset.jsonl"
+~~~
+
+Этот пример выбирает позиции с 100 по 109.
+
+### Вариант 3: первые N задач после фильтрации
+
+~~~bash
+python snapshot_swe_rebench.py   --dataset "$DATASET"   --split "$SPLIT"   --dataset-revision "$DATASET_REVISION"   --limit 10   --output "$RUN_DIR/subset.jsonl"
+~~~
+
+Если snapshot уже содержит только нужные записи, дополнительные `--start`, `--stop` и `--limit` при инференсе обычно не требуются. Не применяйте разные фильтры на стадиях snapshot, inference и evaluation: это может привести к несовпадению ID.
+
+## Запуск на всём датасете
+
+Полный запуск выполняйте только после успешного запуска на одной задаче и небольшой подвыборке.
+
+### 1. Полный snapshot
+
+~~~bash
+export RUN_ID=react-sgr-full
+export RUN_DIR="$RECIPE_DIR/runs/$RUN_ID"
+export FULL_DATASET="$RUN_DIR/swe-rebench.jsonl"
+mkdir -p "$RUN_DIR"
+
+python snapshot_swe_rebench.py   --dataset "$DATASET"   --split "$SPLIT"   --dataset-revision "$DATASET_REVISION"   --output "$FULL_DATASET"
+~~~
+
+### 2. Полный инференс
+
+~~~bash
+python run_swe_rebench.py   --config "$CONFIG"   --dataset "$FULL_DATASET"   --split "$SPLIT"   --output "$RUN_DIR/predictions.jsonl"   --model-name-or-path "$MODEL_NAME_OR_PATH"   --run-id "$RUN_ID"   --num-workers 8   --pull-policy missing   --task-timeout 3600   --logs-path "$RUN_DIR/logs"   --evaluator-fork-path "$FORK"
+~~~
+
+Выбирайте `--num-workers` с учётом пропускной способности model endpoint, CPU, RAM, Docker и доступного диска. Каждый worker может одновременно владеть отдельным контейнером задачи.
+
+Если запуск был прерван, повторите ту же команду с `--resume`. Runner пропустит `instance_id`, уже записанные в `predictions.jsonl`. Для продолжения логического эксперимента используйте прежний `run_id` и тот же output.
+
+### 3. Полная оценка
+
+Для полного snapshot `--instance-ids` не передаётся:
+
+~~~bash
+python evaluate_swe_rebench.py   --fork-path "$FORK"   --predictions-path "$RUN_DIR/predictions.jsonl"   --dataset-name "$FULL_DATASET"   --split "$SPLIT"   --run-id "$RUN_ID"   --max-workers 8   --timeout 1800   --namespace "$EVAL_NAMESPACE"   --inference-metadata "$RUN_DIR/run_metadata.json"   --report-dir "$RUN_DIR/evaluation"
+~~~
+
+## Параметры команд
+
+Актуальный источник параметров — вывод `--help` соответствующего скрипта.
+
+### `snapshot_swe_rebench.py`
+
+| Параметр | Обязательный | По умолчанию | Назначение |
+| --- | ---: | --- | --- |
+| `--dataset` | Да | — | Имя Hub dataset либо путь к локальному JSON/JSONL |
+| `--split` | Да | — | Split датасета |
+| `--dataset-revision` | Для Hub | — | Immutable revision или commit SHA Hub dataset |
+| `--instance-ids-file` | Нет | — | Файл с выбранными `instance_id`, по одному на строку |
+| `--start` | Нет | `0` | Начальная позиция выборки, включительно |
+| `--stop` | Нет | до конца | Конечная позиция выборки, не включительно |
+| `--limit` | Нет | без ограничения | Максимальное число записей после фильтрации |
+| `--output` | Да | — | Путь к итоговому зафиксированному JSONL |
+
+Для локального JSON/JSONL `--dataset-revision` не требуется. Для Hub dataset отсутствие immutable revision является ошибкой.
+
+### `run_swe_rebench.py`
+
+| Параметр | Обязательный | По умолчанию | Назначение |
+| --- | ---: | --- | --- |
+| `--config` | Да | — | YAML-конфигурация pipeline |
+| `--dataset` | Да | — | Hub dataset или локальный snapshot JSON/JSONL |
+| `--split` | Да | — | Split |
+| `--dataset-revision` | Нет | — | Revision Hub dataset; для локального snapshot обычно не задаётся |
+| `--instance-ids-file` | Нет | — | Явный список задач |
+| `--start` | Нет | `0` | Начальная позиция |
+| `--stop` | Нет | до конца | Конечная позиция, не включительно |
+| `--limit` | Нет | без ограничения | Максимальное число задач |
+| `--output` | Да | — | Путь к `predictions.jsonl` |
+| `--model-name-or-path` | Да | — | Идентификатор комбинации pipeline и модели в prediction |
+| `--run-id` | Да | — | Идентификатор логического запуска |
+| `--num-workers` | Нет | `1` | Число параллельных задач инференса |
+| `--namespace` | Нет | — | Namespace для convention fallback образов |
+| `--architecture` | Нет | `x86_64` | Архитектура образов |
+| `--image-tag` | Нет | `latest` | Тег образа для convention fallback |
+| `--image-manifest` | Нет | — | JSON manifest с точными образами задач |
+| `--allow-image-convention` | Нет | выключен | Разрешает вычисление имени образа по convention; только для локальной отладки |
+| `--pull-policy` | Нет | `missing` | `always`, `missing` или `never` |
+| `--memory-limit` | Нет | без ограничения | Docker memory limit, например `16g` |
+| `--nano-cpus` | Нет | без ограничения | CPU limit в nano-CPU; `1000000000` = один CPU |
+| `--allow-network` | Нет | выключен | Разрешает сеть внутри inference-контейнера |
+| `--keep-containers` | Нет | выключен | Не удаляет контейнеры после задачи; только для диагностики |
+| `--include-hints` | Нет | выключен | Добавляет `hints_text` в prompt |
+| `--resume` | Нет | выключен | Пропускает уже записанные predictions |
+| `--fail-fast` | Нет | выключен | Прекращает отправку новых задач после первой ошибки |
+| `--task-timeout` | Нет | `3600` | Максимальное время одной задачи, секунд |
+| `--logs-path` | Нет | YAML или `<output-dir>/logs` | Базовая директория или имя файла логов |
+| `--evaluator-fork-path` | Нет | — | Путь к fork для записи его commit SHA в metadata |
+
+Production-запуск должен использовать точные образы из dataset или manifest. `--allow-image-convention` не предназначен для публикуемых результатов.
+
+### `evaluate_swe_rebench.py`
+
+| Параметр | Обязательный | По умолчанию | Назначение |
+| --- | ---: | --- | --- |
+| `--fork-path` | Да | — | Путь к checkout `SWE-bench-fork` |
+| `--predictions-path` | Да | — | JSONL с predictions |
+| `--dataset-name` | Да | — | Тот же dataset или локальный snapshot, что использовался в inference |
+| `--dataset-revision` | Нет | — | Revision dataset; должна совпадать с inference metadata |
+| `--split` | Да | — | Split; должен совпадать с inference |
+| `--run-id` | Да | — | Идентификатор оценки |
+| `--max-workers` | Нет | `4` | Число параллельных evaluation-контейнеров |
+| `--timeout` | Нет | `1800` | Timeout одной evaluation-задачи, секунд |
+| `--namespace` | Да | — | Namespace образов; допускается пустая строка |
+| `--inference-metadata` | Да | — | `run_metadata.json` соответствующего inference |
+| `--instance-image-tag` | Нет | `latest` | Тег instance image |
+| `--report-dir` | Нет | `swe-rebench-evaluation` | Директория нормализованных отчётов |
+| `--instance-ids` | Нет | все | Список выбранных ID после одного флага |
+| `--check-only` | Нет | выключен | Проверяет JSONL и совместимость CLI без запуска evaluation-контейнеров |
+
+## Форматы данных и артефакты
+
+### Поля задачи
+
+Inference loader использует:
+
+| Поле | Обязательное | Назначение |
+| --- | ---: | --- |
+| `instance_id` | Да | Стабильный идентификатор задачи |
+| `repo` | Да | Репозиторий в формате `owner/name` |
+| `base_commit` | Да | Исходный commit рабочего дерева |
+| `problem_statement` | Да | Описание issue для агента |
+| `hints_text` | Нет | Необязательные подсказки |
+| `version` | Нет | Версия проекта |
+| `image_name` или `docker_image` | Для готового образа | Точный образ конкретной задачи |
+| `install_config` | Нет | Допустимые настройки запуска контейнера, например `cap_add` |
+
+Snapshot сохраняет evaluator-only поля `patch`, `test_patch`, `FAIL_TO_PASS` и `PASS_TO_PASS`, потому что они нужны официальной оценке. Inference loader намеренно удаляет их перед построением task и prompt. Эти поля нельзя показывать агенту: это утечка эталонного решения и тестовой информации.
+
+### Формат prediction
+
+`predictions.jsonl` содержит ровно один JSON-объект на строку:
+
+~~~json
+{
+  "instance_id": "owner__repo-123",
+  "model_name_or_path": "react-sgr/model-name",
+  "model_patch": "diff --git a/src/file.py b/src/file.py\n..."
+}
+~~~
+
+Требования:
+
+- каждый выбранный `instance_id` встречается ровно один раз;
+- `model_name_or_path` — непустая строка;
+- `model_patch` — Git patch относительно `base_commit`;
+- при timeout, пустом решении или infrastructure failure runner записывает пустой patch, чтобы задача не исчезла из знаменателя оценки.
+
+Текстовый ответ агента, tool trace, timings и ошибки не включаются в prediction.
+
+### Структура запуска
+
+При output `runs/<run-id>/predictions.jsonl` директория может содержать:
+
+~~~text
+runs/<run-id>/
+├── predictions.jsonl
+├── run_metadata.json
+├── errors.jsonl
+├── patches.jsonl
+├── task.jsonl
+├── task.jsonl.metadata.json
+├── instance_ids.txt
+├── logs/
+│   └── <run-id>/
+│       ├── log_main.log
+│       └── log_process_swe-rebench-*.log
+└── evaluation/
+    ├── evaluation_metadata.json
+    ├── <aggregate-report>.json
+    └── instances/
+        └── ...
+~~~
+
+Некоторые файлы создаются только при наличии соответствующих событий. Например, `errors.jsonl` отсутствует, если ошибок не было.
+
+| Артефакт | Назначение |
+| --- | --- |
+| `predictions.jsonl` | Единственный основной вход evaluator |
+| `run_metadata.json` | Dataset, pipeline, модель, commits, config hash и выбранные ID |
+| `patches.jsonl` | Диагностика собранных patch |
+| `errors.jsonl` | Ошибки inference, traceback, duration и bounded diagnostics |
+| `evaluation_metadata.json` | Точная команда evaluator и версии компонентов |
+| aggregate report | Общая статистика resolved/unresolved/error |
+| `evaluation/instances` | Отчёты и логи отдельных задач evaluator |
+
+## Логи
+
+`--logs-path` переопределяет `logs_path` из pipeline YAML. Для каждого `run_id` создаётся отдельная поддиректория:
+
+~~~text
+<logs-path>/
+└── <run-id>/
+    ├── log_main.log
+    └── log_process_swe-rebench-*.log
+~~~
+
+`log_main.log` содержит события всего запуска: загрузку датасета, выбор задач, разрешение образов, отправку workers, timeout и итоговый summary.
+
+`log_process_*.log` содержит lifecycle отдельного worker, сообщения pipeline и агента, создание контейнера и сбор patch.
+
+Повторный запуск с `--resume` и тем же `run_id` продолжает тот же логический эксперимент и дописывает его логи. Для независимого эксперимента используйте новый `run_id`.
+
+## Интерпретация оценки
+
+Основные поля итогового отчёта:
+
+| Поле | Значение |
+| --- | --- |
+| `total_instances` | Общее число задач в отчёте |
+| `submitted_instances` | Число predictions, переданных evaluator |
+| `completed_instances` | Число задач с завершившейся оценкой |
+| `resolved_instances` | Число задач, прошедших официальные тесты |
+| `unresolved_instances` | Оценка завершилась, но patch не решил задачу |
+| `empty_patch_instances` | Задачи с пустым `model_patch` |
+| `error_instances` | Задачи, для которых evaluator завершился ошибкой |
+| `resolved_ids` | ID решённых задач |
+| `unresolved_ids` | ID нерешённых задач |
+| `empty_patch_ids` | ID задач без patch |
+| `error_ids` | ID задач с ошибкой оценки |
+
+`resolved` означает, что patch был применён в чистой среде и прошёл критерии официального evaluator. `unresolved` не является infrastructure error: evaluation завершилась, но тесты не подтвердили решение.
+
+## Воспроизводимость
+
+Для каждого эксперимента сохраните:
+
+- immutable revision исходного датасета;
+- локальный snapshot и его `.metadata.json`;
+- SHA-256 snapshot;
+- commit этого репозитория;
+- commit `SWE-bench-fork`;
+- pipeline YAML и его SHA-256;
+- точное имя модели и endpoint deployment;
+- `run_id`;
+- список `instance_id`;
+- `predictions.jsonl`;
+- inference и evaluation metadata;
+- логи и отчёты.
+
+Перед evaluation убедитесь, что `dataset`, `split`, `dataset_revision` и выбранные ID совпадают с `run_metadata.json`. Wrapper выполняет эту проверку автоматически.
+
+## Типовые ошибки
+
+### Docker daemon недоступен
+
+Признаки: `Permission denied`, `Cannot connect to the Docker daemon`.
+
+Проверьте:
+
+~~~bash
+docker info
+~~~
+
+Исправьте права доступа к Docker в соответствии с политикой сервера.
+
+### Не найден образ задачи
+
+Проверьте `image_name` или `docker_image` в snapshot, registry login, `--pull-policy` и доступность образа для нужной архитектуры. Для воспроизводимого запуска не подменяйте отсутствующий образ convention fallback без фиксации причины.
+
+### `EmptyModelPatchError`
+
+Агент завершился, но рабочее дерево не изменилось. Проверьте:
+
+- `errors.jsonl`;
+- `details.agent_result`;
+- `details.git_status`;
+- `details.diff_summary`;
+- process log задачи;
+- число итераций и историю агента;
+- действительно ли агент вызвал `apply_patch` или изменил файл через `run_command`.
+
+### Timeout задачи
+
+Увеличьте `--task-timeout`, timeout модели или `RUN_COMMAND_TOOL.default_timeout`. Сначала выясните, зависла модель, тесты или Docker operation.
+
+### `predictions.jsonl` уже существует
+
+Без `--resume` runner не перезаписывает непустой файл. Используйте новый `RUN_DIR` для нового эксперимента либо `--resume` для продолжения того же запуска.
+
+### Не совпадают instance ID
+
+Используйте один snapshot и один `instance_ids.txt` для inference и evaluation. Не создавайте prediction из одного snapshot, а evaluation — из другого.
+
+### Не совпадают dataset, split или revision
+
+Значения в команде evaluation должны совпадать с `run_metadata.json`. Для локального snapshot обычно не передавайте `--dataset-revision` ни inference, ни evaluation.
+
+### Evaluator CLI несовместим
+
+Зафиксированная версия fork должна поддерживать параметры `--dataset_name`, `--split`, `--predictions_path`, `--max_workers` и `--run_id`. Зафиксируйте правильный commit fork или синхронно обновите wrapper и документацию.
+
+### Evaluation завершилась без отчёта
+
+Проверьте return code evaluator, директорию `$FORK/logs/run_evaluation/$RUN_ID`, aggregate JSON в checkout fork и `--report-dir`. Wrapper считает отсутствие отчёта после успешного процесса ошибкой.
+
+### Неверный namespace
+
+Используйте namespace, соответствующий выбранному registry и commit evaluator. Пустой namespace допустим, но означает использование режима локально собираемых образов в поддерживающем его fork.
+
+## Рекомендации перед полным запуском
+
+1. Зафиксируйте revision датасета и evaluator fork.
+2. Запустите одну задачу от snapshot до официального отчёта.
+3. Проверьте, что patch непустой и применим.
+4. Запустите подвыборку из 5–10 задач.
+5. Оцените среднее время, использование диска, CPU, RAM и нагрузку на model endpoint.
+6. Только после этого увеличивайте `--num-workers` и запускайте весь dataset.
+7. Архивируйте snapshot, configs, metadata, predictions, логи и evaluation reports вместе.
