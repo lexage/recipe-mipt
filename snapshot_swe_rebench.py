@@ -17,6 +17,14 @@ def parse_args() -> argparse.Namespace:
         "--dataset-revision",
         help="Required for Hub datasets; commit SHA or immutable dataset revision",
     )
+    parser.add_argument(
+        "--created-at-from",
+        help="Include tasks created at or after this UTC date/time",
+    )
+    parser.add_argument(
+        "--created-at-before",
+        help="Include tasks created before this UTC date/time",
+    )
     parser.add_argument("--instance-ids-file")
     parser.add_argument("--start", type=int, default=0)
     parser.add_argument("--stop", type=int)
@@ -79,6 +87,50 @@ def _read_instance_ids(path: str | Path | None) -> list[str] | None:
     return values
 
 
+def _parse_utc_datetime(value: str | datetime, *, field_name: str) -> datetime:
+    """Parse an ISO-8601 value and normalize it to UTC."""
+
+    if isinstance(value, datetime):
+        parsed = value
+    elif isinstance(value, str) and value.strip():
+        normalized = value.strip()
+        if normalized.endswith("Z"):
+            normalized = normalized[:-1] + "+00:00"
+        try:
+            parsed = datetime.fromisoformat(normalized)
+        except ValueError as error:
+            raise ValueError(
+                f"{field_name} must be an ISO-8601 date/time"
+            ) from error
+    else:
+        raise ValueError(f"{field_name} must be a non-empty ISO-8601 date/time")
+
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=timezone.utc)
+    else:
+        parsed = parsed.astimezone(timezone.utc)
+    return parsed
+
+
+def _created_at_bounds(
+    created_at_from: str | datetime | None,
+    created_at_before: str | datetime | None,
+) -> tuple[datetime | None, datetime | None]:
+    lower = (
+        _parse_utc_datetime(created_at_from, field_name="created_at_from")
+        if created_at_from is not None
+        else None
+    )
+    upper = (
+        _parse_utc_datetime(created_at_before, field_name="created_at_before")
+        if created_at_before is not None
+        else None
+    )
+    if lower is not None and upper is not None and lower >= upper:
+        raise ValueError("Require created_at_from < created_at_before")
+    return lower, upper
+
+
 def materialize_snapshot(
     *,
     dataset: str,
@@ -86,6 +138,8 @@ def materialize_snapshot(
     output: str | Path,
     dataset_revision: str | None = None,
     instance_ids: Iterable[str] | None = None,
+    created_at_from: str | datetime | None = None,
+    created_at_before: str | datetime | None = None,
     start: int = 0,
     stop: int | None = None,
     limit: int | None = None,
@@ -96,7 +150,11 @@ def materialize_snapshot(
         raise ValueError("Require 0 <= start <= stop")
     if limit is not None and limit < 0:
         raise ValueError("limit must be non-negative")
+    created_at_lower, created_at_upper = _created_at_bounds(
+        created_at_from, created_at_before
+    )
     records = _load_records(dataset, split, dataset_revision)
+    source_instance_count = len(records)
     by_id: dict[str, dict[str, Any]] = {}
     for position, record in enumerate(records):
         instance_id = record.get("instance_id")
@@ -105,6 +163,27 @@ def materialize_snapshot(
         if instance_id in by_id:
             raise ValueError(f"Duplicate instance_id: {instance_id}")
         by_id[instance_id] = record
+
+    if created_at_lower is not None or created_at_upper is not None:
+        filtered_records: list[dict[str, Any]] = []
+        for position, record in enumerate(records):
+            instance_id = record["instance_id"]
+            try:
+                created_at = _parse_utc_datetime(
+                    record.get("created_at"),
+                    field_name="created_at",
+                )
+            except ValueError as error:
+                raise ValueError(
+                    f"Record {position} ({instance_id}) has invalid created_at: {error}"
+                ) from error
+            if created_at_lower is not None and created_at < created_at_lower:
+                continue
+            if created_at_upper is not None and created_at >= created_at_upper:
+                continue
+            filtered_records.append(record)
+        records = filtered_records
+    created_at_filtered_count = len(records)
 
     if instance_ids is not None:
         requested = list(instance_ids)
@@ -137,6 +216,22 @@ def materialize_snapshot(
         "source_dataset": dataset,
         "source_split": split,
         "source_revision": dataset_revision,
+        "source_instance_count": source_instance_count,
+        "created_at_filtered_count": created_at_filtered_count,
+        "filters": {
+            "created_at": {
+                "from": (
+                    created_at_lower.isoformat()
+                    if created_at_lower is not None
+                    else None
+                ),
+                "before": (
+                    created_at_upper.isoformat()
+                    if created_at_upper is not None
+                    else None
+                ),
+            }
+        },
         "snapshot_path": str(output_path),
         "snapshot_sha256": hashlib.sha256(encoded).hexdigest(),
         "instance_count": len(records),
@@ -158,6 +253,8 @@ def main() -> int:
         split=args.split,
         dataset_revision=args.dataset_revision,
         instance_ids=_read_instance_ids(args.instance_ids_file),
+        created_at_from=args.created_at_from,
+        created_at_before=args.created_at_before,
         start=args.start,
         stop=args.stop,
         limit=args.limit,
