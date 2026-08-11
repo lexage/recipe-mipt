@@ -6,6 +6,7 @@ import time
 import unittest
 from pathlib import Path
 
+from run_swe_rebench import resolve_run_logs_path
 from src.benchmarks.swe_rebench import (
     CommandResult,
     InstanceImageResolver,
@@ -250,6 +251,25 @@ class SWERebenchInferenceRunnerTests(unittest.TestCase):
         self.assertEqual(error["details"]["agent_result"], "ignored final answer")
         self.assertEqual(error["details"]["git_status"], "[clean]")
         self.assertIn("Traceback", error["traceback"])
+
+    def test_swe_rebench_runs_write_to_separate_log_directories(self):
+        logs = self.root / "logs"
+        first_logs = resolve_run_logs_path(str(logs), "run-one")
+        second_logs = resolve_run_logs_path(str(logs), "run-two")
+
+        create_logging(str(first_logs), n_workers=1, route=True)
+        logging.info("FIRST_RUN_MARKER")
+        create_logging(str(second_logs), n_workers=1, route=True)
+        logging.info("SECOND_RUN_MARKER")
+        for handler in logging.getLogger().handlers:
+            handler.flush()
+
+        first_content = (first_logs / "log_main.log").read_text()
+        second_content = (second_logs / "log_main.log").read_text()
+        self.assertIn("FIRST_RUN_MARKER", first_content)
+        self.assertNotIn("SECOND_RUN_MARKER", first_content)
+        self.assertIn("SECOND_RUN_MARKER", second_content)
+        self.assertNotIn("FIRST_RUN_MARKER", second_content)
 
     def test_process_worker_and_agent_messages_are_written_to_log_file(self):
         def runtime_factory(task, image):
