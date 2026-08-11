@@ -13,17 +13,18 @@
 
 1. [Как устроен запуск](#как-устроен-запуск)
 2. [Требования](#требования)
-3. [Установка](#установка)
-4. [Настройка модели и pipeline](#настройка-модели-и-pipeline)
-5. [Запуск на одной задаче](#запуск-на-одной-задаче)
-6. [Запуск на части датасета](#запуск-на-части-датасета)
-7. [Запуск на всём датасете](#запуск-на-всём-датасете)
-8. [Параметры команд](#параметры-команд)
-9. [Форматы данных и артефакты](#форматы-данных-и-артефакты)
-10. [Логи](#логи)
-11. [Интерпретация оценки](#интерпретация-оценки)
-12. [Воспроизводимость](#воспроизводимость)
-13. [Типовые ошибки](#типовые-ошибки)
+3. [Переменные и их источники](#переменные-и-их-источники)
+4. [Установка](#установка)
+5. [Настройка модели и pipeline](#настройка-модели-и-pipeline)
+6. [Запуск на одной задаче](#запуск-на-одной-задаче)
+7. [Запуск на части датасета](#запуск-на-части-датасета)
+8. [Запуск на всём датасете](#запуск-на-всём-датасете)
+9. [Параметры команд](#параметры-команд)
+10. [Форматы данных и артефакты](#форматы-данных-и-артефакты)
+11. [Логи](#логи)
+12. [Интерпретация оценки](#интерпретация-оценки)
+13. [Воспроизводимость](#воспроизводимость)
+14. [Типовые ошибки](#типовые-ошибки)
 
 ## Как устроен запуск
 
@@ -90,6 +91,7 @@ Evaluation не переиспользует inference-контейнер. Вн�
 - Linux;
 - Python 3.12;
 - Git;
+- curl;
 - Docker Engine;
 - доступ текущего пользователя к Docker daemon;
 - свободное место для Docker-образов задач;
@@ -107,6 +109,87 @@ docker info
 ~~~
 
 Команда `docker info` должна завершаться без ошибки доступа к Docker socket.
+
+
+## Переменные и их источники
+
+В командах ниже используются три типа переменных:
+
+- **получить и зафиксировать** — значение приходит из внешнего источника и должно оставаться неизменным в рамках эксперимента;
+- **выбрать** — значение задаёт пользователь для конкретного запуска;
+- **вычислить** — значение однозначно получается из уже заданных переменных.
+
+Фрагмент вида `<значение>` означает шаблон, который нельзя копировать без замены. `$NAME` означает ранее определённую shell-переменную. Имена вида `<run-id>` в деревьях каталогов являются только обозначениями структуры, а не командами.
+
+| Переменная или поле | Тип | Откуда взять | Зачем используется |
+| --- | --- | --- | --- |
+| `RECIPE_DIR` | Вычислить | `pwd` после перехода в корень клонированного репозитория | Абсолютная база для конфигов, snapshot и результатов |
+| `FORK_PARENT` | Выбрать | Любой создаваемый локальный каталог; в примерах — `$RECIPE_DIR/external` | Родительский каталог checkout evaluator |
+| `FORK` | Вычислить | `$FORK_PARENT/SWE-bench-fork` | Путь к evaluator |
+| `EVALUATOR_COMMIT` | Получить и зафиксировать | Полный SHA из [истории SWE-bench-fork](https://github.com/SWE-rebench/SWE-bench-fork/commits/main) или `git -C "$FORK" rev-parse origin/main` после `git fetch` | Фиксирует реализацию harness, CLI и правила оценки |
+| `DATASET` | Выбрать | ID страницы Hub dataset; основной вариант — `nebius/SWE-rebench` | Источник задач при создании snapshot |
+| `DATASET_REVISION` | Получить и зафиксировать | Полный SHA из [истории датасета](https://huggingface.co/datasets/nebius/SWE-rebench/commits/main) или через `HfApi.dataset_info(...).sha` | Фиксирует точное содержимое датасета |
+| `SPLIT` | Выбрать | Из списка splits выбранной revision; команда приведена ниже | Определяет исходное множество задач |
+| `CONFIG` | Выбрать | Один из YAML в `pipeline_configs/`: ReAct или ReWOO | Определяет pipeline, инструменты и параметры модели |
+| `MODEL_URL` | Получить из конфига | Поле `url` агента или planner в выбранном YAML | Адрес OpenAI-compatible endpoint |
+| `LLM_MODEL` | Получить из конфига и сверить с сервером | Поле `model_name`; проверить через `GET /v1/models` | Модель, которую реально вызывает pipeline |
+| `MODEL_NAME_OR_PATH` | Выбрать как метку | Обычно `<pipeline-id>/$LLM_MODEL` | Записывается в predictions; сама по себе модель не переключает |
+| `EVAL_NAMESPACE` | Выбрать по evaluator и образам | Правило выбора приведено ниже и в README зафиксированного fork | Управляет поиском или локальной сборкой evaluation images |
+| `RUN_ID` | Выбрать | Уникальное понятное имя эксперимента | Связывает predictions, metadata, логи и evaluation reports |
+| `RUN_DIR` | Вычислить | `$RECIPE_DIR/runs/$RUN_ID` | Изолирует артефакты одного запуска |
+| `TASK_FILE`, `SUBSET_FILE`, `FULL_DATASET` | Вычислить | Файлы внутри `RUN_DIR` | Локальные snapshot для одного, части или полного набора |
+| `INSTANCE_IDS_FILE` | Вычислить или создать | Путь внутри `RUN_DIR`; содержимое извлекается из snapshot либо задаётся списком | Ограничивает запуск конкретными задачами |
+
+### Как получить revision датасета
+
+Следующая команда получает полный SHA текущего состояния Hub dataset и сохраняет его в shell. После этого значение не изменяется само по себе в рамках текущего запуска:
+
+~~~bash
+export DATASET=nebius/SWE-rebench
+export DATASET_REVISION="$(
+  python -c 'import os; from huggingface_hub import HfApi; print(HfApi().dataset_info(os.environ["DATASET"]).sha)'
+)"
+
+printf 'DATASET_REVISION=%s\n' "$DATASET_REVISION"
+~~~
+
+Текущий HEAD подходит для первичной проверки, но не означает автоматически проверенную комбинацию версий. Для повторения ранее проведённого эксперимента задайте сохранённый полный SHA явно. Полный SHA возьмите из metadata предыдущего запуска или истории датасета; не сокращайте его до семи символов.
+
+Посмотрите допустимые splits именно для выбранной revision:
+
+~~~bash
+python -c 'import os; from datasets import get_dataset_split_names; print(get_dataset_split_names(os.environ["DATASET"], revision=os.environ["DATASET_REVISION"]))'
+~~~
+
+После этого задайте одно из выведенных значений, например:
+
+~~~bash
+export SPLIT=filtered
+~~~
+
+### Как выбрать namespace
+
+`EVAL_NAMESPACE` — не имя эксперимента. Он определяет, где evaluator ищет instance images.
+
+| Сценарий | Значение |
+| --- | --- |
+| Датасет и зафиксированный evaluator рассчитаны на локальную сборку образов | `export EVAL_NAMESPACE=""` |
+| Используются опубликованные образы leaderboard в namespace `swerebench` | `export EVAL_NAMESPACE=swerebench` |
+| Используется собственный registry | Namespace этого registry согласно документации выбранного evaluator |
+
+В [официальном SWE-bench-fork](https://github.com/SWE-rebench/SWE-bench-fork) пример для leaderboard использует `swerebench`, а пример для `nebius/SWE-rebench` — пустой namespace. Поэтому не копируйте `swerebench` автоматически: сначала сопоставьте dataset, commit evaluator и способ получения образов.
+
+### Что именно означает «зафиксировать»
+
+Фиксация не означает, что один SHA нужно использовать всегда. Она означает: выбрать точную версию для конкретного эксперимента, записать её в metadata и повторно использовать при сравнении или продолжении запуска.
+
+- Dataset revision фиксирует состав задач, поля, тестовые данные и ссылки на образы.
+- Evaluator commit фиксирует применение patch, команды тестов, обработку timeout и формирование отчёта.
+- Commit этого репозитория фиксирует prompt, инструменты, runner и сбор `model_patch`.
+- SHA-256 pipeline YAML фиксирует параметры агента.
+- Split, список `instance_id` и фильтры `created_at` фиксируют фактический знаменатель метрики.
+- Ресурсные лимиты и timeout не являются версиями, но тоже должны сохраняться: они влияют на долю ошибок и незавершённых задач.
+- `RUN_ID` не является версией. Новый эксперимент получает новый ID; прежний ID используется только для `--resume`.
 
 ## Установка
 
@@ -131,20 +214,34 @@ python -m pip install -r requirements.txt
 
 ### 3. Установка evaluator fork
 
-Выберите и зафиксируйте конкретный commit evaluator. Не используйте плавающую ветку для воспроизводимых экспериментов.
+Для первого запуска можно взять текущий commit `origin/main`, немедленно сохранить его полный SHA и перейти в detached HEAD. Для повторения эксперимента заранее экспортируйте SHA из его metadata: команда ниже сохранит уже заданное значение.
 
 ~~~bash
-export FORK_PARENT=/absolute/path/to/evaluator
+export FORK_PARENT="${FORK_PARENT:-$RECIPE_DIR/external}"
 export FORK="$FORK_PARENT/SWE-bench-fork"
-export EVALUATOR_COMMIT=<commit-sha>
 
+mkdir -p "$FORK_PARENT"
 git clone https://github.com/SWE-rebench/SWE-bench-fork.git "$FORK"
-git -C "$FORK" checkout "$EVALUATOR_COMMIT"
+git -C "$FORK" fetch origin main
+
+export EVALUATOR_COMMIT="${EVALUATOR_COMMIT:-$(git -C "$FORK" rev-parse origin/main)}"
+git -C "$FORK" checkout --detach "$EVALUATOR_COMMIT"
 python -m pip install -e "$FORK"
+
+printf 'EVALUATOR_COMMIT=%s\n' "$EVALUATOR_COMMIT"
 git -C "$FORK" rev-parse HEAD
 ~~~
 
-Последняя команда должна вывести тот же SHA, который указан в `$EVALUATOR_COMMIT`.
+Две последние команды должны вывести один и тот же полный SHA. Значение можно также выбрать в [истории коммитов evaluator](https://github.com/SWE-rebench/SWE-bench-fork/commits/main). Последний commit удобен для smoke test, но не гарантирует совместимость с конкретной revision датасета. Для сравнительных запусков используйте заранее проверенную пару `DATASET_REVISION + EVALUATOR_COMMIT`.
+
+Если `$FORK` уже существует, не клонируйте его повторно:
+
+~~~bash
+git -C "$FORK" fetch origin main
+export EVALUATOR_COMMIT="${EVALUATOR_COMMIT:-$(git -C "$FORK" rev-parse origin/main)}"
+git -C "$FORK" checkout --detach "$EVALUATOR_COMMIT"
+python -m pip install -e "$FORK"
+~~~
 
 ## Настройка модели и pipeline
 
@@ -166,7 +263,23 @@ git -C "$FORK" rev-parse HEAD
 | `max_timeout` | Максимально разрешённый timeout shell-команды |
 | `logs_path` | Базовая директория логов; может быть переопределена через CLI |
 
-Проверьте доступность endpoint способом, который поддерживает ваш model server. Значения `url` и `model_name` в примерах конфигураций являются настройками конкретного окружения и не должны без проверки переноситься на другой кластер.
+Для ReAct выбирайте `react_sgr_swe_rebench.yaml`, для ReWOO — `rewoo_sgr_swe_rebench.yaml`. Перед изменением рекомендуется скопировать базовый YAML в каталог запуска: тогда файл и его hash останутся рядом с результатами.
+
+Значения `url` и `model_name` в репозитории относятся к конкретному окружению и не должны без проверки переноситься на другой кластер. Получите их из выбранного YAML:
+
+~~~bash
+export MODEL_URL="$(
+  python -c 'import sys,yaml; c=yaml.safe_load(open(sys.argv[1], encoding="utf-8")); x=c["components"]; p=(x.get("agent") or x.get("planner") or {}).get("params", {}); print(p["url"])' "$CONFIG"
+)"
+export LLM_MODEL="$(
+  python -c 'import sys,yaml; c=yaml.safe_load(open(sys.argv[1], encoding="utf-8")); x=c["components"]; p=(x.get("agent") or x.get("planner") or {}).get("params", {}); print(p["model_name"])' "$CONFIG"
+)"
+
+printf 'MODEL_URL=%s\nLLM_MODEL=%s\n' "$MODEL_URL" "$LLM_MODEL"
+curl -fsS "${MODEL_URL%/}/models" | python -m json.tool
+~~~
+
+`MODEL_URL` должен указывать на доступный OpenAI-compatible endpoint, обычно оканчивающийся на `/v1`. `LLM_MODEL` должен совпадать с одним из ID, возвращённых `GET /v1/models`. В ReWOO отдельно проверьте согласованность `url` и `model_name` у `planner`, `worker`, `solver` и `LLM_TOOL`. Реальную модель выбирают поля YAML; аргумент `--model-name-or-path` только маркирует predictions и должен правдиво описывать эту модель.
 
 ### Инструменты агента
 
@@ -181,35 +294,90 @@ git -C "$FORK" rev-parse HEAD
 | `run_command` | Запуск shell-команд и тестов в контейнере задачи |
 | `git_diff` | Просмотр изменений относительно `base_commit` |
 
+
 ## Запуск на одной задаче
 
 Ниже приведён полный сценарий: от загрузки одной записи до официальной оценки.
 
 ### 1. Переменные запуска
 
-Замените значения в угловых скобках на реальные.
+Пример ниже получает текущую revision датасета, извлекает endpoint и ID модели из ReAct-конфига и создаёт уникальный каталог smoke test. Для повторного запуска замените автоматически полученную revision значением из metadata исходного эксперимента.
 
 ~~~bash
 cd "$RECIPE_DIR"
 source .venv/bin/activate
 
 export DATASET=nebius/SWE-rebench
-export DATASET_REVISION=<immutable-hugging-face-commit>
-export SPLIT=test
-export RUN_ID=react-sgr-one
+export DATASET_REVISION="${DATASET_REVISION:-$(
+  python -c 'import os; from huggingface_hub import HfApi; print(HfApi().dataset_info(os.environ["DATASET"]).sha)'
+)}"
+export SPLIT=filtered
+
+export CONFIG="$RECIPE_DIR/pipeline_configs/react_sgr_swe_rebench.yaml"
+export PIPELINE_ID=react-sgr
+export MODEL_URL="$(
+  python -c 'import sys,yaml; c=yaml.safe_load(open(sys.argv[1], encoding="utf-8")); x=c["components"]; p=(x.get("agent") or x.get("planner") or {}).get("params", {}); print(p["url"])' "$CONFIG"
+)"
+export LLM_MODEL="$(
+  python -c 'import sys,yaml; c=yaml.safe_load(open(sys.argv[1], encoding="utf-8")); x=c["components"]; p=(x.get("agent") or x.get("planner") or {}).get("params", {}); print(p["model_name"])' "$CONFIG"
+)"
+export MODEL_NAME_OR_PATH="$PIPELINE_ID/$LLM_MODEL"
+
+export EVAL_NAMESPACE="${EVAL_NAMESPACE:-}"
+export RUN_ID="${PIPELINE_ID}-smoke-$(date -u +%Y%m%dT%H%M%SZ)"
 export RUN_DIR="$RECIPE_DIR/runs/$RUN_ID"
 export TASK_FILE="$RUN_DIR/task.jsonl"
 export INSTANCE_IDS_FILE="$RUN_DIR/instance_ids.txt"
-export CONFIG="$RECIPE_DIR/pipeline_configs/react_sgr_swe_rebench.yaml"
-export MODEL_NAME_OR_PATH=react-sgr/<model-name>
-export EVAL_NAMESPACE=swerebench
 
 mkdir -p "$RUN_DIR"
+cp "$CONFIG" "$RUN_DIR/pipeline.yaml"
+export CONFIG="$RUN_DIR/pipeline.yaml"
 ~~~
 
-`DATASET_REVISION` должен быть immutable commit SHA датасета. Тот же локальный snapshot далее передаётся и инференсу, и evaluation.
+Проверьте, что `SPLIT` существует в выбранной revision и что `EVAL_NAMESPACE` соответствует образам зафиксированного evaluator. Один и тот же локальный `$TASK_FILE` далее передаётся инференсу и evaluation. Новый `RUN_ID` создавайте для каждого независимого эксперимента; при `--resume` используйте прежний.
 
-### 2. Формирование одного примера
+### 2. Проверка параметров перед запуском
+
+Перед долгим запуском распечатайте все значения, пришедшие извне, и проверьте, что пути существуют:
+
+~~~bash
+printf '%-24s %s\n' \
+  RECIPE_DIR "$RECIPE_DIR" \
+  FORK "$FORK" \
+  EVALUATOR_COMMIT "$EVALUATOR_COMMIT" \
+  DATASET "$DATASET" \
+  DATASET_REVISION "$DATASET_REVISION" \
+  SPLIT "$SPLIT" \
+  CONFIG "$CONFIG" \
+  MODEL_URL "$MODEL_URL" \
+  LLM_MODEL "$LLM_MODEL" \
+  MODEL_NAME_OR_PATH "$MODEL_NAME_OR_PATH" \
+  EVAL_NAMESPACE "${EVAL_NAMESPACE:-[пусто]}" \
+  RUN_ID "$RUN_ID" \
+  RUN_DIR "$RUN_DIR"
+
+test -d "$RECIPE_DIR/.git"
+test -d "$FORK/.git"
+test -f "$CONFIG"
+test "$(git -C "$FORK" rev-parse HEAD)" = "$EVALUATOR_COMMIT"
+git -C "$RECIPE_DIR" status --short
+~~~
+
+После получения predictions выполните безопасную проверку wrapper без запуска evaluation-контейнеров:
+
+~~~bash
+python evaluate_swe_rebench.py \
+  --fork-path "$FORK" \
+  --predictions-path "$RUN_DIR/predictions.jsonl" \
+  --dataset-name "$TASK_FILE" \
+  --split "$SPLIT" \
+  --run-id "$RUN_ID" \
+  --namespace "$EVAL_NAMESPACE" \
+  --inference-metadata "$RUN_DIR/run_metadata.json" \
+  --check-only
+~~~
+
+### 3. Формирование одного примера
 
 Чтобы взять первую задачу выбранного split:
 
@@ -233,13 +401,12 @@ cat "$INSTANCE_IDS_FILE"
 Чтобы выбрать не первую, а конкретную задачу, заранее запишите её ID в файл:
 
 ~~~bash
-printf '%s
-' '<owner__repo-id>' > "$INSTANCE_IDS_FILE"
+printf '%s\n' 'PennyLaneAI__pennylane-7671' > "$INSTANCE_IDS_FILE"
 
 python snapshot_swe_rebench.py   --dataset "$DATASET"   --split "$SPLIT"   --dataset-revision "$DATASET_REVISION"   --instance-ids-file "$INSTANCE_IDS_FILE"   --output "$TASK_FILE"
 ~~~
 
-### 3. Инференс на одной задаче
+### 4. Инференс на одной задаче
 
 ~~~bash
 python run_swe_rebench.py   --config "$CONFIG"   --dataset "$TASK_FILE"   --split "$SPLIT"   --instance-ids-file "$INSTANCE_IDS_FILE"   --output "$RUN_DIR/predictions.jsonl"   --model-name-or-path "$MODEL_NAME_OR_PATH"   --run-id "$RUN_ID"   --num-workers 1   --pull-policy missing   --task-timeout 3600   --memory-limit 16g   --nano-cpus 4000000000   --logs-path "$RUN_DIR/logs"   --evaluator-fork-path "$FORK"
@@ -268,7 +435,7 @@ python -m json.tool "$RUN_DIR/run_metadata.json"
 sed -n '1p' "$RUN_DIR/predictions.jsonl"
 ~~~
 
-### 4. Оценка одной задачи
+### 5. Оценка одной задачи
 
 Прочитайте `instance_id` в Bash-массив и запустите evaluator:
 
@@ -278,9 +445,11 @@ mapfile -t INSTANCE_IDS < "$INSTANCE_IDS_FILE"
 python evaluate_swe_rebench.py   --fork-path "$FORK"   --predictions-path "$RUN_DIR/predictions.jsonl"   --dataset-name "$TASK_FILE"   --split "$SPLIT"   --run-id "$RUN_ID"   --max-workers 1   --timeout 1800   --namespace "$EVAL_NAMESPACE"   --inference-metadata "$RUN_DIR/run_metadata.json"   --instance-ids "${INSTANCE_IDS[@]}"   --report-dir "$RUN_DIR/evaluation"
 ~~~
 
-`--namespace` обязателен для wrapper. Используйте namespace образов из зафиксированной версии evaluator. Пустая строка передаётся как `--namespace ""` и используется только если выбранный fork должен собирать локальные образы.
+`--namespace` обязателен для wrapper, но его значение может быть пустой строкой. Используйте namespace образов из зафиксированной версии evaluator: для `nebius/SWE-rebench` официальный пример использует `--namespace ""`, а `swerebench` относится к опубликованным leaderboard images. Не меняйте namespace между проверкой одной задачи и полным запуском.
 
 ## Запуск на части датасета
+
+Сначала выполните установку и задайте базовые переменные из раздела запуска на одной задаче, затем создайте новый `RUN_ID` для подвыборки.
 
 Для воспроизводимости рекомендуется сначала создать отдельный snapshot выбранной части, а затем использовать этот же файл на стадиях инференса и оценки.
 
@@ -386,6 +555,8 @@ python snapshot_swe_rebench.py   --dataset "$DATASET"   --split "$SPLIT"   --dat
 Если snapshot уже содержит только нужные записи, дополнительные `--start`, `--stop` и `--limit` при инференсе обычно не требуются. Не применяйте разные фильтры на стадиях snapshot, inference и evaluation: это может привести к несовпадению ID.
 
 ## Запуск на всём датасете
+
+Сначала выполните установку и задайте базовые переменные из раздела запуска на одной задаче, затем создайте новый `RUN_ID` для полного эксперимента.
 
 Полный запуск выполняйте только после успешного запуска на одной задаче и небольшой подвыборке.
 
@@ -609,6 +780,8 @@ runs/<run-id>/
 
 ## Воспроизводимость
 
+Версии фиксируются не ради формальности. Без `DATASET_REVISION` повторная команда может получить другой состав или содержимое задач. Без `EVALUATOR_COMMIT` те же predictions могут пройти через изменившиеся правила применения patch, тестирования, timeout или формирования отчёта. Фиксация означает неизменность внутри одного эксперимента, а не запрет обновлять компоненты в следующих экспериментах.
+
 Для каждого эксперимента сохраните:
 
 - immutable revision исходного датасета;
@@ -693,3 +866,13 @@ docker info
 5. Оцените среднее время, использование диска, CPU, RAM и нагрузку на model endpoint.
 6. Только после этого увеличивайте `--num-workers` и запускайте весь dataset.
 7. Архивируйте snapshot, configs, metadata, predictions, логи и evaluation reports вместе.
+
+Проверка документации и параметров перед публикацией запуска:
+
+- все shell-переменные либо заданы в копируемом блоке, либо отмечены как вычисляемые;
+- каждый шаблон в угловых скобках объяснён как обозначение, а не готовое значение;
+- dataset и evaluator представлены полными SHA, а не названиями плавающих веток;
+- выбранный split существует в зафиксированной revision;
+- namespace соответствует источнику evaluation images;
+- `MODEL_URL` доступен, а `LLM_MODEL` присутствует в ответе `/v1/models`;
+- `run_metadata.json` содержит dataset, split, commits, config hash, выбранные ID и каталог логов.
