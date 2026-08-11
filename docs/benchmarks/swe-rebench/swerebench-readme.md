@@ -284,6 +284,54 @@ python evaluate_swe_rebench.py   --fork-path "$FORK"   --predictions-path "$RUN_
 
 Для воспроизводимости рекомендуется сначала создать отдельный snapshot выбранной части, а затем использовать этот же файл на стадиях инференса и оценки.
 
+### Фильтрация по дате создания задачи
+
+В [Hub dataset](https://huggingface.co/datasets/nebius/SWE-rebench/viewer/default/filtered) поле `created_at` хранит дату создания задачи. В указанном URL `filtered` — название split, поэтому для него передавайте `--split filtered`.
+
+Snapshot поддерживает полуоткрытый UTC-интервал:
+
+```text
+created_at_from <= created_at < created_at_before
+```
+
+- `--created-at-from` задаёт включённую нижнюю границу;
+- `--created-at-before` задаёт исключённую верхнюю границу;
+- обе границы необязательны;
+- дата без времени означает полночь UTC;
+- дата без timezone считается UTC;
+- фильтр по дате применяется до `--start`, `--stop` и `--limit`.
+
+Пример выбора задач, созданных в течение 2024 года:
+
+```bash
+export RUN_ID=react-sgr-created-in-2024
+export RUN_DIR="$RECIPE_DIR/runs/$RUN_ID"
+export SUBSET_FILE="$RUN_DIR/tasks.jsonl"
+mkdir -p "$RUN_DIR"
+
+python snapshot_swe_rebench.py \
+  --dataset nebius/SWE-rebench \
+  --split filtered \
+  --dataset-revision "$DATASET_REVISION" \
+  --created-at-from 2024-01-01 \
+  --created-at-before 2025-01-01 \
+  --output "$SUBSET_FILE"
+```
+
+Можно задать только одну границу:
+
+```bash
+# Все задачи начиная с 1 июля 2024 года включительно
+--created-at-from 2024-07-01
+
+# Все задачи строго раньше 1 января 2023 года
+--created-at-before 2023-01-01
+```
+
+Поддерживаются значения `YYYY-MM-DD`, `YYYY-MM-DD HH:MM:SS` и ISO 8601 с `Z` или timezone offset. Нормализованные границы и количества записей до и после фильтра сохраняются в `<snapshot>.metadata.json`.
+
+Полученный snapshot далее передаётся в неизменные команды `run_swe_rebench.py --dataset "$SUBSET_FILE"` и `evaluate_swe_rebench.py --dataset-name "$SUBSET_FILE"`.
+
 ### Вариант 1: явный список instance ID
 
 Создайте список:
@@ -381,6 +429,8 @@ python evaluate_swe_rebench.py   --fork-path "$FORK"   --predictions-path "$RUN_
 | `--dataset` | Да | — | Имя Hub dataset либо путь к локальному JSON/JSONL |
 | `--split` | Да | — | Split датасета |
 | `--dataset-revision` | Для Hub | — | Immutable revision или commit SHA Hub dataset |
+| `--created-at-from` | Нет | — | Включает задачи с `created_at` не раньше указанной UTC-даты |
+| `--created-at-before` | Нет | — | Включает задачи с `created_at` строго раньше указанной UTC-даты |
 | `--instance-ids-file` | Нет | — | Файл с выбранными `instance_id`, по одному на строку |
 | `--start` | Нет | `0` | Начальная позиция выборки, включительно |
 | `--stop` | Нет | до конца | Конечная позиция выборки, не включительно |
@@ -454,6 +504,7 @@ Inference loader использует:
 | `instance_id` | Да | Стабильный идентификатор задачи |
 | `repo` | Да | Репозиторий в формате `owner/name` |
 | `base_commit` | Да | Исходный commit рабочего дерева |
+| `created_at` | Для фильтра по дате | Дата создания задачи; используется snapshot и не добавляется в prompt |
 | `problem_statement` | Да | Описание issue для агента |
 | `hints_text` | Нет | Необязательные подсказки |
 | `version` | Нет | Версия проекта |
