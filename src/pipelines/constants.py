@@ -157,6 +157,9 @@ class ComponentNames(Enum):
     # ===== Generators: experiment 13 — RAG guide generation (deployable) =====
     RAG_GUIDE_GENERATOR = "src.generation.rag_guides.RagGuideGenerator"
 
+    # ===== Generators: experiment 15 — API-anchored instructions =====
+    API_GUIDE_GENERATOR = "src.generation.api_guides.ApiGuideGenerator"
+
     # ===== Generators: intent-anchored corpus augmentation =====
     INTENT_BASED_GENERATOR = "src.generation.intent_based.IntentBasedGenerator"
 
