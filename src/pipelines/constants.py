@@ -157,6 +157,9 @@ class ComponentNames(Enum):
     # ===== Generators: experiment 13 — RAG guide generation (deployable) =====
     RAG_GUIDE_GENERATOR = "src.generation.rag_guides.RagGuideGenerator"
 
+    # ===== Generators: intent-anchored corpus augmentation =====
+    INTENT_BASED_GENERATOR = "src.generation.intent_based.IntentBasedGenerator"
+
     # ===== TOOLS =====
     DB_SEARCH_TOOL = "src.tools.DBSearchTool"
     LLM_TOOL = "src.tools.LLMTool"

@@ -15,6 +15,7 @@ recipe-mipt/
 ├── run.py                  # Запуск пайплайна на одном запросе (-c config.yaml -q "query")
 ├── run_ds1000.py           # Прогон директории YAML-конфигов на бенчмарке DS1000
 ├── rag_eval.py             # Программный (без YAML) пример прогона на DS1000
+├── optimize_prompts.py     # ⭐ Оптимизация optimizable-промптов пайплайна (см. §8)
 ├── pyproject.toml          # Зависимости проекта (uv/pip)
 ├── requirements.txt        # Альтернативный список зависимостей
 ├── .env                    # Переменные окружения (ключи и т.п.)
@@ -55,6 +56,7 @@ recipe-mipt/
     │   ├── agent.py                   #   Agent (ABC)
     │   ├── icl.py                     #   ICLBlock (ABC)
     │   ├── db.py                      #   IDB (ABC)
+    │   ├── prompts.py                 #   ⭐ Prompt + PromptDiscoverable (см. §7)
     │   ├── examples.py
     │   └── ⚠ filters.py и generator.py — здесь только абстракции; реализации в src/filtering, src/generation
     │
@@ -72,7 +74,11 @@ recipe-mipt/
     │   ├── random_word.py             # RandomWordGenerator
     │   ├── new_insruct.py             # InstructGenerator
     │   ├── code_eval.py               # CodeEvalGenerator
-    │   └── incorrect_examples.py      # IncorrectExampleGenerator
+    │   ├── incorrect_examples.py      # IncorrectExampleGenerator
+    │   ├── paraphrase.py              # ParaphraseGenerator (exp6, oracle)
+    │   ├── code2doc.py                # CodeToDocGenerator (exp8, oracle)
+    │   ├── code2task.py               # CodeToTaskGenerator (exp8, корпусный)
+    │   └── rag_guides.py              # ⭐ RagGuideGenerator (exp13, наш метод; промпты — §7)
     │
     ├── agents/                        # LLM-агенты (роли)
     │   ├── critique/                  #   Critic, ComplexCritic, Decrim, Reflexion, SelfRefine
@@ -88,12 +94,20 @@ recipe-mipt/
     ├── context_assemblers/            # Сборка контекста: corag_assembler, instruct_assembler, examples_assembler
     ├── db/                            # Backend для хранения документов: docs_db (LocalDB), github_db, raptor_db
     ├── tools/                         # Инструменты для REWOO/REACT: DBSearchTool, LLMTool
+    ├── optimization/                  # ✦ Поиск по промптам (см. §8)
+    │   ├── candidates.py              #   Кандидат = {имя_промпта: текст}
+    │   ├── split.py                   #   Сид-сплит DS1000 train/eval
+    │   ├── evaluator.py               #   Роллаут: pipeline.run(task) → тест DS1000
+    │   └── optimizers/                #   Бэкенды: gepa (upstream), random (контроль)
     ├── mcp/                           # MCP-сервер
     ├── benchmarks/                    # Бенчмарки
     │   ├── __init__.py                #   реэкспорт: DS1000, DataItemDS1000, ResultsDS1000
     │   ├── ds1000/                    #   DS1000 — основной бенчмарк
     │   └── SWE-bench/                 #   SWE-bench (отдельная подсистема)
     └── utils/                         # Хелперы, логгеры, парсер GitHub, адаптеры
+        ├── token_tracker.py           #   Подсчёт токенов (thread-local активный трекер)
+        ├── retrieval_log.py           #   ⭐ Что ретривер отдал каждой задаче (см. §6)
+        └── prompt_registry.py         #   ⭐ Сбор промптов со всего пайплайна (см. §7)
 ```
 
 Главные сущности:
@@ -106,6 +120,7 @@ recipe-mipt/
 | `ComponentNames` / `PipelinesNames` | `src/pipelines/constants.py` | ⭐ Единый каталог всех компонент и пайплайнов: enum → импорт-путь. Используется в YAML-конфигах. |
 | `PipelineBuilder` | `src/pipelines/pipeline_builder.py` | Берёт `PipelineConfig`, строит DAG зависимостей через `networkx`, собирает пайплайн. |
 | `DS1000` | `src/benchmarks/ds1000.py` | Бенчмарк. `bench.eval(run_method, save_path, num_workers)` — параллельный прогон. |
+| `Prompt` / `PromptDiscoverable` | `src/agent_constructor/prompts.py` | ⭐ Промпт как объект: изменяемый на месте, с откатом и отпечатком. Миксин даёт компоненту `self.prompt(...)` — промпт остаётся в теле метода, но становится обнаружимым. См. §7. |
 
 ---
 
@@ -301,12 +316,221 @@ class Generator(Block):
 
 ---
 
-## 6. Полезные точки входа при работе с репозиторием
+## 6. Что сохраняется по итогам прогона
+
+Каталог `results/<имя_конфига>/<timestamp>/`:
+
+| Файл | Кто пишет | Что внутри |
+|---|---|---|
+| `answers.jsonl` | `DS1000._run_method` | Ответ модели на каждую задачу (после `_postprocess`), пишется потоково. Задачи, на которых `pipeline.run` упал, молча пропускаются — строк может быть меньше 1000. |
+| `results.csv` | `ResultsDS1000.save` | Построчно `score` (0/1) + `result` (текст ошибки/`passed`) + метаданные задачи. |
+| `summary.txt` | `ResultsDS1000.summary` | Итог + разрезы по `library` и `perturbation_type`. |
+| `runtime_stats.json` | `run_ds1000.py` | Тайминги (`init_time_s`, `filter_apply_time_s`, …), пик RSS, токены, **блок `prompts`** (§7). |
+| `retrieved_chunks.jsonl` | `run_ds1000.py --log-chunks` | Чанки, которые ретривер отдал каждой задаче. |
+| `config.yaml` | `run_ds1000.py` | Копия конфига, породившего прогон. |
+| `prompts.json` | `run_ds1000.py` | Полный текст всех промптов прогона (§7). |
+
+Последние три появились, чтобы папка результатов была **самоописывающей**: раньше по ней нельзя было восстановить, какой конфиг и какой текст промпта дали это число.
+
+### 6.1 Лог извлечённых чанков (`--log-chunks`)
+
+Зачем: посмотреть, что реально доехало до солвера — особенно на упавших задачах.
+
+Как устроено ([src/utils/retrieval_log.py](src/utils/retrieval_log.py)):
+
+- `bench.eval` гоняет **один** объект пайплайна из нескольких потоков, поэтому запись хранится в `threading.local()`. Обычный атрибут на пайплайне перетирался бы соседней задачей, и чанки приписались бы чужому `problem_id` — молча. Тот же приём, что у `token_tracker`.
+- `SimplePipeline.run` / `SimplePipelineWithDocFilter.run` вызывают `record_chunks(context)` сразу после ретрива (то есть уже с учётом примеров, которые `LocalDB.query` дотягивает при `return_examples: True`) и `record_context(...)` после сборки контекста.
+- `run_ds1000.py` вызывает `take()` в том же потоке сразу после `pipeline.run`, где известен `problem_id`, копит записи под `Lock` и пишет их одним файлом после прогона.
+
+Флаги: `--log-chunks` включает, `--log-chunk-chars N` ограничивает сохраняемый текст чанка (по умолчанию 800, `0` — целиком). В записи есть `chars` — истинная длина чанка, по ней видно, был ли текст обрезан.
+
+Просмотр — [results/analyze_chunks.py](results/analyze_chunks.py): печатает по задаче «промпт → извлечённые чанки → решение», подтягивая `answers.jsonl`, `results.csv` и датасет из той же папки. Зависимостей нет (только stdlib).
+
+```bash
+python results/analyze_chunks.py results/<конфиг>/<ts>/retrieved_chunks.jsonl --failed --library Pandas -n 10
+python results/analyze_chunks.py results/<конфиг>/<ts>/retrieved_chunks.jsonl -n 0 --out context_report.txt
+```
+
+---
+
+## 7. Промпты как объекты (`Prompt` / `PromptDiscoverable`)
+
+**Проблема.** Промпт каждого LLM-модуля лежал инлайн-литералом в теле метода. Следствия: правка промпта — это правка кода, которая не оставляет следа в результатах; и ничто не могло перечислить или подменить промпты (нужно и для логирования, и для любого оптимизатора промптов).
+
+**Решение.** Текст промпта **остаётся там, где он был**. Литерал заворачивается в `self.prompt(key, default)`: первый вызов регистрирует его в пер-инстансном хранилище, последующие возвращают живой (возможно, изменённый) текст.
+
+### 7.1 API
+
+| Сущность | Файл | Назначение |
+|---|---|---|
+| `Prompt` | [src/agent_constructor/prompts.py](src/agent_constructor/prompts.py) | `text`, `required`, `revision`, `set()`, `rollback()`, `temporarily()`, `render(**kw)`, `fingerprint()` |
+| `PromptDiscoverable` | там же | Миксин: `prompt(key, default, optimizable=True)`, `render_prompt(key, default, **kw)`, `named_prompts()` |
+| `collect_prompts` / `snapshot_prompts` / `apply_candidate` / `describe_prompts` | [src/utils/prompt_registry.py](src/utils/prompt_registry.py) | Сбор промптов со всего пайплайна, ключи вида `"<имя_компонента>.<ключ>"` |
+
+Ключевые решения и **почему** именно так:
+
+- **Мутация — на месте.** Компонент держит ссылку на хранилище, поэтому `set()` доезжает до компонента без пересборки пайплайна. Возврат нового объекта оставил бы компонент на старом.
+- **`set()` перепроверяет плейсхолдеры.** Кандидат, потерявший `$lib`, падает в момент присваивания, а не внутри рабочего потока по ходу прогона.
+- **Плейсхолдеры — `string.Template` (`$lib`), не `str.format`.** Эти промпты учат писать Python и регулярно содержат литеральные фигурные скобки (`{}`, `f'{x:.2f}'`) — `str.format` на них падает. Литеральный `$` пишется как `$$`; голый `$` отвергается на конструировании.
+- **Формат-контракты заморожены** (`optimizable=False`). Хвосты `### DOC` / `TITLE:` — это протокол, который разбирает `_parse_docs`. Оптимизатор, переписавший хвост, дал бы **ноль** распарсенных документов, молча, и поиск учился бы на шуме.
+- **Регистрация ленивая** → правило: **регистрировать все варианты безусловно, ветвиться после**. Иначе прогон под `policy=v2` никогда не покажет v1-промпт, и инвентарь окажется неполным.
+- **Никакого `from __future__ import annotations`** в этих модулях — сломает интроспекцию зависимостей (см. общий грабли-лист).
+
+### 7.2 Как перевести модуль на промпт-объекты
+
+1. Добавить миксин в базы: `class MyAgent(PromptDiscoverable, Agent):` — менять `__init__` не нужно.
+2. Обернуть литерал: `self.prompt("system", "You are …")`, а с подстановками — `self.render_prompt("user", "Solve $task.", task=task)`.
+3. Оба варианта policy-развилки регистрировать **до** `if`, выбирать уже между возвращёнными строками.
+
+### 7.3 Что уже переведено
+
+Только [src/generation/rag_guides.py](src/generation/rag_guides.py) (`RagGuideGenerator`) — цель будущей оптимизации:
+
+| Ключ | Где | Изменяемый |
+|---|---|---|
+| `chat_system` | `_chat` | да |
+| `format_common`, `format_v2_extra` | `_format_jobs` | да |
+| `format_tail` | `_format_jobs` | **нет** (контракт) |
+| `migration_style_v1`, `migration_style_v2` | `_migration_jobs` | да |
+| `migration_tail` | `_migration_jobs` | **нет** (контракт) |
+| `recipe_main`, `recipe_v2_rule` | `_recipe_jobs` | да |
+| `recipe_tail` | `_recipe_jobs` | **нет** (контракт) |
+
+`DEPRECATIONS` промптом **не** является: это фактические данные (какие API удалены и чем заменены), их переписывание породило бы выдуманные API, которых не поймает ни один тест.
+
+Остальные ~40 LLM-модулей не тронуты. `collect_prompts` их просто не видит — переводить можно по мере надобности.
+
+### 7.4 Обнаружение промптов в пайплайне
+
+`PipelineBuilder.build` теперь **сохраняет** карту `{имя_в_YAML: инстанс}` в `pipeline._components` (раньше выбрасывалась). Отсюда `collect_prompts` берёт точный инвентарь компонентов, без рефлексии по `__dict__`.
+
+Границы, о которых стоит помнить:
+
+- Промпты можно менять **между** прогонами задач, но не во время: `bench.eval` держит 4 потока на одном пайплайне.
+- Живая мутация доезжает до тех, кто рендерит на каждый вызов (солвер, LLM-фильтры). До `RagGuideGenerator` она **не** доезжает: его `generate()` уже отработал внутри `SimplePipeline.__init__` — такой генератор надо дёргать напрямую.
+
+### 7.5 Тест
+
+[test_rag_guide_prompts.py](test_rag_guide_prompts.py) + эталон `test_rag_guide_prompts_golden.json`. Эталон снят с **дорефакторного** кода и сверен с ним по AST, поэтому тест доказывает побайтовую идентичность шести промптов (3 слота × v1/v2) плюс `chat_system`. Дополнительно проверяются контракт мутации, полнота инвентаря, литеральные скобки и round-trip реестра. Сеть не нужна: `openai`/`tqdm` подменяются заглушками, если не установлены.
+
+```bash
+python test_rag_guide_prompts.py
+```
+
+---
+
+## 8. Оптимизация промптов
+
+Промпты стали объектами (§7) и обнаружимы через пайплайн — значит по ним можно
+искать. [optimize_prompts.py](optimize_prompts.py) берёт обычный YAML-конфиг, строит
+пайплайн тем же `PipelineBuilder`, что и `run_ds1000.py`, находит в нём
+`optimizable`-промпты и запускает по ним поиск.
+
+### 8.1 Что считается роллаутом
+
+**Роллаут гоняет сам пайплайн**: `pipeline.run(task.prompt)` → реальный тест DS1000.
+Не переписанная копия его логики. Это принципиально: пайплайн с несколькими солверами
+и агрегатором будет оценён как этот пайплайн, а не как что-то похожее на него. Оценщик
+ничего не знает ни про число солверов, ни про то, какому компоненту принадлежит промпт.
+
+Функция оценки ответа (`score_answer`) внедряется снаружи — по умолчанию это реальный
+исполнитель DS1000, но её можно подменить (так делает тест, чтобы не поднимать
+подпроцесс).
+
+| Слой | Файл | Роль |
+|---|---|---|
+| Кандидат | [candidates.py](src/optimization/candidates.py) | `{имя_промпта: текст}` по **optimizable**-промптам; замороженные контракты не входят |
+| Сплит | [split.py](src/optimization/split.py) | Сид-сплит DS1000: оптимизатор видит только `train` |
+| Роллаут | [evaluator.py](src/optimization/evaluator.py) | Собрать пайплайн → прогнать задачи → оценить |
+| Бэкенды | [optimizers/](src/optimization/optimizers/) | `gepa` (upstream-пакет), `random` (контроль) |
+
+Ключи кандидата — это `Prompt.name` (`"<имя_компонента>.<ключ>"`), ровно те же, что
+ищет `prompts.set_overrides`. Поэтому `best_prompts.json` скармливается
+`run_ds1000.py --prompts` без всякой трансляции.
+
+### 8.2 Как кандидат доезжает до компонентов
+
+Развилка та же, что в §7.4:
+
+- **Промпты build-time** (генератор: его `generate()` работает внутри
+  `SimplePipeline.__init__`) — правка после сборки уже ничего не изменит. Поэтому
+  оптимизатор ставит process-wide оверрайды и **пересобирает пайплайн на каждый
+  роллаут**.
+- **Промпты query-time** (системный промпт солвера, фильтры на запросе) — достаточно
+  мутации на месте, флаг `--reuse-pipeline`.
+
+⚠ Каждая пересборка обязана получать **свежую директорию векторной БД**: Qdrant
+пропускает уже лежащие в нём id чанков, поэтому переиспользование каталога означало бы,
+что новые сгенерированные документы не проиндексируются вовсе и **все кандидаты
+получат одинаковый скор**. Стоимость пересборки давится `--max-docs` (урезание корпуса)
+и `--gen-limit` (лимит LLM-вызовов генератора).
+
+### 8.3 Бэкенды
+
+`gepa` — upstream-пакет (Agrawal и др., 2025): рефлексивная мутация по текстовым
+трассам исполнения + Парето-фронт по обучающим примерам (набор **кандидатов**, каждый
+лучший на своём подмножестве задач — защита от локального оптимума по среднему).
+Наш адаптер отдаёт ему `scores` (вектор по задачам) и `trajectories` (что произошло,
+словами) — именно текст ошибки исполнения делает мутацию осмысленной.
+
+`random` — контроль: те же роллауты и артефакты, но модель переписывает промпт **не
+видя** обратной связи. Если gepa не бьёт random, рефлексивный сигнал не работает и
+результат не стоит показывать.
+
+Свой бэкенд = реализовать протокол `PromptOptimizer` ([base.py](src/optimization/optimizers/base.py))
+и добавить фабрику в `optimizers/__init__.py`. Выше по стеку не меняется ничего.
+
+⚠ `gepa` не в `pyproject.toml` и не проверялся вживую (пакета нет локально, у сервера
+нет сети). Адаптер написан по документированному протоколу, с защитными lookup-ами.
+Перед длинным прогоном:
+
+```bash
+python optimize_prompts.py --check
+```
+
+### 8.4 Запуск и артефакты
+
+```bash
+python optimize_prompts.py -c test_configs_experimental_13/simple_example_gen_guides_v2.yaml \
+    --optimizer random --budget 6 --n-train 15 --max-docs 150
+```
+
+`results/optimization/<ts>/`: `split.json` (что видел оптимизатор), `seed_prompts.json`,
+`best_prompts.json`, `result.json` (скоры, история, потраченный бюджет).
+
+Замер настоящего эффекта — на задачах, которых оптимизатор не видел:
+
+```bash
+python run_ds1000.py -c <configs_dir> \
+    --prompts results/optimization/<ts>/best_prompts.json \
+    --exclude-split results/optimization/<ts>/split.json
+```
+
+Скор внутри оптимизации снят на урезанном корпусе — это **эвристика поиска**, а не
+цифра для отчёта. Отчётная цифра берётся только из прогона выше.
+
+### 8.5 Ограничения (знать до запуска)
+
+- Для любой сборки пайплайна нужен кэш `Qdrant/bm25` (fastembed) — тот самый, что уже
+  ломал прогон.
+- Путь исполнения DS1000 локально не проверялся: `check_correctness` порождает
+  подпроцесс, на Windows он переимпортирует модули и заглушки не переживают. Это тот же
+  код, что уже гоняет `run_ds1000.py`.
+- Локальный тест — [test_optimization.py](test_optimization.py): фейковый пайплайн,
+  чей ответ зависит от его же build-time-промпта, поэтому проверяется вся цепочка
+  (оверрайды → сборка → роллаут → отбор кандидата) без сервера.
+
+---
+
+## 9. Полезные точки входа при работе с репозиторием
 
 - **Каталог всех компонентов:** [`src/pipelines/constants.py`](src/pipelines/constants.py) — здесь enum'ы для всех агентов, ретриверов, фильтров, чанкеров, генераторов, пайплайнов.
 - **Как собирается пайплайн:** [`src/pipelines/pipeline_builder.py`](src/pipelines/pipeline_builder.py) и [`registry.py`](src/pipelines/registry.py).
 - **Базовый шаблон с фильтрацией+генерацией:** [`src/pipelines/templates/simple_pipeline.py`](src/pipelines/templates/simple_pipeline.py) — смотреть `__init__` и `run` для понимания, какие компоненты подключаются и в каком порядке.
 - **Базовые абстракции:** [`src/agent_constructor/core.py`](src/agent_constructor/core.py), [`filters.py`](src/agent_constructor/filters.py), [`generator.py`](src/agent_constructor/generator.py), [`pipeline.py`](src/agent_constructor/pipeline.py).
+- **Промпты:** [`src/agent_constructor/prompts.py`](src/agent_constructor/prompts.py) и [`src/utils/prompt_registry.py`](src/utils/prompt_registry.py) — §7; пример перевода модуля — [`src/generation/rag_guides.py`](src/generation/rag_guides.py).
+- **Что доехало до солвера:** [`src/utils/retrieval_log.py`](src/utils/retrieval_log.py) + просмотрщик [`results/analyze_chunks.py`](results/analyze_chunks.py) — §6.1.
+- **Оптимизация промптов:** [`optimize_prompts.py`](optimize_prompts.py) и [`src/optimization/`](src/optimization/) — §8; контракт бэкенда — [`optimizers/base.py`](src/optimization/optimizers/base.py).
 - **Документация по экспериментам:** [`docs/exp_setup.md`](docs/exp_setup.md).
 - **Документация по DS1000:** [`docs/benchmarks/ds1000/ds1000-readme.md`](docs/benchmarks/ds1000/ds1000-readme.md).
 - **Описание генераторов и фильтров:** [`docs/agents/generation/generation_agents.md`](docs/agents/generation/generation_agents.md), [`docs/filtration/`](docs/filtration/).

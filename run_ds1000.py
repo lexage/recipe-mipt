@@ -2,6 +2,7 @@ import argparse
 import json
 import logging
 import os
+import shutil
 import threading
 import time
 
@@ -22,6 +23,8 @@ from src.utils.token_tracker import (
     set_active as set_active_tracker,
 )
 from src.utils.retrieval_log import take as take_retrieval_record
+from src.utils.prompt_registry import collect_prompts, describe_prompts
+from src.agent_constructor.prompts import set_overrides as set_prompt_overrides
 
 
 logging.getLogger("openai").setLevel(logging.ERROR)
@@ -103,6 +106,43 @@ def _write_runtime_stats(target_dir: str | None, stats: dict) -> None:
     logging.info("Wrote runtime stats → %s", out_path)
 
 
+def _snapshot_config(target_dir: str | None, config_path) -> None:
+    """Copy the config that produced this run next to its results."""
+    if not target_dir:
+        return
+    try:
+        shutil.copyfile(config_path, os.path.join(target_dir, "config.yaml"))
+    except OSError as exc:
+        logging.warning("Could not snapshot config: %s", exc)
+
+
+def _write_prompts(target_dir: str | None, pipeline) -> None:
+    """Dump the full text of every prompt the pipeline declared.
+
+    Written after eval so query-time prompts have registered (registration is
+    lazy — see src/agent_constructor/prompts.py).
+    """
+    if not target_dir:
+        return
+    prompts = collect_prompts(pipeline)
+    if not prompts:
+        return
+    payload = {
+        key: {
+            "name": prompt.name,
+            "optimizable": prompt.optimizable,
+            "revision": prompt.revision,
+            "fingerprint": prompt.fingerprint(),
+            "text": prompt.text,
+        }
+        for key, prompt in prompts.items()
+    }
+    out_path = os.path.join(target_dir, "prompts.json")
+    with open(out_path, "w", encoding="utf-8") as f:
+        json.dump(payload, f, indent=2, ensure_ascii=False)
+    logging.info("Wrote %d prompts → %s", len(payload), out_path)
+
+
 def _log_retrieval(task, records: list, lock, text_chars: int) -> None:
     """Append this task's retrieval record to `records` (thread-safe).
 
@@ -182,6 +222,16 @@ def parse_args():
         "--log-chunk-chars", type=int, default=800,
         help="Chars of each chunk's text kept in the log (0 = full text).",
     )
+    parser.add_argument(
+        "--prompts",
+        help="JSON of prompt overrides (best_prompts.json from "
+             "optimize_prompts.py) applied when each prompt registers.",
+    )
+    parser.add_argument(
+        "--exclude-split",
+        help="split.json from optimize_prompts.py — drop its `train` "
+             "problem_ids so the score is reported on unseen tasks only.",
+    )
     return parser.parse_args()
 
 
@@ -194,6 +244,28 @@ def main():
     config_files = list(config_dir.glob("*.yaml")) + list(config_dir.glob("*.yml"))
 
     bench = DS1000(dataset_path=args.dataset)
+
+    if args.prompts:
+        with open(args.prompts, "r", encoding="utf-8") as f:
+            overrides = json.load(f)
+        # best_prompts.json is {key: text}; prompts.json is {key: {...,"text"}}.
+        overrides = {
+            key: value["text"] if isinstance(value, dict) else value
+            for key, value in overrides.items()
+        }
+        set_prompt_overrides(overrides)
+        print(f"- applying {len(overrides)} prompt override(s) from {args.prompts}")
+
+    if args.exclude_split:
+        with open(args.exclude_split, "r", encoding="utf-8") as f:
+            excluded = set(json.load(f).get("train", []))
+        before = len(bench.dataset._items)
+        bench.dataset._items = [
+            item for item in bench.dataset._items
+            if item.metadata.get("problem_id") not in excluded
+        ]
+        print(f"- excluding {before - len(bench.dataset._items)} optimizer "
+              f"train tasks -> evaluating on {len(bench.dataset._items)}")
 
     if args.limit and args.limit < len(bench.dataset._items):
         items = bench.dataset._items
@@ -326,10 +398,15 @@ def main():
             "init_output_tokens":      init_tracker.output_tokens,
             "init_total_tokens":       init_tracker.total_tokens,
             "init_llm_calls":          init_tracker.n_calls,
+
+            # Which prompt text produced this run (full text in prompts.json).
+            "prompts": describe_prompts(pipeline),
         }
         experiment_dir = _find_new_subdir(save_dir, before_subdirs)
         _write_runtime_stats(experiment_dir, stats)
         _write_chunk_log(experiment_dir, chunk_log)
+        _snapshot_config(experiment_dir, config_path)
+        _write_prompts(experiment_dir, pipeline)
 
         logging.info(
             f"CONFIG\t{config_path.name}\t{config_time:.3f}s\t"

@@ -108,4 +108,9 @@ class PipelineBuilder:
             config_params=pipeline_config.params,
         )
 
+        # Keep the name -> instance map instead of discarding it: it is the exact
+        # component inventory, used by src/utils/prompt_registry.py to find every
+        # declared prompt without reflecting over __dict__.
+        pipeline._components = components
+
         return pipeline

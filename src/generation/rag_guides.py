@@ -44,6 +44,7 @@ from tqdm import tqdm
 
 from src.agent_constructor.core import Document
 from src.agent_constructor.generator import Generator
+from src.agent_constructor.prompts import PromptDiscoverable
 from src.utils import DOCUMENT_SRC_DOCUMENTS
 from src.utils.token_tracker import get_active, set_active
 
@@ -137,8 +138,14 @@ def _code_ok(code: str) -> bool:
     return False
 
 
-class RagGuideGenerator(Generator):
+class RagGuideGenerator(PromptDiscoverable, Generator):
     """Generate RAG guide documents from the source corpus.
+
+    Prompts are declared inline via ``self.prompt`` / ``self.render_prompt`` (see
+    ``src/agent_constructor/prompts.py``): they stay readable next to the logic
+    that uses them while remaining discoverable, hashable and swappable. The
+    ``### DOC`` format tails are registered with ``optimizable=False`` — they are
+    the contract ``_parse_docs`` relies on.
 
     Args:
         url: base URL of the OpenAI-compatible LLM endpoint.
@@ -190,8 +197,10 @@ class RagGuideGenerator(Generator):
             model=self.model_name,
             messages=[
                 {"role": "system",
-                 "content": "You are a senior Python engineer writing short, "
-                            "precise knowledge-base documents."},
+                 "content": self.prompt("chat_system", (
+                     "You are a senior Python engineer writing short, "
+                     "precise knowledge-base documents."
+                 ))},
                 {"role": "user", "content": user},
             ],
             temperature=self.temperature,
@@ -229,9 +238,9 @@ class RagGuideGenerator(Generator):
     def _format_jobs(self, libs: List[str]) -> List[Tuple[str, str, str]]:
         per_lib = max(1, round(self.n_format_docs / max(1, len(libs))))
         common = (
-            "Write {k} SHORT knowledge-base documents (each under 120 words plus "
+            "Write $k SHORT knowledge-base documents (each under 120 words plus "
             "at most 8 lines of code) teaching how to correctly complete a "
-            "partially-written Python snippet that uses {lib}.\n"
+            "partially-written Python snippet that uses $lib.\n"
             "Cover across the documents: (1) the setup code shown before the gap "
             "has already been executed — never repeat imports or setup lines and "
             "never call placeholder loaders again; (2) never re-create or "
@@ -240,46 +249,51 @@ class RagGuideGenerator(Generator):
             "exactly the variable name the task requests (often `result`); "
             "(4) output raw code only — no tags, no markdown, no prose around "
             "the code. Include one small WRONG-vs-RIGHT example per document "
-            "using realistic {lib} objects (invent your own tiny data).\n"
+            "using realistic $lib objects (invent your own tiny data).\n"
         )
         v2_extra = (
             "One of the documents MUST be dedicated to completing an unfinished "
             "function stub like `def f(data = example_data):` — explain that the "
             "answer is ONLY the indented function body ending with `return`, "
             "with no new `def` header, no imports at column 0 and no call to "
-            "the function afterwards; show a tiny correct {lib} body.\n"
+            "the function afterwards; show a tiny correct $lib body.\n"
         )
-        tail = (
+        tail = self.prompt("format_tail", (
             "Format STRICTLY as:\n### DOC\nTITLE: <short how-to title>\n"
             "<document text, code in ``` fences>\n### DOC\n..."
-        )
+        ), optimizable=False)
         jobs = []
         for lib in libs:
-            prompt = common.format(k=per_lib, lib=lib)
+            prompt = self.render_prompt("format_common", common,
+                                        k=per_lib, lib=lib)
+            # registered unconditionally so the inventory is complete under v1 too
+            extra = self.render_prompt("format_v2_extra", v2_extra, lib=lib)
             if self.policy == "v2":
-                prompt += v2_extra.format(lib=lib)
+                prompt += extra
             jobs.append((lib, "fmt", prompt + tail))
         return jobs
 
     def _migration_jobs(self, libs: List[str]) -> List[Tuple[str, str, str]]:
-        style_v1 = (
+        # both styles registered unconditionally; the policy only selects between
+        # the returned strings, so the inventory lists v1 and v2 either way
+        style_v1 = self.prompt("migration_style_v1", (
             "For EACH checklist item below write one SHORT release-notes style "
             "migration document: the title states the OLD API name and that it "
             "was removed/renamed; the body names the modern replacement and "
             "shows a 2-5 line code example of the modern call.\n"
-        )
-        style_v2 = (
+        ))
+        style_v2 = self.prompt("migration_style_v2", (
             "For EACH checklist item below write one SHORT Q&A document: the "
             "TITLE is a how-do-I question phrased the way a user would describe "
             "the practical TASK (do not mention the old API in the title); the "
             "body gives the modern idiom with a 2-6 line code example that ends "
             "with an assignment like `result = ...` where it makes sense, and "
             "mentions in one sentence that the legacy spelling was removed.\n"
-        )
-        tail = (
+        ))
+        tail = self.prompt("migration_tail", (
             "Each document under 110 words plus the code. Format STRICTLY as:\n"
             "### DOC\nTITLE: <title>\n<text, code in ``` fences>\n### DOC\n..."
-        )
+        ), optimizable=False)
         jobs = []
         budget = self.n_migration_docs
         for lib in libs:
@@ -309,30 +323,39 @@ class RagGuideGenerator(Generator):
             return []
         docs_per_call = 2
         n_calls = max(1, round(self.n_recipe_docs / docs_per_call))
+
+        main = (
+            "Below is a fragment of $lib documentation.\n"
+            "-----\n$fragment\n-----\n"
+            "Rewrite the practical knowledge of this fragment as "
+            "$k SHORT how-to documents. Each: TITLE is a "
+            "question phrased exactly the way a user would ask it "
+            "(e.g. 'How do I ... ?'), then a 2-4 sentence answer, then "
+            "a minimal code example (2-8 lines) using the modern "
+            "$lib API.$v2_rule Invent your own tiny example data; "
+            "do not copy long text verbatim. Under 120 words each.\n"
+        )
+        # registered unconditionally; the policy only decides whether it is used
+        rule = self.prompt("recipe_v2_rule", (
+            " The code MUST end with an explicit assignment of the "
+            "final value to a variable named `result`."
+        ))
+        v2_rule = rule if self.policy == "v2" else ""
+        tail = self.prompt("recipe_tail", (
+            "Format STRICTLY as:\n### DOC\nTITLE: <question>\n"
+            "<answer with code in ``` fences>\n### DOC\n..."
+        ), optimizable=False)
+
         jobs = []
         for lib, docs in by_lib.items():
             quota = max(1, round(n_calls * len(docs) / total))
             for d in rng.sample(docs, min(quota, len(docs))):
                 fragment = d.text[:1600]
-                v2_rule = (
-                    " The code MUST end with an explicit assignment of the "
-                    "final value to a variable named `result`."
-                    if self.policy == "v2" else ""
+                prompt = self.render_prompt(
+                    "recipe_main", main,
+                    lib=lib, fragment=fragment, k=docs_per_call, v2_rule=v2_rule,
                 )
-                prompt = (
-                    f"Below is a fragment of {lib} documentation.\n"
-                    "-----\n" + fragment + "\n-----\n"
-                    f"Rewrite the practical knowledge of this fragment as "
-                    f"{docs_per_call} SHORT how-to documents. Each: TITLE is a "
-                    "question phrased exactly the way a user would ask it "
-                    "(e.g. 'How do I ... ?'), then a 2-4 sentence answer, then "
-                    "a minimal code example (2-8 lines) using the modern "
-                    f"{lib} API.{v2_rule} Invent your own tiny example data; "
-                    "do not copy long text verbatim. Under 120 words each.\n"
-                    "Format STRICTLY as:\n### DOC\nTITLE: <question>\n"
-                    "<answer with code in ``` fences>\n### DOC\n..."
-                )
-                jobs.append((lib, "howto", prompt))
+                jobs.append((lib, "howto", prompt + tail))
         return jobs
 
     # -------------------------------------------------------------- interface
