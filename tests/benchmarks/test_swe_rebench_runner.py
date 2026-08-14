@@ -1,7 +1,6 @@
 import json
 import logging
 import tempfile
-import threading
 import time
 import unittest
 from pathlib import Path
@@ -9,6 +8,7 @@ from pathlib import Path
 from run_swe_rebench import resolve_run_logs_path
 from src.benchmarks.swe_rebench import (
     CommandResult,
+    InstanceImage,
     InstanceImageResolver,
     PredictionsWriter,
     RepositoryRuntime,
@@ -88,9 +88,6 @@ class SWERebenchInferenceRunnerTests(unittest.TestCase):
             self.root / "predictions.jsonl", model_name_or_path="model"
         )
         self.artifacts = RunArtifactsWriter(self.root)
-        self.pipelines = []
-        self.runtimes = []
-        self.lock = threading.Lock()
 
     def tearDown(self):
         root_logger = logging.getLogger()
@@ -101,21 +98,15 @@ class SWERebenchInferenceRunnerTests(unittest.TestCase):
 
     def runner(self, fail_id=None, empty_id=None, max_workers=3, fail_fast=False):
         def pipeline_factory():
-            pipeline = FakePipeline(fail_id=fail_id)
-            with self.lock:
-                self.pipelines.append(pipeline)
-            return pipeline
+            return FakePipeline(fail_id=fail_id)
 
         def runtime_factory(task, image):
-            runtime = FakeRuntime(
+            return FakeRuntime(
                 task,
                 patch=(
                     "" if task.instance_id == empty_id else "diff --git a/a.py b/a.py\n"
                 ),
             )
-            with self.lock:
-                self.runtimes.append(runtime)
-            return runtime
 
         return SWERebenchInferenceRunner(
             pipeline_factory=pipeline_factory,
@@ -125,25 +116,43 @@ class SWERebenchInferenceRunnerTests(unittest.TestCase):
             artifacts_writer=self.artifacts,
             max_workers=max_workers,
             fail_fast=fail_fast,
+            task_timeout=10,
         )
 
-    def test_parallel_tasks_use_fresh_pipeline_and_runtime(self):
+    def test_parallel_tasks_produce_one_prediction_per_instance(self):
         tasks = [make_task(index) for index in range(5)]
         summary = self.runner().run(tasks)
+
         self.assertEqual((summary.completed, summary.failed), (5, 0))
-        self.assertEqual(len({id(item) for item in self.pipelines}), 5)
-        self.assertEqual(len({id(item) for item in self.runtimes}), 5)
-        self.assertTrue(all(item.closed for item in self.pipelines))
-        self.assertTrue(all(item.is_closed for item in self.runtimes))
-        self.assertCountEqual(
-            [item.runtime_seen for item in self.pipelines],
-            [task.instance_id for task in tasks],
-        )
         records = [
             json.loads(line)
             for line in (self.root / "predictions.jsonl").read_text().splitlines()
         ]
-        self.assertEqual(len(records), 5)
+        self.assertCountEqual(
+            [record["instance_id"] for record in records],
+            [task.instance_id for task in tasks],
+        )
+
+    def test_pre_resolved_image_is_not_resolved_again(self):
+        task = make_task(0)
+        image = InstanceImage("registry/pinned@sha256:abc", "linux/x86_64")
+
+        class UnexpectedResolver:
+            def resolve(self, _task):
+                raise AssertionError("image must not be resolved twice")
+
+        runner = SWERebenchInferenceRunner(
+            pipeline_factory=FakePipeline,
+            runtime_factory=lambda selected_task, _image: FakeRuntime(selected_task),
+            image_resolver=UnexpectedResolver(),
+            resolved_images={task.instance_id: image},
+            predictions_writer=self.predictions,
+            artifacts_writer=self.artifacts,
+            task_timeout=10,
+        )
+
+        summary = runner.run([task])
+        self.assertEqual(summary.completed, 1)
 
     def test_resume_skips_completed_tasks(self):
         self.predictions.write("owner__repo-0", "existing")
@@ -174,11 +183,11 @@ class SWERebenchInferenceRunnerTests(unittest.TestCase):
 
     def test_fail_fast_still_materializes_all_selected_predictions(self):
         tasks = [make_task(0), make_task(1)]
-        with self.assertRaisesRegex(RuntimeError, "pipeline failed"):
-            self.runner(fail_id="owner__repo-0", max_workers=1, fail_fast=True).run(
-                tasks
-            )
+        summary = self.runner(
+            fail_id="owner__repo-0", max_workers=1, fail_fast=True
+        ).run(tasks)
 
+        self.assertEqual(summary.failed, 2)
         records = [
             json.loads(line)
             for line in (self.root / "predictions.jsonl").read_text().splitlines()

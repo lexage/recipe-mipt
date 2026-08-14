@@ -37,6 +37,7 @@ class SWERebenchTaskTests(unittest.TestCase):
         self.assertFalse(hasattr(task, "patch"))
         self.assertFalse(hasattr(task, "test_patch"))
         self.assertFalse(hasattr(task, "FAIL_TO_PASS"))
+        self.assertFalse(hasattr(task, "version"))
 
     def test_required_fields_must_be_non_empty_strings(self) -> None:
         for field in ("instance_id", "repo", "base_commit", "problem_statement"):
@@ -49,9 +50,8 @@ class SWERebenchTaskTests(unittest.TestCase):
 
     def test_optional_fields_must_be_strings_or_null(self) -> None:
         record = make_record()
-        record["hints_text"] = None
-        record["version"] = 2
-        with self.assertRaisesRegex(SWERebenchDataError, "version"):
+        record["hints_text"] = 2
+        with self.assertRaisesRegex(SWERebenchDataError, "hints_text"):
             SWERebenchTask.from_dict(record)
 
     def test_official_image_and_safe_docker_run_args_are_retained(self) -> None:

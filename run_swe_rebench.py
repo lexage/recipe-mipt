@@ -246,8 +246,10 @@ def main() -> int:
             allow_convention=args.allow_image_convention,
         )
     image_by_instance = {}
+    resolved_images = {}
     for task in tasks:
         resolved_image = image_resolver.resolve(task)
+        resolved_images[task.instance_id] = resolved_image
         logging.info(
             "STAGE\tIMAGE_RESOLVED\tinstance_id=%s\timage=%s\tsource=%s",
             task.instance_id,
@@ -284,6 +286,7 @@ def main() -> int:
         runtime_factory=runtime_factory,
         image_resolver=image_resolver,
         predictions_writer=predictions,
+        resolved_images=resolved_images,
         artifacts_writer=artifacts,
         prompt_builder=SWERebenchPromptBuilder(include_hints=args.include_hints),
         max_workers=args.num_workers,
