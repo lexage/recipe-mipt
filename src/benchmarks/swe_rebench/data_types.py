@@ -18,7 +18,6 @@ class SWERebenchTask:
     base_commit: str
     problem_statement: str
     hints_text: Optional[str] = None
-    version: Optional[str] = None
     image_name: Optional[str] = None
     docker_image: Optional[str] = None
     docker_run_args: Optional[dict[str, Any]] = None
@@ -48,7 +47,7 @@ class SWERebenchTask:
             values[field] = value
 
         optional: dict[str, Any] = {}
-        for field in ("hints_text", "version", "image_name", "docker_image"):
+        for field in ("hints_text", "image_name", "docker_image"):
             value = data.get(field)
             if value is not None and not isinstance(value, str):
                 raise SWERebenchDataError(

@@ -1,13 +1,12 @@
 """Inference orchestration with one pipeline and runtime per task."""
 
-import concurrent.futures as futures
 import logging
 import multiprocessing
 import queue
 import signal
 import time
 import traceback
-from collections.abc import Callable, Iterable
+from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass
 from typing import Any
 
@@ -42,25 +41,34 @@ class SWERebenchInferenceRunner:
         runtime_factory: Callable[[SWERebenchTask, InstanceImage], RepositoryRuntime],
         image_resolver: InstanceImageResolver,
         predictions_writer: PredictionsWriter,
+        resolved_images: Mapping[str, InstanceImage] | None = None,
         artifacts_writer: RunArtifactsWriter,
         prompt_builder: SWERebenchPromptBuilder | None = None,
         max_workers: int = 1,
         fail_fast: bool = False,
         max_patch_chars: int = 1_000_000,
-        task_timeout: int | None = None,
+        task_timeout: int = 3_600,
     ) -> None:
         if max_workers < 1 or max_patch_chars < 1:
             raise ValueError("Runner limits must be positive")
         self.pipeline_factory = pipeline_factory
         self.runtime_factory = runtime_factory
         self.image_resolver = image_resolver
+        self.resolved_images = dict(resolved_images or {})
+        if not all(
+            isinstance(instance_id, str)
+            and instance_id.strip()
+            and isinstance(image, InstanceImage)
+            for instance_id, image in self.resolved_images.items()
+        ):
+            raise TypeError("resolved_images must map instance IDs to InstanceImage")
         self.predictions_writer = predictions_writer
         self.artifacts_writer = artifacts_writer
         self.prompt_builder = prompt_builder or SWERebenchPromptBuilder()
         self.max_workers = max_workers
         self.fail_fast = fail_fast
         self.max_patch_chars = max_patch_chars
-        if task_timeout is not None and task_timeout < 1:
+        if task_timeout < 1:
             raise ValueError("task_timeout must be positive")
         self.task_timeout = task_timeout
 
@@ -69,37 +77,7 @@ class SWERebenchInferenceRunner:
         completed_ids = self.predictions_writer.completed_ids
         pending = [task for task in task_list if task.instance_id not in completed_ids]
         skipped = len(task_list) - len(pending)
-        completed = 0
-        failed = 0
-        first_error: Exception | None = None
-
-        if self.task_timeout is not None:
-            return self._run_in_processes(task_list, pending, skipped)
-
-        with futures.ThreadPoolExecutor(max_workers=self.max_workers) as executor:
-            submitted = {
-                executor.submit(self._run_task, task): task for task in pending
-            }
-            for future in futures.as_completed(submitted):
-                task = submitted[future]
-                try:
-                    future.result()
-                    completed += 1
-                except Exception as error:
-                    failed += 1
-                    self.artifacts_writer.write_error(
-                        task.instance_id, "inference", error
-                    )
-                    # Preserve the benchmark denominator: every selected task gets a
-                    # prediction, including infrastructure errors and empty patches.
-                    self.predictions_writer.write(task.instance_id, "")
-                    if self.fail_fast and first_error is None:
-                        first_error = error
-                        for other in submitted:
-                            other.cancel()
-        if first_error is not None:
-            raise first_error
-        return InferenceSummary(len(pending), completed, failed, skipped)
+        return self._run_in_processes(task_list, pending, skipped)
 
     def _run_in_processes(
         self,
@@ -125,7 +103,7 @@ class SWERebenchInferenceRunner:
                 result_queue = context.Queue(maxsize=1)
                 process = context.Process(
                     target=self._process_entry,
-                    args=(task, result_queue),
+                    args=(task, self.resolved_images.get(task.instance_id), result_queue),
                     name=f"swe-rebench-{task.instance_id}",
                 )
                 process.start()
@@ -238,10 +216,14 @@ class SWERebenchInferenceRunner:
                 failed += 1
         return InferenceSummary(len(pending), completed, failed, skipped)
 
-    def _process_entry(self, task: SWERebenchTask, result_queue: Any) -> None:
+    def _process_entry(
+        self,
+        task: SWERebenchTask,
+        image: InstanceImage | None,
+        result_queue: Any,
+    ) -> None:
         runtime: RepositoryRuntime | None = None
         started = time.monotonic()
-        image: InstanceImage | None = None
         agent_result: Any = None
         diagnostics: dict[str, Any] = {}
         logging.info(
@@ -258,7 +240,8 @@ class SWERebenchInferenceRunner:
         signal.signal(signal.SIGTERM, terminate)
         pipeline = None
         try:
-            image = self.image_resolver.resolve(task)
+            if image is None:
+                image = self.image_resolver.resolve(task)
             logging.info(
                 "STAGE\tWORKER_IMAGE_READY\tinstance_id=%s\timage=%s",
                 task.instance_id,
@@ -359,41 +342,6 @@ class SWERebenchInferenceRunner:
                 time.monotonic() - started,
             )
             logging.shutdown()
-
-    def _run_task(self, task: SWERebenchTask) -> None:
-        image = self.image_resolver.resolve(task)
-        pipeline = self.pipeline_factory()
-        try:
-            runtime = self.runtime_factory(task, image)
-            with runtime:
-                with bind_repository_runtime(runtime):
-                    prompt = self.prompt_builder.build(task, runtime.workdir)
-                    agent_result = pipeline.run(prompt)
-                    patch = runtime.get_patch(max_output_chars=self.max_patch_chars)
-                    summary = runtime.get_diff(stat_only=True, max_output_chars=30_000)
-                    if not patch.strip():
-                        raise EmptyModelPatchError(
-                            "Agent finished without modifying the repository. "
-                            f"Agent result: {self._bounded_text(agent_result)}; "
-                            f"repository state: {summary}"
-                        )
-            self.predictions_writer.write(task.instance_id, patch)
-            self.artifacts_writer.write_patch_artifact(
-                task.instance_id,
-                {
-                    "patch_size": len(patch.encode("utf-8")),
-                    "changed_files": sorted(
-                        {
-                            line.split(" ", 3)[2][2:]
-                            for line in patch.splitlines()
-                            if line.startswith("diff --git a/")
-                            and len(line.split(" ", 3)) >= 3
-                        }
-                    ),
-                },
-            )
-        finally:
-            pipeline.close()
 
     @classmethod
     def _diagnostics(

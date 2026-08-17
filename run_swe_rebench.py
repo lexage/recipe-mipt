@@ -4,6 +4,7 @@ import argparse
 import hashlib
 import json
 import logging
+import re
 import subprocess
 from pathlib import Path
 
@@ -21,6 +22,21 @@ from src.utils.loggers import create_logging
 logging.getLogger("openai").setLevel(logging.ERROR)
 logging.getLogger("httpx").setLevel(logging.ERROR)
 logging.getLogger("httpcore").setLevel(logging.ERROR)
+
+
+def resolve_run_logs_path(log_path: str, run_id: str) -> Path:
+    """Place logs for one logical run in its own directory."""
+
+    if not isinstance(run_id, str) or not run_id.strip():
+        raise ValueError("run_id must be a non-empty string")
+    safe_run_id = re.sub(r"[^a-zA-Z0-9_.-]+", "-", run_id).strip("-_.")
+    if not safe_run_id:
+        raise ValueError("run_id must contain a path-safe character")
+
+    base_path = Path(log_path).expanduser()
+    if base_path.suffix:
+        return base_path.parent / safe_run_id / base_path.name
+    return base_path / safe_run_id
 
 
 def parse_args() -> argparse.Namespace:
@@ -85,15 +101,19 @@ def main() -> int:
 
     pipeline_config = ConfigLoader().load_from_yaml(args.config)
     output = Path(args.output)
-    logs_path = (
+    base_logs_path = (
         args.logs_path or pipeline_config.logs_path or str(output.parent / "logs")
+    )
+    run_logs_path = resolve_run_logs_path(base_logs_path, args.run_id)
+    logs_directory = (
+        run_logs_path.parent if run_logs_path.suffix else run_logs_path
     )
     # Parent lifecycle messages go to the main log. Each task process inherits
     # the routing handler and writes existing agent logs plus stage events to a
-    # dedicated process file, without changing agent implementations.
+    # dedicated process file. The run-specific directory prevents independent
+    # SWE-rebench runs from appending to or mixing with each other's logs.
     create_logging(
-        log_path=logs_path,
-        tag=args.run_id,
+        log_path=str(run_logs_path),
         n_workers=args.num_workers,
         route=True,
     )
@@ -104,7 +124,11 @@ def main() -> int:
         args.split,
         args.num_workers,
     )
-    logging.info("STAGE\tCONFIG_LOADED\tpath=%s\tlogs_path=%s", args.config, logs_path)
+    logging.info(
+        "STAGE\tCONFIG_LOADED\tpath=%s\tlogs_path=%s",
+        args.config,
+        logs_directory,
+    )
 
     dataset = DatasetSWERebench.load(
         args.dataset, split=args.split, revision=args.dataset_revision
@@ -203,7 +227,8 @@ def main() -> int:
         "image_manifest": args.image_manifest,
         "allow_image_convention": args.allow_image_convention,
         "task_timeout": args.task_timeout,
-        "logs_path": str(Path(logs_path).expanduser()),
+        "logs_path": str(logs_directory),
+        "logs_base_path": str(Path(base_logs_path).expanduser()),
         "network_enabled": args.allow_network,
         "image_by_instance": {},
     }
@@ -221,8 +246,10 @@ def main() -> int:
             allow_convention=args.allow_image_convention,
         )
     image_by_instance = {}
+    resolved_images = {}
     for task in tasks:
         resolved_image = image_resolver.resolve(task)
+        resolved_images[task.instance_id] = resolved_image
         logging.info(
             "STAGE\tIMAGE_RESOLVED\tinstance_id=%s\timage=%s\tsource=%s",
             task.instance_id,
@@ -259,6 +286,7 @@ def main() -> int:
         runtime_factory=runtime_factory,
         image_resolver=image_resolver,
         predictions_writer=predictions,
+        resolved_images=resolved_images,
         artifacts_writer=artifacts,
         prompt_builder=SWERebenchPromptBuilder(include_hints=args.include_hints),
         max_workers=args.num_workers,

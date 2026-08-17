@@ -16,7 +16,6 @@ from .runner import InferenceSummary, SWERebenchInferenceRunner
 from .runtime import (
     CommandResult,
     DockerRepositoryRuntime,
-    LocalRepositoryRuntime,
     PullPolicy,
     RepositoryRuntime,
     RepositoryRuntimeClosedError,
@@ -35,7 +34,6 @@ __all__ = [
     "InstanceImageError",
     "InstanceImageResolver",
     "InferenceSummary",
-    "LocalRepositoryRuntime",
     "PullPolicy",
     "PredictionsWriter",
     "RepositoryRuntime",

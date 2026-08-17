@@ -1,6 +1,4 @@
 import unittest
-from types import SimpleNamespace
-
 from src.benchmarks.swe_rebench import (
     InstanceImage,
     InstanceImageError,
@@ -75,23 +73,6 @@ class InstanceImageResolverTests(unittest.TestCase):
         )
         self.assertEqual(image.platform, "linux/arm64/v8")
 
-    def test_explicit_override_has_priority_over_factory(self) -> None:
-        factory_calls = []
-
-        def factory(task):
-            factory_calls.append(task)
-            return SimpleNamespace(instance_image_key="unused", platform="unused")
-
-        resolver = InstanceImageResolver(
-            overrides={"Owner__Repo-123": "registry/custom@sha256:abc"},
-            test_spec_factory=factory,
-        )
-        image = resolver.resolve(make_task())
-
-        self.assertEqual(image.name, "registry/custom@sha256:abc")
-        self.assertEqual(image.source, "override")
-        self.assertEqual(factory_calls, [])
-
     def test_production_resolution_requires_pinned_coordinates(self) -> None:
         with self.assertRaisesRegex(InstanceImageError, "No pinned image"):
             InstanceImageResolver().resolve(make_task())
@@ -127,35 +108,12 @@ class InstanceImageResolverTests(unittest.TestCase):
         with self.assertRaisesRegex(InstanceImageError, "No pinned image"):
             resolver.resolve(make_task())
 
-    def test_pinned_test_spec_factory_is_authoritative(self) -> None:
-        received = []
-
-        def factory(task):
-            received.append(task.instance_id)
-            return SimpleNamespace(
-                instance_image_key="fork.registry/exact-image@sha256:123",
-                platform="linux/amd64",
-            )
-
-        image = InstanceImageResolver(test_spec_factory=factory).resolve(make_task())
-
-        self.assertEqual(image.name, "fork.registry/exact-image@sha256:123")
-        self.assertEqual(image.platform, "linux/amd64")
-        self.assertEqual(image.source, "test_spec")
-        self.assertEqual(received, ["Owner__Repo-123"])
-
-    def test_invalid_test_spec_is_rejected(self) -> None:
-        resolver = InstanceImageResolver(test_spec_factory=lambda task: object())
-        with self.assertRaisesRegex(InstanceImageError, "instance_image_key"):
-            resolver.resolve(make_task())
-
     def test_invalid_configuration_and_task_are_rejected(self) -> None:
         for kwargs in (
             {"namespace": ""},
             {"architecture": "ppc64"},
             {"image_tag": ""},
             {"workdir": "testbed"},
-            {"overrides": {"instance": ""}},
         ):
             with self.subTest(kwargs=kwargs):
                 with self.assertRaises(InstanceImageError):

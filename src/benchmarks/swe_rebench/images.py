@@ -1,7 +1,7 @@
 """Resolve official per-instance container images for SWE-rebench inference."""
 
 import json
-from collections.abc import Callable, Mapping
+from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Literal, Optional
@@ -20,9 +20,7 @@ class InstanceImage:
     name: str
     platform: str
     workdir: str = "/testbed"
-    source: Literal["dataset", "test_spec", "manifest", "override", "convention"] = (
-        "manifest"
-    )
+    source: Literal["dataset", "manifest", "convention"] = "manifest"
     user: str = "root"
     cap_add: tuple[str, ...] = ()
 
@@ -55,9 +53,7 @@ class InstanceImageResolver:
         architecture: str = "x86_64",
         image_tag: str = "latest",
         workdir: str = "/testbed",
-        overrides: Optional[Mapping[str, str]] = None,
         manifest: Optional[Mapping[str, InstanceImage]] = None,
-        test_spec_factory: Optional[Callable[[SWERebenchTask], Any]] = None,
         allow_convention: bool = False,
     ) -> None:
         if namespace is not None and not isinstance(namespace, str):
@@ -75,18 +71,8 @@ class InstanceImageResolver:
         self.architecture = architecture
         self.image_tag = image_tag
         self.workdir = workdir
-        self.overrides = dict(overrides or {})
         self.manifest = dict(manifest or {})
-        self.test_spec_factory = test_spec_factory
         self.allow_convention = allow_convention
-
-        for instance_id, image_name in self.overrides.items():
-            if not isinstance(instance_id, str) or not instance_id.strip():
-                raise InstanceImageError("Override instance IDs must be non-empty")
-            if not isinstance(image_name, str) or not image_name.strip():
-                raise InstanceImageError(
-                    f"Image override for {instance_id!r} must be non-empty"
-                )
 
         for instance_id, image in self.manifest.items():
             if not isinstance(instance_id, str) or not instance_id.strip():
@@ -140,14 +126,6 @@ class InstanceImageResolver:
         if not isinstance(task, SWERebenchTask):
             raise TypeError("task must be a SWERebenchTask")
 
-        if task.instance_id in self.overrides:
-            return InstanceImage(
-                name=self.overrides[task.instance_id],
-                platform=self.ARCH_TO_PLATFORM[self.architecture],
-                workdir=self.workdir,
-                source="override",
-            )
-
         if task.image_name or task.docker_image:
             return InstanceImage(
                 name=task.instance_image,
@@ -159,9 +137,6 @@ class InstanceImageResolver:
 
         if task.instance_id in self.manifest:
             return self.manifest[task.instance_id]
-
-        if self.test_spec_factory is not None:
-            return self._resolve_from_test_spec(self.test_spec_factory(task))
 
         if not self.allow_convention:
             raise InstanceImageError(
@@ -180,22 +155,4 @@ class InstanceImageResolver:
             platform=self.ARCH_TO_PLATFORM[self.architecture],
             workdir=self.workdir,
             source="convention",
-        )
-
-    def _resolve_from_test_spec(self, test_spec: Any) -> InstanceImage:
-        """Read only the public image coordinates exposed by a harness TestSpec."""
-
-        try:
-            name = test_spec.instance_image_key
-            platform = test_spec.platform
-        except (AttributeError, TypeError) as error:
-            raise InstanceImageError(
-                "Pinned test_spec_factory must return an object exposing "
-                "instance_image_key and platform"
-            ) from error
-        return InstanceImage(
-            name=name,
-            platform=platform,
-            workdir=self.workdir,
-            source="test_spec",
         )
