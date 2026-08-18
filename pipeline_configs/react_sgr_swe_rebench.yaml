@@ -17,8 +17,9 @@ components:
       name: react-sgr-swe-rebench
       url: http://localhost:11455/v1
       model_name: Qwen/Qwen2.5-32B-Instruct
-      temperature: 0.0
-      max_iterations: 30
+      temperature: 0.7
+      max_iterations: 40
+      history_context: 10
       few_shot_type: zero_shot
 
 logs_path: /workspace/proj/grant_swe_rebench/recipe-mipt/logs
