@@ -843,6 +843,7 @@ class ReActAgentSGR(Agent):
         tools: Optional[List[BaseTool]] = None,
         history_context: int = AgentConfig.DEFAULT_HISTORY_CONTEXT,
         few_shot_type: str = "zero_shot",
+        max_tokens: Optional[int] = None,
     ):
         super().__init__(name)
 
@@ -853,6 +854,8 @@ class ReActAgentSGR(Agent):
             raise ValueError("max_iterations must be positive")
         if history_context < 1:
             raise ValueError("history_context must be positive")
+        if max_tokens is not None and max_tokens < 1:
+            raise ValueError("max_tokens must be positive")
         if few_shot_type not in FEW_SHOT_REGISTRY:
             raise ValueError(
                 f"Unknown few_shot_type: {few_shot_type}. "
@@ -862,6 +865,7 @@ class ReActAgentSGR(Agent):
         self.examples = examples or []
         self.max_iterations = max_iterations
         self.history_context = history_context
+        self.max_tokens = max_tokens
         self.few_shot_examples = FEW_SHOT_REGISTRY[few_shot_type]
 
         # Initialize tool registry with fallback to default LLMTool
@@ -918,11 +922,13 @@ class ReActAgentSGR(Agent):
 
         step = iteration + 1
         logging.info(
-            "LLM_REQUEST\tstep=%s\tmodel=%s\tbase_url=%s\tmessages=%s",
+            "LLM_REQUEST\tstep=%s\tmodel=%s\tbase_url=%s\tmessages=%s\t"
+            "max_tokens=%s",
             step,
             self.model_name,
             self.base_url,
             len(messages),
+            self.max_tokens,
         )
         try:
             response = self.client.chat.completions.parse(
@@ -930,6 +936,11 @@ class ReActAgentSGR(Agent):
                 messages=messages,
                 temperature=self.temperature,
                 response_format=AgentStep,
+                **(
+                    {"max_tokens": self.max_tokens}
+                    if self.max_tokens is not None
+                    else {}
+                ),
             )
             choice = response.choices[0]
             message = choice.message
@@ -1091,6 +1102,11 @@ class ReActAgentSGR(Agent):
                     {"role": "user", "content": prompt},
                 ],
                 temperature=self.temperature,
+                **(
+                    {"max_tokens": self.max_tokens}
+                    if self.max_tokens is not None
+                    else {}
+                ),
             )
             return response.choices[0].message.content.strip()
         except Exception as e:
