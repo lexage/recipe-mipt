@@ -11,7 +11,10 @@ class ApplyPatchTool(BaseTool):
     def __init__(
         self,
         name: str = "apply_patch",
-        description: str = "Validate and apply a unified git diff to the task repository.",
+        description: str = (
+            "Validate and apply a unified diff to the task repository. "
+            "Use this tool, not shell redirection or sed -i, to edit files."
+        ),
         timeout: int = 30,
         max_patch_bytes: int = 1_000_000,
     ):
@@ -32,7 +35,10 @@ class ApplyPatchTool(BaseTool):
                     "properties": {
                         "patch": {
                             "type": "string",
-                            "description": "Unified diff to apply.",
+                            "description": (
+                                "Unified diff to apply. It may start with a "
+                                "diff --git header or with --- a/path and +++ b/path."
+                            ),
                         }
                     },
                     "required": ["patch"],

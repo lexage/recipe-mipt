@@ -270,6 +270,16 @@ class SWERebenchInferenceRunner:
                         "STAGE\tPIPELINE_STARTED\tinstance_id=%s", task.instance_id
                     )
                     agent_result = pipeline.run(prompt)
+                    agent_termination_reason = self._agent_termination_reason(
+                        agent_result
+                    )
+                    if agent_termination_reason is not None:
+                        logging.warning(
+                            "STAGE\tAGENT_TERMINATED\tinstance_id=%s\treason=%s\t"
+                            "patch_will_be_collected=true",
+                            task.instance_id,
+                            agent_termination_reason,
+                        )
                     logging.info(
                         "STAGE\tPIPELINE_FINISHED\tinstance_id=%s\tduration_seconds=%.3f",
                         task.instance_id,
@@ -289,6 +299,10 @@ class SWERebenchInferenceRunner:
                         agent_result=agent_result,
                         diff_summary=summary,
                     )
+                    if agent_termination_reason is not None:
+                        diagnostics["agent_termination_reason"] = (
+                            agent_termination_reason
+                        )
                     if not patch.strip():
                         raise EmptyModelPatchError(
                             "Agent finished without modifying the repository. "
@@ -310,6 +324,11 @@ class SWERebenchInferenceRunner:
                         "patch_size": len(patch.encode("utf-8")),
                         "changed_files": changed_files,
                         "diff_summary": summary,
+                        **(
+                            {"agent_termination_reason": agent_termination_reason}
+                            if agent_termination_reason is not None
+                            else {}
+                        ),
                     },
                 )
             )
@@ -367,6 +386,21 @@ class SWERebenchInferenceRunner:
             "git_status_exit_code": status.exit_code,
             "diff_summary": diff_summary,
         }
+
+    @staticmethod
+    def _agent_termination_reason(agent_result: Any) -> str | None:
+        if not isinstance(agent_result, str):
+            return None
+        normalized = agent_result.strip().lower()
+        if normalized.startswith("error: maximum iterations reached"):
+            return "max_iterations"
+        if normalized.startswith(
+            "error: agent failed to produce a valid response"
+        ):
+            return "invalid_response_retry_limit"
+        if normalized.startswith("error: could not generate final answer"):
+            return "final_answer_generation_failed"
+        return None
 
     @staticmethod
     def _bounded_text(value: Any, limit: int = 4_000) -> str | None:
