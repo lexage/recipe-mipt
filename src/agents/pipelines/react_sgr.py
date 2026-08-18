@@ -19,9 +19,40 @@ class AgentConfig:
     DEFAULT_TEMPERATURE: float = 0.0
     DEFAULT_MAX_ITERATIONS: int = 10
     DEFAULT_HISTORY_CONTEXT: int = 5
+    MAX_LOGGED_RESPONSE_CHARS: int = 8_000
 
 
 _LOG_SEPARATOR = "\n" + "_" * 20 + "\n"
+
+
+def _normalize_openai_base_url(url: Optional[str]) -> str:
+    """Return the API root expected by the OpenAI client.
+
+    /v1/models is a resource endpoint used to list models, not a client
+    base URL. Accepting it silently makes the SDK request
+    /v1/models/chat/completions and previously produced only a generic
+    retry-limit error because the HTTP exception was swallowed.
+    """
+
+    if not isinstance(url, str) or not url.strip():
+        raise ValueError("url is required for LLM initialization")
+
+    configured_url = url.strip().rstrip("/")
+    normalized_url = configured_url
+    if configured_url.endswith("/models"):
+        normalized_url = configured_url[: -len("/models")].rstrip("/")
+        if not normalized_url:
+            raise ValueError("url must include an OpenAI-compatible API base")
+
+        logging.warning(
+            "LLM_BASE_URL_NORMALIZED\tconfigured=%s\teffective=%s\t"
+            "reason=models_endpoint",
+            configured_url,
+            normalized_url,
+        )
+
+    return normalized_url
+
 
 MessageDict = TypedDict("MessageDict", {"role": str, "content": str})
 
@@ -92,6 +123,7 @@ class ReActAgentSGR(Agent):
         instruction: Optional[str] = None,
         examples: Optional[list] = None,
         max_iterations: int = AgentConfig.DEFAULT_MAX_ITERATIONS,
+        max_retries: int = AgentConfig.MAX_RETRY_COUNT,
         tools: Optional[List[BaseTool]] = None,
         history_context: int = AgentConfig.DEFAULT_HISTORY_CONTEXT,
     ):
@@ -100,8 +132,16 @@ class ReActAgentSGR(Agent):
         if not model_name:
             raise ValueError("model_name is required for LLM initialization")
 
+        if max_iterations < 1:
+            raise ValueError("max_iterations must be positive")
+        if max_retries < 1:
+            raise ValueError("max_retries must be positive")
+        if history_context < 1:
+            raise ValueError("history_context must be positive")
+
         self.examples = examples or []
         self.max_iterations = max_iterations
+        self.max_retries = max_retries
         self.history_context = history_context
 
         # Initialize tool registry with fallback to default LLMTool
@@ -119,8 +159,10 @@ class ReActAgentSGR(Agent):
             tool_names=self.tool_names, tools_formatted=self.tools_prompt
         )
 
-        # Initialize OpenAI client with vLLM-compatible configuration
-        self.client = OpenAI(base_url=url, api_key="vllm")
+        # Initialize OpenAI client with vLLM-compatible configuration.
+        # The client needs the API root (usually /v1), not /v1/models.
+        self.base_url = _normalize_openai_base_url(url)
+        self.client = OpenAI(base_url=self.base_url, api_key="vllm")
         self.model_name = model_name
         self.temperature = temperature
 
@@ -136,14 +178,32 @@ class ReActAgentSGR(Agent):
     def _reset_runtime_state(self) -> None:
         """Reset ephemeral state between agent runs to prevent state leakage."""
         self._tool_call_retry_count = 0
+        self._last_llm_error: Optional[str] = None
         self.error_history: List[Dict[str, Any]] = []
         self._execution_history: List[Dict[str, Any]] = []
         self.memory: List[MessageDict] = []
 
+    @staticmethod
+    def _bounded_log_text(value: Any) -> str:
+        text = "" if value is None else str(value)
+        limit = AgentConfig.MAX_LOGGED_RESPONSE_CHARS
+        if len(text) <= limit:
+            return text
+        return text[:limit] + "\n[response truncated]"
+
     def _get_structured_response(
-        self, messages: List[MessageDict]
+        self, messages: List[MessageDict], iteration: int
     ) -> Optional[AgentStep]:
-        """Call LLM with JSON output constraint and parse response via Pydantic."""
+        """Call the LLM, log the exchange and parse an AgentStep."""
+
+        step = iteration + 1
+        logging.info(
+            "LLM_REQUEST\tstep=%s\tmodel=%s\tbase_url=%s\tmessages=%s",
+            step,
+            self.model_name,
+            self.base_url,
+            len(messages),
+        )
         try:
             response = self.client.chat.completions.parse(
                 model=self.model_name,
@@ -151,15 +211,41 @@ class ReActAgentSGR(Agent):
                 temperature=self.temperature,
                 response_format=AgentStep,
             )
+            choice = response.choices[0]
+            message = choice.message
+            raw_content = self._bounded_log_text(message.content)
+            logging.info(
+                "LLM_RESPONSE\tstep=%s\tfinish_reason=%s\tcontent=%s",
+                step,
+                getattr(choice, "finish_reason", None),
+                raw_content,
+            )
 
-            agent_step = response.choices[0].message.parsed
-
+            agent_step = message.parsed
             if agent_step is None:
+                self._last_llm_error = (
+                    "The completion returned no parsed AgentStep; "
+                    f"raw content: {raw_content or '[empty]'}"
+                )
+                logging.error(
+                    "LLM_RESPONSE_INVALID\tstep=%s\terror=%s",
+                    step,
+                    self._last_llm_error,
+                )
                 return None
 
+            self._last_llm_error = None
             return agent_step
 
-        except Exception as e:
+        except Exception as error:
+            self._last_llm_error = f"{type(error).__name__}: {error}"
+            logging.exception(
+                "LLM_REQUEST_FAILED\tstep=%s\tmodel=%s\tbase_url=%s\terror=%s",
+                step,
+                self.model_name,
+                self.base_url,
+                self._last_llm_error,
+            )
             return None
 
     def _get_sliding_window_messages(self) -> List[MessageDict]:
@@ -298,14 +384,26 @@ class ReActAgentSGR(Agent):
         }
 
     def _handle_invalid_response(self, iteration: int) -> None:
-        """Handle case when LLM response cannot be parsed as AgentStep."""
+        """Handle an HTTP, parsing or validation failure from the LLM."""
         self._tool_call_retry_count += 1
+        error_detail = (
+            self._last_llm_error or "Failed to parse or validate JSON response"
+        )
         error_obs = self._format_error_observation(
-            "json_parse", error_detail="Failed to parse or validate JSON response"
+            "json_parse", error_detail=error_detail
         )
         self.memory.append({"role": "assistant", "content": "[INVALID_RESPONSE]"})
         self.memory.append({"role": "user", "content": f"Observation: {error_obs}"})
-        self.error_history.append({"type": "json_parse", "step": iteration})
+        self.error_history.append(
+            {"type": "json_parse", "step": iteration, "detail": error_detail}
+        )
+        logging.warning(
+            "LLM_RETRY\tstep=%s\tretry=%s/%s\terror=%s",
+            iteration + 1,
+            self._tool_call_retry_count,
+            self.max_retries,
+            error_detail,
+        )
 
     def _handle_unknown_tool(self, agent_step: AgentStep, iteration: int) -> None:
         """Handle reference to non-existent tool."""
@@ -378,18 +476,27 @@ class ReActAgentSGR(Agent):
         ]
 
         for iteration in range(self.max_iterations):
-            if self._tool_call_retry_count >= AgentConfig.MAX_RETRY_COUNT:
+            if self._tool_call_retry_count >= self.max_retries:
+                last_error = (
+                    self.error_history[-1].get("detail", "unknown LLM error")
+                    if self.error_history
+                    else "unknown LLM error"
+                )
                 logging.error(
-                    f"AGENT FAILED: Retry limit exceeded after {iteration+1} iterations"
+                    "AGENT_FAILED\treason=retry_limit\tfailed_attempts=%s\t"
+                    "last_error=%s",
+                    self._tool_call_retry_count,
+                    last_error,
                 )
                 return (
-                    "Error: Agent failed to produce a valid response after multiple attempts. "
-                    "Please refine your request."
+                    "Error: Agent failed to produce a valid structured response "
+                    f"after {self._tool_call_retry_count} attempts. "
+                    f"Last LLM error: {last_error}"
                 )
 
             messages = self._get_sliding_window_messages()
 
-            agent_step = self._get_structured_response(messages)
+            agent_step = self._get_structured_response(messages, iteration)
 
             if agent_step is None:
                 self._handle_invalid_response(iteration)

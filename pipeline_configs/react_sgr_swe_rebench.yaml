@@ -15,9 +15,11 @@ components:
     type: REACT_AGENT_SGR
     params:
       name: react-sgr-swe-rebench
+      # Base API URL. Do not append /models; the client calls /chat/completions.
       url: http://sm-a5000-1.gpu.cluster:8000/v1
       model_name: mistralai/Devstral-Small-2-24B-Instruct-2512
       temperature: 0.0
       max_iterations: 30
+      max_retries: 5
 
 logs_path: /workspace/swe-rebench-recipe/logs

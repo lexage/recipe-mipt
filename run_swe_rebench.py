@@ -203,12 +203,17 @@ def main() -> int:
         "run_id": args.run_id,
         "model_name_or_path": args.model_name_or_path,
         "pipeline": raw_pipeline_config.get("type"),
+        "model_url": agent_params.get("url", planner_params.get("url")),
+        "llm_model": agent_params.get(
+            "model_name", planner_params.get("model_name")
+        ),
         "temperature": agent_params.get(
             "temperature", planner_params.get("temperature")
         ),
         "max_iterations": agent_params.get(
             "max_iterations", planner_params.get("maximum_steps")
         ),
+        "max_retries": agent_params.get("max_retries"),
         "history_context": agent_params.get("history_context"),
         "llm_timeout": agent_params.get(
             "llm_timeout", planner_params.get("llm_timeout")
