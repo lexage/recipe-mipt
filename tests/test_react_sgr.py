@@ -123,7 +123,31 @@ class ReActAgentSGRDiagnosticsTests(unittest.TestCase):
 
         messages = completions.parse.call_args.kwargs["messages"]
         self.assertEqual(messages[1]["content"], "Fix the repository")
+        self.assertNotIn("max_tokens", completions.parse.call_args.kwargs)
         self.assertEqual(tool.calls, [{}])
+
+    def test_max_tokens_is_forwarded_to_step_and_final_answer_requests(self):
+        client, completions = fake_openai_client()
+        completions.parse.return_value = list_files_step()
+        completions.create.return_value = SimpleNamespace(
+            choices=[SimpleNamespace(message=SimpleNamespace(content="done"))]
+        )
+
+        with patch("src.agents.pipelines.react_sgr.OpenAI", return_value=client):
+            agent = ReActAgentSGR(
+                url="http://localhost:11455/v1",
+                model_name="Qwen/Qwen2.5-32B-Instruct",
+                tools=[FakeTool()],
+                max_iterations=1,
+                max_tokens=1024,
+            )
+
+        with self.assertLogs(level=logging.INFO):
+            agent.run("Fix the repository")
+        self.assertEqual(completions.parse.call_args.kwargs["max_tokens"], 1024)
+
+        agent._generate_final_answer("Fix the repository")
+        self.assertEqual(completions.create.call_args.kwargs["max_tokens"], 1024)
 
     def test_cot_examples_are_prepended_to_the_task(self):
         client, completions = fake_openai_client()
@@ -159,6 +183,7 @@ class ReActAgentSGRDiagnosticsTests(unittest.TestCase):
         parameters = (
             {"max_iterations": 0},
             {"history_context": 0},
+            {"max_tokens": 0},
             {"few_shot_type": "missing"},
         )
         for parameter in parameters:

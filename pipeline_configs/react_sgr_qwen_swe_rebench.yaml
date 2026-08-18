@@ -20,6 +20,7 @@ components:
       temperature: 0.0
       max_iterations: 40
       history_context: 10
+      max_tokens: 1024
       few_shot_type: zero_shot
 
 logs_path: /workspace/swe-rebench-recipe/logs
