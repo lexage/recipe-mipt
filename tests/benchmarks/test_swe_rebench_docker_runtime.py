@@ -163,7 +163,7 @@ class DockerRepositoryRuntimeTests(unittest.TestCase):
 
         command, options = container.exec_calls[-1]
         self.assertEqual(
-            command[:6],
+            command[:5],
             [
                 "timeout",
                 "--signal=KILL",
@@ -172,7 +172,7 @@ class DockerRepositoryRuntimeTests(unittest.TestCase):
                 "-c",
             ],
         )
-        wrapped_command = command[6]
+        wrapped_command = command[5]
         self.assertIn(
             "source /opt/miniconda3/etc/profile.d/conda.sh || exit 127",
             wrapped_command,
