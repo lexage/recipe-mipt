@@ -213,7 +213,7 @@ def main() -> int:
         "max_iterations": agent_params.get(
             "max_iterations", planner_params.get("maximum_steps")
         ),
-        "max_retries": agent_params.get("max_retries"),
+        "few_shot_type": agent_params.get("few_shot_type"),
         "history_context": agent_params.get("history_context"),
         "llm_timeout": agent_params.get(
             "llm_timeout", planner_params.get("llm_timeout")
