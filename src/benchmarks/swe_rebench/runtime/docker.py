@@ -15,12 +15,25 @@ from .base import CommandResult, RepositoryRuntime, RepositoryRuntimeError
 PullPolicy = Literal["always", "missing", "never"]
 
 COMMAND_ENVIRONMENT = {
-    "BASH_ENV": "/root/.bashrc",
     "PAGER": "cat",
     "MANPAGER": "cat",
     "PIP_PROGRESS_BAR": "off",
     "TQDM_DISABLE": "1",
 }
+
+CONDA_ACTIVATION = """
+if [ -f /opt/conda/etc/profile.d/conda.sh ]; then
+    source /opt/conda/etc/profile.d/conda.sh || exit 127
+elif [ -f /opt/miniconda3/etc/profile.d/conda.sh ]; then
+    source /opt/miniconda3/etc/profile.d/conda.sh || exit 127
+elif [ -f /opt/miniconda3/bin/activate ]; then
+    source /opt/miniconda3/bin/activate || exit 127
+else
+    echo "Conda activation script not found" >&2
+    exit 127
+fi
+conda activate testbed || exit 127
+""".strip()
 
 
 class DockerRepositoryRuntime(RepositoryRuntime):
@@ -162,6 +175,15 @@ class DockerRepositoryRuntime(RepositoryRuntime):
             ("git status --porcelain", "Could not inspect task checkout status"),
             ("command -v python", "Task environment has no Python executable"),
             ("python --version", "Could not inspect task Python version"),
+            (
+                'test "${CONDA_DEFAULT_ENV:-}" = "testbed"',
+                "Task conda environment 'testbed' is not active",
+            ),
+            (
+                "python -c \"import sys; print(sys.prefix); "
+                "assert sys.prefix.endswith('/envs/testbed'), sys.prefix\"",
+                "Task Python is not from the 'testbed' environment",
+            ),
         )
         results: list[CommandResult] = []
         for command, message in checks:
@@ -201,6 +223,7 @@ class DockerRepositoryRuntime(RepositoryRuntime):
         if timeout < 1 or max_output_chars < 1:
             raise RepositoryRuntimeError("Command limits must be positive")
 
+        wrapped_command = self._wrap_command(command)
         started = time.monotonic()
         try:
             result = self.container.exec_run(
@@ -210,7 +233,7 @@ class DockerRepositoryRuntime(RepositoryRuntime):
                     f"{timeout}s",
                     "/bin/bash",
                     "-c",
-                    command,
+                    wrapped_command,
                 ],
                 workdir=self.workdir,
                 environment=COMMAND_ENVIRONMENT,
@@ -232,6 +255,12 @@ class DockerRepositoryRuntime(RepositoryRuntime):
             duration_seconds=time.monotonic() - started,
             timed_out=timed_out,
         )
+
+    @staticmethod
+    def _wrap_command(command: str) -> str:
+        """Activate the task environment before every isolated Docker exec."""
+
+        return f"{CONDA_ACTIVATION}\n{command}"
 
     def close(self) -> None:
         """Stop and remove the owned container unless debug retention is enabled."""
