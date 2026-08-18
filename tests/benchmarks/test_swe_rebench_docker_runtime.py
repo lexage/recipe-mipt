@@ -1,3 +1,5 @@
+import io
+import tarfile
 import unittest
 from types import SimpleNamespace
 from unittest.mock import Mock
@@ -237,13 +239,11 @@ class DockerRepositoryRuntimeTests(unittest.TestCase):
         self.assertIn("src/calculator.py:2", matches)
 
     def test_docker_patch_and_diff_operations(self):
-        patch = """diff --git a/src/calculator.py b/src/calculator.py
---- a/src/calculator.py
+        patch = """--- a/src/calculator.py
 +++ b/src/calculator.py
 @@ -1 +1 @@
 -old
-+new
-"""
++new"""
         patch_container = FakeContainer()
         patch_container.responses = [
             SimpleNamespace(exit_code=0, output=(b"", b"")),
@@ -256,6 +256,16 @@ class DockerRepositoryRuntimeTests(unittest.TestCase):
         self.assertIn("Patch applied successfully", applied)
         patch_container.put_archive.assert_called_once()
         self.assertEqual(patch_container.put_archive.call_args.args[0], "/tmp")
+        archive = patch_container.put_archive.call_args.args[1]
+        with tarfile.open(fileobj=io.BytesIO(archive), mode="r") as payload:
+            member = payload.getmembers()[0]
+            normalized_patch = payload.extractfile(member).read().decode()
+        self.assertTrue(
+            normalized_patch.startswith(
+                "diff --git a/src/calculator.py b/src/calculator.py\n"
+            )
+        )
+        self.assertTrue(normalized_patch.endswith("\n"))
 
         diff_container = FakeContainer()
         diff_container.responses = [
@@ -295,6 +305,20 @@ class DockerRepositoryRuntimeTests(unittest.TestCase):
         runtime = self.direct_runtime(container)
         with self.assertRaisesRegex(RepositoryRuntimeError, "outside"):
             runtime.read_file("external/file.py")
+
+    def test_accepts_absolute_paths_inside_task_workdir(self):
+        container = FakeContainer()
+        container.responses = [
+            SimpleNamespace(exit_code=0, output=(b"", b"")),
+            SimpleNamespace(exit_code=0, output=(b"calculator.py\tf\n", b"")),
+        ]
+
+        listing = self.direct_runtime(container).list_files(
+            "/testbed", max_entries=1
+        )
+
+        self.assertIn("calculator.py", listing)
+        self.assertIn("Directory: /testbed", listing)
 
 
 if __name__ == "__main__":

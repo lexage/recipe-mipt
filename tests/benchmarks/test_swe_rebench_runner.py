@@ -47,6 +47,12 @@ class LoggingPipeline(FakePipeline):
         return super().run(prompt)
 
 
+class MaxIterationsPipeline(FakePipeline):
+    def run(self, prompt):
+        self.runtime_seen = get_repository_runtime().instance_id
+        return "Error: Maximum iterations reached without finding a solution."
+
+
 class FakeRuntime(RepositoryRuntime):
     def __init__(self, task, patch="diff --git a/a.py b/a.py\n"):
         super().__init__(task.instance_id, task.base_commit, "/testbed")
@@ -237,6 +243,28 @@ class SWERebenchInferenceRunnerTests(unittest.TestCase):
 
         self.assertEqual(summary.completed, 1)
         self.assertTrue((self.root / "patches.jsonl").is_file())
+
+    def test_max_iterations_is_recorded_without_discarding_patch(self):
+        def runtime_factory(task, image):
+            return FakeRuntime(task)
+
+        runner = SWERebenchInferenceRunner(
+            pipeline_factory=MaxIterationsPipeline,
+            runtime_factory=runtime_factory,
+            image_resolver=InstanceImageResolver(allow_convention=True),
+            predictions_writer=self.predictions,
+            artifacts_writer=self.artifacts,
+            max_workers=1,
+            task_timeout=10,
+        )
+
+        summary = runner.run([make_task(0)])
+
+        self.assertEqual(summary.completed, 1)
+        artifact = json.loads((self.root / "patches.jsonl").read_text())
+        self.assertEqual(artifact["agent_termination_reason"], "max_iterations")
+        prediction = json.loads((self.root / "predictions.jsonl").read_text())
+        self.assertTrue(prediction["model_patch"].startswith("diff --git"))
 
     def test_empty_patch_error_contains_agent_and_repository_diagnostics(self):
         def runtime_factory(task, image):

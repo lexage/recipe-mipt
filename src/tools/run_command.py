@@ -11,7 +11,10 @@ class RunCommandTool(BaseTool):
     def __init__(
         self,
         name: str = "run_command",
-        description: str = "Run a non-interactive command in the task repository.",
+        description: str = (
+            "Run a non-interactive inspection, build, or test command in the task "
+            "repository. Use apply_patch for edits; do not create branches or commits."
+        ),
         default_timeout: int = 120,
         max_timeout: int = 600,
         max_output_chars: int = 30_000,
@@ -36,7 +39,10 @@ class RunCommandTool(BaseTool):
                     "properties": {
                         "command": {
                             "type": "string",
-                            "description": "Command and arguments.",
+                            "description": (
+                                "Inspection, build, or test command and arguments. "
+                                "Do not edit files or run git checkout/commit."
+                            ),
                         },
                         "timeout": {
                             "type": "integer",

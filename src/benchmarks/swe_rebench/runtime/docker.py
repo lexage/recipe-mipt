@@ -434,6 +434,7 @@ class DockerRepositoryRuntime(RepositoryRuntime):
     ) -> str:
         if not patch.strip():
             return "Patch must not be empty"
+        patch = self._normalize_patch(patch)
         if len(patch.encode("utf-8")) > max_patch_bytes:
             return f"Patch exceeds the {max_patch_bytes}-byte limit"
         paths = self._validate_patch_paths(patch)
@@ -520,7 +521,13 @@ class DockerRepositoryRuntime(RepositoryRuntime):
         if not isinstance(path, str) or not path:
             raise RepositoryRuntimeError("Repository path must be a non-empty string")
         if path.startswith("/"):
-            raise RepositoryRuntimeError(f"Absolute paths are not allowed: {path}")
+            workdir = self.workdir.rstrip("/") or "/"
+            if path == workdir or path == f"{workdir}/":
+                path = "."
+            elif workdir != "/" and path.startswith(f"{workdir}/"):
+                path = path[len(workdir) + 1 :]
+            else:
+                raise RepositoryRuntimeError(f"Absolute paths are not allowed: {path}")
         parts = [part for part in path.split("/") if part not in {"", "."}]
         if ".." in parts:
             raise RepositoryRuntimeError(f"Path is outside the repository: {path}")
@@ -538,6 +545,45 @@ class DockerRepositoryRuntime(RepositoryRuntime):
             raise RepositoryRuntimeError(f"Path is outside the repository: {path}")
         self._require_success(check, "Could not validate repository path")
         return normalized
+
+    @staticmethod
+    def _normalize_patch(patch: str) -> str:
+        """Normalize safe unified diffs before validating repository paths.
+
+        Models commonly emit the standard ``---``/``+++`` form without the
+        optional ``diff --git`` line.  ``git apply`` accepts that form, while
+        path validation needs an explicit file header.  Add only the missing
+        headers and final newline; malformed hunks still fail ``git apply
+        --check``.
+        """
+
+        normalized = patch.replace("\r\n", "\n").replace("\r", "\n")
+        if not normalized.endswith("\n"):
+            normalized += "\n"
+        if any(line.startswith("diff --git ") for line in normalized.splitlines()):
+            return normalized
+
+        lines = normalized.splitlines(keepends=True)
+        output: list[str] = []
+        for index, line in enumerate(lines):
+            if line.startswith("--- ") and index + 1 < len(lines):
+                next_line = lines[index + 1]
+                if next_line.startswith("+++ "):
+                    old_path = line[4:].rstrip("\n").split("\t", 1)[0]
+                    new_path = next_line[4:].rstrip("\n").split("\t", 1)[0]
+                    header_old = old_path
+                    header_new = new_path
+                    if old_path == "/dev/null" and new_path.startswith("b/"):
+                        header_old = f"a/{new_path[2:]}"
+                    if new_path == "/dev/null" and old_path.startswith("a/"):
+                        header_new = f"b/{old_path[2:]}"
+                    if header_old.startswith("a/") and header_new.startswith("b/"):
+                        output.append(
+                            "diff --git "
+                            f"{shlex.quote(header_old)} {shlex.quote(header_new)}\n"
+                        )
+            output.append(line)
+        return "".join(output)
 
     def _validate_patch_paths(self, patch: str) -> list[str]:
         paths: list[str] = []
