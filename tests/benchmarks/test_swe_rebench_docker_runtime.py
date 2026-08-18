@@ -16,8 +16,16 @@ class FakeContainer:
             SimpleNamespace(exit_code=0, output=(b"", b"")),
             SimpleNamespace(exit_code=0, output=(base_commit.encode() + b"\n", b"")),
             SimpleNamespace(exit_code=0, output=(status, b"")),
-            SimpleNamespace(exit_code=0, output=(b"/usr/bin/python\n", b"")),
+            SimpleNamespace(
+                exit_code=0,
+                output=(b"/opt/miniconda3/envs/testbed/bin/python\n", b""),
+            ),
             SimpleNamespace(exit_code=0, output=(b"Python 3.12\n", b"")),
+            SimpleNamespace(exit_code=0, output=(b"", b"")),
+            SimpleNamespace(
+                exit_code=0,
+                output=(b"/opt/miniconda3/envs/testbed\n", b""),
+            ),
         ]
         self.exec_calls = []
         self.put_archive = Mock(return_value=True)
@@ -75,14 +83,27 @@ class DockerRepositoryRuntimeTests(unittest.TestCase):
         self.assertEqual(options["platform"], "linux/x86_64")
         self.assertEqual(options["command"], ["tail", "-f", "/dev/null"])
         self.assertEqual(options["user"], "root")
-        self.assertEqual(options["environment"]["BASH_ENV"], "/root/.bashrc")
+        self.assertNotIn("BASH_ENV", options["environment"])
         self.assertTrue(options["detach"])
         self.assertTrue(options["network_disabled"])
         self.assertEqual(options["mem_limit"], "4g")
         self.assertEqual(options["nano_cpus"], 2_000_000_000)
         self.assertEqual(options["labels"]["swe-rebench.role"], "inference")
-        self.assertEqual(len(container.exec_calls), 6)
+        self.assertEqual(len(container.exec_calls), 8)
         self.assertFalse(runtime.is_closed)
+
+    def test_rejects_inactive_testbed_environment(self):
+        container = FakeContainer()
+        container.responses[6] = SimpleNamespace(
+            exit_code=1, output=(b"", b"wrong environment\n")
+        )
+        client = FakeClient(container)
+
+        with self.assertRaisesRegex(RepositoryRuntimeError, "not active"):
+            self.create(client)
+
+        container.stop.assert_called_once()
+        container.remove.assert_called_once_with(force=True)
 
     def test_missing_image_is_pulled_by_default(self):
         client = FakeClient(FakeContainer(), image_exists=False)
@@ -142,16 +163,22 @@ class DockerRepositoryRuntimeTests(unittest.TestCase):
 
         command, options = container.exec_calls[-1]
         self.assertEqual(
-            command,
+            command[:6],
             [
                 "timeout",
                 "--signal=KILL",
                 "120s",
                 "/bin/bash",
                 "-c",
-                "pytest -q",
             ],
         )
+        wrapped_command = command[6]
+        self.assertIn(
+            "source /opt/miniconda3/etc/profile.d/conda.sh || exit 127",
+            wrapped_command,
+        )
+        self.assertIn("conda activate testbed || exit 127", wrapped_command)
+        self.assertTrue(wrapped_command.endswith("\npytest -q"))
         self.assertEqual(options["workdir"], "/testbed")
         self.assertEqual(options["environment"]["PAGER"], "cat")
         self.assertEqual(result.exit_code, 3)
