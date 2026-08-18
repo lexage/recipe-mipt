@@ -15,7 +15,7 @@ components:
     type: REACT_AGENT_SGR
     params:
       name: react-sgr-swe-rebench
-      url: http://localhost:11455/v1/models
+      url: http://localhost:11455/v1
       model_name: Qwen/Qwen2.5-32B-Instruct
       temperature: 0.0
       max_iterations: 30
