@@ -15,9 +15,9 @@ components:
     type: REACT_AGENT_SGR
     params:
       name: react-sgr-swe-rebench
-      url: http://sm-a5000-1.gpu.cluster:8000/v1
-      model_name: mistralai/Devstral-Small-2-24B-Instruct-2512
+      url: http://localhost:11455/v1/models
+      model_name: Qwen/Qwen2.5-32B-Instruct
       temperature: 0.0
       max_iterations: 30
 
-logs_path: /workspace/swe-rebench-recipe/logs
+logs_path: /workspace/proj/grant_swe_rebench/recipe-mipt/logs
