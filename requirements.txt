@@ -23,4 +23,5 @@ tqdm==4.67.1
 transformers==4.57.1
 umap-learn>=0.5.5
 urllib3==2.3.0
+langchain-openai==1.1.10
 # vllm==0.10.0
