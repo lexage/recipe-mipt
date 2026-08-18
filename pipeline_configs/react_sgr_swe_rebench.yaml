@@ -19,5 +19,6 @@ components:
       model_name: Qwen/Qwen2.5-32B-Instruct
       temperature: 0.0
       max_iterations: 30
+      max_retries: 5
 
 logs_path: /workspace/proj/grant_swe_rebench/recipe-mipt/logs

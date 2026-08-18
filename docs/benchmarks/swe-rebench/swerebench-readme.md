@@ -254,10 +254,11 @@ python -m pip install -e "$FORK"
 
 | Поле | Назначение |
 | --- | --- |
-| `url` | URL OpenAI-compatible endpoint модели |
+| `url` | Базовый URL OpenAI-compatible API, обычно `http://<host>:<port>/v1`; не endpoint `/v1/models` |
 | `model_name` | Имя модели, которое принимает endpoint |
 | `temperature` | Температура генерации |
 | `max_iterations` | Максимальное число итераций ReAct |
+| `max_retries` | Максимум последовательных ошибок HTTP, разбора или валидации ответа модели |
 | `maximum_steps` | Максимальное число шагов плана ReWOO |
 | `default_timeout` | Стандартный timeout shell-команды |
 | `max_timeout` | Максимально разрешённый timeout shell-команды |
@@ -279,7 +280,7 @@ printf 'MODEL_URL=%s\nLLM_MODEL=%s\n' "$MODEL_URL" "$LLM_MODEL"
 curl -fsS "${MODEL_URL%/}/models" | python -m json.tool
 ~~~
 
-`MODEL_URL` должен указывать на доступный OpenAI-compatible endpoint, обычно оканчивающийся на `/v1`. `LLM_MODEL` должен совпадать с одним из ID, возвращённых `GET /v1/models`. В ReWOO отдельно проверьте согласованность `url` и `model_name` у `planner`, `worker`, `solver` и `LLM_TOOL`. Реальную модель выбирают поля YAML; аргумент `--model-name-or-path` только маркирует predictions и должен правдиво описывать эту модель.
+`MODEL_URL` должен указывать на корень OpenAI-compatible API и обычно оканчивается на `/v1`. Значение вида `http://localhost:11455/v1/models` неверно: `/models` — отдельный ресурс для проверки списка моделей, а OpenAI-клиент сам добавляет к base URL путь `/chat/completions`. Для запущенного через `vllm serve --port 11455` сервера укажите `url: http://localhost:11455/v1`, а список моделей проверяйте отдельной командой `curl http://localhost:11455/v1/models`. `LLM_MODEL` должен совпадать с одним из ID в этом ответе. В ReWOO отдельно проверьте согласованность `url` и `model_name` у `planner`, `worker`, `solver` и `LLM_TOOL`. Реальную модель выбирают поля YAML; аргумент `--model-name-or-path` только маркирует predictions и должен правдиво описывать эту модель.
 
 ### Инструменты агента
 
@@ -754,7 +755,7 @@ runs/<run-id>/
 
 `log_main.log` содержит события всего запуска: загрузку датасета, выбор задач, разрешение образов, отправку workers, timeout и итоговый summary.
 
-`log_process_*.log` содержит lifecycle отдельного worker, сообщения pipeline и агента, создание контейнера и сбор patch.
+`log_process_*.log` содержит lifecycle отдельного worker, сообщения pipeline и агента, создание контейнера и сбор patch. Для ReAct SGR в нём также записываются `LLM_REQUEST`, сырой `LLM_RESPONSE` (не более 8000 символов), `LLM_REQUEST_FAILED`, `LLM_RESPONSE_INVALID` и `LLM_RETRY`. Поэтому HTTP-ошибка endpoint или невалидный JSON видны до появления общего `EmptyModelPatchError`.
 
 Повторный запуск с `--resume` и тем же `run_id` продолжает тот же логический эксперимент и дописывает его логи. Для независимого эксперимента используйте новый `run_id`.
 
@@ -828,6 +829,17 @@ docker info
 - process log задачи;
 - число итераций и историю агента;
 - действительно ли агент вызвал `apply_patch` или изменил файл через `run_command`.
+
+### ReAct завершился по `retry_limit`
+
+Если между `PIPELINE_STARTED` и ошибкой проходит доля секунды и ни один инструмент не вызван, откройте process log и найдите `LLM_REQUEST_FAILED`. В первую очередь проверьте `base_url`:
+
+~~~yaml
+url: http://localhost:11455/v1  # правильно
+# url: http://localhost:11455/v1/models  # неправильно
+~~~
+
+`max_iterations` ограничивает все шаги ReAct, а `max_retries` — только последовательные ошибки запроса, разбора или валидации ответа. Поэтому агент может остановиться по `max_retries` раньше, чем исчерпает `max_iterations`. Последняя ошибка сохраняется в process log и в `details.agent_result` файла `errors.jsonl`.
 
 ### Timeout задачи
 
