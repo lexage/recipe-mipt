@@ -22,13 +22,17 @@ case "$DATASET_ALIAS" in
         DATASET_SOURCE="$SNAPSHOTS_DIR/tasks-from-2024-10-first-10.jsonl"
         EVAL_MAX_WORKERS=2
         ;;
+    first100)
+        DATASET_SOURCE="$SNAPSHOTS_DIR/tasks-from-2024-10-first-100.jsonl"
+        EVAL_MAX_WORKERS=8
+        ;;
     october)
         DATASET_SOURCE="$SNAPSHOTS_DIR/tasks-from-2024-10-01.jsonl"
         EVAL_MAX_WORKERS=8
         ;;
     *)
         echo "Неизвестная выборка: $DATASET_ALIAS" >&2
-        echo "Допустимые значения: one, first10, october" >&2
+        echo "Допустимые значения: one, first10, first100, october" >&2
         exit 2
         ;;
 esac
