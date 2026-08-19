@@ -8,9 +8,7 @@ EXPERIMENT_STARTED_EPOCH="$(date +%s)"
 RECIPE_DIR="/workspace/proj/grant_swe_rebench/recipe-mipt"
 SNAPSHOTS_DIR="$RECIPE_DIR/datasets/snapshots"
 FORK="/external/SWE-bench-fork"
-
-# Конфигурация агента, которую нужно использовать в экспериментах.
-CONFIG_SOURCE="$RECIPE_DIR/pipeline_configs/react_sgr_swe_rebench.yaml"
+CONFIG_SOURCE="$RECIPE_DIR/pipeline_configs/react_sgr_qwen_swe_rebench.yaml"
 
 DATASET_ALIAS="${1:-first10}"
 EXPERIMENT_NAME="${2:-react-sgr-qwen}"
@@ -30,7 +28,7 @@ case "$DATASET_ALIAS" in
         ;;
     october)
         DATASET_SOURCE="$SNAPSHOTS_DIR/tasks-from-2024-10-01.jsonl"
-        EVAL_MAX_WORKERS=1
+        EVAL_MAX_WORKERS=8
         ;;
     *)
         echo "Неизвестная выборка: $DATASET_ALIAS" >&2
@@ -314,7 +312,15 @@ PY
 echo
 echo "Запуск инференса..."
 
-python run_swe_rebench.py \
+RUN_STATUS="inference_running"
+ACTIVE_STAGE="inference"
+ACTIVE_STAGE_STARTED_EPOCH="$(date +%s)"
+INFERENCE_STARTED_AT_UTC="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+INFERENCE_EXIT_CODE=""
+write_timings
+log_timing "inference_started"
+
+if python run_swe_rebench.py \
     --config "$CONFIG" \
     --dataset "$TASK_FILE" \
     --split "$SPLIT" \
