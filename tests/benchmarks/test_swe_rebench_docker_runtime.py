@@ -228,6 +228,20 @@ class DockerRepositoryRuntimeTests(unittest.TestCase):
         self.assertIn("1 | first", content)
         self.assertIn("2 | second", content)
 
+        raw_container = FakeContainer()
+        raw_container.responses = [
+            SimpleNamespace(exit_code=0, output=(b"", b"")),
+            SimpleNamespace(exit_code=0, output=(b"13\n2\n", b"")),
+            SimpleNamespace(exit_code=0, output=(b"", b"")),
+            SimpleNamespace(exit_code=0, output=(b"first\nsecond\n", b"")),
+        ]
+        raw = self.direct_runtime(raw_container).read_file(
+            "/testbed/src/calculator.py", line_numbers=False
+        )
+        self.assertIn("File: src/calculator.py", raw)
+        self.assertTrue(raw.endswith("first\nsecond"))
+        self.assertNotIn("1 | first", raw)
+
         search_container = FakeContainer()
         search_container.responses = [
             SimpleNamespace(exit_code=0, output=(b"", b"")),
@@ -347,7 +361,7 @@ class DockerRepositoryRuntimeTests(unittest.TestCase):
         )
 
         self.assertIn("calculator.py", listing)
-        self.assertIn("Directory: /testbed", listing)
+        self.assertIn("Directory: .", listing)
 
 
 if __name__ == "__main__":

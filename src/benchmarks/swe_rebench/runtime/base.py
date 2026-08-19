@@ -120,8 +120,9 @@ class RepositoryRuntime(ABC):
         end_line: int = 200,
         max_lines: int = 400,
         max_file_bytes: int = 2_000_000,
+        line_numbers: bool = True,
     ) -> str:
-        """Return a bounded, numbered range from a repository text file."""
+        """Return a bounded range from a repository text file."""
 
     @abstractmethod
     def search_code(
