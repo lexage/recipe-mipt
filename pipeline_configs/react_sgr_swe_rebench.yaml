@@ -24,11 +24,11 @@ components:
       # The evaluator consumes the repository diff; avoid an extra LLM request
       # after the structured finish step.
       synthesize_final_answer: false
-      # Require evidence for the current repository revision before accepting
-      # finish. These are generic repository-task safeguards, not task-specific
-      # solution hints.
+      # Require a repository change and current diff review before accepting
+      # finish. Validation remains advisory because benchmark test patches may
+      # intentionally change expectations that are unavailable during inference.
       require_repository_change_before_finish: true
       require_diff_before_finish: true
-      require_validation_before_finish: true
+      require_validation_before_finish: false
 
 logs_path: /workspace/swe-rebench-recipe/logs
