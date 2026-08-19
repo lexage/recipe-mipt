@@ -361,6 +361,47 @@ class DockerRepositoryRuntimeTests(unittest.TestCase):
         self.assertEqual(captured.exception.error_code, "malformed_diff")
         self.assertIn("raw unified diff", str(captured.exception))
 
+        stale_patch = """--- a/src/calculator.py
++++ b/src/calculator.py
+@@ -1,3 +1,4 @@
+ params.append({
+     'required': True,
++    'description': '',
+ )"""
+        stale_container = FakeContainer()
+        stale_container.responses = [
+            SimpleNamespace(exit_code=0, output=(b"", b"")),
+            SimpleNamespace(exit_code=0, output=(b"", b"")),
+            SimpleNamespace(
+                exit_code=1,
+                output=(
+                    b"",
+                    b"error: patch failed: src/calculator.py:1\n"
+                    b"error: src/calculator.py: patch does not apply\n",
+                ),
+            ),
+            SimpleNamespace(exit_code=0, output=(b"", b"")),
+            SimpleNamespace(exit_code=0, output=(b"52\n3\n", b"")),
+            SimpleNamespace(exit_code=0, output=(b"", b"")),
+            SimpleNamespace(
+                exit_code=0,
+                output=(
+                    b"params.append({\n    'required': True,\n})\n",
+                    b"",
+                ),
+            ),
+            SimpleNamespace(exit_code=0, output=(b"", b"")),
+        ]
+        with self.assertRaises(PatchApplyError) as captured:
+            self.direct_runtime(stale_container).apply_patch(stale_patch)
+        error = str(captured.exception)
+        self.assertEqual(captured.exception.error_code, "stale_context")
+        self.assertIn("Current raw excerpt from src/calculator.py", error)
+        self.assertIn("submitted hunk context", error)
+        self.assertIn("current file", error)
+        self.assertIn("})", error)
+        self.assertNotIn("replace_text", error)
+
         diff_container = FakeContainer()
         diff_container.responses = [
             SimpleNamespace(exit_code=0, output=(b"", b"")),

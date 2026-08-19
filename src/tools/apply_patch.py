@@ -23,7 +23,10 @@ class ApplyPatchTool(BaseTool):
             "@@ -1,1 +1,1 @@\n"
             "-old line\n"
             "+new line\n"
-            "Copy unchanged context lines exactly from the current file contents. "
+            "Use a/ and b/ path prefixes. Every unchanged context line must be "
+            "copied exactly from raw current file contents, including indentation, "
+            "commas, parentheses, braces, and brackets. Do not copy display line-number "
+            "prefixes. Prefer a small hunk with two to four exact surrounding lines. "
             "After a failed patch, read the target file again and change the strategy "
             "instead of only changing hunk line numbers. A successful application "
             "confirms that the diff was accepted, not that the change is behaviorally "
@@ -55,8 +58,9 @@ class ApplyPatchTool(BaseTool):
                             "type": "string",
                             "description": (
                                 "Raw unified diff to apply. Include --- a/path, "
-                                "+++ b/path, and an @@ hunk header. Do not use "
-                                "Markdown code fences."
+                                "+++ b/path, and an @@ hunk header. Context lines must "
+                                "match the current file exactly. Do not use Markdown "
+                                "code fences."
                             ),
                         }
                     },
