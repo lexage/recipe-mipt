@@ -221,6 +221,21 @@ class ReActAgentSGRDiagnosticsTests(unittest.TestCase):
         self.assertNotIn("finish immediately", REACT_SYSTEM_PROMPT)
         self.assertIn("validation support the solution", REACT_SYSTEM_PROMPT)
 
+    def test_system_prompt_contains_only_configured_tool_descriptions(self):
+        client, _ = fake_openai_client()
+
+        with patch("src.agents.pipelines.react_sgr.OpenAI", return_value=client):
+            agent = ReActAgentSGR(
+                url="http://localhost:11455/v1",
+                model_name="model",
+                tools=[FakeTool()],
+            )
+
+        self.assertIn("list_files: list repository files", agent.instruction)
+        self.assertIn("Action MUST be one of: list_files or 'finish'", agent.instruction)
+        self.assertNotIn("replace_text", agent.instruction)
+        self.assertNotIn("apply_patch", agent.instruction)
+
     def test_tool_results_preserve_generic_failure_status(self):
         client, _ = fake_openai_client()
         failure = ToolResult.error(

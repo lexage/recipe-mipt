@@ -163,6 +163,17 @@ class RepositoryToolDelegationTests(unittest.TestCase):
         self.assertIn("+++ b/path", patch_description)
         self.assertIn("@@ hunk header", patch_description)
 
+    def test_editing_tool_descriptions_do_not_reference_other_tools(self) -> None:
+        patch_description = ApplyPatchTool().get_schema()["function"]["description"]
+        replace_description = ReplaceTextTool().get_schema()["function"][
+            "description"
+        ]
+
+        self.assertNotIn("replace_text", patch_description)
+        self.assertNotIn("read_file", patch_description)
+        self.assertNotIn("apply_patch", replace_description)
+        self.assertNotIn("read_file", replace_description)
+
     def test_patch_and_nonzero_command_report_failures(self) -> None:
         self.runtime.patch_error = PatchApplyError(
             "Patch check failed: corrupt patch",

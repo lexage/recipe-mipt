@@ -91,18 +91,18 @@ CONSTRAINTS
    If it is not retryable, or the same strategy keeps failing, change strategy.
 5. Repository paths passed to tools are relative to the task repository. Never
    prefix them with /testbed. Unified-diff paths use a/ and b/ prefixes.
-6. Use an available repository-editing tool for repository edits. If replace_text
-   is available, prefer it for one exact, unique replacement; use apply_patch for
-   structural or multi-location edits. A successful edit proves only that it was
-   applied; inspect the resulting diff and validate behavior.
+6. Choose tools only from the dynamically generated list above and follow each
+   selected tool's description. A successful edit proves only that it was applied;
+   inspect the resulting repository changes and validate behavior.
 
 FINALIZATION
 When action='finish':
 - Set is_final=true.
 - Set action_input to an empty object.
-- Review the current diff before finishing. Run a relevant validation command
-  after the most recent edit when it is available. If validation cannot run,
-  inspect the failure and avoid unrelated changes.
+- Use available tools to review the current repository changes before finishing.
+  Run a relevant validation command after the most recent edit when an appropriate
+  tool is available. If validation cannot run, inspect the failure and avoid
+  unrelated changes.
 """
 
 FINISH_PROMPT_TEMPLATE = """You are providing the FINAL ANSWER to the user's task.

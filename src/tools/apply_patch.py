@@ -23,12 +23,11 @@ class ApplyPatchTool(BaseTool):
             "@@ -1,1 +1,1 @@\n"
             "-old line\n"
             "+new line\n"
-            "For one localized exact replacement in an existing file, prefer "
-            "replace_text when available because it does not require diff syntax. Copy unchanged "
-            "context lines exactly from the latest raw read_file output. "
+            "Copy unchanged context lines exactly from the current file contents. "
             "After a failed patch, read the target file again and change the strategy "
-            "instead of only changing hunk line numbers. Use this tool, not shell "
-            "redirection or sed -i, to edit files."
+            "instead of only changing hunk line numbers. A successful application "
+            "confirms that the diff was accepted, not that the change is behaviorally "
+            "correct. Do not use shell redirection or in-place shell editing instead."
         ),
         timeout: int = 30,
         max_patch_bytes: int = 1_000_000,
