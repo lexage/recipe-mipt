@@ -4,6 +4,7 @@ components:
     - type: LIST_FILES_TOOL
     - type: READ_FILE_TOOL
     - type: SEARCH_CODE_TOOL
+    - type: REPLACE_TEXT_TOOL
     - type: APPLY_PATCH_TOOL
     - type: RUN_COMMAND_TOOL
       params:

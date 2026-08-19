@@ -12,8 +12,8 @@ class ReadFileTool(BaseTool):
         self,
         name: str = "read_file",
         description: str = (
-            "Read a line range from a text file in the task repository. "
-            "Set line_numbers=false when copying exact text for a patch."
+            "Read a raw line range from a text file in the task repository. "
+            "Set line_numbers=true only when display line numbers help navigation."
         ),
         max_lines: int = 400,
         max_file_bytes: int = 2_000_000,
@@ -52,8 +52,8 @@ class ReadFileTool(BaseTool):
                         "line_numbers": {
                             "type": "boolean",
                             "description": (
-                                "Include display-only line-number prefixes. Set false "
-                                "when preparing exact patch context."
+                                "Include display-only line-number prefixes. Defaults "
+                                "to false so returned file text can be copied exactly."
                             ),
                         },
                     },
@@ -67,7 +67,7 @@ class ReadFileTool(BaseTool):
         path: str,
         start_line: int = 1,
         end_line: int = 200,
-        line_numbers: bool = True,
+        line_numbers: bool = False,
     ) -> str:
         return get_repository_runtime().read_file(
             path,

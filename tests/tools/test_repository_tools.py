@@ -18,6 +18,7 @@ from src.tools import (  # noqa: E402
     GitDiffTool,
     ListFilesTool,
     ReadFileTool,
+    ReplaceTextTool,
     RunCommandTool,
     SearchCodeTool,
     ToolResult,
@@ -50,6 +51,10 @@ class RecordingRuntime(RepositoryRuntime):
             raise self.patch_error
         return "applied"
 
+    def replace_text(self, path, old_text, new_text, **kwargs):
+        self.calls.append(("replace_text", path, old_text, new_text, kwargs))
+        return "replaced"
+
     def run_command(self, command, **kwargs):
         self.calls.append(("run_command", command, kwargs))
         return CommandResult(
@@ -78,11 +83,14 @@ class RepositoryToolDelegationTests(unittest.TestCase):
             self.assertEqual(ListFilesTool()("src"), "listed")
             self.assertEqual(ReadFileTool()("src/a.py", 2, 3), "read")
             self.assertEqual(SearchCodeTool()("symbol", glob="*.py"), "found")
+            replace_result = ReplaceTextTool()("src/a.py", "old", "new")
             patch_result = ApplyPatchTool()("diff")
             command_result = RunCommandTool()("pytest")
             self.assertEqual(patch_result, "applied")
             self.assertTrue(patch_result.success)
             self.assertTrue(patch_result.progress)
+            self.assertEqual(replace_result, "replaced")
+            self.assertTrue(replace_result.progress)
             self.assertIn("Exit code: 0", command_result)
             self.assertTrue(command_result.success)
             self.assertEqual(GitDiffTool()(), "diffed")
@@ -93,6 +101,7 @@ class RepositoryToolDelegationTests(unittest.TestCase):
                 "list_files",
                 "read_file",
                 "search_code",
+                "replace_text",
                 "apply_patch",
                 "run_command",
                 "get_diff",
@@ -101,7 +110,26 @@ class RepositoryToolDelegationTests(unittest.TestCase):
         self.assertEqual(self.runtime.calls[1][2]["start_line"], 2)
         self.assertEqual(self.runtime.calls[1][2]["end_line"], 3)
         self.assertEqual(self.runtime.calls[2][2]["glob"], "*.py")
-        self.assertEqual(self.runtime.calls[4][2]["timeout"], 120)
+        self.assertFalse(self.runtime.calls[1][2]["line_numbers"])
+        self.assertEqual(self.runtime.calls[5][2]["timeout"], 120)
+
+    def test_replace_text_reports_count_mismatch_without_progress(self) -> None:
+        def reject(*args, **kwargs):
+            from src.benchmarks.swe_rebench.runtime import TextReplaceError
+
+            raise TextReplaceError(
+                "Expected 1 occurrence, found 2; file was not changed",
+                error_code="replacement_count_mismatch",
+            )
+
+        self.runtime.replace_text = reject
+        with bind_repository_runtime(self.runtime):
+            result = ReplaceTextTool()("src/a.py", "old", "new")
+
+        self.assertFalse(result.success)
+        self.assertFalse(result.progress)
+        self.assertTrue(result.retryable)
+        self.assertEqual(result.error_code, "replacement_count_mismatch")
 
     def test_run_command_formats_timeout_and_rejects_excessive_timeout(self) -> None:
         self.runtime.command_result = CommandResult(
@@ -211,6 +239,7 @@ class RepositoryToolDelegationTests(unittest.TestCase):
             lambda: ListFilesTool(max_entries=0),
             lambda: ReadFileTool(max_lines=0),
             lambda: SearchCodeTool(timeout=0),
+            lambda: ReplaceTextTool(max_file_bytes=0),
             lambda: ApplyPatchTool(max_patch_bytes=0),
             lambda: RunCommandTool(default_timeout=3, max_timeout=2),
             lambda: GitDiffTool(timeout=0),

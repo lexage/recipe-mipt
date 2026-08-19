@@ -9,6 +9,7 @@ from src.benchmarks.swe_rebench.runtime import (
     DockerRepositoryRuntime,
     PatchApplyError,
     RepositoryRuntimeError,
+    TextReplaceError,
 )
 
 
@@ -32,6 +33,7 @@ class FakeContainer:
         ]
         self.exec_calls = []
         self.put_archive = Mock(return_value=True)
+        self.get_archive = Mock()
         self.stop = Mock()
         self.remove = Mock()
 
@@ -224,7 +226,9 @@ class DockerRepositoryRuntimeTests(unittest.TestCase):
             SimpleNamespace(exit_code=0, output=(b"", b"")),
             SimpleNamespace(exit_code=0, output=(b"first\nsecond\n", b"")),
         ]
-        content = self.direct_runtime(read_container).read_file("src/calculator.py")
+        content = self.direct_runtime(read_container).read_file(
+            "src/calculator.py", line_numbers=True
+        )
         self.assertIn("1 | first", content)
         self.assertIn("2 | second", content)
 
@@ -236,10 +240,9 @@ class DockerRepositoryRuntimeTests(unittest.TestCase):
             SimpleNamespace(exit_code=0, output=(b"first\nsecond\n", b"")),
         ]
         raw = self.direct_runtime(raw_container).read_file(
-            "/testbed/src/calculator.py", line_numbers=False
+            "/testbed/src/calculator.py"
         )
-        self.assertIn("File: src/calculator.py", raw)
-        self.assertTrue(raw.endswith("first\nsecond"))
+        self.assertEqual(raw, "first\nsecond")
         self.assertNotIn("1 | first", raw)
 
         search_container = FakeContainer()
@@ -252,6 +255,54 @@ class DockerRepositoryRuntimeTests(unittest.TestCase):
         ]
         matches = self.direct_runtime(search_container).search_code("left - right")
         self.assertIn("src/calculator.py:2", matches)
+
+    def test_exact_text_replacement_is_count_checked(self):
+        def file_archive(content: bytes) -> bytes:
+            payload = io.BytesIO()
+            with tarfile.open(fileobj=payload, mode="w") as archive:
+                member = tarfile.TarInfo("calculator.py")
+                member.mode = 0o644
+                member.size = len(content)
+                archive.addfile(member, io.BytesIO(content))
+            return payload.getvalue()
+
+        replaced_container = FakeContainer()
+        replaced_container.responses = [
+            SimpleNamespace(exit_code=0, output=(b"", b"")),
+        ]
+        replaced_container.get_archive.return_value = (
+            iter([file_archive(b"left = old\nright = old\n")]),
+            {},
+        )
+        result = self.direct_runtime(replaced_container).replace_text(
+            "src/calculator.py",
+            "right = old",
+            "right = new",
+        )
+        self.assertIn("Replaced 1 exact occurrence", result)
+        replaced_container.put_archive.assert_called_once()
+        parent, archive_bytes = replaced_container.put_archive.call_args.args
+        self.assertEqual(parent, "/testbed/src")
+        with tarfile.open(fileobj=io.BytesIO(archive_bytes), mode="r") as archive:
+            written = archive.extractfile(archive.getmembers()[0]).read().decode()
+        self.assertEqual(written, "left = old\nright = new\n")
+
+        mismatch_container = FakeContainer()
+        mismatch_container.responses = [
+            SimpleNamespace(exit_code=0, output=(b"", b"")),
+        ]
+        mismatch_container.get_archive.return_value = (
+            iter([file_archive(b"value = old\nvalue = old\n")]),
+            {},
+        )
+        with self.assertRaises(TextReplaceError) as captured:
+            self.direct_runtime(mismatch_container).replace_text(
+                "src/calculator.py", "old", "new"
+            )
+        self.assertEqual(
+            captured.exception.error_code, "replacement_count_mismatch"
+        )
+        mismatch_container.put_archive.assert_not_called()
 
     def test_docker_patch_and_diff_operations(self):
         patch = """--- a/src/calculator.py

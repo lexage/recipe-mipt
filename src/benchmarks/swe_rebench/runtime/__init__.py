@@ -4,6 +4,7 @@ from .base import (
     RepositoryRuntime,
     RepositoryRuntimeClosedError,
     RepositoryRuntimeError,
+    TextReplaceError,
 )
 from .context import (
     RepositoryRuntimeContextError,
@@ -21,6 +22,7 @@ __all__ = [
     "RepositoryRuntimeClosedError",
     "RepositoryRuntimeContextError",
     "RepositoryRuntimeError",
+    "TextReplaceError",
     "bind_repository_runtime",
     "get_repository_runtime",
 ]
