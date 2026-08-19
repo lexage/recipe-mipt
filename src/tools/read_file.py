@@ -11,11 +11,18 @@ class ReadFileTool(BaseTool):
     def __init__(
         self,
         name: str = "read_file",
-        description: str = "Read a line range from a text file in the task repository.",
+        description: str = (
+            "Read a line range from a text file in the task repository. "
+            "Set line_numbers=false when copying exact text for a patch."
+        ),
         max_lines: int = 400,
         max_file_bytes: int = 2_000_000,
     ):
-        super().__init__(name=name, description=description)
+        super().__init__(
+            name=name,
+            description=description,
+            repository_path_args=("path",),
+        )
         if max_lines < 1 or max_file_bytes < 1:
             raise ValueError("read limits must be positive")
         self.max_lines = max_lines
@@ -42,17 +49,31 @@ class ReadFileTool(BaseTool):
                             "type": "integer",
                             "description": "Last line, inclusive.",
                         },
+                        "line_numbers": {
+                            "type": "boolean",
+                            "description": (
+                                "Include display-only line-number prefixes. Set false "
+                                "when preparing exact patch context."
+                            ),
+                        },
                     },
                     "required": ["path"],
                 },
             },
         }
 
-    def __call__(self, path: str, start_line: int = 1, end_line: int = 200) -> str:
+    def __call__(
+        self,
+        path: str,
+        start_line: int = 1,
+        end_line: int = 200,
+        line_numbers: bool = True,
+    ) -> str:
         return get_repository_runtime().read_file(
             path,
             start_line=start_line,
             end_line=end_line,
             max_lines=self.max_lines,
             max_file_bytes=self.max_file_bytes,
+            line_numbers=line_numbers,
         )

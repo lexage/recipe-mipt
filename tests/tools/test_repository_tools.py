@@ -152,7 +152,34 @@ class RepositoryToolDelegationTests(unittest.TestCase):
         self.assertFalse(patch_result.success)
         self.assertEqual(patch_result.error_code, "malformed_diff")
         self.assertFalse(command_result.success)
-        self.assertEqual(command_result.error_code, "nonzero_exit_code")
+        self.assertEqual(command_result.error_code, "pytest_interrupted")
+        self.assertEqual(command_result.validation_status, "failed")
+
+    def test_run_command_blocks_repository_edits_and_marks_validation(self) -> None:
+        with bind_repository_runtime(self.runtime):
+            blocked = RunCommandTool()("sed -i 's/old/new/' src/a.py")
+            validated = RunCommandTool()("git diff --check")
+
+        self.assertFalse(blocked.success)
+        self.assertEqual(blocked.error_code, "repository_edit_command")
+        self.assertEqual(len(self.runtime.calls), 1)
+        self.assertEqual(validated.validation_status, "passed")
+
+    def test_repository_paths_and_argument_types_are_validated(self) -> None:
+        tool = ReadFileTool()
+        self.assertIn(
+            "repository-relative",
+            tool.validate_arguments({"path": "/testbed/src/a.py"}),
+        )
+        self.assertIn(
+            "must have type integer",
+            tool.validate_arguments({"path": "src/a.py", "start_line": "1"}),
+        )
+        self.assertIsNone(
+            tool.validate_arguments(
+                {"path": "src/a.py", "start_line": 1, "line_numbers": False}
+            )
+        )
 
     def test_empty_search_result_is_success_without_progress(self) -> None:
         self.runtime.search_result = "No matches found"

@@ -89,11 +89,17 @@ CONSTRAINTS
    is not progress.
 4. If a tool error is retryable, correct the arguments and retry at most once.
    If it is not retryable, or the same strategy keeps failing, change strategy.
+5. Repository paths passed to tools are relative to the task repository. Never
+   prefix them with /testbed. Unified-diff paths use a/ and b/ prefixes.
+6. Use apply_patch for repository edits. A successful patch application proves
+   only that the diff applied; inspect the resulting diff and validate behavior.
 
 FINALIZATION
 When action='finish':
 - Set is_final=true.
 - Set action_input to an empty object.
+- Finish only after reviewing the current diff and running a relevant validation
+  command after the most recent edit.
 """
 
 FINISH_PROMPT_TEMPLATE = """You are providing the FINAL ANSWER to the user's task.
@@ -840,16 +846,26 @@ class AgentStep(BaseModel):
         default=False, description="Whether this is the final answer"
     )
 
-    @model_validator(mode="after")
-    def validate_final_state(self) -> "AgentStep":
-        """Keep the two finalization signals consistent."""
+    @model_validator(mode="before")
+    @classmethod
+    def normalize_final_state(cls, data: Any) -> Any:
+        """Derive redundant finalization fields from the selected action.
 
-        is_finish_action = self.action.strip().lower() == "finish"
-        if self.is_final != is_finish_action:
-            raise ValueError("is_final must be true if and only if action is 'finish'")
-        if is_finish_action and self.action_input:
-            raise ValueError("action_input must be empty when action is 'finish'")
-        return self
+        Some OpenAI-compatible servers occasionally emit a correct tool action
+        with a stale ``is_final`` value. Rejecting the whole response discards a
+        useful action, so the action remains the single source of truth.
+        """
+
+        if not isinstance(data, dict):
+            return data
+        normalized = dict(data)
+        action = normalized.get("action")
+        if isinstance(action, str):
+            is_finish = action.strip().lower() == "finish"
+            normalized["is_final"] = is_finish
+            if is_finish:
+                normalized["action_input"] = {}
+        return normalized
 
 
 class ReActAgentSGR(Agent):
@@ -869,6 +885,9 @@ class ReActAgentSGR(Agent):
         few_shot_type: str = "zero_shot",
         max_tokens: Optional[int] = None,
         synthesize_final_answer: bool = True,
+        require_repository_change_before_finish: bool = False,
+        require_diff_before_finish: bool = False,
+        require_validation_before_finish: bool = False,
     ):
         super().__init__(name)
 
@@ -892,6 +911,11 @@ class ReActAgentSGR(Agent):
         self.history_context = history_context
         self.max_tokens = max_tokens
         self.synthesize_final_answer = synthesize_final_answer
+        self.require_repository_change_before_finish = (
+            require_repository_change_before_finish
+        )
+        self.require_diff_before_finish = require_diff_before_finish
+        self.require_validation_before_finish = require_validation_before_finish
         self.few_shot_examples = FEW_SHOT_REGISTRY[few_shot_type]
 
         # Initialize tool registry with fallback to default LLMTool
@@ -929,6 +953,7 @@ class ReActAgentSGR(Agent):
         """Reset ephemeral state between agent runs to prevent state leakage."""
         self._tool_call_retry_count = 0
         self._last_llm_error: Optional[str] = None
+        self._last_llm_error_code: Optional[str] = None
         self.error_history: List[Dict[str, Any]] = []
         self._execution_history: List[Dict[str, Any]] = []
         self._blocked_call_signatures: set[str] = set()
@@ -937,6 +962,8 @@ class ReActAgentSGR(Agent):
         self._consecutive_tool_failures = 0
         self._evidence_signatures: set[str] = set()
         self._repository_revision = 0
+        self._last_diff_revision = -1
+        self._last_validation_revision = -1
         self.memory: List[MessageDict] = []
 
     @staticmethod
@@ -990,6 +1017,7 @@ class ReActAgentSGR(Agent):
                     "The completion returned no parsed AgentStep; "
                     f"raw content: {raw_content or '[empty]'}"
                 )
+                self._last_llm_error_code = "invalid_response"
                 logging.error(
                     "LLM_RESPONSE_INVALID\tstep=%s\terror=%s",
                     step,
@@ -998,10 +1026,16 @@ class ReActAgentSGR(Agent):
                 return None
 
             self._last_llm_error = None
+            self._last_llm_error_code = None
             return agent_step
 
         except Exception as error:
             self._last_llm_error = f"{type(error).__name__}: {error}"
+            self._last_llm_error_code = (
+                "response_too_long"
+                if type(error).__name__ == "LengthFinishReasonError"
+                else "request_failed"
+            )
             logging.exception(
                 "LLM_REQUEST_FAILED\tstep=%s\tmodel=%s\tbase_url=%s\terror=%s",
                 step,
@@ -1039,6 +1073,12 @@ class ReActAgentSGR(Agent):
         tool = self.tools_dict.get(tool_name)
         if not tool:
             return False, f"Tool '{tool_name}' not found"
+        if hasattr(tool, "validate_arguments"):
+            try:
+                validation_error = tool.validate_arguments(action_input)
+            except Exception as e:
+                return False, f"Schema error: {type(e).__name__}: {e}"
+            return validation_error is None, validation_error
         if hasattr(tool, "arg_schema") and tool.arg_schema:
             try:
                 tool.arg_schema(**action_input)
@@ -1213,6 +1253,13 @@ class ReActAgentSGR(Agent):
         """Preserve baseline retry input while logging the concrete LLM error."""
         self._tool_call_retry_count += 1
         model_error_detail = "Failed to parse or validate JSON response"
+        if self._last_llm_error_code == "response_too_long":
+            model_error_detail = (
+                "The previous response exceeded the model output limit. Return one "
+                "short JSON step with a concise thought and exactly one tool call. "
+                "Do not repeat file contents; split investigation and edits across "
+                "multiple steps."
+            )
         diagnostic_detail = self._last_llm_error or model_error_detail
         error_obs = self._format_error_observation(
             "json_parse", error_detail=model_error_detail
@@ -1325,6 +1372,10 @@ class ReActAgentSGR(Agent):
         tool = self.tools_dict.get(agent_step.action)
         if made_progress and getattr(tool, "mutates_repository", False):
             self._repository_revision += 1
+        if getattr(tool, "provides_diff", False):
+            self._last_diff_revision = self._repository_revision
+        if result.validation_status == "passed":
+            self._last_validation_revision = self._repository_revision
 
         self.memory.append(
             {
@@ -1343,6 +1394,29 @@ class ReActAgentSGR(Agent):
             observation,
         )
         logging.info(_LOG_SEPARATOR)
+
+    def _finish_guard_error(self) -> Optional[str]:
+        """Return actionable missing evidence for the current repository revision."""
+
+        missing = []
+        if self.require_repository_change_before_finish and self._repository_revision == 0:
+            missing.append("apply a repository change with an editing tool")
+        if (
+            self.require_diff_before_finish
+            and self._last_diff_revision != self._repository_revision
+        ):
+            missing.append("review the current full diff with git_diff")
+        if (
+            self.require_validation_before_finish
+            and self._last_validation_revision != self._repository_revision
+        ):
+            missing.append(
+                "run a successful relevant test/build/check command after the last edit "
+                "(use git diff --check only as a fallback when project tests cannot run)"
+            )
+        if not missing:
+            return None
+        return "FINISH BLOCKED: Before finishing, " + "; then ".join(missing) + "."
 
     def _record_failed_execution(
         self, agent_step: AgentStep, result: ToolResult
@@ -1472,6 +1546,14 @@ class ReActAgentSGR(Agent):
             )
 
             if agent_step.action.lower().strip() == "finish":
+                finish_error = self._finish_guard_error()
+                if finish_error:
+                    self.memory.append(
+                        {"role": "user", "content": f"Observation: {finish_error}"}
+                    )
+                    logging.warning(finish_error)
+                    logging.info(_LOG_SEPARATOR)
+                    continue
                 logging.info(f"AGENT DECIDED TO FINISH at step {iteration+1}")
                 logging.info(_LOG_SEPARATOR)
 

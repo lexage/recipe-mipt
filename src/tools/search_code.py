@@ -16,7 +16,11 @@ class SearchCodeTool(BaseTool):
         timeout: int = 30,
         max_output_chars: int = 30_000,
     ):
-        super().__init__(name=name, description=description)
+        super().__init__(
+            name=name,
+            description=description,
+            repository_path_args=("path",),
+        )
         if min(max_results, timeout, max_output_chars) < 1:
             raise ValueError("search limits must be positive")
         self.max_results = max_results

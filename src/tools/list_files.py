@@ -16,7 +16,11 @@ class ListFilesTool(BaseTool):
         max_entries: int = 200,
         include_hidden: bool = False,
     ):
-        super().__init__(name=name, description=description)
+        super().__init__(
+            name=name,
+            description=description,
+            repository_path_args=("path",),
+        )
         if max_depth < 0 or max_entries < 1:
             raise ValueError("max_depth must be non-negative and max_entries positive")
         self.max_depth = max_depth

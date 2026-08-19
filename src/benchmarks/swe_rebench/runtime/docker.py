@@ -314,7 +314,7 @@ class DockerRepositoryRuntime(RepositoryRuntime):
         )
         result = self.run_command(command)
         if result.exit_code == 3:
-            return f"Path is not a directory: {path}"
+            return f"Path is not a directory: {relative}"
         self._require_success(result, "Could not list repository files")
         raw_entries = result.stdout.splitlines()
         truncated = len(raw_entries) > max_entries
@@ -326,7 +326,7 @@ class DockerRepositoryRuntime(RepositoryRuntime):
         footer = f"\n\n[{len(entries)} entries"
         if truncated:
             footer += ", output truncated"
-        return f"Directory: {path}\n\n{body}{footer}]"
+        return f"Directory: {relative}\n\n{body}{footer}]"
 
     def read_file(
         self,
@@ -336,6 +336,7 @@ class DockerRepositoryRuntime(RepositoryRuntime):
         end_line: int = 200,
         max_lines: int = 400,
         max_file_bytes: int = 2_000_000,
+        line_numbers: bool = True,
     ) -> str:
         if min(max_lines, max_file_bytes) < 1:
             raise RepositoryRuntimeError("Invalid file read limits")
@@ -350,7 +351,7 @@ class DockerRepositoryRuntime(RepositoryRuntime):
             'printf \'%s\\n%s\\n\' "$size" "$lines"'
         )
         if metadata.exit_code == 3:
-            return f"File does not exist: {path}"
+            return f"File does not exist: {relative}"
         self._require_success(metadata, "Could not inspect repository file")
         try:
             size_text, line_count_text = metadata.stdout.splitlines()[:2]
@@ -360,25 +361,28 @@ class DockerRepositoryRuntime(RepositoryRuntime):
                 "Invalid file metadata from container"
             ) from error
         if size > max_file_bytes:
-            return f"File is too large to read: {path}"
+            return f"File is too large to read: {relative}"
         binary = self.run_command(
             f"test ! -s {quoted} || LC_ALL=C grep -Iq '' {quoted}", timeout=30
         )
         if binary.exit_code not in {0}:
-            return f"Binary file cannot be read: {path}"
+            return f"Binary file cannot be read: {relative}"
         content = self.run_command(f"sed -n '{start_line},{end_line}p' {quoted}")
         self._require_success(content, "Could not read repository file")
         selected = content.stdout.splitlines()
-        rendered = "\n".join(
-            f"{number:>6} | {line}"
-            for number, line in enumerate(selected, start=start_line)
-        )
+        if line_numbers:
+            rendered = "\n".join(
+                f"{number:>6} | {line}"
+                for number, line in enumerate(selected, start=start_line)
+            )
+        else:
+            rendered = content.stdout.rstrip("\n")
         actual_end = start_line + len(selected) - 1
         if not selected:
             actual_end = start_line - 1
             rendered = "[no lines in requested range]"
         return (
-            f"File: {path}\nLines: {start_line}-{actual_end} of {line_count}\n\n"
+            f"File: {relative}\nLines: {start_line}-{actual_end} of {line_count}\n\n"
             f"{rendered}"
         )
 

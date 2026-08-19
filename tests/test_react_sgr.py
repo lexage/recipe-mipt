@@ -127,6 +127,23 @@ class ReActAgentSGRDiagnosticsTests(unittest.TestCase):
         )
         self.assertNotIn("404 Not Found", agent.memory[-1]["content"])
 
+    def test_length_failure_gets_concise_recovery_instruction(self):
+        client, _ = fake_openai_client()
+        with patch("src.agents.pipelines.react_sgr.OpenAI", return_value=client):
+            agent = ReActAgentSGR(
+                url="http://localhost:11455/v1",
+                model_name="model",
+                tools=[FakeTool()],
+            )
+        agent._last_llm_error = "LengthFinishReasonError: output limit"
+        agent._last_llm_error_code = "response_too_long"
+
+        agent._handle_invalid_response(0)
+
+        feedback = agent.memory[-1]["content"]
+        self.assertIn("exceeded the model output limit", feedback)
+        self.assertIn("one short JSON step", feedback)
+
     def test_zero_shot_preserves_baseline_first_user_message(self):
         client, completions = fake_openai_client()
         tool = FakeTool()
@@ -334,14 +351,64 @@ class ReActAgentSGRDiagnosticsTests(unittest.TestCase):
         self.assertEqual(result, "Patch and validation are complete")
         completions.create.assert_not_called()
 
-    def test_finalization_fields_must_be_consistent(self):
-        with self.assertRaises(ValueError):
-            AgentStep(
-                thought="done",
-                action="list_files",
-                action_input={},
-                is_final=True,
+    def test_finalization_fields_are_derived_from_action(self):
+        tool_step = AgentStep(
+            thought="inspect",
+            action="list_files",
+            action_input={},
+            is_final=True,
+        )
+        finish = AgentStep(
+            thought="done",
+            action="finish",
+            action_input={"stale": "value"},
+            is_final=False,
+        )
+        self.assertFalse(tool_step.is_final)
+        self.assertTrue(finish.is_final)
+        self.assertEqual(finish.action_input, {})
+
+    def test_tool_json_schema_is_enforced_when_available(self):
+        from src.tools import ReadFileTool
+
+        client, _ = fake_openai_client()
+        with patch("src.agents.pipelines.react_sgr.OpenAI", return_value=client):
+            agent = ReActAgentSGR(
+                url="http://localhost:11455/v1",
+                model_name="model",
+                tools=[ReadFileTool()],
             )
+
+        valid, error = agent._validate_tool_args(
+            "read_file", {"path": "/testbed/src/a.py", "unknown": 1}
+        )
+        self.assertFalse(valid)
+        self.assertIn("Unexpected argument", error)
+        valid, error = agent._validate_tool_args(
+            "read_file", {"path": "/testbed/src/a.py"}
+        )
+        self.assertFalse(valid)
+        self.assertIn("repository-relative", error)
+
+    def test_finish_guard_requires_current_revision_evidence(self):
+        client, _ = fake_openai_client()
+        with patch("src.agents.pipelines.react_sgr.OpenAI", return_value=client):
+            agent = ReActAgentSGR(
+                url="http://localhost:11455/v1",
+                model_name="model",
+                tools=[FakeTool()],
+                require_repository_change_before_finish=True,
+                require_diff_before_finish=True,
+                require_validation_before_finish=True,
+            )
+
+        self.assertIn("repository change", agent._finish_guard_error())
+        agent._repository_revision = 1
+        agent._last_diff_revision = 1
+        agent._last_validation_revision = 1
+        self.assertIsNone(agent._finish_guard_error())
+        agent._repository_revision = 2
+        self.assertIn("current full diff", agent._finish_guard_error())
 
     def test_invalid_few_shot_type_and_limits_are_rejected(self):
         parameters = (

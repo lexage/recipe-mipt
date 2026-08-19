@@ -1,5 +1,7 @@
 """Tool for running a bounded non-interactive command in the task repository."""
 
+import re
+
 from typing import Any, Dict
 
 from src.benchmarks.swe_rebench.runtime import CommandResult, get_repository_runtime
@@ -8,6 +10,21 @@ from .base_tool import BaseTool, ToolResult
 
 
 class RunCommandTool(BaseTool):
+    _MUTATING_COMMAND_PATTERNS = (
+        re.compile(r"(?:^|[;&|]\s*)(?:mv|cp|rm|touch|truncate)\s"),
+        re.compile(r"\b(?:sed|perl)\b[^\n;&|]*\s-i(?:\s|$)"),
+        re.compile(
+            r"\bgit\s+(?:add|checkout|clean|commit|merge|rebase|reset|restore|switch)\b"
+        ),
+    )
+    _VALIDATION_COMMAND_PATTERNS = (
+        re.compile(r"(?:^|\s)(?:pytest|tox|nox)(?:\s|$)"),
+        re.compile(r"\bpython(?:\d+(?:\.\d+)?)?\s+-m\s+(?:pytest|unittest|compileall)\b"),
+        re.compile(r"(?:^|\s)(?:npm|pnpm|yarn)\s+(?:run\s+)?test(?:\s|$)"),
+        re.compile(r"(?:^|\s)(?:cargo|go)\s+test(?:\s|$)"),
+        re.compile(r"(?:^|\s)(?:make|cmake\s+--build\s+\S+\s+--)\s*(?:test|check)(?:\s|$)"),
+        re.compile(r"\bgit\s+diff\s+--check\b"),
+    )
     def __init__(
         self,
         name: str = "run_command",
@@ -57,6 +74,16 @@ class RunCommandTool(BaseTool):
     def __call__(
         self, command: str, timeout: int | None = None
     ) -> ToolResult:
+        if any(pattern.search(command) for pattern in self._MUTATING_COMMAND_PATTERNS):
+            return ToolResult.error(
+                "Repository-editing shell commands are not allowed. Use apply_patch "
+                "for file changes so edits can be validated and tracked.",
+                error_code="repository_edit_command",
+                retryable=False,
+            )
+        is_validation = any(
+            pattern.search(command) for pattern in self._VALIDATION_COMMAND_PATTERNS
+        )
         effective_timeout = self.default_timeout if timeout is None else timeout
         if effective_timeout < 1 or effective_timeout > self.max_timeout:
             return ToolResult.error(
@@ -73,10 +100,34 @@ class RunCommandTool(BaseTool):
             marker = "\n[output truncated]"
             output = output[: self.max_output_chars - len(marker)] + marker
         if result.timed_out:
-            return ToolResult.error(output, error_code="command_timeout")
+            return ToolResult.error(
+                output,
+                error_code="command_timeout",
+                validation_status="failed" if is_validation else None,
+            )
         if result.exit_code != 0:
-            return ToolResult.error(output, error_code="nonzero_exit_code")
-        return ToolResult.ok(output)
+            error_code = self._nonzero_error_code(command, result.exit_code)
+            return ToolResult.error(
+                output,
+                error_code=error_code,
+                validation_status="failed" if is_validation else None,
+            )
+        return ToolResult.ok(
+            output,
+            validation_status="passed" if is_validation else None,
+        )
+
+    @staticmethod
+    def _nonzero_error_code(command: str, exit_code: int | None) -> str:
+        if re.search(r"(?:^|\s)(?:pytest|python(?:\d+(?:\.\d+)?)?\s+-m\s+pytest)(?:\s|$)", command):
+            return {
+                1: "tests_failed",
+                2: "pytest_interrupted",
+                3: "pytest_internal_error",
+                4: "pytest_usage_error",
+                5: "no_tests_collected",
+            }.get(exit_code, "validation_failed")
+        return "nonzero_exit_code"
 
     @staticmethod
     def _render(result: CommandResult) -> str:

@@ -15,7 +15,12 @@ class GitDiffTool(BaseTool):
         timeout: int = 30,
         max_output_chars: int = 50_000,
     ):
-        super().__init__(name=name, description=description)
+        super().__init__(
+            name=name,
+            description=description,
+            provides_diff=True,
+            repository_path_args=("path",),
+        )
         if timeout < 1 or max_output_chars < 1:
             raise ValueError("diff limits must be positive")
         self.timeout = timeout
