@@ -2,6 +2,7 @@
 
 import io
 import logging
+import posixpath
 import re
 import shlex
 import tarfile
@@ -15,6 +16,7 @@ from .base import (
     PatchApplyError,
     RepositoryRuntime,
     RepositoryRuntimeError,
+    TextReplaceError,
 )
 
 PullPolicy = Literal["always", "missing", "never"]
@@ -336,7 +338,7 @@ class DockerRepositoryRuntime(RepositoryRuntime):
         end_line: int = 200,
         max_lines: int = 400,
         max_file_bytes: int = 2_000_000,
-        line_numbers: bool = True,
+        line_numbers: bool = False,
     ) -> str:
         if min(max_lines, max_file_bytes) < 1:
             raise RepositoryRuntimeError("Invalid file read limits")
@@ -369,14 +371,13 @@ class DockerRepositoryRuntime(RepositoryRuntime):
             return f"Binary file cannot be read: {relative}"
         content = self.run_command(f"sed -n '{start_line},{end_line}p' {quoted}")
         self._require_success(content, "Could not read repository file")
+        if not line_numbers:
+            return content.stdout.removesuffix("\n")
         selected = content.stdout.splitlines()
-        if line_numbers:
-            rendered = "\n".join(
-                f"{number:>6} | {line}"
-                for number, line in enumerate(selected, start=start_line)
-            )
-        else:
-            rendered = content.stdout.rstrip("\n")
+        rendered = "\n".join(
+            f"{number:>6} | {line}"
+            for number, line in enumerate(selected, start=start_line)
+        )
         actual_end = start_line + len(selected) - 1
         if not selected:
             actual_end = start_line - 1
@@ -507,6 +508,145 @@ class DockerRepositoryRuntime(RepositoryRuntime):
             self.run_command(f"rm -f {shlex.quote(patch_path)}", timeout=30)
         return "Patch applied successfully.\n\nChanged paths:\n" + "\n".join(
             f"- {path}" for path in paths
+        )
+
+    def replace_text(
+        self,
+        path: str,
+        old_text: str,
+        new_text: str,
+        *,
+        expected_replacements: int = 1,
+        max_file_bytes: int = 2_000_000,
+    ) -> str:
+        """Apply an exact, count-checked UTF-8 replacement without diff parsing."""
+
+        if not isinstance(old_text, str) or not old_text:
+            raise TextReplaceError(
+                "old_text must be a non-empty string",
+                error_code="invalid_old_text",
+                retryable=False,
+            )
+        if not isinstance(new_text, str):
+            raise TextReplaceError(
+                "new_text must be a string",
+                error_code="invalid_new_text",
+                retryable=False,
+            )
+        if old_text == new_text:
+            raise TextReplaceError(
+                "old_text and new_text are identical; no repository change was made",
+                error_code="no_change",
+                retryable=False,
+            )
+        if (
+            not isinstance(expected_replacements, int)
+            or isinstance(expected_replacements, bool)
+            or expected_replacements < 1
+            or max_file_bytes < 1
+        ):
+            raise TextReplaceError(
+                "Replacement limits must be positive",
+                error_code="invalid_replace_limits",
+                retryable=False,
+            )
+
+        relative = self._resolve_path(path)
+        absolute = posixpath.join(self.workdir.rstrip("/"), relative)
+        try:
+            stream, _ = self.container.get_archive(absolute)
+            archive_bytes = b"".join(stream)
+            with tarfile.open(fileobj=io.BytesIO(archive_bytes), mode="r:*") as archive:
+                members = archive.getmembers()
+                if len(members) != 1 or not members[0].isfile():
+                    raise TextReplaceError(
+                        f"Path is not a regular file: {relative}",
+                        error_code="not_a_text_file",
+                        retryable=False,
+                    )
+                member = members[0]
+                extracted = archive.extractfile(member)
+                if extracted is None:
+                    raise TextReplaceError(
+                        f"Could not read file: {relative}",
+                        error_code="file_read_failed",
+                        retryable=False,
+                    )
+                payload = extracted.read(max_file_bytes + 1)
+        except TextReplaceError:
+            raise
+        except Exception as error:
+            raise TextReplaceError(
+                f"Could not read file for replacement: {relative}: {error}",
+                error_code="file_read_failed",
+                retryable=False,
+            ) from error
+
+        if len(payload) > max_file_bytes:
+            raise TextReplaceError(
+                f"File exceeds the {max_file_bytes}-byte replacement limit: {relative}",
+                error_code="file_too_large",
+                retryable=False,
+            )
+        try:
+            content = payload.decode("utf-8")
+        except UnicodeDecodeError as error:
+            raise TextReplaceError(
+                f"File is not valid UTF-8 text: {relative}",
+                error_code="not_a_text_file",
+                retryable=False,
+            ) from error
+
+        actual_replacements = content.count(old_text)
+        if actual_replacements != expected_replacements:
+            error_code = (
+                "text_not_found"
+                if actual_replacements == 0
+                else "replacement_count_mismatch"
+            )
+            raise TextReplaceError(
+                f"Expected {expected_replacements} exact occurrence(s) of old_text in "
+                f"{relative}, found {actual_replacements}. Read the current raw file "
+                "contents and retry with a unique exact block; the file was not changed.",
+                error_code=error_code,
+            )
+
+        updated = content.replace(old_text, new_text)
+        updated_payload = updated.encode("utf-8")
+        if len(updated_payload) > max_file_bytes:
+            raise TextReplaceError(
+                f"Updated file would exceed the {max_file_bytes}-byte replacement "
+                f"limit: {relative}; the file was not changed.",
+                error_code="replacement_too_large",
+                retryable=False,
+            )
+        output_archive = io.BytesIO()
+        with tarfile.open(fileobj=output_archive, mode="w") as archive:
+            output_member = tarfile.TarInfo(name=posixpath.basename(relative))
+            output_member.size = len(updated_payload)
+            output_member.mode = member.mode
+            output_member.uid = member.uid
+            output_member.gid = member.gid
+            output_member.mtime = member.mtime
+            archive.addfile(output_member, io.BytesIO(updated_payload))
+        parent = posixpath.dirname(absolute) or self.workdir
+        try:
+            applied = self.container.put_archive(parent, output_archive.getvalue())
+        except Exception as error:
+            raise TextReplaceError(
+                f"Could not write replacement to {relative}: {error}",
+                error_code="file_write_failed",
+                retryable=False,
+            ) from error
+        if applied is False:
+            raise TextReplaceError(
+                f"Could not write replacement to {relative}",
+                error_code="file_write_failed",
+                retryable=False,
+            )
+        return (
+            f"Replaced {actual_replacements} exact occurrence(s) in {relative}. "
+            "Review the resulting change with git_diff."
         )
 
     def get_diff(
@@ -654,7 +794,8 @@ class DockerRepositoryRuntime(RepositoryRuntime):
         if error_code == "stale_context":
             return (
                 f"Read the current contents of {targets} before retrying. "
-                "Copy context lines exactly and do not change only hunk numbers."
+                "Copy context lines exactly and do not change only hunk numbers. "
+                "For one localized exact edit, use replace_text if it is available."
             )
         if error_code == "malformed_diff":
             return (

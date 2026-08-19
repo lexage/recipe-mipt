@@ -27,6 +27,8 @@ class SWERebenchPromptBuilderTests(unittest.TestCase):
         self.assertIn("most relevant available test or check", prompt)
         self.assertIn("Review the final git diff", prompt)
         self.assertIn("patch is non-empty", prompt)
+        self.assertIn("Attempt relevant validation when available", prompt)
+        self.assertNotIn("validation evidence supports it", prompt)
         self.assertIn("do not install arbitrary", prompt)
         self.assertIn("Do not create commits or branches", prompt)
         self.assertNotIn("Look at parser.py", prompt)

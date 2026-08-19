@@ -123,6 +123,7 @@ class ComponentNames(Enum):
     LIST_FILES_TOOL = "src.tools.ListFilesTool"
     READ_FILE_TOOL = "src.tools.ReadFileTool"
     SEARCH_CODE_TOOL = "src.tools.SearchCodeTool"
+    REPLACE_TEXT_TOOL = "src.tools.ReplaceTextTool"
     APPLY_PATCH_TOOL = "src.tools.ApplyPatchTool"
     RUN_COMMAND_TOOL = "src.tools.RunCommandTool"
     GIT_DIFF_TOOL = "src.tools.GitDiffTool"

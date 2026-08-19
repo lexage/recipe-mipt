@@ -24,6 +24,21 @@ class PatchApplyError(RepositoryRuntimeError):
         self.retryable = retryable
 
 
+class TextReplaceError(RepositoryRuntimeError):
+    """A rejected exact-text replacement with a machine-readable reason."""
+
+    def __init__(
+        self,
+        message: str,
+        *,
+        error_code: str = "text_replace_failed",
+        retryable: bool = True,
+    ) -> None:
+        super().__init__(message)
+        self.error_code = error_code
+        self.retryable = retryable
+
+
 class RepositoryRuntimeClosedError(RepositoryRuntimeError):
     """Raised when an operation is requested after a runtime was closed."""
 
@@ -120,7 +135,7 @@ class RepositoryRuntime(ABC):
         end_line: int = 200,
         max_lines: int = 400,
         max_file_bytes: int = 2_000_000,
-        line_numbers: bool = True,
+        line_numbers: bool = False,
     ) -> str:
         """Return a bounded range from a repository text file."""
 
@@ -147,6 +162,18 @@ class RepositoryRuntime(ABC):
         max_patch_bytes: int = 1_000_000,
     ) -> str:
         """Validate and apply a unified diff to the task repository."""
+
+    @abstractmethod
+    def replace_text(
+        self,
+        path: str,
+        old_text: str,
+        new_text: str,
+        *,
+        expected_replacements: int = 1,
+        max_file_bytes: int = 2_000_000,
+    ) -> str:
+        """Replace an exact text block only when its occurrence count matches."""
 
     @abstractmethod
     def run_command(
