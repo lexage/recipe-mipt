@@ -20,6 +20,10 @@ class SWERebenchPromptBuilderTests(unittest.TestCase):
         self.assertIn("deadbeef", prompt)
         self.assertIn("/testbed", prompt)
         self.assertIn("Apply the smallest correct fix", prompt)
+        self.assertIn("Do not install arbitrary", prompt)
+        self.assertIn("Start with focused tests", prompt)
+        self.assertIn("git_diff", prompt)
+        self.assertIn("patch is non-empty", prompt)
         self.assertNotIn("Look at parser.py", prompt)
 
     def test_hints_are_opt_in(self):
