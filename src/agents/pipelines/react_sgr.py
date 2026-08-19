@@ -98,8 +98,9 @@ FINALIZATION
 When action='finish':
 - Set is_final=true.
 - Set action_input to an empty object.
-- Finish only after reviewing the current diff and running a relevant validation
-  command after the most recent edit.
+- Review the current diff before finishing. Run a relevant validation command
+  after the most recent edit when it is available. If validation cannot run,
+  inspect the failure and avoid unrelated changes.
 """
 
 FINISH_PROMPT_TEMPLATE = """You are providing the FINAL ANSWER to the user's task.
