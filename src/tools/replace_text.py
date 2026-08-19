@@ -19,9 +19,10 @@ class ReplaceTextTool(BaseTool):
         name: str = "replace_text",
         description: str = (
             "Replace exact text in one existing UTF-8 file. Use this for a localized "
-            "edit when the old text can be copied exactly from raw read_file output. "
-            "The file is changed only if the exact occurrence count matches. Use "
-            "apply_patch for new files, deletions, or complex multi-file edits."
+            "edit when the old text can be copied exactly from current raw file "
+            "contents. The file is changed only if the exact occurrence count "
+            "matches. This tool does not create new files and is not intended for "
+            "structural or multi-file edits."
         ),
         max_file_bytes: int = 2_000_000,
     ) -> None:
