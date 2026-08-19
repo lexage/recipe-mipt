@@ -119,6 +119,20 @@ class RepositoryToolDelegationTests(unittest.TestCase):
         self.assertFalse(invalid.success)
         self.assertEqual(invalid.error_code, "invalid_timeout")
 
+    def test_apply_patch_schema_contains_valid_unified_diff_shape(self) -> None:
+        tool = ApplyPatchTool()
+        description = tool.get_schema()["function"]["description"]
+        patch_description = tool.get_schema()["function"]["parameters"]["properties"][
+            "patch"
+        ]["description"]
+
+        self.assertIn("--- a/path/to/file.py", description)
+        self.assertIn("+++ b/path/to/file.py", description)
+        self.assertIn("@@ -1,1 +1,1 @@", description)
+        self.assertIn("--- a/path", patch_description)
+        self.assertIn("+++ b/path", patch_description)
+        self.assertIn("@@ hunk header", patch_description)
+
     def test_patch_and_nonzero_command_report_failures(self) -> None:
         self.runtime.patch_error = PatchApplyError(
             "Patch check failed: corrupt patch",

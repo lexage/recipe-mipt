@@ -17,11 +17,16 @@ class ApplyPatchTool(BaseTool):
         name: str = "apply_patch",
         description: str = (
             "Validate and apply a raw unified diff to the task repository. "
-            "Do not wrap the diff in Markdown fences. Copy context lines exactly "
-            "from the latest read_file output. After a failed patch, read the "
-            "target file again and change the strategy instead of only changing "
-            "hunk line numbers. Use this tool, not shell redirection or sed -i, "
-            "to edit files."
+            "Do not wrap the diff in Markdown fences. A minimal valid patch is:\n"
+            "--- a/path/to/file.py\n"
+            "+++ b/path/to/file.py\n"
+            "@@ -1,1 +1,1 @@\n"
+            "-old line\n"
+            "+new line\n"
+            "Copy unchanged context lines exactly from the latest read_file output. "
+            "After a failed patch, read the target file again and change the strategy "
+            "instead of only changing hunk line numbers. Use this tool, not shell "
+            "redirection or sed -i, to edit files."
         ),
         timeout: int = 30,
         max_patch_bytes: int = 1_000_000,
@@ -44,8 +49,9 @@ class ApplyPatchTool(BaseTool):
                         "patch": {
                             "type": "string",
                             "description": (
-                                "Unified diff to apply. It may start with a "
-                                "diff --git header or with --- a/path and +++ b/path."
+                                "Raw unified diff to apply. Include --- a/path, "
+                                "+++ b/path, and an @@ hunk header. Do not use "
+                                "Markdown code fences."
                             ),
                         }
                     },
