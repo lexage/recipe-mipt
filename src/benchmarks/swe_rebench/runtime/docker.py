@@ -1,5 +1,6 @@
 """Docker container lifecycle for SWE-rebench inference runtimes."""
 
+import difflib
 import io
 import logging
 import posixpath
@@ -489,7 +490,7 @@ class DockerRepositoryRuntime(RepositoryRuntime):
             if check.exit_code != 0:
                 detail = check.stderr.strip() or check.stdout.strip()
                 error_code = self._classify_patch_error(detail)
-                guidance = self._patch_error_guidance(error_code, paths)
+                guidance = self._patch_error_guidance(error_code, paths, patch)
                 raise PatchApplyError(
                     f"Patch check failed: {detail}\n\n{guidance}",
                     error_code=error_code,
@@ -788,15 +789,20 @@ class DockerRepositoryRuntime(RepositoryRuntime):
             return "whitespace_error"
         return "patch_check_failed"
 
-    @staticmethod
-    def _patch_error_guidance(error_code: str, paths: list[str]) -> str:
+    def _patch_error_guidance(
+        self, error_code: str, paths: list[str], patch: str
+    ) -> str:
         targets = ", ".join(paths)
         if error_code == "stale_context":
-            return (
+            guidance = (
                 f"Read the current contents of {targets} before retrying. "
-                "Copy context lines exactly and do not change only hunk numbers. "
-                "For one localized exact edit, use replace_text if it is available."
+                "Copy every unchanged context line exactly, including indentation, "
+                "commas, parentheses, braces, and brackets. Do not copy display line "
+                "numbers and do not change only hunk coordinates. Use only an editing "
+                "tool listed in the system prompt."
             )
+            diagnostic = self._stale_context_diagnostic(patch)
+            return f"{guidance}\n\n{diagnostic}" if diagnostic else guidance
         if error_code == "malformed_diff":
             return (
                 "Generate a complete raw unified diff with diff --git, ---, +++, "
@@ -805,6 +811,114 @@ class DockerRepositoryRuntime(RepositoryRuntime):
         return (
             f"Inspect the current contents of {targets}, correct the patch, "
             "and do not repeat the same failed call."
+        )
+
+    @staticmethod
+    def _first_patch_hunk(
+        patch: str,
+    ) -> tuple[str, int, list[str]] | None:
+        """Return path, old start line and old-side context for the first hunk."""
+
+        current_path: str | None = None
+        lines = patch.splitlines()
+        for index, line in enumerate(lines):
+            if line.startswith("diff --git "):
+                try:
+                    parts = shlex.split(line)
+                except ValueError:
+                    current_path = None
+                    continue
+                if len(parts) == 4 and parts[3].startswith("b/"):
+                    current_path = parts[3][2:]
+                else:
+                    current_path = None
+                continue
+            if current_path is None:
+                continue
+            match = re.match(
+                r"^@@ -(\d+)(?:,\d+)? \+\d+(?:,\d+)? @@", line
+            )
+            if match is None:
+                continue
+
+            old_context: list[str] = []
+            for hunk_line in lines[index + 1 :]:
+                if hunk_line.startswith(("diff --git ", "@@ ")):
+                    break
+                if hunk_line.startswith("\\ No newline at end of file"):
+                    continue
+                if hunk_line.startswith("+"):
+                    continue
+                if hunk_line.startswith((" ", "-")):
+                    old_context.append(hunk_line[1:])
+                    continue
+                break
+            return current_path, int(match.group(1)), old_context
+        return None
+
+    def _stale_context_diagnostic(self, patch: str) -> str:
+        """Show bounded raw file evidence for a rejected patch hunk."""
+
+        hunk = self._first_patch_hunk(patch)
+        if hunk is None:
+            return ""
+        path, old_start, submitted_context = hunk
+        if not submitted_context:
+            return ""
+
+        context_size = min(len(submitted_context), 80)
+        excerpt_start = max(1, old_start - 3)
+        excerpt_end = old_start + context_size + 3
+        try:
+            excerpt = self.read_file(
+                path,
+                start_line=excerpt_start,
+                end_line=excerpt_end,
+                max_lines=context_size + 7,
+                line_numbers=False,
+            )
+        except RepositoryRuntimeError:
+            return ""
+        if not excerpt or excerpt.startswith(
+            ("File does not exist:", "File is too large", "Binary file")
+        ):
+            return ""
+
+        current_lines = excerpt.splitlines()
+        expected_lines = submitted_context[:context_size]
+        window_size = min(len(expected_lines), len(current_lines))
+        if window_size:
+            candidates = (
+                current_lines[index : index + window_size]
+                for index in range(len(current_lines) - window_size + 1)
+            )
+            closest = max(
+                candidates,
+                key=lambda candidate: difflib.SequenceMatcher(
+                    None, expected_lines[:window_size], candidate
+                ).ratio(),
+            )
+        else:
+            closest = current_lines
+
+        comparison = "\n".join(
+            difflib.unified_diff(
+                expected_lines[:window_size],
+                closest,
+                fromfile="submitted hunk context",
+                tofile="current file",
+                lineterm="",
+            )
+        )
+        if not comparison:
+            comparison = (
+                "The submitted context matches a nearby block; rebuild a smaller "
+                "hunk from the raw excerpt without relying on the old coordinates."
+            )
+        return (
+            f"Current raw excerpt from {path} near line {old_start} "
+            "(copy without adding line-number prefixes):\n"
+            f"{excerpt}\n\nContext comparison:\n{comparison}"
         )
 
     def _validate_patch_paths(self, patch: str) -> list[str]:

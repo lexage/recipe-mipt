@@ -235,6 +235,7 @@ class ReActAgentSGRDiagnosticsTests(unittest.TestCase):
         self.assertIn("Action MUST be one of: list_files or 'finish'", agent.instruction)
         self.assertNotIn("replace_text", agent.instruction)
         self.assertNotIn("apply_patch", agent.instruction)
+        self.assertNotIn("Unified-diff paths", agent.instruction)
 
     def test_tool_results_preserve_generic_failure_status(self):
         client, _ = fake_openai_client()

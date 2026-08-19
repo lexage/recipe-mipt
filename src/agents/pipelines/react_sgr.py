@@ -90,7 +90,7 @@ CONSTRAINTS
 4. If a tool error is retryable, correct the arguments and retry at most once.
    If it is not retryable, or the same strategy keeps failing, change strategy.
 5. Repository paths passed to tools are relative to the task repository. Never
-   prefix them with /testbed. Unified-diff paths use a/ and b/ prefixes.
+   prefix them with /testbed.
 6. Choose tools only from the dynamically generated list above and follow each
    selected tool's description. A successful edit proves only that it was applied;
    inspect the resulting repository changes and validate behavior.
