@@ -22,5 +22,8 @@ components:
       history_context: 10
       max_tokens: 1024
       few_shot_type: zero_shot
+      # The evaluator consumes the repository diff; avoid an extra LLM request
+      # after the structured finish step.
+      synthesize_final_answer: false
 
 logs_path: /workspace/proj/grant_swe_rebench/recipe-mipt/logs

@@ -4,7 +4,7 @@ from typing import Any, Dict, Optional
 
 from src.benchmarks.swe_rebench.runtime import get_repository_runtime
 
-from .base_tool import BaseTool
+from .base_tool import BaseTool, ToolResult
 
 
 class SearchCodeTool(BaseTool):
@@ -60,8 +60,8 @@ class SearchCodeTool(BaseTool):
         path: str = ".",
         glob: Optional[str] = None,
         regex: bool = False,
-    ) -> str:
-        return get_repository_runtime().search_code(
+    ) -> ToolResult:
+        result = get_repository_runtime().search_code(
             query,
             path=path,
             glob=glob,
@@ -70,3 +70,18 @@ class SearchCodeTool(BaseTool):
             timeout=self.timeout,
             max_output_chars=self.max_output_chars,
         )
+        if result == "Search query must not be empty":
+            return ToolResult.error(
+                result,
+                error_code="invalid_search_query",
+                retryable=False,
+            )
+        if result.startswith("Search timed out after "):
+            return ToolResult.error(
+                result,
+                error_code="search_timeout",
+                retryable=True,
+            )
+        if result == "No matches found":
+            return ToolResult.ok(result, progress=False)
+        return ToolResult.ok(result, progress=True)
