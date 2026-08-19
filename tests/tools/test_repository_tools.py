@@ -193,6 +193,17 @@ class RepositoryToolDelegationTests(unittest.TestCase):
         self.assertEqual(len(self.runtime.calls), 1)
         self.assertEqual(validated.validation_status, "passed")
 
+    def test_run_command_can_block_package_installation(self) -> None:
+        with bind_repository_runtime(self.runtime):
+            blocked = RunCommandTool(allow_package_install=False)(
+                "python -m pip install flask"
+            )
+
+        self.assertFalse(blocked.success)
+        self.assertFalse(blocked.retryable)
+        self.assertEqual(blocked.error_code, "package_install_command")
+        self.assertEqual(self.runtime.calls, [])
+
     def test_repository_paths_and_argument_types_are_validated(self) -> None:
         tool = ReadFileTool()
         self.assertIn(

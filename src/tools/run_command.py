@@ -25,16 +25,38 @@ class RunCommandTool(BaseTool):
         re.compile(r"(?:^|\s)(?:make|cmake\s+--build\s+\S+\s+--)\s*(?:test|check)(?:\s|$)"),
         re.compile(r"\bgit\s+diff\s+--check\b"),
     )
+    _PACKAGE_INSTALL_PATTERNS = (
+        re.compile(
+            r"\b(?:python(?:\d+(?:\.\d+)?)?\s+-m\s+)?"
+            r"pip(?:\d+(?:\.\d+)?)?\s+install\b",
+            re.IGNORECASE,
+        ),
+        re.compile(r"\b(?:conda|mamba|micromamba)\s+install\b", re.IGNORECASE),
+        re.compile(
+            r"\b(?:apt|apt-get|apk|dnf|yum)\s+(?:add|install)\b",
+            re.IGNORECASE,
+        ),
+        re.compile(r"\b(?:npm|pnpm|yarn)\s+(?:add|ci|install)\b", re.IGNORECASE),
+        re.compile(r"\b(?:poetry|uv)\s+add\b|\buv\s+pip\s+install\b", re.IGNORECASE),
+        re.compile(
+            r"\b(?:gem|cargo|go)\s+install\b|\bcargo\s+fetch\b|"
+            r"\bgo\s+mod\s+download\b",
+            re.IGNORECASE,
+        ),
+    )
+
     def __init__(
         self,
         name: str = "run_command",
         description: str = (
             "Run a non-interactive inspection, build, or test command in the task "
-            "repository. Use apply_patch for edits; do not create branches or commits."
+            "repository. Use an editing tool for edits; do not create branches or "
+            "commits."
         ),
         default_timeout: int = 120,
         max_timeout: int = 600,
         max_output_chars: int = 30_000,
+        allow_package_install: bool = True,
     ):
         super().__init__(name=name, description=description)
         if min(default_timeout, max_timeout, max_output_chars) < 1:
@@ -44,6 +66,7 @@ class RunCommandTool(BaseTool):
         self.default_timeout = default_timeout
         self.max_timeout = max_timeout
         self.max_output_chars = max_output_chars
+        self.allow_package_install = allow_package_install
 
     def get_schema(self) -> Dict[str, Any]:
         return {
@@ -71,9 +94,17 @@ class RunCommandTool(BaseTool):
             },
         }
 
-    def __call__(
-        self, command: str, timeout: int | None = None
-    ) -> ToolResult:
+    def __call__(self, command: str, timeout: int | None = None) -> ToolResult:
+        if not self.allow_package_install and any(
+            pattern.search(command) for pattern in self._PACKAGE_INSTALL_PATTERNS
+        ):
+            return ToolResult.error(
+                "Package installation is disabled for this experiment. Use the "
+                "dependencies already present in the task image and run a focused "
+                "test or minimal local reproduction instead.",
+                error_code="package_install_command",
+                retryable=False,
+            )
         if any(pattern.search(command) for pattern in self._MUTATING_COMMAND_PATTERNS):
             return ToolResult.error(
                 "Repository-editing shell commands are not allowed. Use apply_patch "

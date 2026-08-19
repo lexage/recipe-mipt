@@ -10,6 +10,9 @@ components:
       params:
         default_timeout: 120
         max_timeout: 600
+        # Ready SWE-rebench images already contain the task environment.
+        # Network installation wastes iterations and is unavailable in offline runs.
+        allow_package_install: false
     - type: GIT_DIFF_TOOL
 
   agent:
@@ -31,5 +34,7 @@ components:
       require_repository_change_before_finish: true
       require_diff_before_finish: true
       require_validation_before_finish: false
+      # Force one fresh adversarial review of every edited revision before finish.
+      require_patch_review_before_finish: true
 
 logs_path: /workspace/swe-rebench-recipe/logs
