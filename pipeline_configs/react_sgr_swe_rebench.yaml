@@ -34,7 +34,5 @@ components:
       require_repository_change_before_finish: true
       require_diff_before_finish: true
       require_validation_before_finish: false
-      # Force one fresh adversarial review of every edited revision before finish.
-      require_patch_review_before_finish: true
 
 logs_path: /workspace/swe-rebench-recipe/logs

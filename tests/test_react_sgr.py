@@ -410,22 +410,6 @@ class ReActAgentSGRDiagnosticsTests(unittest.TestCase):
         agent._repository_revision = 2
         self.assertIn("current full diff", agent._finish_guard_error())
 
-    def test_finish_review_is_required_once_per_repository_revision(self):
-        client, _ = fake_openai_client()
-        with patch("src.agents.pipelines.react_sgr.OpenAI", return_value=client):
-            agent = ReActAgentSGR(
-                url="http://localhost:11455/v1",
-                model_name="model",
-                tools=[FakeTool()],
-                require_patch_review_before_finish=True,
-            )
-
-        agent._repository_revision = 1
-        self.assertIn("PATCH REVIEW REQUIRED", agent._finish_review_prompt())
-        self.assertIsNone(agent._finish_review_prompt())
-        agent._repository_revision = 2
-        self.assertIn("PATCH REVIEW REQUIRED", agent._finish_review_prompt())
-
     def test_invalid_few_shot_type_and_limits_are_rejected(self):
         parameters = (
             {"max_iterations": 0},

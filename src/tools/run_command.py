@@ -100,8 +100,8 @@ class RunCommandTool(BaseTool):
         ):
             return ToolResult.error(
                 "Package installation is disabled for this experiment. Use the "
-                "dependencies already present in the task image and run a focused "
-                "test or minimal local reproduction instead.",
+                "dependencies already present in the task image and run an existing "
+                "focused repository check instead.",
                 error_code="package_install_command",
                 retryable=False,
             )
