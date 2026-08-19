@@ -6,7 +6,7 @@ from pydantic import BaseModel, Field, ValidationError, ConfigDict
 from openai import OpenAI
 
 from src.agent_constructor.agent import Agent
-from src.tools import BaseTool, LLMTool
+from src.tools import BaseTool, LLMTool, ToolResult
 
 
 class AgentConfig:
@@ -20,6 +20,7 @@ class AgentConfig:
     DEFAULT_MAX_ITERATIONS: int = 10
     DEFAULT_HISTORY_CONTEXT: int = 5
     MAX_LOGGED_RESPONSE_CHARS: int = 8_000
+    MAX_CONSECUTIVE_TOOL_FAILURES: int = 2
 
 
 _LOG_SEPARATOR = "\n" + "_" * 20 + "\n"
@@ -905,6 +906,9 @@ class ReActAgentSGR(Agent):
         self._last_llm_error: Optional[str] = None
         self.error_history: List[Dict[str, Any]] = []
         self._execution_history: List[Dict[str, Any]] = []
+        self._blocked_tool_name: Optional[str] = None
+        self._last_failure_signature: Optional[Tuple[str, str]] = None
+        self._consecutive_tool_failures = 0
         self.memory: List[MessageDict] = []
 
     @staticmethod
@@ -1063,19 +1067,32 @@ class ReActAgentSGR(Agent):
         }
         return error_templates.get(error_type, f"ERROR: {error_detail}")
 
-    def execute_tool(self, tool_name: str, arguments: Dict[str, Any]) -> str:
-        """Execute tool and return observation or formatted error."""
+    def execute_tool(
+        self, tool_name: str, arguments: Dict[str, Any]
+    ) -> ToolResult:
+        """Execute any tool and preserve its generic success or error status."""
         if tool_name not in self.tools_dict:
-            return self._format_error_observation("unknown_tool", tool_name, arguments)
+            return ToolResult.error(
+                self._format_error_observation(
+                    "unknown_tool", tool_name, arguments
+                ),
+                error_code="unknown_tool",
+                retryable=False,
+            )
 
         tool = self.tools_dict[tool_name]
         try:
             result = tool(**arguments)
-            return str(result) if result is not None else ""
-        except Exception as e:
-            error_msg = f"{type(e).__name__}: {str(e)}"
-            return self._format_error_observation(
-                "execution", tool_name, arguments, error_msg
+            if isinstance(result, ToolResult):
+                return result
+            return ToolResult.ok(str(result) if result is not None else "")
+        except Exception as error:
+            error_msg = f"{type(error).__name__}: {error}"
+            return ToolResult.error(
+                self._format_error_observation(
+                    "execution", tool_name, arguments, error_msg
+                ),
+                error_code="execution_error",
             )
 
     def _generate_final_answer(self, task: str) -> str:
@@ -1173,11 +1190,34 @@ class ReActAgentSGR(Agent):
         self.error_history.append({"type": "validation", "step": iteration})
 
     def _handle_loop_detection(self, agent_step: AgentStep) -> None:
-        """Handle detected execution loop by breaking cycle."""
+        """Block a repeated tool until another tool makes progress."""
+        self._blocked_tool_name = agent_step.action
+        self._tool_call_retry_count = 0
         error_obs = self._format_error_observation(
             "loop_detected", agent_step.action, agent_step.action_input
         )
-        self.memory.append({"role": "user", "content": f"Observation: {error_obs}"})
+        self.memory.append(
+            {
+                "role": "user",
+                "content": (
+                    f"Observation: {error_obs} The tool is temporarily blocked. "
+                    "Call a different tool to inspect the state or change strategy."
+                ),
+            }
+        )
+
+    def _handle_blocked_tool(self, agent_step: AgentStep) -> None:
+        self._tool_call_retry_count = 0
+        self.memory.append(
+            {
+                "role": "user",
+                "content": (
+                    f"Observation: Tool '{agent_step.action}' is temporarily "
+                    "blocked after repeated failures. Call a different tool and "
+                    "use its result before retrying."
+                ),
+            }
+        )
 
     def _record_successful_execution(
         self, agent_step: AgentStep, observation: str
@@ -1191,6 +1231,9 @@ class ReActAgentSGR(Agent):
             self._execution_history.pop(0)
 
         self._tool_call_retry_count = 0
+        self._blocked_tool_name = None
+        self._last_failure_signature = None
+        self._consecutive_tool_failures = 0
 
         self.memory.append(
             {
@@ -1200,6 +1243,64 @@ class ReActAgentSGR(Agent):
         )
 
         logging.info(f"OBSERVATION: {observation}")
+        logging.info(_LOG_SEPARATOR)
+
+    def _record_failed_execution(
+        self, agent_step: AgentStep, result: ToolResult
+    ) -> None:
+        """Record a failed tool call without treating it as progress."""
+
+        error_code = result.error_code or "tool_error"
+        signature = (agent_step.action, error_code)
+        if signature == self._last_failure_signature:
+            self._consecutive_tool_failures += 1
+        else:
+            self._last_failure_signature = signature
+            self._consecutive_tool_failures = 1
+
+        self._execution_history.append(
+            {
+                "action": agent_step.action,
+                "action_input": agent_step.action_input,
+                "success": False,
+                "error_code": error_code,
+            }
+        )
+        if len(self._execution_history) > AgentConfig.MAX_EXECUTION_HISTORY_SIZE:
+            self._execution_history.pop(0)
+
+        if (
+            self._consecutive_tool_failures
+            >= AgentConfig.MAX_CONSECUTIVE_TOOL_FAILURES
+        ):
+            self._blocked_tool_name = agent_step.action
+
+        self._tool_call_retry_count = 0
+        self.error_history.append(
+            {
+                "type": "tool_execution",
+                "tool": agent_step.action,
+                "detail": str(result),
+                "error_code": error_code,
+            }
+        )
+        blocked_note = (
+            " This tool is temporarily blocked; call a different tool to "
+            "inspect the state or change strategy."
+            if self._blocked_tool_name == agent_step.action
+            else " Inspect the error and change the arguments or strategy."
+        )
+        observation = (
+            f"TOOL FAILED [error_code={error_code}, "
+            f"retryable={str(result.retryable).lower()}]: {result}{blocked_note}"
+        )
+        self.memory.append(
+            {
+                "role": "user",
+                "content": f"Observation from {agent_step.action}: {observation}",
+            }
+        )
+        logging.warning("OBSERVATION: %s", observation)
         logging.info(_LOG_SEPARATOR)
 
     def run(self, task: str) -> str:
@@ -1276,12 +1377,19 @@ class ReActAgentSGR(Agent):
                 self._handle_validation_error(agent_step, validation_error, iteration)
                 continue
 
+            if self._blocked_tool_name == agent_step.action:
+                self._handle_blocked_tool(agent_step)
+                continue
+
             if self._detect_loop(agent_step.action, agent_step.action_input):
                 self._handle_loop_detection(agent_step)
                 continue
 
-            observation = self.execute_tool(agent_step.action, agent_step.action_input)
-            self._record_successful_execution(agent_step, observation)
+            result = self.execute_tool(agent_step.action, agent_step.action_input)
+            if result.success:
+                self._record_successful_execution(agent_step, str(result))
+            else:
+                self._record_failed_execution(agent_step, result)
 
         return (
             "Error: Maximum iterations reached without finding a solution. "

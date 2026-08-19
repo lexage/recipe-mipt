@@ -10,7 +10,12 @@ import uuid
 from typing import Any, Literal, Optional
 
 from ..images import InstanceImage
-from .base import CommandResult, RepositoryRuntime, RepositoryRuntimeError
+from .base import (
+    CommandResult,
+    PatchApplyError,
+    RepositoryRuntime,
+    RepositoryRuntimeError,
+)
 
 PullPolicy = Literal["always", "missing", "never"]
 
@@ -433,11 +438,34 @@ class DockerRepositoryRuntime(RepositoryRuntime):
         max_patch_bytes: int = 1_000_000,
     ) -> str:
         if not patch.strip():
-            return "Patch must not be empty"
+            raise PatchApplyError(
+                "Patch must not be empty",
+                error_code="empty_patch",
+            )
         patch = self._normalize_patch(patch)
         if len(patch.encode("utf-8")) > max_patch_bytes:
-            return f"Patch exceeds the {max_patch_bytes}-byte limit"
-        paths = self._validate_patch_paths(patch)
+            raise PatchApplyError(
+                f"Patch exceeds the {max_patch_bytes}-byte limit",
+                error_code="patch_too_large",
+                retryable=False,
+            )
+        try:
+            paths = self._validate_patch_paths(patch)
+        except RepositoryRuntimeError as error:
+            detail = str(error)
+            if any(
+                marker in detail
+                for marker in (
+                    "Malformed diff header",
+                    "Unexpected diff path",
+                    "Patch has no 'diff --git' file headers",
+                )
+            ):
+                raise PatchApplyError(
+                    detail,
+                    error_code="malformed_diff",
+                ) from error
+            raise
         patch_name = f"agent-{uuid.uuid4().hex}.patch"
         archive = self._patch_archive(patch_name, patch)
         try:
@@ -448,16 +476,29 @@ class DockerRepositoryRuntime(RepositoryRuntime):
             ) from error
         patch_path = f"/tmp/{patch_name}"
         try:
+            apply_options = "--recount --whitespace=error-all"
             check = self.run_command(
-                f"git apply --check {shlex.quote(patch_path)}", timeout=timeout
+                f"git apply {apply_options} --check {shlex.quote(patch_path)}",
+                timeout=timeout,
             )
             if check.exit_code != 0:
                 detail = check.stderr.strip() or check.stdout.strip()
-                return f"Patch check failed: {detail}"
+                error_code = self._classify_patch_error(detail)
+                guidance = self._patch_error_guidance(error_code, paths)
+                raise PatchApplyError(
+                    f"Patch check failed: {detail}\n\n{guidance}",
+                    error_code=error_code,
+                )
             applied = self.run_command(
-                f"git apply {shlex.quote(patch_path)}", timeout=timeout
+                f"git apply {apply_options} {shlex.quote(patch_path)}",
+                timeout=timeout,
             )
-            self._require_success(applied, "Patch apply failed")
+            if applied.exit_code != 0 or applied.timed_out:
+                detail = applied.stderr.strip() or applied.stdout.strip()
+                raise PatchApplyError(
+                    f"Patch apply failed: {detail}",
+                    error_code=self._classify_patch_error(detail),
+                )
         finally:
             self.run_command(f"rm -f {shlex.quote(patch_path)}", timeout=30)
         return "Patch applied successfully.\n\nChanged paths:\n" + "\n".join(
@@ -557,6 +598,13 @@ class DockerRepositoryRuntime(RepositoryRuntime):
         --check``.
         """
 
+        stripped = patch.strip()
+        if stripped.startswith("```") and stripped.endswith("```"):
+            first_newline = stripped.find("\n")
+            opening = stripped[:first_newline].lower()
+            if first_newline >= 0 and opening in {"```", "```diff", "```patch"}:
+                patch = stripped[first_newline + 1 : -3].strip("\n")
+
         normalized = patch.replace("\r\n", "\n").replace("\r", "\n")
         if not normalized.endswith("\n"):
             normalized += "\n"
@@ -584,6 +632,35 @@ class DockerRepositoryRuntime(RepositoryRuntime):
                         )
             output.append(line)
         return "".join(output)
+
+    @staticmethod
+    def _classify_patch_error(detail: str) -> str:
+        normalized = detail.lower()
+        if "corrupt patch" in normalized or "unrecognized input" in normalized:
+            return "malformed_diff"
+        if "patch failed" in normalized or "does not apply" in normalized:
+            return "stale_context"
+        if "whitespace error" in normalized:
+            return "whitespace_error"
+        return "patch_check_failed"
+
+    @staticmethod
+    def _patch_error_guidance(error_code: str, paths: list[str]) -> str:
+        targets = ", ".join(paths)
+        if error_code == "stale_context":
+            return (
+                f"Read the current contents of {targets} before retrying. "
+                "Copy context lines exactly and do not change only hunk numbers."
+            )
+        if error_code == "malformed_diff":
+            return (
+                "Generate a complete raw unified diff with diff --git, ---, +++, "
+                "and @@ headers. Do not use Markdown fences."
+            )
+        return (
+            f"Inspect the current contents of {targets}, correct the patch, "
+            "and do not repeat the same failed call."
+        )
 
     def _validate_patch_paths(self, patch: str) -> list[str]:
         paths: list[str] = []

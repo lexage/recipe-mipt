@@ -7,6 +7,7 @@ from unittest.mock import Mock
 from src.benchmarks.swe_rebench import InstanceImage
 from src.benchmarks.swe_rebench.runtime import (
     DockerRepositoryRuntime,
+    PatchApplyError,
     RepositoryRuntimeError,
 )
 
@@ -266,6 +267,34 @@ class DockerRepositoryRuntimeTests(unittest.TestCase):
             )
         )
         self.assertTrue(normalized_patch.endswith("\n"))
+        patch_commands = [call[0][5] for call in patch_container.exec_calls]
+        self.assertTrue(
+            any(
+                "git apply --recount --whitespace=error-all --check" in command
+                for command in patch_commands
+            )
+        )
+
+        fenced = DockerRepositoryRuntime._normalize_patch(
+            "```diff\n" + patch + "\n```"
+        )
+        self.assertNotIn("```", fenced)
+        self.assertTrue(fenced.startswith("diff --git "))
+
+        failed_container = FakeContainer()
+        failed_container.responses = [
+            SimpleNamespace(exit_code=0, output=(b"", b"")),
+            SimpleNamespace(exit_code=0, output=(b"", b"")),
+            SimpleNamespace(
+                exit_code=1,
+                output=(b"", b"error: corrupt patch at line 5\n"),
+            ),
+            SimpleNamespace(exit_code=0, output=(b"", b"")),
+        ]
+        with self.assertRaises(PatchApplyError) as captured:
+            self.direct_runtime(failed_container).apply_patch(patch)
+        self.assertEqual(captured.exception.error_code, "malformed_diff")
+        self.assertIn("raw unified diff", str(captured.exception))
 
         diff_container = FakeContainer()
         diff_container.responses = [
