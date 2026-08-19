@@ -30,6 +30,7 @@ class RecordingRuntime(RepositoryRuntime):
         self.calls = []
         self.command_result = CommandResult("pytest", 0, "done", "", 0.25)
         self.patch_error = None
+        self.search_result = "found"
 
     def list_files(self, path=".", **kwargs):
         self.calls.append(("list_files", path, kwargs))
@@ -41,7 +42,7 @@ class RecordingRuntime(RepositoryRuntime):
 
     def search_code(self, query, **kwargs):
         self.calls.append(("search_code", query, kwargs))
-        return "found"
+        return self.search_result
 
     def apply_patch(self, patch, **kwargs):
         self.calls.append(("apply_patch", patch, kwargs))
@@ -81,6 +82,7 @@ class RepositoryToolDelegationTests(unittest.TestCase):
             command_result = RunCommandTool()("pytest")
             self.assertEqual(patch_result, "applied")
             self.assertTrue(patch_result.success)
+            self.assertTrue(patch_result.progress)
             self.assertIn("Exit code: 0", command_result)
             self.assertTrue(command_result.success)
             self.assertEqual(GitDiffTool()(), "diffed")
@@ -151,6 +153,21 @@ class RepositoryToolDelegationTests(unittest.TestCase):
         self.assertEqual(patch_result.error_code, "malformed_diff")
         self.assertFalse(command_result.success)
         self.assertEqual(command_result.error_code, "nonzero_exit_code")
+
+    def test_empty_search_result_is_success_without_progress(self) -> None:
+        self.runtime.search_result = "No matches found"
+        with bind_repository_runtime(self.runtime):
+            result = SearchCodeTool()("missing symbol")
+        self.assertTrue(result.success)
+        self.assertFalse(result.progress)
+
+    def test_search_timeout_is_retryable_failure(self) -> None:
+        self.runtime.search_result = "Search timed out after 30 seconds"
+        with bind_repository_runtime(self.runtime):
+            result = SearchCodeTool()("symbol")
+        self.assertFalse(result.success)
+        self.assertTrue(result.retryable)
+        self.assertEqual(result.error_code, "search_timeout")
 
     def test_run_command_truncates_large_output(self) -> None:
         self.runtime.command_result = CommandResult(

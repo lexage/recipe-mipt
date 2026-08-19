@@ -57,6 +57,26 @@ def list_files_step():
     )
 
 
+def finish_step():
+    step = AgentStep(
+        thought="Patch and validation are complete",
+        action="finish",
+        action_input={},
+        is_final=True,
+    )
+    return SimpleNamespace(
+        choices=[
+            SimpleNamespace(
+                message=SimpleNamespace(
+                    parsed=step,
+                    content=step.model_dump_json(),
+                ),
+                finish_reason="stop",
+            )
+        ]
+    )
+
+
 class ReActAgentSGRDiagnosticsTests(unittest.TestCase):
     def test_models_resource_url_is_normalized_to_api_base(self):
         client, _ = fake_openai_client()
@@ -181,6 +201,8 @@ class ReActAgentSGRDiagnosticsTests(unittest.TestCase):
             FINISH_PROMPT_TEMPLATE.index("CONVERSATION HISTORY:"),
             FINISH_PROMPT_TEMPLATE.index("TASK:"),
         )
+        self.assertNotIn("finish immediately", REACT_SYSTEM_PROMPT)
+        self.assertIn("validation support the solution", REACT_SYSTEM_PROMPT)
 
     def test_tool_results_preserve_generic_failure_status(self):
         client, _ = fake_openai_client()
@@ -202,7 +224,7 @@ class ReActAgentSGRDiagnosticsTests(unittest.TestCase):
         self.assertEqual(result.error_code, "transient_failure")
         self.assertEqual(str(result), "operation failed")
 
-    def test_repeated_generic_tool_failures_block_until_progress(self):
+    def test_repeated_generic_tool_failures_block_only_the_same_call(self):
         client, _ = fake_openai_client()
         with patch("src.agents.pipelines.react_sgr.OpenAI", return_value=client):
             agent = ReActAgentSGR(
@@ -218,13 +240,108 @@ class ReActAgentSGRDiagnosticsTests(unittest.TestCase):
         )
         failure = ToolResult.error("failed", error_code="same_failure")
         agent._record_failed_execution(step, failure)
-        self.assertIsNone(agent._blocked_tool_name)
+        signature = agent._call_signature(step.action, step.action_input)
+        self.assertNotIn(signature, agent._blocked_call_signatures)
         agent._record_failed_execution(step, failure)
-        self.assertEqual(agent._blocked_tool_name, "list_files")
+        self.assertIn(signature, agent._blocked_call_signatures)
 
-        agent._record_successful_execution(step, "README.md")
-        self.assertIsNone(agent._blocked_tool_name)
-        self.assertEqual(agent._consecutive_tool_failures, 0)
+        different_step = AgentStep(
+            thought="inspect elsewhere",
+            action="list_files",
+            action_input={"path": "tests"},
+        )
+        self.assertNotIn(
+            agent._call_signature(
+                different_step.action, different_step.action_input
+            ),
+            agent._blocked_call_signatures,
+        )
+
+    def test_non_retryable_failure_blocks_identical_call_immediately(self):
+        client, _ = fake_openai_client()
+        with patch("src.agents.pipelines.react_sgr.OpenAI", return_value=client):
+            agent = ReActAgentSGR(
+                url="http://localhost:11455/v1",
+                model_name="model",
+                tools=[FakeTool()],
+            )
+        step = AgentStep(thought="try", action="list_files", action_input={})
+        agent._record_failed_execution(
+            step,
+            ToolResult.error(
+                "not supported",
+                error_code="unsupported",
+                retryable=False,
+            ),
+        )
+        self.assertIn(
+            agent._call_signature(step.action, step.action_input),
+            agent._blocked_call_signatures,
+        )
+
+    def test_history_context_counts_complete_react_turns(self):
+        client, _ = fake_openai_client()
+        with patch("src.agents.pipelines.react_sgr.OpenAI", return_value=client):
+            agent = ReActAgentSGR(
+                url="http://localhost:11455/v1",
+                model_name="model",
+                tools=[FakeTool()],
+                history_context=2,
+            )
+        agent.memory = [
+            {"role": "system", "content": "system"},
+            {"role": "user", "content": "task"},
+        ]
+        for index in range(3):
+            agent.memory.extend(
+                [
+                    {"role": "assistant", "content": f"action-{index}"},
+                    {"role": "user", "content": f"observation-{index}"},
+                ]
+            )
+        messages = agent._get_sliding_window_messages()
+        self.assertEqual(len(messages), 6)
+        self.assertEqual(messages[2]["content"], "action-1")
+        self.assertEqual(messages[-1]["content"], "observation-2")
+
+    def test_patch_hunk_line_number_changes_are_same_strategy(self):
+        client, _ = fake_openai_client()
+        with patch("src.agents.pipelines.react_sgr.OpenAI", return_value=client):
+            agent = ReActAgentSGR(
+                url="http://localhost:11455/v1",
+                model_name="model",
+                tools=[FakeTool()],
+            )
+        first = {"patch": "--- a/a.py\n+++ b/a.py\n@@ -1,1 +1,1 @@\n-old\n+new"}
+        second = {"patch": "--- a/a.py\n+++ b/a.py\n@@ -20,1 +20,1 @@\n-old\n+new"}
+        self.assertEqual(
+            agent._call_signature("apply_patch", first),
+            agent._call_signature("apply_patch", second),
+        )
+
+    def test_finish_can_skip_redundant_synthesis_request(self):
+        client, completions = fake_openai_client()
+        completions.parse.return_value = finish_step()
+        with patch("src.agents.pipelines.react_sgr.OpenAI", return_value=client):
+            agent = ReActAgentSGR(
+                url="http://localhost:11455/v1",
+                model_name="model",
+                tools=[FakeTool()],
+                synthesize_final_answer=False,
+            )
+        with self.assertLogs(level=logging.INFO):
+            result = agent.run("Fix the repository")
+        self.assertEqual(result, "Patch and validation are complete")
+        completions.create.assert_not_called()
+
+    def test_finalization_fields_must_be_consistent(self):
+        with self.assertRaises(ValueError):
+            AgentStep(
+                thought="done",
+                action="list_files",
+                action_input={},
+                is_final=True,
+            )
 
     def test_invalid_few_shot_type_and_limits_are_rejected(self):
         parameters = (

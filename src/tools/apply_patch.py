@@ -31,7 +31,11 @@ class ApplyPatchTool(BaseTool):
         timeout: int = 30,
         max_patch_bytes: int = 1_000_000,
     ):
-        super().__init__(name=name, description=description)
+        super().__init__(
+            name=name,
+            description=description,
+            mutates_repository=True,
+        )
         if timeout < 1 or max_patch_bytes < 1:
             raise ValueError("patch limits must be positive")
         self.timeout = timeout
@@ -79,4 +83,4 @@ class ApplyPatchTool(BaseTool):
                 error_code="repository_runtime_error",
                 retryable=False,
             )
-        return ToolResult.ok(result)
+        return ToolResult.ok(result, progress=True)

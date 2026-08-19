@@ -10,6 +10,7 @@ class ToolResult(str):
     success: bool
     error_code: Optional[str]
     retryable: bool
+    progress: Optional[bool]
 
     def __new__(
         cls,
@@ -18,16 +19,22 @@ class ToolResult(str):
         success: bool = True,
         error_code: Optional[str] = None,
         retryable: bool = True,
+        progress: Optional[bool] = None,
     ) -> "ToolResult":
         instance = super().__new__(cls, content)
         instance.success = success
         instance.error_code = error_code
         instance.retryable = retryable
+        instance.progress = progress
         return instance
 
     @classmethod
-    def ok(cls, content: str) -> "ToolResult":
-        return cls(content, success=True)
+    def ok(
+        cls, content: str, *, progress: Optional[bool] = None
+    ) -> "ToolResult":
+        """Return a successful result with optional semantic-progress metadata."""
+
+        return cls(content, success=True, progress=progress)
 
     @classmethod
     def error(
@@ -42,15 +49,23 @@ class ToolResult(str):
             success=False,
             error_code=error_code,
             retryable=retryable,
+            progress=False,
         )
 
 
 class BaseTool(Block):
     """Абстрактный класс инструмента."""
 
-    def __init__(self, name: str = "", description: str = ""):
+    def __init__(
+        self,
+        name: str = "",
+        description: str = "",
+        *,
+        mutates_repository: bool = False,
+    ):
         self.name = name
         self.description = description
+        self.mutates_repository = mutates_repository
 
     @abstractmethod
     def __call__(self, *args: Any, **kwargs: Any) -> Any:
