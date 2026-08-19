@@ -91,8 +91,10 @@ CONSTRAINTS
    If it is not retryable, or the same strategy keeps failing, change strategy.
 5. Repository paths passed to tools are relative to the task repository. Never
    prefix them with /testbed. Unified-diff paths use a/ and b/ prefixes.
-6. Use apply_patch for repository edits. A successful patch application proves
-   only that the diff applied; inspect the resulting diff and validate behavior.
+6. Use an available repository-editing tool for repository edits. If replace_text
+   is available, prefer it for one exact, unique replacement; use apply_patch for
+   structural or multi-location edits. A successful edit proves only that it was
+   applied; inspect the resulting diff and validate behavior.
 
 FINALIZATION
 When action='finish':
@@ -889,6 +891,7 @@ class ReActAgentSGR(Agent):
         require_repository_change_before_finish: bool = False,
         require_diff_before_finish: bool = False,
         require_validation_before_finish: bool = False,
+        require_patch_review_before_finish: bool = False,
     ):
         super().__init__(name)
 
@@ -917,6 +920,7 @@ class ReActAgentSGR(Agent):
         )
         self.require_diff_before_finish = require_diff_before_finish
         self.require_validation_before_finish = require_validation_before_finish
+        self.require_patch_review_before_finish = require_patch_review_before_finish
         self.few_shot_examples = FEW_SHOT_REGISTRY[few_shot_type]
 
         # Initialize tool registry with fallback to default LLMTool
@@ -965,6 +969,7 @@ class ReActAgentSGR(Agent):
         self._repository_revision = 0
         self._last_diff_revision = -1
         self._last_validation_revision = -1
+        self._last_patch_review_revision = -1
         self.memory: List[MessageDict] = []
 
     @staticmethod
@@ -1419,6 +1424,23 @@ class ReActAgentSGR(Agent):
             return None
         return "FINISH BLOCKED: Before finishing, " + "; then ".join(missing) + "."
 
+    def _finish_review_prompt(self) -> Optional[str]:
+        """Request one adversarial review for each edited repository revision."""
+
+        if (
+            not self.require_patch_review_before_finish
+            or self._last_patch_review_revision == self._repository_revision
+        ):
+            return None
+        self._last_patch_review_revision = self._repository_revision
+        return (
+            "PATCH REVIEW REQUIRED: Re-read the complete changed definition and "
+            "review the current diff as if it were incorrect. Check exact-symbol "
+            "tests/usages, missing and empty inputs, defaults, repository conventions, "
+            "and whether the focused validation actually exercises the changed behavior. "
+            "Use tools to correct any issue you find; otherwise finish again after this review."
+        )
+
     def _record_failed_execution(
         self, agent_step: AgentStep, result: ToolResult
     ) -> None:
@@ -1553,6 +1575,14 @@ class ReActAgentSGR(Agent):
                         {"role": "user", "content": f"Observation: {finish_error}"}
                     )
                     logging.warning(finish_error)
+                    logging.info(_LOG_SEPARATOR)
+                    continue
+                review_prompt = self._finish_review_prompt()
+                if review_prompt:
+                    self.memory.append(
+                        {"role": "user", "content": f"Observation: {review_prompt}"}
+                    )
+                    logging.warning(review_prompt)
                     logging.info(_LOG_SEPARATOR)
                     continue
                 logging.info(f"AGENT DECIDED TO FINISH at step {iteration+1}")
