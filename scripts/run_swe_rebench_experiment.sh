@@ -19,15 +19,19 @@ case "$DATASET_ALIAS" in
         ;;
     first10)
         DATASET_SOURCE="$SNAPSHOTS_DIR/tasks-from-2024-10-first-10.jsonl"
-        EVAL_MAX_WORKERS=2
+        EVAL_MAX_WORKERS=1
+        ;;
+    first50)
+        DATASET_SOURCE="$SNAPSHOTS_DIR/tasks-from-2024-10-first-50.jsonl"
+        EVAL_MAX_WORKERS=1
         ;;
     october)
         DATASET_SOURCE="$SNAPSHOTS_DIR/tasks-from-2024-10-01.jsonl"
-        EVAL_MAX_WORKERS=8
+        EVAL_MAX_WORKERS=1
         ;;
     *)
         echo "Неизвестная выборка: $DATASET_ALIAS" >&2
-        echo "Допустимые значения: one, first10, october" >&2
+        echo "Допустимые значения: one, first10, first50, october" >&2
         exit 2
         ;;
 esac
@@ -143,6 +147,8 @@ PY
 echo
 echo "Запуск инференса..."
 
+INFERENCE_EXIT_CODE=0
+
 python run_swe_rebench.py \
     --config "$CONFIG" \
     --dataset "$TASK_FILE" \
@@ -157,7 +163,15 @@ python run_swe_rebench.py \
     --memory-limit 16g \
     --nano-cpus 4000000000 \
     --logs-path "$RUN_DIR/logs" \
-    --evaluator-fork-path "$FORK"
+    --evaluator-fork-path "$FORK" \
+    || INFERENCE_EXIT_CODE=$?
+
+if (( INFERENCE_EXIT_CODE != 0 )); then
+    echo >&2
+    echo "Предупреждение: инференс завершился с кодом $INFERENCE_EXIT_CODE." >&2
+    echo "Некоторые задачи могли завершиться с ошибкой." >&2
+    echo "Если predictions и metadata созданы, оценка будет продолжена." >&2
+fi
 
 if [[ ! -s "$RUN_DIR/predictions.jsonl" ]]; then
     echo "Инференс не создал predictions.jsonl" >&2
