@@ -1,7 +1,48 @@
 from abc import abstractmethod
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 from src.agent_constructor.core import Block
+
+
+class ToolResult(str):
+    """String-compatible result carrying generic tool execution status."""
+
+    success: bool
+    error_code: Optional[str]
+    retryable: bool
+
+    def __new__(
+        cls,
+        content: str,
+        *,
+        success: bool = True,
+        error_code: Optional[str] = None,
+        retryable: bool = True,
+    ) -> "ToolResult":
+        instance = super().__new__(cls, content)
+        instance.success = success
+        instance.error_code = error_code
+        instance.retryable = retryable
+        return instance
+
+    @classmethod
+    def ok(cls, content: str) -> "ToolResult":
+        return cls(content, success=True)
+
+    @classmethod
+    def error(
+        cls,
+        content: str,
+        *,
+        error_code: str = "tool_error",
+        retryable: bool = True,
+    ) -> "ToolResult":
+        return cls(
+            content,
+            success=False,
+            error_code=error_code,
+            retryable=retryable,
+        )
 
 
 class BaseTool(Block):

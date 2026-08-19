@@ -2,9 +2,13 @@
 
 from typing import Any, Dict
 
-from src.benchmarks.swe_rebench.runtime import get_repository_runtime
+from src.benchmarks.swe_rebench.runtime import (
+    PatchApplyError,
+    RepositoryRuntimeError,
+    get_repository_runtime,
+)
 
-from .base_tool import BaseTool
+from .base_tool import BaseTool, ToolResult
 
 
 class ApplyPatchTool(BaseTool):
@@ -12,8 +16,12 @@ class ApplyPatchTool(BaseTool):
         self,
         name: str = "apply_patch",
         description: str = (
-            "Validate and apply a unified diff to the task repository. "
-            "Use this tool, not shell redirection or sed -i, to edit files."
+            "Validate and apply a raw unified diff to the task repository. "
+            "Do not wrap the diff in Markdown fences. Copy context lines exactly "
+            "from the latest read_file output. After a failed patch, read the "
+            "target file again and change the strategy instead of only changing "
+            "hunk line numbers. Use this tool, not shell redirection or sed -i, "
+            "to edit files."
         ),
         timeout: int = 30,
         max_patch_bytes: int = 1_000_000,
@@ -46,9 +54,23 @@ class ApplyPatchTool(BaseTool):
             },
         }
 
-    def __call__(self, patch: str) -> str:
-        return get_repository_runtime().apply_patch(
-            patch,
-            timeout=self.timeout,
-            max_patch_bytes=self.max_patch_bytes,
-        )
+    def __call__(self, patch: str) -> ToolResult:
+        try:
+            result = get_repository_runtime().apply_patch(
+                patch,
+                timeout=self.timeout,
+                max_patch_bytes=self.max_patch_bytes,
+            )
+        except PatchApplyError as error:
+            return ToolResult.error(
+                str(error),
+                error_code=error.error_code,
+                retryable=error.retryable,
+            )
+        except RepositoryRuntimeError as error:
+            return ToolResult.error(
+                str(error),
+                error_code="repository_runtime_error",
+                retryable=False,
+            )
+        return ToolResult.ok(result)

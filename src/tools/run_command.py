@@ -4,7 +4,7 @@ from typing import Any, Dict
 
 from src.benchmarks.swe_rebench.runtime import CommandResult, get_repository_runtime
 
-from .base_tool import BaseTool
+from .base_tool import BaseTool, ToolResult
 
 
 class RunCommandTool(BaseTool):
@@ -54,10 +54,15 @@ class RunCommandTool(BaseTool):
             },
         }
 
-    def __call__(self, command: str, timeout: int | None = None) -> str:
+    def __call__(
+        self, command: str, timeout: int | None = None
+    ) -> ToolResult:
         effective_timeout = self.default_timeout if timeout is None else timeout
         if effective_timeout < 1 or effective_timeout > self.max_timeout:
-            return f"Timeout must be between 1 and {self.max_timeout} seconds"
+            return ToolResult.error(
+                f"Timeout must be between 1 and {self.max_timeout} seconds",
+                error_code="invalid_timeout",
+            )
         result = get_repository_runtime().run_command(
             command,
             timeout=effective_timeout,
@@ -66,8 +71,12 @@ class RunCommandTool(BaseTool):
         output = self._render(result)
         if len(output) > self.max_output_chars:
             marker = "\n[output truncated]"
-            return output[: self.max_output_chars - len(marker)] + marker
-        return output
+            output = output[: self.max_output_chars - len(marker)] + marker
+        if result.timed_out:
+            return ToolResult.error(output, error_code="command_timeout")
+        if result.exit_code != 0:
+            return ToolResult.error(output, error_code="nonzero_exit_code")
+        return ToolResult.ok(output)
 
     @staticmethod
     def _render(result: CommandResult) -> str:

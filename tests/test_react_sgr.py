@@ -3,6 +3,8 @@ import unittest
 from types import SimpleNamespace
 from unittest.mock import Mock, patch
 
+from src.tools import ToolResult
+
 from src.agents.pipelines.react_sgr import (
     AgentConfig,
     AgentStep,
@@ -16,15 +18,16 @@ class FakeTool:
     name = "list_files"
     arg_schema = None
 
-    def __init__(self):
+    def __init__(self, result="README.md"):
         self.calls = []
+        self.result = result
 
     def get_prompt_description(self):
         return "list_files: list repository files"
 
     def __call__(self, **arguments):
         self.calls.append(arguments)
-        return "README.md"
+        return self.result
 
 
 def fake_openai_client():
@@ -178,6 +181,50 @@ class ReActAgentSGRDiagnosticsTests(unittest.TestCase):
             FINISH_PROMPT_TEMPLATE.index("CONVERSATION HISTORY:"),
             FINISH_PROMPT_TEMPLATE.index("TASK:"),
         )
+
+    def test_tool_results_preserve_generic_failure_status(self):
+        client, _ = fake_openai_client()
+        failure = ToolResult.error(
+            "operation failed",
+            error_code="transient_failure",
+        )
+        tool = FakeTool(result=failure)
+
+        with patch("src.agents.pipelines.react_sgr.OpenAI", return_value=client):
+            agent = ReActAgentSGR(
+                url="http://localhost:11455/v1",
+                model_name="model",
+                tools=[tool],
+            )
+
+        result = agent.execute_tool("list_files", {})
+        self.assertFalse(result.success)
+        self.assertEqual(result.error_code, "transient_failure")
+        self.assertEqual(str(result), "operation failed")
+
+    def test_repeated_generic_tool_failures_block_until_progress(self):
+        client, _ = fake_openai_client()
+        with patch("src.agents.pipelines.react_sgr.OpenAI", return_value=client):
+            agent = ReActAgentSGR(
+                url="http://localhost:11455/v1",
+                model_name="model",
+                tools=[FakeTool()],
+            )
+
+        step = AgentStep(
+            thought="try",
+            action="list_files",
+            action_input={"path": "src"},
+        )
+        failure = ToolResult.error("failed", error_code="same_failure")
+        agent._record_failed_execution(step, failure)
+        self.assertIsNone(agent._blocked_tool_name)
+        agent._record_failed_execution(step, failure)
+        self.assertEqual(agent._blocked_tool_name, "list_files")
+
+        agent._record_successful_execution(step, "README.md")
+        self.assertIsNone(agent._blocked_tool_name)
+        self.assertEqual(agent._consecutive_tool_failures, 0)
 
     def test_invalid_few_shot_type_and_limits_are_rejected(self):
         parameters = (

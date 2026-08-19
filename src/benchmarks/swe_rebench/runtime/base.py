@@ -9,6 +9,21 @@ class RepositoryRuntimeError(RuntimeError):
     """Raised when a repository runtime cannot perform an operation."""
 
 
+class PatchApplyError(RepositoryRuntimeError):
+    """A rejected patch with a machine-readable reason for the agent."""
+
+    def __init__(
+        self,
+        message: str,
+        *,
+        error_code: str = "patch_apply_failed",
+        retryable: bool = True,
+    ) -> None:
+        super().__init__(message)
+        self.error_code = error_code
+        self.retryable = retryable
+
+
 class RepositoryRuntimeClosedError(RepositoryRuntimeError):
     """Raised when an operation is requested after a runtime was closed."""
 

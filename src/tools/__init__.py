@@ -1,4 +1,4 @@
-from .base_tool import BaseTool
+from .base_tool import BaseTool, ToolResult
 
 from .db_search import DBSearchTool
 
@@ -13,6 +13,7 @@ from .git_diff import GitDiffTool
 
 __all__ = [
     "BaseTool",
+    "ToolResult",
     "DBSearchTool",
     "LLMTool",
     "ListFilesTool",

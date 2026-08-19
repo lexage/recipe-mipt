@@ -29,7 +29,11 @@ class SWERebenchPromptBuilder:
             "Instructions:\n"
             "- Inspect the repository using the available tools.\n"
             "- Apply the smallest correct fix to the working tree; do not only describe it.\n"
-            "- Run relevant tests in the task environment.\n"
+            "- Edit files only with the editing tools, never with shell redirection or sed -i.\n"
+            "- Pass raw unified diffs without Markdown fences to apply_patch.\n"
+            "- If an edit fails, read the target file again and change the strategy; "
+            "do not retry by changing only hunk line numbers.\n"
+            "- Run relevant tests in the task environment and treat a non-zero exit code as failure.\n"
             "- Review the final git diff before finishing.\n"
             "- Do not modify tests unless the issue explicitly requires it."
         )

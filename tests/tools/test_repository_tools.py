@@ -9,6 +9,7 @@ sys.modules.setdefault("openai", openai_stub)
 
 from src.benchmarks.swe_rebench.runtime import (  # noqa: E402
     CommandResult,
+    PatchApplyError,
     RepositoryRuntime,
     bind_repository_runtime,
 )
@@ -19,6 +20,7 @@ from src.tools import (  # noqa: E402
     ReadFileTool,
     RunCommandTool,
     SearchCodeTool,
+    ToolResult,
 )
 
 
@@ -27,6 +29,7 @@ class RecordingRuntime(RepositoryRuntime):
         super().__init__("owner__repo-1", "deadbeef", "/testbed")
         self.calls = []
         self.command_result = CommandResult("pytest", 0, "done", "", 0.25)
+        self.patch_error = None
 
     def list_files(self, path=".", **kwargs):
         self.calls.append(("list_files", path, kwargs))
@@ -42,6 +45,8 @@ class RecordingRuntime(RepositoryRuntime):
 
     def apply_patch(self, patch, **kwargs):
         self.calls.append(("apply_patch", patch, kwargs))
+        if self.patch_error is not None:
+            raise self.patch_error
         return "applied"
 
     def run_command(self, command, **kwargs):
@@ -72,8 +77,12 @@ class RepositoryToolDelegationTests(unittest.TestCase):
             self.assertEqual(ListFilesTool()("src"), "listed")
             self.assertEqual(ReadFileTool()("src/a.py", 2, 3), "read")
             self.assertEqual(SearchCodeTool()("symbol", glob="*.py"), "found")
-            self.assertEqual(ApplyPatchTool()("diff"), "applied")
-            self.assertIn("Exit code: 0", RunCommandTool()("pytest"))
+            patch_result = ApplyPatchTool()("diff")
+            command_result = RunCommandTool()("pytest")
+            self.assertEqual(patch_result, "applied")
+            self.assertTrue(patch_result.success)
+            self.assertIn("Exit code: 0", command_result)
+            self.assertTrue(command_result.success)
             self.assertEqual(GitDiffTool()(), "diffed")
 
         self.assertEqual(
@@ -104,7 +113,30 @@ class RepositoryToolDelegationTests(unittest.TestCase):
 
         self.assertIn("Exit code: timeout", timeout)
         self.assertIn("started", timeout)
+        self.assertFalse(timeout.success)
+        self.assertEqual(timeout.error_code, "command_timeout")
         self.assertIn("between 1 and 2", invalid)
+        self.assertFalse(invalid.success)
+        self.assertEqual(invalid.error_code, "invalid_timeout")
+
+    def test_patch_and_nonzero_command_report_failures(self) -> None:
+        self.runtime.patch_error = PatchApplyError(
+            "Patch check failed: corrupt patch",
+            error_code="malformed_diff",
+        )
+        self.runtime.command_result = CommandResult(
+            "pytest", 2, "", "collection failed", 0.1
+        )
+
+        with bind_repository_runtime(self.runtime):
+            patch_result = ApplyPatchTool()("broken diff")
+            command_result = RunCommandTool()("pytest")
+
+        self.assertIsInstance(patch_result, ToolResult)
+        self.assertFalse(patch_result.success)
+        self.assertEqual(patch_result.error_code, "malformed_diff")
+        self.assertFalse(command_result.success)
+        self.assertEqual(command_result.error_code, "nonzero_exit_code")
 
     def test_run_command_truncates_large_output(self) -> None:
         self.runtime.command_result = CommandResult(
