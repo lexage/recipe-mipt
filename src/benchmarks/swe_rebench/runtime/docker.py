@@ -505,10 +505,24 @@ class DockerRepositoryRuntime(RepositoryRuntime):
                     f"Patch apply failed: {detail}",
                     error_code=self._classify_patch_error(detail),
                 )
+
+            quoted_paths = " ".join(shlex.quote(path) for path in paths)
+            status = self.run_command(
+                f"git status --short -- {quoted_paths}",
+                timeout=timeout,
+            )
+            self._require_success(status, "Could not verify applied patch")
+            changed_paths = self._changed_paths_from_status(status.stdout)
+            if not changed_paths:
+                raise PatchApplyError(
+                    "Patch command completed but produced no repository diff. "
+                    "Construct a patch that changes the current file contents.",
+                    error_code="no_change",
+                )
         finally:
             self.run_command(f"rm -f {shlex.quote(patch_path)}", timeout=30)
         return "Patch applied successfully.\n\nChanged paths:\n" + "\n".join(
-            f"- {path}" for path in paths
+            f"- {path}" for path in changed_paths
         )
 
     def replace_text(
@@ -805,13 +819,29 @@ class DockerRepositoryRuntime(RepositoryRuntime):
             return f"{guidance}\n\n{diagnostic}" if diagnostic else guidance
         if error_code == "malformed_diff":
             return (
-                "Generate a complete raw unified diff with diff --git, ---, +++, "
-                "and @@ headers. Do not use Markdown fences."
+                "Generate a raw unified diff with matching --- a/path and +++ b/path "
+                "headers plus at least one @@ hunk. Every hunk-body line must start "
+                "with a space, '-', or '+'. Do not use Markdown fences."
             )
         return (
-            f"Inspect the current contents of {targets}, correct the patch, "
-            "and do not repeat the same failed call."
+            f"Inspect the current contents of {targets} and construct a corrected "
+            "patch from the exact raw text."
         )
+
+    @staticmethod
+    def _changed_paths_from_status(status: str) -> list[str]:
+        """Extract the paths Git reports as changed after patch application."""
+
+        changed_paths: list[str] = []
+        for line in status.splitlines():
+            if len(line) < 4:
+                continue
+            path = line[3:].strip()
+            if " -> " in path:
+                path = path.rsplit(" -> ", 1)[1]
+            if path:
+                changed_paths.append(path)
+        return sorted(set(changed_paths))
 
     @staticmethod
     def _first_patch_hunk(

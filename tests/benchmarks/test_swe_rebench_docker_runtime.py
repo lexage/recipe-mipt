@@ -316,10 +316,15 @@ class DockerRepositoryRuntimeTests(unittest.TestCase):
             SimpleNamespace(exit_code=0, output=(b"", b"")),
             SimpleNamespace(exit_code=0, output=(b"", b"")),
             SimpleNamespace(exit_code=0, output=(b"", b"")),
+            SimpleNamespace(
+                exit_code=0,
+                output=(b" M src/calculator.py\n", b""),
+            ),
             SimpleNamespace(exit_code=0, output=(b"", b"")),
         ]
         applied = self.direct_runtime(patch_container).apply_patch(patch)
         self.assertIn("Patch applied successfully", applied)
+        self.assertIn("src/calculator.py", applied)
         patch_container.put_archive.assert_called_once()
         self.assertEqual(patch_container.put_archive.call_args.args[0], "/tmp")
         archive = patch_container.put_archive.call_args.args[1]
@@ -339,6 +344,19 @@ class DockerRepositoryRuntimeTests(unittest.TestCase):
                 for command in patch_commands
             )
         )
+
+        no_change_container = FakeContainer()
+        no_change_container.responses = [
+            SimpleNamespace(exit_code=0, output=(b"", b"")),
+            SimpleNamespace(exit_code=0, output=(b"", b"")),
+            SimpleNamespace(exit_code=0, output=(b"", b"")),
+            SimpleNamespace(exit_code=0, output=(b"", b"")),
+            SimpleNamespace(exit_code=0, output=(b"", b"")),
+            SimpleNamespace(exit_code=0, output=(b"", b"")),
+        ]
+        with self.assertRaises(PatchApplyError) as captured:
+            self.direct_runtime(no_change_container).apply_patch(patch)
+        self.assertEqual(captured.exception.error_code, "no_change")
 
         fenced = DockerRepositoryRuntime._normalize_patch(
             "```diff\n" + patch + "\n```"
