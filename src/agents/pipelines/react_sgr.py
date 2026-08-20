@@ -1205,9 +1205,13 @@ class ReActAgentSGR(Agent):
                 "Do not repeat file contents; split investigation and edits across "
                 "multiple steps."
             )
-        diagnostic_detail = self._bounded_log_text(
-            self._last_llm_error or model_error_detail
-        )
+        diagnostic_detail = model_error_detail
+        if self._last_llm_error:
+            if self._last_llm_error_code == "response_too_long":
+                diagnostic_detail += f" Technical detail: {self._last_llm_error}"
+            else:
+                diagnostic_detail = self._last_llm_error
+        diagnostic_detail = self._bounded_log_text(diagnostic_detail)
         error_obs = self._format_error_observation(
             "json_parse", error_detail=diagnostic_detail
         )
@@ -1331,6 +1335,7 @@ class ReActAgentSGR(Agent):
                 self._handle_invalid_response(iteration)
                 continue
 
+            self._tool_call_retry_count = 0
             logging.info(f"STEP {iteration+1}:")
             logging.info(_LOG_SEPARATOR)
             logging.info(f"THOUGHT: {agent_step.thought}")
