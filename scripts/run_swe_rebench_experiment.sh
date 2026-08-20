@@ -43,7 +43,7 @@ export EVALUATOR_COMMIT="e4907b7a90eafaa1f0a6428fd04fe31cdd8b4284"
 export DATASET="nebius/SWE-rebench"
 export DATASET_REVISION="89cdfbab4ab1bd8f5a658bb212d1b63624f4f881"
 export SPLIT="test"
-export EVAL_NAMESPACE=""
+export EVAL_NAMESPACE="swerebench"
 
 export MODEL_URL="http://127.0.0.1:11455/v1"
 export LLM_MODEL="Qwen/Qwen2.5-32B-Instruct"
