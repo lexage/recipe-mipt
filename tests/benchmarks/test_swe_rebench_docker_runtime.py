@@ -7,7 +7,7 @@ from unittest.mock import Mock
 from src.benchmarks.swe_rebench import InstanceImage
 from src.benchmarks.swe_rebench.runtime import (
     DockerRepositoryRuntime,
-    PatchApplyError,
+    FileEditError,
     RepositoryRuntimeError,
     TextReplaceError,
 )
@@ -269,6 +269,7 @@ class DockerRepositoryRuntimeTests(unittest.TestCase):
         replaced_container = FakeContainer()
         replaced_container.responses = [
             SimpleNamespace(exit_code=0, output=(b"", b"")),
+            SimpleNamespace(exit_code=0, output=(b"", b"")),
         ]
         replaced_container.get_archive.return_value = (
             iter([file_archive(b"left = old\nright = old\n")]),
@@ -304,122 +305,104 @@ class DockerRepositoryRuntimeTests(unittest.TestCase):
         )
         mismatch_container.put_archive.assert_not_called()
 
-    def test_docker_patch_and_diff_operations(self):
-        patch = """--- a/src/calculator.py
-+++ b/src/calculator.py
-@@ -1 +1 @@
--old
-+new"""
-        patch_container = FakeContainer()
-        patch_container.responses = [
-            SimpleNamespace(exit_code=0, output=(b"", b"")),
-            SimpleNamespace(exit_code=0, output=(b"", b"")),
+    def test_structured_file_edit_replaces_exact_text_and_reports_changed_path(self):
+        payload = io.BytesIO()
+        with tarfile.open(fileobj=payload, mode="w") as archive:
+            member = tarfile.TarInfo("calculator.py")
+            member.mode = 0o644
+            content = b"left = old\nright = old\n"
+            member.size = len(content)
+            archive.addfile(member, io.BytesIO(content))
+
+        container = FakeContainer()
+        container.responses = [
             SimpleNamespace(exit_code=0, output=(b"", b"")),
             SimpleNamespace(exit_code=0, output=(b"", b"")),
             SimpleNamespace(
                 exit_code=0,
                 output=(b" M src/calculator.py\n", b""),
             ),
+        ]
+        container.get_archive.return_value = (iter([payload.getvalue()]), {})
+
+        result = self.direct_runtime(container).apply_file_edit(
+            "replace",
+            "src/calculator.py",
+            old_text="right = old",
+            new_text="right = new",
+        )
+
+        self.assertIn("Replaced 1 exact occurrence", result)
+        self.assertIn("src/calculator.py", result)
+        commands = [call[0][5] for call in container.exec_calls]
+        self.assertTrue(any("mv -f --" in command for command in commands))
+        self.assertFalse(any("git apply" in command for command in commands))
+
+    def test_structured_file_edit_returns_bounded_nearest_text_diagnostic(self):
+        payload = io.BytesIO()
+        with tarfile.open(fileobj=payload, mode="w") as archive:
+            member = tarfile.TarInfo("calculator.py")
+            content = b"params.append({\n    'required': True,\n})\n"
+            member.size = len(content)
+            archive.addfile(member, io.BytesIO(content))
+
+        container = FakeContainer()
+        container.responses = [
             SimpleNamespace(exit_code=0, output=(b"", b"")),
         ]
-        applied = self.direct_runtime(patch_container).apply_patch(patch)
-        self.assertIn("Patch applied successfully", applied)
-        self.assertIn("src/calculator.py", applied)
-        patch_container.put_archive.assert_called_once()
-        self.assertEqual(patch_container.put_archive.call_args.args[0], "/tmp")
-        archive = patch_container.put_archive.call_args.args[1]
-        with tarfile.open(fileobj=io.BytesIO(archive), mode="r") as payload:
-            member = payload.getmembers()[0]
-            normalized_patch = payload.extractfile(member).read().decode()
-        self.assertTrue(
-            normalized_patch.startswith(
-                "diff --git a/src/calculator.py b/src/calculator.py\n"
+        container.get_archive.return_value = (iter([payload.getvalue()]), {})
+
+        with self.assertRaises(FileEditError) as captured:
+            self.direct_runtime(container).apply_file_edit(
+                "replace",
+                "src/calculator.py",
+                old_text="params.append({\n    'required': False,\n})",
+                new_text="params.append({\n    'required': True,\n})",
             )
+
+        self.assertEqual(captured.exception.error_code, "text_not_found")
+        self.assertIn(
+            "Closest current block starts near line", str(captured.exception)
         )
-        self.assertTrue(normalized_patch.endswith("\n"))
-        patch_commands = [call[0][5] for call in patch_container.exec_calls]
-        self.assertTrue(
-            any(
-                "git apply --recount --whitespace=error-all --check" in command
-                for command in patch_commands
+        self.assertIn("'required': True", str(captured.exception))
+        container.put_archive.assert_not_called()
+
+    def test_structured_file_edit_create_delete_and_move_are_guarded(self):
+        create_container = FakeContainer()
+        create_container.responses = [
+            SimpleNamespace(exit_code=0, output=(b"", b"")),
+            SimpleNamespace(exit_code=0, output=(b"", b"")),
+            SimpleNamespace(exit_code=0, output=(b"?? src/new.py\n", b"")),
+        ]
+        created = self.direct_runtime(create_container).apply_file_edit(
+            "create", "src/new.py", new_text="value = 1\n"
+        )
+        self.assertIn("Created src/new.py", created)
+
+        move_container = FakeContainer()
+        move_container.responses = [
+            SimpleNamespace(exit_code=0, output=(b"", b"")),
+            SimpleNamespace(exit_code=0, output=(b"", b"")),
+            SimpleNamespace(exit_code=18, output=(b"", b"")),
+        ]
+        with self.assertRaises(FileEditError) as captured:
+            self.direct_runtime(move_container).apply_file_edit(
+                "move", "src/old.py", destination="src/new.py"
             )
-        )
+        self.assertEqual(captured.exception.error_code, "destination_exists")
 
-        no_change_container = FakeContainer()
-        no_change_container.responses = [
+        delete_container = FakeContainer()
+        delete_container.responses = [
             SimpleNamespace(exit_code=0, output=(b"", b"")),
-            SimpleNamespace(exit_code=0, output=(b"", b"")),
-            SimpleNamespace(exit_code=0, output=(b"", b"")),
-            SimpleNamespace(exit_code=0, output=(b"", b"")),
-            SimpleNamespace(exit_code=0, output=(b"", b"")),
-            SimpleNamespace(exit_code=0, output=(b"", b"")),
+            SimpleNamespace(exit_code=17, output=(b"", b"")),
         ]
-        with self.assertRaises(PatchApplyError) as captured:
-            self.direct_runtime(no_change_container).apply_patch(patch)
-        self.assertEqual(captured.exception.error_code, "no_change")
+        with self.assertRaises(FileEditError) as captured:
+            self.direct_runtime(delete_container).apply_file_edit(
+                "delete", "src/missing.py"
+            )
+        self.assertEqual(captured.exception.error_code, "file_not_found")
 
-        fenced = DockerRepositoryRuntime._normalize_patch(
-            "```diff\n" + patch + "\n```"
-        )
-        self.assertNotIn("```", fenced)
-        self.assertTrue(fenced.startswith("diff --git "))
-
-        failed_container = FakeContainer()
-        failed_container.responses = [
-            SimpleNamespace(exit_code=0, output=(b"", b"")),
-            SimpleNamespace(exit_code=0, output=(b"", b"")),
-            SimpleNamespace(
-                exit_code=1,
-                output=(b"", b"error: corrupt patch at line 5\n"),
-            ),
-            SimpleNamespace(exit_code=0, output=(b"", b"")),
-        ]
-        with self.assertRaises(PatchApplyError) as captured:
-            self.direct_runtime(failed_container).apply_patch(patch)
-        self.assertEqual(captured.exception.error_code, "malformed_diff")
-        self.assertIn("raw unified diff", str(captured.exception))
-
-        stale_patch = """--- a/src/calculator.py
-+++ b/src/calculator.py
-@@ -1,3 +1,4 @@
- params.append({
-     'required': True,
-+    'description': '',
- )"""
-        stale_container = FakeContainer()
-        stale_container.responses = [
-            SimpleNamespace(exit_code=0, output=(b"", b"")),
-            SimpleNamespace(exit_code=0, output=(b"", b"")),
-            SimpleNamespace(
-                exit_code=1,
-                output=(
-                    b"",
-                    b"error: patch failed: src/calculator.py:1\n"
-                    b"error: src/calculator.py: patch does not apply\n",
-                ),
-            ),
-            SimpleNamespace(exit_code=0, output=(b"", b"")),
-            SimpleNamespace(exit_code=0, output=(b"52\n3\n", b"")),
-            SimpleNamespace(exit_code=0, output=(b"", b"")),
-            SimpleNamespace(
-                exit_code=0,
-                output=(
-                    b"params.append({\n    'required': True,\n})\n",
-                    b"",
-                ),
-            ),
-            SimpleNamespace(exit_code=0, output=(b"", b"")),
-        ]
-        with self.assertRaises(PatchApplyError) as captured:
-            self.direct_runtime(stale_container).apply_patch(stale_patch)
-        error = str(captured.exception)
-        self.assertEqual(captured.exception.error_code, "stale_context")
-        self.assertIn("Current raw excerpt from src/calculator.py", error)
-        self.assertIn("submitted hunk context", error)
-        self.assertIn("current file", error)
-        self.assertIn("})", error)
-        self.assertNotIn("replace_text", error)
-
+    def test_docker_diff_operations(self):
         diff_container = FakeContainer()
         diff_container.responses = [
             SimpleNamespace(exit_code=0, output=(b"", b"")),

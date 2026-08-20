@@ -9,14 +9,14 @@ class RepositoryRuntimeError(RuntimeError):
     """Raised when a repository runtime cannot perform an operation."""
 
 
-class PatchApplyError(RepositoryRuntimeError):
-    """A rejected patch with a machine-readable reason for the agent."""
+class FileEditError(RepositoryRuntimeError):
+    """A rejected repository edit with a machine-readable reason for the agent."""
 
     def __init__(
         self,
         message: str,
         *,
-        error_code: str = "patch_apply_failed",
+        error_code: str = "file_edit_failed",
         retryable: bool = True,
     ) -> None:
         super().__init__(message)
@@ -24,7 +24,11 @@ class PatchApplyError(RepositoryRuntimeError):
         self.retryable = retryable
 
 
-class TextReplaceError(RepositoryRuntimeError):
+class PatchApplyError(FileEditError):
+    """Backward-compatible error type for callers of the former diff interface."""
+
+
+class TextReplaceError(FileEditError):
     """A rejected exact-text replacement with a machine-readable reason."""
 
     def __init__(
@@ -154,14 +158,17 @@ class RepositoryRuntime(ABC):
         """Search repository contents and return bounded textual matches."""
 
     @abstractmethod
-    def apply_patch(
+    def apply_file_edit(
         self,
-        patch: str,
+        operation: str,
+        path: str,
         *,
-        timeout: int = 30,
-        max_patch_bytes: int = 1_000_000,
+        old_text: Optional[str] = None,
+        new_text: Optional[str] = None,
+        destination: Optional[str] = None,
+        max_file_bytes: int = 2_000_000,
     ) -> str:
-        """Validate and apply a unified diff to the task repository."""
+        """Apply one validated structured edit to the task repository."""
 
     @abstractmethod
     def replace_text(

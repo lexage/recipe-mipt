@@ -14,7 +14,7 @@ from typing import Any, Literal, Optional
 from ..images import InstanceImage
 from .base import (
     CommandResult,
-    PatchApplyError,
+    FileEditError,
     RepositoryRuntime,
     RepositoryRuntimeError,
     TextReplaceError,
@@ -436,93 +436,126 @@ class DockerRepositoryRuntime(RepositoryRuntime):
             output += "\n[output truncated]"
         return output
 
-    def apply_patch(
+    def apply_file_edit(
         self,
-        patch: str,
+        operation: str,
+        path: str,
         *,
-        timeout: int = 30,
-        max_patch_bytes: int = 1_000_000,
+        old_text: Optional[str] = None,
+        new_text: Optional[str] = None,
+        destination: Optional[str] = None,
+        max_file_bytes: int = 2_000_000,
     ) -> str:
-        if not patch.strip():
-            raise PatchApplyError(
-                "Patch must not be empty",
-                error_code="empty_patch",
-            )
-        patch = self._normalize_patch(patch)
-        if len(patch.encode("utf-8")) > max_patch_bytes:
-            raise PatchApplyError(
-                f"Patch exceeds the {max_patch_bytes}-byte limit",
-                error_code="patch_too_large",
+        if (
+            not isinstance(max_file_bytes, int)
+            or isinstance(max_file_bytes, bool)
+            or max_file_bytes < 1
+        ):
+            raise FileEditError(
+                "max_file_bytes must be a positive integer",
+                error_code="invalid_edit_limits",
                 retryable=False,
             )
-        try:
-            paths = self._validate_patch_paths(patch)
-        except RepositoryRuntimeError as error:
-            detail = str(error)
-            if any(
-                marker in detail
-                for marker in (
-                    "Malformed diff header",
-                    "Unexpected diff path",
-                    "Patch has no 'diff --git' file headers",
+        if operation == "replace":
+            if old_text is None or new_text is None:
+                raise FileEditError(
+                    "replace requires old_text and new_text",
+                    error_code="invalid_edit_arguments",
+                    retryable=False,
                 )
-            ):
-                raise PatchApplyError(
-                    detail,
-                    error_code="malformed_diff",
-                ) from error
-            raise
-        patch_name = f"agent-{uuid.uuid4().hex}.patch"
-        archive = self._patch_archive(patch_name, patch)
-        try:
-            self.container.put_archive("/tmp", archive)
-        except Exception as error:
-            raise RepositoryRuntimeError(
-                f"Could not copy patch to container: {error}"
-            ) from error
-        patch_path = f"/tmp/{patch_name}"
-        try:
-            apply_options = "--recount --whitespace=error-all"
-            check = self.run_command(
-                f"git apply {apply_options} --check {shlex.quote(patch_path)}",
-                timeout=timeout,
+            result = self.replace_text(
+                path,
+                old_text,
+                new_text,
+                expected_replacements=1,
+                max_file_bytes=max_file_bytes,
             )
-            if check.exit_code != 0:
-                detail = check.stderr.strip() or check.stdout.strip()
-                error_code = self._classify_patch_error(detail)
-                guidance = self._patch_error_guidance(error_code, paths, patch)
-                raise PatchApplyError(
-                    f"Patch check failed: {detail}\n\n{guidance}",
-                    error_code=error_code,
-                )
-            applied = self.run_command(
-                f"git apply {apply_options} {shlex.quote(patch_path)}",
-                timeout=timeout,
-            )
-            if applied.exit_code != 0 or applied.timed_out:
-                detail = applied.stderr.strip() or applied.stdout.strip()
-                raise PatchApplyError(
-                    f"Patch apply failed: {detail}",
-                    error_code=self._classify_patch_error(detail),
-                )
+            changed_paths = self._verify_file_edit(path)
+            return f"{result}\nChanged paths: {', '.join(changed_paths)}"
 
-            quoted_paths = " ".join(shlex.quote(path) for path in paths)
-            status = self.run_command(
-                f"git status --short -- {quoted_paths}",
-                timeout=timeout,
-            )
-            self._require_success(status, "Could not verify applied patch")
-            changed_paths = self._changed_paths_from_status(status.stdout)
-            if not changed_paths:
-                raise PatchApplyError(
-                    "Patch command completed but produced no repository diff. "
-                    "Construct a patch that changes the current file contents.",
-                    error_code="no_change",
+        if operation == "create":
+            if not isinstance(new_text, str):
+                raise FileEditError(
+                    "create requires new_text",
+                    error_code="invalid_edit_arguments",
+                    retryable=False,
                 )
-        finally:
-            self.run_command(f"rm -f {shlex.quote(patch_path)}", timeout=30)
-        return "Patch applied successfully.\n\nChanged paths:\n" + "\n".join(
-            f"- {path}" for path in changed_paths
+            payload = new_text.encode("utf-8")
+            if len(payload) > max_file_bytes:
+                raise FileEditError(
+                    f"New file exceeds the {max_file_bytes}-byte limit",
+                    error_code="file_too_large",
+                    retryable=False,
+                )
+            relative = self._resolve_path(path)
+            self._write_text_atomically(relative, payload, refuse_existing=True)
+            changed_paths = self._verify_file_edit(relative)
+            return (
+                f"Created {relative}. Changed paths: {', '.join(changed_paths)}. "
+                "Review the repository changes."
+            )
+
+        if operation == "delete":
+            relative = self._resolve_path(path)
+            quoted = shlex.quote(relative)
+            result = self.run_command(
+                f"test -f {quoted} || exit 17; rm -- {quoted}",
+                timeout=30,
+            )
+            if result.exit_code == 17:
+                raise FileEditError(
+                    f"File does not exist or is not a regular file: {relative}",
+                    error_code="file_not_found",
+                )
+            self._require_success(result, f"Could not delete {relative}")
+            changed_paths = self._verify_file_edit(relative)
+            return (
+                f"Deleted {relative}. Changed paths: {', '.join(changed_paths)}. "
+                "Review the repository changes."
+            )
+
+        if operation == "move":
+            if not isinstance(destination, str) or not destination:
+                raise FileEditError(
+                    "move requires destination",
+                    error_code="invalid_edit_arguments",
+                    retryable=False,
+                )
+            source = self._resolve_path(path)
+            target = self._resolve_path(destination)
+            if source == target:
+                raise FileEditError(
+                    "Move destination must differ from path",
+                    error_code="no_change",
+                    retryable=False,
+                )
+            result = self.run_command(
+                f"test -f {shlex.quote(source)} || exit 17; "
+                f"test ! -e {shlex.quote(target)} || exit 18; "
+                f"mv -- {shlex.quote(source)} {shlex.quote(target)}",
+                timeout=30,
+            )
+            if result.exit_code == 17:
+                raise FileEditError(
+                    f"Source file does not exist: {source}",
+                    error_code="file_not_found",
+                )
+            if result.exit_code == 18:
+                raise FileEditError(
+                    f"Move destination already exists: {target}",
+                    error_code="destination_exists",
+                )
+            self._require_success(result, f"Could not move {source} to {target}")
+            changed_paths = self._verify_file_edit(source, target)
+            return (
+                f"Moved {source} to {target}. Changed paths: "
+                f"{', '.join(changed_paths)}. Review the repository changes."
+            )
+
+        raise FileEditError(
+            f"Unsupported edit operation: {operation}",
+            error_code="invalid_operation",
+            retryable=False,
         )
 
     def replace_text(
@@ -619,10 +652,14 @@ class DockerRepositoryRuntime(RepositoryRuntime):
                 if actual_replacements == 0
                 else "replacement_count_mismatch"
             )
+            diagnostic = ""
+            if actual_replacements == 0:
+                diagnostic = self._nearest_text_diagnostic(content, old_text)
             raise TextReplaceError(
                 f"Expected {expected_replacements} exact occurrence(s) of old_text in "
                 f"{relative}, found {actual_replacements}. Read the current raw file "
-                "contents and retry with a unique exact block; the file was not changed.",
+                "contents and retry with a unique exact block; the file was not changed."
+                + (f"\n\n{diagnostic}" if diagnostic else ""),
                 error_code=error_code,
             )
 
@@ -635,33 +672,121 @@ class DockerRepositoryRuntime(RepositoryRuntime):
                 error_code="replacement_too_large",
                 retryable=False,
             )
+        self._write_text_atomically(relative, updated_payload, source_member=member)
+        return (
+            f"Replaced {actual_replacements} exact occurrence(s) in {relative}. "
+            "Review the resulting repository changes."
+        )
+
+    def _write_text_atomically(
+        self,
+        relative: str,
+        payload: bytes,
+        *,
+        source_member: Optional[tarfile.TarInfo] = None,
+        refuse_existing: bool = False,
+    ) -> None:
+        """Upload to a sibling temporary file and rename it into place."""
+
+        absolute = posixpath.join(self.workdir.rstrip("/"), relative)
+        parent = posixpath.dirname(absolute) or self.workdir
+        temporary_name = f".agent-edit-{uuid.uuid4().hex}.tmp"
+        temporary_relative = posixpath.join(
+            posixpath.dirname(relative), temporary_name
+        )
         output_archive = io.BytesIO()
         with tarfile.open(fileobj=output_archive, mode="w") as archive:
-            output_member = tarfile.TarInfo(name=posixpath.basename(relative))
-            output_member.size = len(updated_payload)
-            output_member.mode = member.mode
-            output_member.uid = member.uid
-            output_member.gid = member.gid
-            output_member.mtime = member.mtime
-            archive.addfile(output_member, io.BytesIO(updated_payload))
-        parent = posixpath.dirname(absolute) or self.workdir
+            output_member = tarfile.TarInfo(name=temporary_name)
+            output_member.size = len(payload)
+            output_member.mode = source_member.mode if source_member else 0o644
+            if source_member is not None:
+                output_member.uid = source_member.uid
+                output_member.gid = source_member.gid
+                output_member.mtime = source_member.mtime
+            archive.addfile(output_member, io.BytesIO(payload))
         try:
             applied = self.container.put_archive(parent, output_archive.getvalue())
         except Exception as error:
-            raise TextReplaceError(
-                f"Could not write replacement to {relative}: {error}",
+            raise FileEditError(
+                f"Could not stage edit for {relative}: {error}",
                 error_code="file_write_failed",
                 retryable=False,
             ) from error
         if applied is False:
-            raise TextReplaceError(
-                f"Could not write replacement to {relative}",
+            raise FileEditError(
+                f"Could not stage edit for {relative}",
                 error_code="file_write_failed",
                 retryable=False,
             )
+
+        target_check = (
+            f"test ! -e {shlex.quote(relative)} || exit 18"
+            if refuse_existing
+            else f"test -f {shlex.quote(relative)} || exit 17"
+        )
+        result = self.run_command(
+            f"{target_check}; mv -f -- {shlex.quote(temporary_relative)} "
+            f"{shlex.quote(relative)}",
+            timeout=30,
+        )
+        if result.exit_code != 0 or result.timed_out:
+            self.run_command(
+                f"rm -f -- {shlex.quote(temporary_relative)}",
+                timeout=30,
+            )
+        if result.exit_code == 17:
+            raise FileEditError(
+                f"File does not exist or is not a regular file: {relative}",
+                error_code="file_not_found",
+            )
+        if result.exit_code == 18:
+            raise FileEditError(
+                f"File already exists: {relative}",
+                error_code="destination_exists",
+            )
+        self._require_success(result, f"Could not write {relative}")
+
+    def _verify_file_edit(self, *paths: str) -> list[str]:
+        quoted_paths = " ".join(shlex.quote(path) for path in paths)
+        status = self.run_command(
+            f"git status --short -- {quoted_paths}",
+            timeout=30,
+        )
+        self._require_success(status, "Could not verify file edit")
+        changed_paths = self._changed_paths_from_status(status.stdout)
+        if not changed_paths:
+            raise FileEditError(
+                "The edit completed but produced no repository diff. Inspect the "
+                "current file and choose an operation that changes it.",
+                error_code="no_change",
+            )
+        return changed_paths
+
+    @staticmethod
+    def _nearest_text_diagnostic(content: str, old_text: str) -> str:
+        """Return bounded current-file evidence without performing a fuzzy edit."""
+
+        expected = old_text.splitlines()[:20]
+        current = content.splitlines()
+        if not expected or not current:
+            return ""
+        window_size = min(len(expected), len(current))
+        best_index = 0
+        best_ratio = -1.0
+        for index in range(len(current) - window_size + 1):
+            candidate = current[index : index + window_size]
+            ratio = difflib.SequenceMatcher(
+                None, expected[:window_size], candidate
+            ).ratio()
+            if ratio > best_ratio:
+                best_index = index
+                best_ratio = ratio
+        excerpt = "\n".join(current[best_index : best_index + window_size])
+        if len(excerpt) > 2_000:
+            excerpt = excerpt[:2_000] + "\n[excerpt truncated]"
         return (
-            f"Replaced {actual_replacements} exact occurrence(s) in {relative}. "
-            "Review the resulting change with git_diff."
+            f"Closest current block starts near line {best_index + 1}; copy exact "
+            f"text from the file before retrying:\n{excerpt}"
         )
 
     def get_diff(
@@ -747,90 +872,8 @@ class DockerRepositoryRuntime(RepositoryRuntime):
         return normalized
 
     @staticmethod
-    def _normalize_patch(patch: str) -> str:
-        """Normalize safe unified diffs before validating repository paths.
-
-        Models commonly emit the standard ``---``/``+++`` form without the
-        optional ``diff --git`` line.  ``git apply`` accepts that form, while
-        path validation needs an explicit file header.  Add only the missing
-        headers and final newline; malformed hunks still fail ``git apply
-        --check``.
-        """
-
-        stripped = patch.strip()
-        if stripped.startswith("```") and stripped.endswith("```"):
-            first_newline = stripped.find("\n")
-            opening = stripped[:first_newline].lower()
-            if first_newline >= 0 and opening in {"```", "```diff", "```patch"}:
-                patch = stripped[first_newline + 1 : -3].strip("\n")
-
-        normalized = patch.replace("\r\n", "\n").replace("\r", "\n")
-        if not normalized.endswith("\n"):
-            normalized += "\n"
-        if any(line.startswith("diff --git ") for line in normalized.splitlines()):
-            return normalized
-
-        lines = normalized.splitlines(keepends=True)
-        output: list[str] = []
-        for index, line in enumerate(lines):
-            if line.startswith("--- ") and index + 1 < len(lines):
-                next_line = lines[index + 1]
-                if next_line.startswith("+++ "):
-                    old_path = line[4:].rstrip("\n").split("\t", 1)[0]
-                    new_path = next_line[4:].rstrip("\n").split("\t", 1)[0]
-                    header_old = old_path
-                    header_new = new_path
-                    if old_path == "/dev/null" and new_path.startswith("b/"):
-                        header_old = f"a/{new_path[2:]}"
-                    if new_path == "/dev/null" and old_path.startswith("a/"):
-                        header_new = f"b/{old_path[2:]}"
-                    if header_old.startswith("a/") and header_new.startswith("b/"):
-                        output.append(
-                            "diff --git "
-                            f"{shlex.quote(header_old)} {shlex.quote(header_new)}\n"
-                        )
-            output.append(line)
-        return "".join(output)
-
-    @staticmethod
-    def _classify_patch_error(detail: str) -> str:
-        normalized = detail.lower()
-        if "corrupt patch" in normalized or "unrecognized input" in normalized:
-            return "malformed_diff"
-        if "patch failed" in normalized or "does not apply" in normalized:
-            return "stale_context"
-        if "whitespace error" in normalized:
-            return "whitespace_error"
-        return "patch_check_failed"
-
-    def _patch_error_guidance(
-        self, error_code: str, paths: list[str], patch: str
-    ) -> str:
-        targets = ", ".join(paths)
-        if error_code == "stale_context":
-            guidance = (
-                f"Read the current contents of {targets} before retrying. "
-                "Copy every unchanged context line exactly, including indentation, "
-                "commas, parentheses, braces, and brackets. Do not copy display line "
-                "numbers and do not change only hunk coordinates. Use only an editing "
-                "tool listed in the system prompt."
-            )
-            diagnostic = self._stale_context_diagnostic(patch)
-            return f"{guidance}\n\n{diagnostic}" if diagnostic else guidance
-        if error_code == "malformed_diff":
-            return (
-                "Generate a raw unified diff with matching --- a/path and +++ b/path "
-                "headers plus at least one @@ hunk. Every hunk-body line must start "
-                "with a space, '-', or '+'. Do not use Markdown fences."
-            )
-        return (
-            f"Inspect the current contents of {targets} and construct a corrected "
-            "patch from the exact raw text."
-        )
-
-    @staticmethod
     def _changed_paths_from_status(status: str) -> list[str]:
-        """Extract the paths Git reports as changed after patch application."""
+        """Extract the paths Git reports as changed after a file edit."""
 
         changed_paths: list[str] = []
         for line in status.splitlines():
@@ -842,146 +885,6 @@ class DockerRepositoryRuntime(RepositoryRuntime):
             if path:
                 changed_paths.append(path)
         return sorted(set(changed_paths))
-
-    @staticmethod
-    def _first_patch_hunk(
-        patch: str,
-    ) -> tuple[str, int, list[str]] | None:
-        """Return path, old start line and old-side context for the first hunk."""
-
-        current_path: str | None = None
-        lines = patch.splitlines()
-        for index, line in enumerate(lines):
-            if line.startswith("diff --git "):
-                try:
-                    parts = shlex.split(line)
-                except ValueError:
-                    current_path = None
-                    continue
-                if len(parts) == 4 and parts[3].startswith("b/"):
-                    current_path = parts[3][2:]
-                else:
-                    current_path = None
-                continue
-            if current_path is None:
-                continue
-            match = re.match(
-                r"^@@ -(\d+)(?:,\d+)? \+\d+(?:,\d+)? @@", line
-            )
-            if match is None:
-                continue
-
-            old_context: list[str] = []
-            for hunk_line in lines[index + 1 :]:
-                if hunk_line.startswith(("diff --git ", "@@ ")):
-                    break
-                if hunk_line.startswith("\\ No newline at end of file"):
-                    continue
-                if hunk_line.startswith("+"):
-                    continue
-                if hunk_line.startswith((" ", "-")):
-                    old_context.append(hunk_line[1:])
-                    continue
-                break
-            return current_path, int(match.group(1)), old_context
-        return None
-
-    def _stale_context_diagnostic(self, patch: str) -> str:
-        """Show bounded raw file evidence for a rejected patch hunk."""
-
-        hunk = self._first_patch_hunk(patch)
-        if hunk is None:
-            return ""
-        path, old_start, submitted_context = hunk
-        if not submitted_context:
-            return ""
-
-        context_size = min(len(submitted_context), 80)
-        excerpt_start = max(1, old_start - 3)
-        excerpt_end = old_start + context_size + 3
-        try:
-            excerpt = self.read_file(
-                path,
-                start_line=excerpt_start,
-                end_line=excerpt_end,
-                max_lines=context_size + 7,
-                line_numbers=False,
-            )
-        except RepositoryRuntimeError:
-            return ""
-        if not excerpt or excerpt.startswith(
-            ("File does not exist:", "File is too large", "Binary file")
-        ):
-            return ""
-
-        current_lines = excerpt.splitlines()
-        expected_lines = submitted_context[:context_size]
-        window_size = min(len(expected_lines), len(current_lines))
-        if window_size:
-            candidates = (
-                current_lines[index : index + window_size]
-                for index in range(len(current_lines) - window_size + 1)
-            )
-            closest = max(
-                candidates,
-                key=lambda candidate: difflib.SequenceMatcher(
-                    None, expected_lines[:window_size], candidate
-                ).ratio(),
-            )
-        else:
-            closest = current_lines
-
-        comparison = "\n".join(
-            difflib.unified_diff(
-                expected_lines[:window_size],
-                closest,
-                fromfile="submitted hunk context",
-                tofile="current file",
-                lineterm="",
-            )
-        )
-        if not comparison:
-            comparison = (
-                "The submitted context matches a nearby block; rebuild a smaller "
-                "hunk from the raw excerpt without relying on the old coordinates."
-            )
-        return (
-            f"Current raw excerpt from {path} near line {old_start} "
-            "(copy without adding line-number prefixes):\n"
-            f"{excerpt}\n\nContext comparison:\n{comparison}"
-        )
-
-    def _validate_patch_paths(self, patch: str) -> list[str]:
-        paths: list[str] = []
-        for line in patch.splitlines():
-            if not line.startswith("diff --git "):
-                continue
-            try:
-                parts = shlex.split(line)
-            except ValueError as error:
-                raise RepositoryRuntimeError("Malformed diff header") from error
-            if len(parts) != 4:
-                raise RepositoryRuntimeError("Malformed diff header")
-            for raw_path, prefix in ((parts[2], "a/"), (parts[3], "b/")):
-                if not raw_path.startswith(prefix):
-                    raise RepositoryRuntimeError(f"Unexpected diff path: {raw_path}")
-                relative = raw_path[len(prefix) :]
-                self._resolve_path(relative)
-                paths.append(relative)
-        if not paths:
-            raise RepositoryRuntimeError("Patch has no 'diff --git' file headers")
-        return sorted(set(paths))
-
-    @staticmethod
-    def _patch_archive(name: str, patch: str) -> bytes:
-        payload = patch.encode("utf-8")
-        archive = io.BytesIO()
-        with tarfile.open(fileobj=archive, mode="w") as tar:
-            info = tarfile.TarInfo(name=name)
-            info.size = len(payload)
-            info.mode = 0o600
-            tar.addfile(info, io.BytesIO(payload))
-        return archive.getvalue()
 
     @staticmethod
     def _require_success(result: CommandResult, message: str) -> None:
