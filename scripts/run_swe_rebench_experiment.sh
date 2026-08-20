@@ -197,7 +197,11 @@ finalize_timings() {
     TOTAL_DURATION_SECONDS=$((finished_epoch - EXPERIMENT_STARTED_EPOCH))
 
     if (( script_exit_code == 0 )); then
-        RUN_STATUS="completed"
+        if [[ -n "$INFERENCE_EXIT_CODE" ]] && (( INFERENCE_EXIT_CODE != 0 )); then
+            RUN_STATUS="completed_with_inference_errors"
+        else
+            RUN_STATUS="completed"
+        fi
     else
         RUN_STATUS="failed"
     fi
@@ -351,7 +355,9 @@ log_timing \
 echo "Время инференса: $(format_duration "$INFERENCE_DURATION_SECONDS")"
 
 if (( INFERENCE_EXIT_CODE != 0 )); then
-    exit "$INFERENCE_EXIT_CODE"
+    echo >&2
+    echo "Предупреждение: инференс завершился с кодом $INFERENCE_EXIT_CODE." >&2
+    echo "Оценка будет продолжена, если predictions.jsonl и run_metadata.json доступны." >&2
 fi
 
 if [[ ! -s "$RUN_DIR/predictions.jsonl" ]]; then
