@@ -35,7 +35,7 @@ class SWERebenchPromptBuilder:
             "existing repository code.\n"
             "2. Before editing, establish a baseline: run an existing focused test that "
             "demonstrates the issue or, if no suitable test is available, run a minimal "
-            "reproduction using the repository's public API. Do not create replacement "
+            "reproduction using the repository's public API; do not create replacement "
             "test files.\n"
             "3. Read the complete target implementation before changing it. Do not infer "
             "behavior from an incomplete excerpt.\n"
