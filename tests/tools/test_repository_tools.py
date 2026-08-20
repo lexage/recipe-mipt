@@ -9,7 +9,7 @@ sys.modules.setdefault("openai", openai_stub)
 
 from src.benchmarks.swe_rebench.runtime import (  # noqa: E402
     CommandResult,
-    PatchApplyError,
+    FileEditError,
     RepositoryRuntime,
     bind_repository_runtime,
 )
@@ -45,8 +45,8 @@ class RecordingRuntime(RepositoryRuntime):
         self.calls.append(("search_code", query, kwargs))
         return self.search_result
 
-    def apply_patch(self, patch, **kwargs):
-        self.calls.append(("apply_patch", patch, kwargs))
+    def apply_file_edit(self, operation, path, **kwargs):
+        self.calls.append(("apply_file_edit", operation, path, kwargs))
         if self.patch_error is not None:
             raise self.patch_error
         return "applied"
@@ -84,7 +84,9 @@ class RepositoryToolDelegationTests(unittest.TestCase):
             self.assertEqual(ReadFileTool()("src/a.py", 2, 3), "read")
             self.assertEqual(SearchCodeTool()("symbol", glob="*.py"), "found")
             replace_result = ReplaceTextTool()("src/a.py", "old", "new")
-            patch_result = ApplyPatchTool()("diff")
+            patch_result = ApplyPatchTool()(
+                "replace", "src/a.py", old_text="old", new_text="new"
+            )
             command_result = RunCommandTool()("pytest")
             self.assertEqual(patch_result, "applied")
             self.assertTrue(patch_result.success)
@@ -102,7 +104,7 @@ class RepositoryToolDelegationTests(unittest.TestCase):
                 "read_file",
                 "search_code",
                 "replace_text",
-                "apply_patch",
+                "apply_file_edit",
                 "run_command",
                 "get_diff",
             ],
@@ -149,19 +151,49 @@ class RepositoryToolDelegationTests(unittest.TestCase):
         self.assertFalse(invalid.success)
         self.assertEqual(invalid.error_code, "invalid_timeout")
 
-    def test_apply_patch_schema_contains_valid_unified_diff_shape(self) -> None:
+    def test_apply_patch_schema_describes_structured_file_operations(self) -> None:
         tool = ApplyPatchTool()
         description = tool.get_schema()["function"]["description"]
-        patch_description = tool.get_schema()["function"]["parameters"]["properties"][
-            "patch"
-        ]["description"]
+        parameters = tool.get_schema()["function"]["parameters"]
 
-        self.assertIn("--- a/path/to/file.py", description)
-        self.assertIn("+++ b/path/to/file.py", description)
-        self.assertIn("@@ -1,1 +1,1 @@", description)
-        self.assertIn("--- a/path", patch_description)
-        self.assertIn("+++ b/path", patch_description)
-        self.assertIn("@@ hunk header", patch_description)
+        self.assertIn("structured file edit", description)
+        self.assertIn("does not accept unified diff", description)
+        self.assertEqual(
+            parameters["properties"]["operation"]["enum"],
+            ["replace", "create", "delete", "move"],
+        )
+        self.assertEqual(parameters["required"], ["operation", "path"])
+        self.assertFalse(parameters["additionalProperties"])
+
+    def test_apply_patch_validates_operation_specific_arguments(self) -> None:
+        tool = ApplyPatchTool()
+
+        self.assertIn(
+            "requires non-empty old_text",
+            tool.validate_arguments(
+                {"operation": "replace", "path": "src/a.py", "new_text": "new"}
+            ),
+        )
+        self.assertIn(
+            "does not accept",
+            tool.validate_arguments(
+                {
+                    "operation": "delete",
+                    "path": "src/a.py",
+                    "new_text": "unused",
+                }
+            ),
+        )
+        self.assertIsNone(
+            tool.validate_arguments(
+                {
+                    "operation": "replace",
+                    "path": "src/a.py",
+                    "old_text": "old",
+                    "new_text": "new",
+                }
+            )
+        )
 
     def test_editing_tool_descriptions_do_not_reference_other_tools(self) -> None:
         patch_description = ApplyPatchTool().get_schema()["function"]["description"]
@@ -175,21 +207,23 @@ class RepositoryToolDelegationTests(unittest.TestCase):
         self.assertNotIn("read_file", replace_description)
 
     def test_patch_and_nonzero_command_report_failures(self) -> None:
-        self.runtime.patch_error = PatchApplyError(
-            "Patch check failed: corrupt patch",
-            error_code="malformed_diff",
+        self.runtime.patch_error = FileEditError(
+            "Expected one exact occurrence, found none",
+            error_code="text_not_found",
         )
         self.runtime.command_result = CommandResult(
             "pytest", 2, "", "collection failed", 0.1
         )
 
         with bind_repository_runtime(self.runtime):
-            patch_result = ApplyPatchTool()("broken diff")
+            patch_result = ApplyPatchTool()(
+                "replace", "src/a.py", old_text="old", new_text="new"
+            )
             command_result = RunCommandTool()("pytest")
 
         self.assertIsInstance(patch_result, ToolResult)
         self.assertFalse(patch_result.success)
-        self.assertEqual(patch_result.error_code, "malformed_diff")
+        self.assertEqual(patch_result.error_code, "text_not_found")
         self.assertFalse(command_result.success)
         self.assertEqual(command_result.error_code, "pytest_interrupted")
         self.assertEqual(command_result.validation_status, "failed")
@@ -262,7 +296,7 @@ class RepositoryToolDelegationTests(unittest.TestCase):
             lambda: ReadFileTool(max_lines=0),
             lambda: SearchCodeTool(timeout=0),
             lambda: ReplaceTextTool(max_file_bytes=0),
-            lambda: ApplyPatchTool(max_patch_bytes=0),
+            lambda: ApplyPatchTool(max_file_bytes=0),
             lambda: RunCommandTool(default_timeout=3, max_timeout=2),
             lambda: GitDiffTool(timeout=0),
         )

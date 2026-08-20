@@ -1,5 +1,6 @@
 from .base import (
     CommandResult,
+    FileEditError,
     PatchApplyError,
     RepositoryRuntime,
     RepositoryRuntimeClosedError,
@@ -15,6 +16,7 @@ from .docker import DockerRepositoryRuntime, PullPolicy
 
 __all__ = [
     "CommandResult",
+    "FileEditError",
     "PatchApplyError",
     "DockerRepositoryRuntime",
     "PullPolicy",

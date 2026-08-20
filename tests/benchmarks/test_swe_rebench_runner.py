@@ -67,7 +67,10 @@ class FakeRuntime(RepositoryRuntime):
     def search_code(self, query, **kwargs):
         return ""
 
-    def apply_patch(self, patch, **kwargs):
+    def apply_file_edit(self, operation, path, **kwargs):
+        return ""
+
+    def replace_text(self, path, old_text, new_text, **kwargs):
         return ""
 
     def run_command(self, command, **kwargs):
