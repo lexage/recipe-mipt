@@ -49,9 +49,12 @@ class RunCommandTool(BaseTool):
         self,
         name: str = "run_command",
         description: str = (
-            "Run a non-interactive inspection, build, or test command in the task "
-            "repository. Use an editing tool for edits; do not create branches or "
-            "commits."
+            "Run one bounded non-interactive inspection, reproduction, build, or "
+            "test command in the task repository. The result reports exit code, "
+            "duration, stdout, and stderr. Exit code 0 means the command completed; "
+            "a non-zero exit code or timeout is evidence to inspect, not successful "
+            "validation. Use an editing tool for file changes and do not create "
+            "branches or commits."
         ),
         default_timeout: int = 120,
         max_timeout: int = 600,
