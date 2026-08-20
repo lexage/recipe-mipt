@@ -11,7 +11,12 @@ class GitDiffTool(BaseTool):
     def __init__(
         self,
         name: str = "git_diff",
-        description: str = "Show repository status and the diff from the task base commit.",
+        description: str = (
+            "Show repository status and the current diff from the task base commit. "
+            "Use the full diff to verify that the intended files and lines changed "
+            "and that no unrelated edits remain. An empty diff means there is no "
+            "repository patch to submit."
+        ),
         timeout: int = 30,
         max_output_chars: int = 50_000,
     ):
