@@ -19,15 +19,11 @@ from src.tools import BaseTool, LLMTool, ToolResult
 class AgentConfig:
     """Configuration constants for ReActAgent to avoid magic numbers."""
 
-    MAX_RETRY_COUNT: int = 5
-    MAX_EXECUTION_HISTORY_SIZE: int = 10
     MIN_MEMORY_BASE_SIZE: int = 2  # system + initial task messages
-    LOOP_DETECTION_WINDOW: int = 3  # initial call + one corrected retry
     DEFAULT_TEMPERATURE: float = 0.0
     DEFAULT_MAX_ITERATIONS: int = 10
     DEFAULT_HISTORY_CONTEXT: int = 5
     MAX_LOGGED_RESPONSE_CHARS: int = 8_000
-    MAX_CONSECUTIVE_TOOL_FAILURES: int = 2
 
 
 _LOG_SEPARATOR = "\n" + "_" * 20 + "\n"
@@ -87,8 +83,9 @@ CONSTRAINTS
 2. action_input MUST match the tool's argument schema exactly.
 3. Treat tool observations as evidence. A successful call with no new information
    is not progress.
-4. If a tool error is retryable, correct the arguments and retry at most once.
-   If it is not retryable, or the same strategy keeps failing, change strategy.
+4. Use the tool's error code, retryable flag, and concrete error detail to choose
+   the next action. Do not blindly repeat an unchanged failing call: correct its
+   input or gather different evidence.
 5. Repository paths passed to tools are relative to the task repository. Never
    prefix them with /testbed.
 6. Choose tools only from the dynamically generated list above and follow each
@@ -888,9 +885,6 @@ class ReActAgentSGR(Agent):
         few_shot_type: str = "zero_shot",
         max_tokens: Optional[int] = None,
         synthesize_final_answer: bool = True,
-        require_repository_change_before_finish: bool = False,
-        require_diff_before_finish: bool = False,
-        require_validation_before_finish: bool = False,
     ):
         super().__init__(name)
 
@@ -914,11 +908,6 @@ class ReActAgentSGR(Agent):
         self.history_context = history_context
         self.max_tokens = max_tokens
         self.synthesize_final_answer = synthesize_final_answer
-        self.require_repository_change_before_finish = (
-            require_repository_change_before_finish
-        )
-        self.require_diff_before_finish = require_diff_before_finish
-        self.require_validation_before_finish = require_validation_before_finish
         self.few_shot_examples = FEW_SHOT_REGISTRY[few_shot_type]
 
         # Initialize tool registry with fallback to default LLMTool
@@ -958,15 +947,7 @@ class ReActAgentSGR(Agent):
         self._last_llm_error: Optional[str] = None
         self._last_llm_error_code: Optional[str] = None
         self.error_history: List[Dict[str, Any]] = []
-        self._execution_history: List[Dict[str, Any]] = []
-        self._blocked_call_signatures: set[str] = set()
-        self._failure_counts: Dict[Tuple[str, str, str, int], int] = {}
-        self._last_failure_signature: Optional[Tuple[str, str, str, int]] = None
-        self._consecutive_tool_failures = 0
         self._evidence_signatures: set[str] = set()
-        self._repository_revision = 0
-        self._last_diff_revision = -1
-        self._last_validation_revision = -1
         self.memory: List[MessageDict] = []
 
     @staticmethod
@@ -1093,43 +1074,9 @@ class ReActAgentSGR(Agent):
         return isinstance(action_input, dict), "action_input must be a dict"
 
     @staticmethod
-    def _normalized_action_input(
-        action: str, action_input: Dict[str, Any]
-    ) -> Dict[str, Any]:
-        """Normalize arguments that can change without changing the strategy."""
-
-        normalized = dict(action_input)
-        if action == "apply_patch" and isinstance(normalized.get("patch"), str):
-            normalized["patch"] = re.sub(
-                r"^@@ -\d+(?:,\d+)? \+\d+(?:,\d+)? @@",
-                "@@ <location> @@",
-                normalized["patch"],
-                flags=re.MULTILINE,
-            )
-        return normalized
-
-    def _call_signature(self, action: str, action_input: Dict[str, Any]) -> str:
-        normalized = self._normalized_action_input(action, action_input)
-        encoded = json.dumps(normalized, sort_keys=True, ensure_ascii=False)
-        return f"{self._repository_revision}:{action}:{encoded}"
-
-    @staticmethod
-    def _normalized_failure_detail(detail: str) -> str:
-        """Remove volatile identifiers from otherwise equivalent failures."""
-
-        normalized = re.sub(r"agent-[0-9a-f]+\.patch", "agent.patch", detail)
-        normalized = re.sub(r"\b\d+\b", "#", normalized)
-        return " ".join(normalized.split())
-
-    def _detect_loop(self, action: str, action_input: Dict[str, Any]) -> bool:
-        """Detect repeated strategies even when other read calls intervene."""
-
-        signature = self._call_signature(action, action_input)
-        previous_calls = sum(
-            entry.get("call_signature") == signature
-            for entry in self._execution_history
-        )
-        return previous_calls >= AgentConfig.LOOP_DETECTION_WINDOW - 1
+    def _call_signature(action: str, action_input: Dict[str, Any]) -> str:
+        encoded = json.dumps(action_input, sort_keys=True, ensure_ascii=False)
+        return f"{action}:{encoded}"
 
     def _is_meaningful_progress(
         self, agent_step: AgentStep, result: ToolResult
@@ -1173,11 +1120,6 @@ class ReActAgentSGR(Agent):
             "validation": (
                 f"VALIDATION ERROR: {error_detail}. "
                 f"Ensure action_input matches the argument structure expected by the tool."
-            ),
-            "loop_detected": (
-                f"LOOP DETECTED: Tool '{action}' repeated the same strategy "
-                f"without repository progress. Breaking execution cycle. "
-                f"Change the arguments, inspect different evidence, or use another tool."
             ),
             "execution": (f"EXECUTION ERROR in tool '{action}': {error_detail}"),
         }
@@ -1263,9 +1205,11 @@ class ReActAgentSGR(Agent):
                 "Do not repeat file contents; split investigation and edits across "
                 "multiple steps."
             )
-        diagnostic_detail = self._last_llm_error or model_error_detail
+        diagnostic_detail = self._bounded_log_text(
+            self._last_llm_error or model_error_detail
+        )
         error_obs = self._format_error_observation(
-            "json_parse", error_detail=model_error_detail
+            "json_parse", error_detail=diagnostic_detail
         )
         self.memory.append({"role": "assistant", "content": "[INVALID_RESPONSE]"})
         self.memory.append({"role": "user", "content": f"Observation: {error_obs}"})
@@ -1277,10 +1221,9 @@ class ReActAgentSGR(Agent):
             }
         )
         logging.warning(
-            "LLM_RETRY\tstep=%s\tretry=%s/%s\terror=%s",
+            "LLM_RETRY\tstep=%s\tconsecutive_invalid_responses=%s\terror=%s",
             iteration + 1,
             self._tool_call_retry_count,
-            AgentConfig.MAX_RETRY_COUNT,
             diagnostic_detail,
         )
 
@@ -1312,39 +1255,6 @@ class ReActAgentSGR(Agent):
         self.memory.append({"role": "user", "content": f"Observation: {error_obs}"})
         self.error_history.append({"type": "validation", "step": iteration})
 
-    def _handle_loop_detection(self, agent_step: AgentStep) -> None:
-        """Block one repeated call while allowing a genuinely changed strategy."""
-
-        self._blocked_call_signatures.add(
-            self._call_signature(agent_step.action, agent_step.action_input)
-        )
-        self._tool_call_retry_count = 0
-        error_obs = self._format_error_observation(
-            "loop_detected", agent_step.action, agent_step.action_input
-        )
-        self.memory.append(
-            {
-                "role": "user",
-                "content": (
-                    f"Observation: {error_obs} This exact call is blocked. "
-                    "A changed input or different tool remains available."
-                ),
-            }
-        )
-
-    def _handle_blocked_call(self, agent_step: AgentStep) -> None:
-        self._tool_call_retry_count = 0
-        self.memory.append(
-            {
-                "role": "user",
-                "content": (
-                    f"Observation: This exact '{agent_step.action}' call is blocked "
-                    "after a non-retryable or repeated failure. Change the input "
-                    "or use a different strategy."
-                ),
-            }
-        )
-
     def _record_successful_execution(
         self, agent_step: AgentStep, result: ToolResult
     ) -> None:
@@ -1352,33 +1262,7 @@ class ReActAgentSGR(Agent):
 
         observation = str(result)
         made_progress = self._is_meaningful_progress(agent_step, result)
-        call_signature = self._call_signature(
-            agent_step.action, agent_step.action_input
-        )
-        self._execution_history.append(
-            {
-                "action": agent_step.action,
-                "action_input": agent_step.action_input,
-                "call_signature": call_signature,
-                "success": True,
-                "progress": made_progress,
-            }
-        )
-        if len(self._execution_history) > AgentConfig.MAX_EXECUTION_HISTORY_SIZE:
-            self._execution_history.pop(0)
-
         self._tool_call_retry_count = 0
-        if made_progress:
-            self._last_failure_signature = None
-            self._consecutive_tool_failures = 0
-
-        tool = self.tools_dict.get(agent_step.action)
-        if made_progress and getattr(tool, "mutates_repository", False):
-            self._repository_revision += 1
-        if getattr(tool, "provides_diff", False):
-            self._last_diff_revision = self._repository_revision
-        if result.validation_status == "passed":
-            self._last_validation_revision = self._repository_revision
 
         self.memory.append(
             {
@@ -1398,74 +1282,12 @@ class ReActAgentSGR(Agent):
         )
         logging.info(_LOG_SEPARATOR)
 
-    def _finish_guard_error(self) -> Optional[str]:
-        """Return actionable missing evidence for the current repository revision."""
-
-        missing = []
-        if self.require_repository_change_before_finish and self._repository_revision == 0:
-            missing.append("apply a repository change with an editing tool")
-        if (
-            self.require_diff_before_finish
-            and self._last_diff_revision != self._repository_revision
-        ):
-            missing.append("review the current full diff with git_diff")
-        if (
-            self.require_validation_before_finish
-            and self._last_validation_revision != self._repository_revision
-        ):
-            missing.append(
-                "run a successful relevant test/build/check command after the last edit "
-                "(use git diff --check only as a fallback when project tests cannot run)"
-            )
-        if not missing:
-            return None
-        return "FINISH BLOCKED: Before finishing, " + "; then ".join(missing) + "."
-
     def _record_failed_execution(
         self, agent_step: AgentStep, result: ToolResult
     ) -> None:
-        """Record a failed tool call without treating it as progress."""
+        """Return the tool's concrete failure to the model without policy blocking."""
 
         error_code = result.error_code or "tool_error"
-        detail_fingerprint = self._normalized_failure_detail(str(result))
-        signature = (
-            agent_step.action,
-            error_code,
-            detail_fingerprint,
-            self._repository_revision,
-        )
-        self._failure_counts[signature] = self._failure_counts.get(signature, 0) + 1
-        if signature == self._last_failure_signature:
-            self._consecutive_tool_failures += 1
-        else:
-            self._last_failure_signature = signature
-            self._consecutive_tool_failures = 1
-
-        self._execution_history.append(
-            {
-                "action": agent_step.action,
-                "action_input": agent_step.action_input,
-                "call_signature": self._call_signature(
-                    agent_step.action, agent_step.action_input
-                ),
-                "success": False,
-                "progress": False,
-                "error_code": error_code,
-            }
-        )
-        if len(self._execution_history) > AgentConfig.MAX_EXECUTION_HISTORY_SIZE:
-            self._execution_history.pop(0)
-
-        call_is_blocked = (
-            not result.retryable
-            or self._failure_counts[signature]
-            >= AgentConfig.MAX_CONSECUTIVE_TOOL_FAILURES
-        )
-        if call_is_blocked:
-            self._blocked_call_signatures.add(
-                self._call_signature(agent_step.action, agent_step.action_input)
-            )
-
         self._tool_call_retry_count = 0
         self.error_history.append(
             {
@@ -1475,16 +1297,9 @@ class ReActAgentSGR(Agent):
                 "error_code": error_code,
             }
         )
-        blocked_note = (
-            " This exact call is blocked; change its input or strategy."
-            if call_is_blocked
-            else " Correct the input before the single allowed retry."
-            if result.retryable
-            else " This failure is not retryable; change strategy."
-        )
         observation = (
             f"TOOL FAILED [error_code={error_code}, "
-            f"retryable={str(result.retryable).lower()}]: {result}{blocked_note}"
+            f"retryable={str(result.retryable).lower()}]: {result}"
         )
         self.memory.append(
             {
@@ -1508,23 +1323,6 @@ class ReActAgentSGR(Agent):
         ]
 
         for iteration in range(self.max_iterations):
-            if self._tool_call_retry_count >= AgentConfig.MAX_RETRY_COUNT:
-                last_error = (
-                    self.error_history[-1].get("detail", "unknown LLM error")
-                    if self.error_history
-                    else "unknown LLM error"
-                )
-                logging.error(
-                    "AGENT_FAILED\treason=retry_limit\tfailed_attempts=%s\t"
-                    "last_error=%s",
-                    self._tool_call_retry_count,
-                    last_error,
-                )
-                return (
-                    "Error: Agent failed to produce a valid response after "
-                    "multiple attempts. Please refine your request."
-                )
-
             messages = self._get_sliding_window_messages()
 
             agent_step = self._get_structured_response(messages, iteration)
@@ -1549,14 +1347,6 @@ class ReActAgentSGR(Agent):
             )
 
             if agent_step.action.lower().strip() == "finish":
-                finish_error = self._finish_guard_error()
-                if finish_error:
-                    self.memory.append(
-                        {"role": "user", "content": f"Observation: {finish_error}"}
-                    )
-                    logging.warning(finish_error)
-                    logging.info(_LOG_SEPARATOR)
-                    continue
                 logging.info(f"AGENT DECIDED TO FINISH at step {iteration+1}")
                 logging.info(_LOG_SEPARATOR)
 
@@ -1578,17 +1368,6 @@ class ReActAgentSGR(Agent):
             )
             if not is_valid:
                 self._handle_validation_error(agent_step, validation_error, iteration)
-                continue
-
-            call_signature = self._call_signature(
-                agent_step.action, agent_step.action_input
-            )
-            if call_signature in self._blocked_call_signatures:
-                self._handle_blocked_call(agent_step)
-                continue
-
-            if self._detect_loop(agent_step.action, agent_step.action_input):
-                self._handle_loop_detection(agent_step)
                 continue
 
             result = self.execute_tool(agent_step.action, agent_step.action_input)
