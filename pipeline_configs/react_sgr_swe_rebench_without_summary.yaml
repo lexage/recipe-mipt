@@ -1,0 +1,39 @@
+type: REACT
+components:
+  tools:
+    - type: LIST_FILES_TOOL
+    - type: READ_FILE_TOOL
+    - type: SEARCH_CODE_TOOL
+    - type: APPLY_PATCH_TOOL
+    - type: RUN_COMMAND_TOOL
+      params:
+        default_timeout: 120
+        max_timeout: 600
+        # Ready SWE-rebench images already contain the task environment.
+        # Network installation wastes iterations and is unavailable in offline runs.
+        allow_package_install: false
+    - type: GIT_DIFF_TOOL
+
+  agent:
+    type: REACT_AGENT_SGR
+    params:
+      name: react-sgr-swe-rebench
+      url: http://localhost:11455/v1
+      model_name: Qwen/Qwen3.8-27B-FP8
+      temperature: 0.7
+      max_iterations: 60
+      history_context: 10
+      # max_tokens: None
+      few_shot_type: zero_shot
+      # The evaluator consumes the repository diff; avoid an extra LLM request
+      # after the structured finish step.
+      synthesize_final_answer: false
+      # Recursively compress every completed action/observation step. The hard
+      # token limit protects the request while target_chars keeps responses
+      # comfortably below that limit and lets the model finish the summary.
+      trajectory_summary_enabled: false
+      trajectory_summary_max_tokens: 1024
+      trajectory_summary_temperature: 0.0
+      trajectory_summary_target_chars: 3000
+
+logs_path: /workspace/proj/grant_swe_rebench/recipe-mipt/logs

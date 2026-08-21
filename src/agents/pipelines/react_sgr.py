@@ -1157,6 +1157,11 @@ class ReActAgentSGR(Agent):
                 ],
                 temperature=self.trajectory_summary_temperature,
                 max_tokens=self.trajectory_summary_max_tokens,
+                extra_body={
+                    "chat_template_kwargs": {
+                        "enable_thinking": False,
+                    }
+                },
             )
             choice = response.choices[0]
             content = (choice.message.content or "").strip()
