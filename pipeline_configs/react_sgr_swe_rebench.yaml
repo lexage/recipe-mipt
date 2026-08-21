@@ -19,11 +19,11 @@ components:
     params:
       name: react-sgr-swe-rebench
       url: http://localhost:11455/v1
-      model_name: Qwen/Qwen2.5-32B-Instruct
+      model_name: Qwen/Qwen3.8-27B-FP8
       temperature: 0.7
       max_iterations: 60
       history_context: 10
-      max_tokens: 1024
+      # max_tokens: None
       few_shot_type: zero_shot
       # The evaluator consumes the repository diff; avoid an extra LLM request
       # after the structured finish step.

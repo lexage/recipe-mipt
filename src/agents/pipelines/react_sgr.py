@@ -930,6 +930,7 @@ class ReActAgentSGR(Agent):
         self.client = OpenAI(base_url=self.base_url, api_key="vllm")
         self.model_name = model_name
         self.temperature = temperature
+        self._rec_mem = ""
 
         # Runtime state - reset on each run() call
         self._reset_runtime_state()
@@ -1048,7 +1049,7 @@ class ReActAgentSGR(Agent):
             -self.history_context * 2 :
         ]
 
-        return base_messages + recent_messages
+        return base_messages + self._rec_mem + recent_messages
 
     def _validate_tool_args(
         self, tool_name: str, action_input: Dict[str, Any]

@@ -30,9 +30,13 @@ case "$DATASET_ALIAS" in
         DATASET_SOURCE="$SNAPSHOTS_DIR/tasks-from-2024-10-01.jsonl"
         EVAL_MAX_WORKERS=8
         ;;
+    two)
+        DATASET_SOURCE="$SNAPSHOTS_DIR/tasks-from-2025-04-01-first-2.jsonl"
+        EVAL_MAX_WORKERS=8
+        ;;
     *)
         echo "Неизвестная выборка: $DATASET_ALIAS" >&2
-        echo "Допустимые значения: one, first10, first100, october" >&2
+        echo "Допустимые значения: one, first10, first100, october, two" >&2
         exit 2
         ;;
 esac
@@ -46,7 +50,7 @@ export SPLIT="test"
 export EVAL_NAMESPACE="swerebench"
 
 export MODEL_URL="http://127.0.0.1:11455/v1"
-export LLM_MODEL="Qwen/Qwen2.5-32B-Instruct"
+export LLM_MODEL="Qwen/Qwen3.8-27B-FP8"
 export MODEL_NAME_OR_PATH="react-sgr/${LLM_MODEL}"
 export NO_PROXY="${NO_PROXY:+${NO_PROXY},}localhost,127.0.0.1"
 export no_proxy="$NO_PROXY"
