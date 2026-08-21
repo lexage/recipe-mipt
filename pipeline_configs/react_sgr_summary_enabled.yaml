@@ -32,8 +32,8 @@ components:
       # token limit protects the request while target_chars keeps responses
       # comfortably below that limit and lets the model finish the summary.
       trajectory_summary_enabled: true
-      trajectory_summary_max_tokens: 2048
+      trajectory_summary_max_tokens: 1024
       trajectory_summary_temperature: 0.0
-      trajectory_summary_target_chars: 5000
+      trajectory_summary_target_chars: 3000
 
 logs_path: /workspace/proj/grant_swe_rebench/recipe-mipt/logs
