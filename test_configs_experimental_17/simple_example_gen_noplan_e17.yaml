@@ -1,0 +1,101 @@
+type: SIMPLE
+
+# === ЭКСПЕРИМЕНТ 17, конфиг 3/4: абляция планирования ===
+# Тот же PlanGuideGenerator, те же улики из корпуса, тот же контракт документа —
+# но plan: False. Документы пишутся по одному на улику, без плана и без дедупа
+# на уровне плана. Разница с конфигом 2/4 — вклад ИМЕННО планирования: и в
+# метрике, и в доле смысловых дублей на выходе.
+#
+# Энхансер не объявляется — см. комментарий в simple_example_pure_e17.yaml.
+
+params:
+  top_k: 5
+  keep_source_docs: True
+  generation_seed: 20260824
+  materialize_db_path: "data/generated/e17_gen_noplan__examples__seed20260824.db"
+  on_exists: "rebuild"
+
+components:
+
+  embedder:
+    type: EMBEDDING_AGENT
+    params:
+      name: embedder
+      url: "http://0.0.0.0:7216/v1"
+      model_name: "Qwen/Qwen3-Embedding-4B"
+
+  data_base:
+    type: LOCAL_DB
+    params:
+      path_to_db: "data/docs_database_examples.db"
+      path_to_vector_db: "data/vdb_exp17_gen_noplan_rc1000"
+      collection_name: "docs"
+
+      return_examples: True
+      return_full_docs: False
+      merge_examples: True
+
+      hnsw_space: "cosine"
+      hnsw_m: 16
+      hnsw_construction_ef: 400
+      hnsw_search_ef: 200
+      batch_size: 16
+
+      search_filter:
+        source: "documents"
+
+  chunker:
+    type: RECURSIVE_CHUNKER
+    params:
+      name: chunker
+      max_chunk_size: 1000
+
+  generator:
+    type: PLAN_GUIDE_GENERATOR
+    params:
+      name: plan_guide_generator
+      # model_name не задаётся — резолвится с эндпоинта (см. комментарий у agent).
+      url: "http://0.0.0.0:7114/v1"
+      path_to_db: "data/docs_database_examples.db"
+
+      n_docs: 150
+      n_protocol_docs: 24
+      plan: False
+
+      rare_api_min: 5
+      rare_api_max: 100
+
+      num_workers: 8
+      temperature: 0.2
+      max_retries: 2
+      dedup_threshold: 0.85
+
+      dump_path: "results/gen_dumps/e17_gen_noplan.jsonl"
+      plan_dump_path: "results/gen_dumps/e17_gen_noplan_plan.jsonl"
+
+  context_assembler:
+    type: CORAG_CONTEXT_ASSEMBLER
+    params:
+      name: simple_assembler
+
+  retriever:
+    type: SIMPLE_RETRIEVER
+    params:
+      name: simple_retriever
+
+  agent:
+    type: DS1000_SOLVER_AGENT
+    params:
+      name: ds1000_solver
+
+      # Модель НЕ задаётся: DS1000Solver берёт её с эндпоинта
+      # (client.models.list()), поэтому решает то, что реально поднято на 7114.
+      # На 24.08.2026 это Qwen/Qwen2.5-32B-Instruct (полная, не AWQ).
+      url: "http://0.0.0.0:7114/v1"
+
+      api: chat
+
+      temperature: 0.2
+      top_p: 0.95
+      max_tokens: 1024
+      stop_tokens: ["</code>", "# SOLUTION END"]
