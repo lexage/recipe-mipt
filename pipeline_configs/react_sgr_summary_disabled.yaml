@@ -22,18 +22,16 @@ components:
       model_name: Qwen/Qwen3.8-27B-FP8
       temperature: 0.7
       max_iterations: 60
-      history_context: 10
+      history_context: 5
       # max_tokens: None
       few_shot_type: zero_shot
       # The evaluator consumes the repository diff; avoid an extra LLM request
       # after the structured finish step.
       synthesize_final_answer: false
-      # Recursively compress every completed action/observation step. The hard
-      # token limit protects the request while target_chars keeps responses
-      # comfortably below that limit and lets the model finish the summary.
+      # Recursively compress every completed action/observation step.
+      # The token limit bounds the summary response.
       trajectory_summary_enabled: false
-      trajectory_summary_max_tokens: 1024
+      trajectory_summary_max_tokens: 2048
       trajectory_summary_temperature: 0.0
-      trajectory_summary_target_chars: 3000
 
 logs_path: /workspace/proj/grant_swe_rebench/recipe-mipt/logs

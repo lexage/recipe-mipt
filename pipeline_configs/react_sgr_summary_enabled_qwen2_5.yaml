@@ -18,8 +18,8 @@ components:
     type: REACT_AGENT_SGR
     params:
       name: react-sgr-swe-rebench
-      url: http://localhost:11455/v1
-      model_name: Qwen/Qwen3.8-27B-FP8
+      url: http://localhost:11457/v1
+      model_name: Qwen/Qwen2.5-32B-Instruct
       temperature: 0.7
       max_iterations: 60
       history_context: 5

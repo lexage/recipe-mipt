@@ -12,6 +12,10 @@ from .apply_patch import ApplyPatchTool
 from .run_command import RunCommandTool
 from .git_diff import GitDiffTool
 
+from .critic_tool import (
+    CriticTool
+)
+
 __all__ = [
     "BaseTool",
     "ToolResult",
@@ -24,4 +28,5 @@ __all__ = [
     "ApplyPatchTool",
     "RunCommandTool",
     "GitDiffTool",
+    "CriticTool"
 ]

@@ -127,3 +127,4 @@ class ComponentNames(Enum):
     APPLY_PATCH_TOOL = "src.tools.ApplyPatchTool"
     RUN_COMMAND_TOOL = "src.tools.RunCommandTool"
     GIT_DIFF_TOOL = "src.tools.GitDiffTool"
+    CRITIC_TOOL = "src.tools.CriticTool"
