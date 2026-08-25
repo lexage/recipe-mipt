@@ -1,0 +1,79 @@
+type: SIMPLE
+
+# === ЭКСПЕРИМЕНТ 18, конфиг 1/4: контроль шума ===
+# Исходная БД, без генерации и без фильтрации. В exp17 этот же конфиг дал
+# 0.445; повтор в той же партии показывает, какого размера прогонный шум,
+# и к нему привязываются сравнения exp18.
+#
+# NB про энхансер: в exp13/14/15 компонент объявлялся ключом `enchancer`, а
+# параметр пайплайна называется `enhancer` — компонент строился и выбрасывался,
+# QUERY_GENERATOR ни разу не вызывался (доказательство: eval_llm_calls = 1000 на
+# 1000 задач, то есть ровно один вызов солвера на задачу). В exp18 энхансер не
+# объявляется вовсе: включить его сейчас значило бы поменять пайплайн посреди
+# сравнения. Ретривер получает текст задачи как есть — ровно как в exp15.
+
+params:
+  top_k: 5
+  keep_source_docs: True
+
+components:
+
+  embedder:
+    type: EMBEDDING_AGENT
+    params:
+      name: embedder
+      url: "http://0.0.0.0:7216/v1"
+      model_name: "Qwen/Qwen3-Embedding-4B"
+
+  data_base:
+    type: LOCAL_DB
+    params:
+      path_to_db: "data/docs_database_examples.db"
+      path_to_vector_db: "data/vdb_exp18_pure_rc1000"
+      collection_name: "docs"
+
+      return_examples: True
+      return_full_docs: False
+      merge_examples: True
+
+      hnsw_space: "cosine"
+      hnsw_m: 16
+      hnsw_construction_ef: 400
+      hnsw_search_ef: 200
+      batch_size: 16
+
+      search_filter:
+        source: "documents"
+
+  chunker:
+    type: RECURSIVE_CHUNKER
+    params:
+      name: chunker
+      max_chunk_size: 1000
+
+  context_assembler:
+    type: CORAG_CONTEXT_ASSEMBLER
+    params:
+      name: simple_assembler
+
+  retriever:
+    type: SIMPLE_RETRIEVER
+    params:
+      name: simple_retriever
+
+  agent:
+    type: DS1000_SOLVER_AGENT
+    params:
+      name: ds1000_solver
+
+      # Модель НЕ задаётся: DS1000Solver берёт её с эндпоинта
+      # (client.models.list()), поэтому решает то, что реально поднято на 7114.
+      # На 25.08.2026 это Qwen/Qwen2.5-32B-Instruct (полная, не AWQ).
+      url: "http://0.0.0.0:7114/v1"
+
+      api: chat
+
+      temperature: 0.2
+      top_p: 0.95
+      max_tokens: 1024
+      stop_tokens: ["</code>", "# SOLUTION END"]

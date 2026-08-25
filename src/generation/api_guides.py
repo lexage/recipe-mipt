@@ -1,4 +1,4 @@
-"""ApiGuideGenerator — API-anchored instruction generation, repaired for exp17.
+"""ApiGuideGenerator — API-anchored instruction generation, repaired for exp18.
 
 The exp15 version scored 0.430 and its post-mortem found two independent
 defects, one mechanical and one conceptual.
@@ -53,9 +53,11 @@ from tqdm import tqdm
 from src.agent_constructor.core import Document
 from src.agent_constructor.generator import Generator
 from src.agent_constructor.prompts import PromptDiscoverable
-from src.generation.doc_contract import (DOC_CLASS_RECIPE, GenJob,
-                                         check_contract, contract_rules,
-                                         protocol_jobs, title_of)
+from src.generation.doc_contract import (DOC_CLASS_PROTOCOL, DOC_CLASS_RECIPE,
+                                         SELF_CHECK, GenJob, check_contract,
+                                         contract_rules, exemplar_topics,
+                                         exemplars_block, keep_first_code_block,
+                                         protocol_jobs, strip_imports, title_of)
 from src.generation.rag_guides import _FENCE_RE, _TITLE_RE, _code_ok, _slug
 from src.utils import DOCUMENT_SRC_DOCUMENTS
 from src.utils.token_tracker import get_active, set_active
@@ -181,12 +183,60 @@ def api_census(documents: List[Document], path_to_db: str = "",
     return counts
 
 
-def rare_api_candidates(census: Counter, min_count: int = 5,
-                        max_count: int = 100) -> List[Tuple[str, str, int]]:
-    """APIs in the specificity band the manual recipes occupy (median 31)."""
+def is_public(api: str) -> bool:
+    """Dunders and private helpers are never worth a document."""
+    name = api.lstrip(".")
+    return bool(name) and not name.startswith("_") and "._" not in api
+
+
+def head_api_candidates(census: Counter, min_count: int = 100
+                        ) -> List[Tuple[str, str, int]]:
+    """APIs from the HEAD of the frequency distribution.
+
+    exp17 selected the rare tail (5..100 uses) because the manual recipes have a
+    median API frequency of 31. That reading was wrong: the manual median is a
+    median over a MIXTURE — its 75th percentile is 104 and its maximum 2770. The
+    manual documents anchor on an everyday operation and put the trap inside it;
+    the rare token is a detail of the solution, not the subject. Selecting by
+    rarity produced tf.distribute.ReduceOp.SUM and scipy.special.ccdf, and only
+    21% of the selected APIs occurred anywhere in user task text against 62% for
+    this rule (measured before the run).
+    """
     out = [(lib, api, count) for (lib, api), count in census.items()
-           if min_count <= count <= max_count and len(api.lstrip(".")) > 2]
+           if count >= min_count and len(api.lstrip(".")) > 2 and is_public(api)]
     out.sort(key=lambda x: (-x[2], x[0], x[1]))
+    return out
+
+
+def lookalike_siblings(census: Counter, min_count: int = 100,
+                       sibling_min: int = 20
+                       ) -> Dict[Tuple[str, str], List[Tuple[str, int]]]:
+    """For each frequent API, the same-library names it is easy to mix up with.
+
+    The ANCHOR has to be frequent — that is the operation the user is actually
+    doing. The neighbour does not: np.roll against a NaN-filling slice, or
+    sort_values against sort_index, is exactly the manual-recipe pattern where
+    one side of the confusion is much rarer than the other.
+    """
+    by_lib: Dict[str, List[Tuple[str, int]]] = defaultdict(list)
+    for (lib, api), count in census.items():
+        if count >= sibling_min and is_public(api):
+            by_lib[lib].append((api.rsplit(".", 1)[-1].lstrip("."), count))
+    out: Dict[Tuple[str, str], List[Tuple[str, int]]] = {}
+    for (lib, api), count in census.items():
+        if count < min_count or not is_public(api):
+            continue
+        name = api.rsplit(".", 1)[-1].lstrip(".")
+        sibs = []
+        for other, ocount in by_lib[lib]:
+            if other == name or len(other) < 4 or len(name) < 4:
+                continue
+            if other.startswith(name) or name.startswith(other) or \
+                    (other[:4] == name[:4] and abs(len(other) - len(name)) <= 6):
+                sibs.append((other, ocount))
+        if sibs:
+            sibs.sort(key=lambda x: -x[1])
+            out[(lib, api)] = sibs[:3]
     return out
 
 
@@ -216,30 +266,53 @@ def _confusability(census: Counter) -> Dict[Tuple[str, str], int]:
     return score
 
 
-def select_apis(census: Counter, n_docs: int, min_count: int = 5,
-                max_count: int = 100) -> List[Tuple[str, str, int]]:
-    """Pick the APIs to write about: specific first, confusable first."""
-    candidates = rare_api_candidates(census, min_count, max_count)
-    if not candidates:
-        return []
+def select_apis(census: Counter, n_docs: int, min_count: int = 100,
+                require_confusable: bool = True) -> List[Tuple[str, str, int]]:
+    """Pick the APIs to write about: the head of each library, confusable first.
+
+    Two properties the exp17 version lacked:
+
+    * the head is taken PER LIBRARY, not against one absolute threshold. The
+      corpus is lopsided (49 numpy APIs above 100 uses against 3 sklearn ones),
+      so a global cut silently hands the whole budget to the biggest library —
+      exp17 gave tensorflow 24-30 documents for 45 benchmark tasks and sklearn
+      2-3 for 115;
+    * confusability ranks candidates instead of filtering them out, so a library
+      with few confusable APIs still fills its quota rather than going empty.
+    """
     conf = _confusability(census)
     per_lib: Dict[str, List[Tuple[str, str, int]]] = defaultdict(list)
-    for lib, api, count in candidates:
-        per_lib[lib].append((lib, api, count))
-    for lib in per_lib:
-        per_lib[lib].sort(key=lambda x: (-conf.get((x[0], x[1]), 0), -x[2], x[1]))
+    for (lib, api), count in census.items():
+        if len(api.lstrip(".")) > 2 and is_public(api):
+            per_lib[lib].append((lib, api, count))
+    if not per_lib:
+        return []
+
+    def rank(item):
+        lib, api, count = item
+        return (-(conf.get((lib, api), 0) if require_confusable else 0), -count, api)
+
     libs = sorted(per_lib)
-    quota = max(1, n_docs // max(1, len(libs)))
+    quota = max(1, n_docs // len(libs))
     picked: List[Tuple[str, str, int]] = []
+    leftovers: List[Tuple[str, str, int]] = []
     for lib in libs:
-        picked.extend(per_lib[lib][:quota])
-    # Fill any remainder round-robin so a small library does not waste budget.
+        ranked = sorted(per_lib[lib], key=rank)
+        # The head of THIS library: everything above the absolute threshold,
+        # and, if that is short of the quota, its next most used APIs — but
+        # never below the floor. A library with a thin head gets fewer
+        # documents rather than documents about APIs used twice, which is the
+        # exp17 failure mode reappearing through the back door.
+        head = [c for c in ranked if c[2] >= min_count]
+        if len(head) < quota:
+            floor = max(2, min_count // 5)
+            head += [c for c in ranked if floor <= c[2] < min_count][
+                :quota - len(head)]
+        picked.extend(head[:quota])
+        leftovers.extend(head[quota:])
     if len(picked) < n_docs:
-        chosen = set(picked)
-        rest = [c for lib in libs for c in per_lib[lib][quota:]
-                if c not in chosen]
-        rest.sort(key=lambda x: (-conf.get((x[0], x[1]), 0), -x[2], x[1]))
-        picked.extend(rest[: n_docs - len(picked)])
+        leftovers.sort(key=rank)
+        picked.extend(leftovers[: n_docs - len(picked)])
     picked.sort(key=lambda x: (x[0], -x[2], x[1]))
     return picked[:n_docs]
 
@@ -253,7 +326,11 @@ class ApiGuideGenerator(PromptDiscoverable, Generator):
         path_to_db: sqlite path — its ``examples`` table joins the census.
         n_api_docs: total document budget (protocol pack included).
         n_protocol_docs: how much of the budget the protocol class takes.
-        min_count / max_count: corpus-frequency window an API must fall into.
+        min_count: an API must be used at least this many times in the corpus
+            (the HEAD of the distribution, see head_api_candidates).
+        fewshot_db_path / n_fewshot: manual corpus used as FORM exemplars.
+        reject_dump_path: where rejected drafts go, so a shrinking yield can be
+            audited instead of guessed at.
         num_workers / temperature / seed / max_retries / limit / max_doc_chars:
             as in ``PlanGuideGenerator``.
         dump_path: audit jsonl of everything that survived.
@@ -264,10 +341,11 @@ class ApiGuideGenerator(PromptDiscoverable, Generator):
         url: Optional[str] = None,
         model_name: Optional[str] = None,
         path_to_db: str = "",
-        n_api_docs: int = 150,
-        n_protocol_docs: int = 24,
-        min_count: int = 5,
-        max_count: int = 100,
+        n_api_docs: int = 220,
+        n_protocol_docs: int = 70,
+        min_count: int = 100,
+        fewshot_db_path: str = "data/docs_database_examples_aug.db",
+        n_fewshot: int = 3,
         num_workers: int = 8,
         temperature: float = 0.2,
         seed: int = 0,
@@ -275,6 +353,7 @@ class ApiGuideGenerator(PromptDiscoverable, Generator):
         limit: int = 0,
         max_doc_chars: int = 1100,
         dump_path: str = "",
+        reject_dump_path: str = "",
         name: str = "api_guide_generator",
     ):
         super().__init__(name)
@@ -285,7 +364,8 @@ class ApiGuideGenerator(PromptDiscoverable, Generator):
         self.n_api_docs = int(n_api_docs)
         self.n_protocol_docs = int(n_protocol_docs)
         self.min_count = max(1, int(min_count))
-        self.max_count = int(max_count)
+        self.fewshot_db_path = fewshot_db_path
+        self.n_fewshot = int(n_fewshot)
         self.num_workers = max(1, int(num_workers))
         self.temperature = float(temperature)
         self.seed = int(seed)
@@ -293,6 +373,8 @@ class ApiGuideGenerator(PromptDiscoverable, Generator):
         self.limit = int(limit)
         self.max_doc_chars = int(max_doc_chars)
         self.dump_path = dump_path
+        self.reject_dump_path = reject_dump_path
+        self.rejects: List[dict] = []
 
         self._seed_supported = True
         self.stats: Counter = Counter()
@@ -352,12 +434,15 @@ class ApiGuideGenerator(PromptDiscoverable, Generator):
     # ------------------------------------------------------------------- jobs
     def _api_jobs(self, apis: List[Tuple[str, str, int]]) -> List[GenJob]:
         jobs = []
-        for lib, api, count in apis:
+        for i, (lib, api, count) in enumerate(apis):
             shown = f"the {lib} method `{api}()`" if api.startswith(".") else f"`{api}`"
             prompt = self.render_prompt(
                 "api_recipe", _API_PROMPT,
                 lib=lib, api=api, shown=shown, count=count,
-                rules=contract_rules(DOC_CLASS_RECIPE, api))
+                rules=contract_rules(DOC_CLASS_RECIPE, api),
+                examples=exemplars_block(self.fewshot_db_path, DOC_CLASS_RECIPE,
+                                         rotation=i, n=self.n_fewshot),
+                selfcheck=SELF_CHECK)
             jobs.append(GenJob(
                 library=lib, doc_class=DOC_CLASS_RECIPE, prompt=prompt,
                 api_token=api, plan_id=f"api:{lib}:{api}", topic=api))
@@ -376,15 +461,18 @@ class ApiGuideGenerator(PromptDiscoverable, Generator):
             return []
 
         census = api_census(documents, self.path_to_db, self.stats)
-        proto = protocol_jobs(libs, self.n_protocol_docs)
+        proto = protocol_jobs(libs, self.n_protocol_docs,
+                              render=self.render_prompt,
+                              fewshot_db_path=self.fewshot_db_path,
+                              n_fewshot=self.n_fewshot)
         api_budget = max(0, self.n_api_docs - len(proto))
-        apis = select_apis(census, api_budget, self.min_count, self.max_count)
+        apis = select_apis(census, api_budget, self.min_count)
         if not apis:
             logger.warning("%s: empty API selection", self.name)
         self.stats["apis_selected"] = len(apis)
-        logger.info("%s: %d APIs selected in the %d..%d frequency window "
-                    "(top: %s)", self.name, len(apis), self.min_count,
-                    self.max_count, [f"{l}:{a}({c})" for l, a, c in apis[:8]])
+        logger.info("%s: %d APIs selected from the head of the distribution "
+                    "(>=%d uses, confusable) (top: %s)", self.name, len(apis),
+                    self.min_count, [f"{l}:{a}({c})" for l, a, c in apis[:8]])
 
         jobs = proto + self._api_jobs(apis)
         if self.limit:
@@ -397,6 +485,7 @@ class ApiGuideGenerator(PromptDiscoverable, Generator):
     # ------------------------------------------------------------ production
     def _write_doc(self, job: GenJob, index: int) -> Optional[Tuple[GenJob, str, int]]:
         note = ""
+        ex_topics = exemplar_topics(self.fewshot_db_path, job.doc_class)
         for attempt in range(1, self.max_retries + 2):
             try:
                 raw = self._chat(job.prompt + note, seed=self.seed + index * 17 + attempt)
@@ -410,14 +499,23 @@ class ApiGuideGenerator(PromptDiscoverable, Generator):
                 note = "\nYour previous answer was not parseable. Follow the "\
                        "TITLE: format exactly."
                 continue
+            # Mechanical repair beats rejection: an import line and a second
+            # code block are lint, not a reason to lose a finished document.
+            content, n_imports = strip_imports(content)
+            content, n_blocks = keep_first_code_block(content)
+            self.stats["repaired_imports"] += n_imports
+            self.stats["repaired_extra_blocks"] += n_blocks
             violation, soft = check_contract(
-                content, job.doc_class, job.api_token, job.require_facts)
+                content, job.doc_class, job.api_token, job.angle, ex_topics)
             if violation is None:
                 self.stats["parsed_ok"] += 1
                 for flag, value in soft.items():
                     self.stats[f"soft_{flag}"] += int(bool(value))
                 return job, content, attempt
             self.stats[f"reject_{violation}"] += 1
+            self.rejects.append({"plan_id": job.plan_id, "library": job.library,
+                                 "doc_class": job.doc_class, "attempt": attempt,
+                                 "violation": violation, "content": content})
             note = ("\nYour previous answer was rejected (" + violation +
                     "). Rewrite it following the requirements exactly.")
         self.stats["retry_exhausted"] += 1
@@ -507,6 +605,12 @@ class ApiGuideGenerator(PromptDiscoverable, Generator):
             if dump_f:
                 dump_f.close()
 
+        if self.reject_dump_path and self.rejects:
+            os.makedirs(os.path.dirname(self.reject_dump_path) or ".", exist_ok=True)
+            with open(self.reject_dump_path, "w", encoding="utf-8") as f:
+                for row in self.rejects:
+                    f.write(json.dumps(row, ensure_ascii=False) + "\n")
+
         statuses = Counter(p["status"] for p in self.audit_plans)
         logger.info(
             "%s: %d documents into the corpus. COVERAGE: jobs %d, generated %d, "
@@ -518,18 +622,25 @@ class ApiGuideGenerator(PromptDiscoverable, Generator):
 
 
 _API_PROMPT = """\
-Write ONE short knowledge-base document about $shown in modern $lib code, for a \
-developer completing a partially written snippet.
+You are writing one document for a knowledge base that is read by a developer
+who is completing a partially written $lib snippet. The imports and the data are
+already in place above the gap; the developer needs the missing lines and
+nothing else.
 
-The document must resolve a real confusion around $api: a neighbouring API that \
-does almost the same thing, an argument whose default silently changes the \
-result, or a spelling that was renamed. If $api has no such trap, write about \
-the single mistake that actually breaks code using it.
+Purpose of this document: stop ONE specific confusion around $shown. It is a
+directive note, not a tutorial: if the task wants THIS, use THAT.
 
-Requirements:
-$rules- under 120 words plus the code.
+The subject: $shown, used $count times across this library's own documentation.
+Write about the neighbouring API that is easy to take for it, or about the
+argument whose default silently changes the result. If neither is true of $api,
+write about the single mistake that actually breaks code using it.
 
-Format STRICTLY as:
+Form:
+$rules- under 120 words in total.
+
+$examples
+$selfcheck
+Answer STRICTLY as:
 TITLE: <a how-do-I question containing $api>
-<document text, code in ``` fences>
+<the document>
 """
