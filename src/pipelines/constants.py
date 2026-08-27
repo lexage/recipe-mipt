@@ -26,6 +26,7 @@ class ComponentNames(Enum):
 
     # ===== Agents: General =====
     DS1000_SOLVER_AGENT = "src.agents.general.DS1000Solver"
+    REFLECTION_ORACLE_SOLVER_AGENT = "src.agents.general.ReflectionOracleSolver"
     DUMMY_AGENT = "src.agents.general.DummyAgent"
     TFIDF_EMBEDDING = "src.agents.general.TFIDFEmbedding"
     EMBEDDING_AGENT = "src.agents.general.EmbeddingAgent"
@@ -162,6 +163,9 @@ class ComponentNames(Enum):
 
     # ===== Generators: intent-anchored corpus augmentation =====
     INTENT_BASED_GENERATOR = "src.generation.intent_based.IntentBasedGenerator"
+
+    # ===== Generators: oracle intent table + KNN bake (oracle pair to INTENT_BASED_GENERATOR) =====
+    ORACLE_INTENT_GENERATOR = "src.generation.oracle_intent.OracleIntentGenerator"
 
     # ===== TOOLS =====
     DB_SEARCH_TOOL = "src.tools.DBSearchTool"

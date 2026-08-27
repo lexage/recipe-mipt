@@ -87,7 +87,7 @@ recipe-mipt/
     │   ├── pipelines/                 #   Роли для MAPS/MARS/REWOO/REACT/PANEL
     │   ├── rag/                       #   InstructRationality, CoRAGFinalSolver, Raptor*
     │   ├── generation/                #   APISelector, QueryGenerator (in-inference, не Generator!)
-    │   └── general/                   #   DS1000Solver, EmbeddingAgent, SimpleAgent, TFIDFEmbedding
+    │   └── general/                   #   DS1000Solver, ReflectionOracleSolver (oracle: reflect-and-retry, §6.2), EmbeddingAgent, SimpleAgent, TFIDFEmbedding
     │
     ├── rag/                           # RAG-ретриверы: simple, corag, raptor, instructrag, api
     ├── icl/                           # In-context learning: fewshot, iccl, lens, icv
@@ -327,6 +327,7 @@ class Generator(Block):
 | `summary.txt` | `ResultsDS1000.summary` | Итог + разрезы по `library` и `perturbation_type`. |
 | `runtime_stats.json` | `run_ds1000.py` | Тайминги (`init_time_s`, `filter_apply_time_s`, …), пик RSS, токены, **блок `prompts`** (§7). |
 | `retrieved_chunks.jsonl` | `run_ds1000.py --log-chunks` | Чанки, которые ретривер отдал каждой задаче. |
+| `reflection_cycles.jsonl` | `run_ds1000.py` (только если агент — `ReflectionOracleSolver`) | По задаче: список циклов реши→оцени→отрази — код, `passed`, текст исполнения, рефлексия. См. §6.2. |
 | `config.yaml` | `run_ds1000.py` | Копия конфига, породившего прогон. |
 | `prompts.json` | `run_ds1000.py` | Полный текст всех промптов прогона (§7). |
 
@@ -350,6 +351,16 @@ class Generator(Block):
 python results/analyze_chunks.py results/<конфиг>/<ts>/retrieved_chunks.jsonl --failed --library Pandas -n 10
 python results/analyze_chunks.py results/<конфиг>/<ts>/retrieved_chunks.jsonl -n 0 --out context_report.txt
 ```
+
+### 6.2 Reflection-oracle: решить → оценить реальным тестом → отразиться → повторить
+
+[`ReflectionOracleSolver`](src/agents/general/ds1000_reflection_solver.py) (`ComponentName: REFLECTION_ORACLE_SOLVER_AGENT`, конфиг-пример: [`test_configs_experimental_17/simple_example_reflection_oracle.yaml`](test_configs_experimental_17/simple_example_reflection_oracle.yaml)) — answer-side ORACLE-эксперимент (не про фильтрацию/генерацию корпуса): солвер отвечает на задачу с обычным RAG-контекстом, ответ прогоняется через **настоящий** скрытый тест DS1000 (`src/benchmarks/ds1000/execution.check_correctness` — тот же код, что даёт финальный score), и при провале модель получает **точный текст исключения**, пишет короткую рефлексию (диагноз, без кода), затем переписывает решение. Цикл повторяется до `max_reflections` раз или до первого прохождения теста.
+
+Oracle — потому что оценка между попытками использует эталонный тест напрямую; в деплое такого сигнала нет. Answer-side (ТЗ 2.3, а не 2.1) — солвер сам подгружает `ds1000.jsonl.gz` и находит `code_context` задачи по точному тексту `prompt`, потому что `SimplePipeline.run(task: str)` не пробрасывает ничего, кроме промпта и RAG-контекста (та же идентичность, на которой уже держится `run_ds1000.py`: `pipeline.run(task.prompt)`).
+
+Логирование: агент копит цикл каждой задачи в памяти (`get_log()`, под `threading.Lock` — то же семейство приёмов, что у `token_tracker`/`retrieval_log`, поскольку `bench.eval` гоняет один и тот же пайплайн из нескольких потоков). `run_ds1000.py` после `bench.eval` дренирует лог через `getattr(pipeline.agent, "get_log", None)` (generic-хук: у любого другого агента атрибута нет → no-op) в `reflection_cycles.jsonl`.
+
+⚠ Каждый цикл — это ещё один вызов `check_correctness` (новый `multiprocessing.Process` с таймаутом), т.е. до `max_reflections + 1` реальных исполнений теста на задачу вместо одного — заметно дороже по времени, чем обычный однопроходный солвер.
 
 ---
 

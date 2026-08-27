@@ -189,6 +189,29 @@ def _write_chunk_log(target_dir: str | None, records: list) -> None:
     logging.info("Wrote retrieval log (%d tasks) → %s", len(records), out_path)
 
 
+def _write_reflection_log(target_dir: str | None, pipeline) -> None:
+    """Dump per-task self-reflection cycles, if the solver agent kept any.
+
+    Generic hook: only ReflectionOracleSolver (src/agents/general/
+    ds1000_reflection_solver.py) exposes `get_log()`; every other agent is
+    untouched (getattr returns None -> no-op).
+    """
+    get_log = getattr(getattr(pipeline, "agent", None), "get_log", None)
+    if get_log is None:
+        return
+    records = get_log()
+    if not records:
+        return
+    if not target_dir:
+        logging.warning("Cannot write reflection_cycles.jsonl: target dir unknown.")
+        return
+    out_path = os.path.join(target_dir, "reflection_cycles.jsonl")
+    with open(out_path, "w", encoding="utf-8") as f:
+        for record in records:
+            f.write(json.dumps(record, ensure_ascii=False) + "\n")
+    logging.info("Wrote reflection log (%d tasks) → %s", len(records), out_path)
+
+
 # ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
@@ -405,6 +428,7 @@ def main():
         experiment_dir = _find_new_subdir(save_dir, before_subdirs)
         _write_runtime_stats(experiment_dir, stats)
         _write_chunk_log(experiment_dir, chunk_log)
+        _write_reflection_log(experiment_dir, pipeline)
         _snapshot_config(experiment_dir, config_path)
         _write_prompts(experiment_dir, pipeline)
 
