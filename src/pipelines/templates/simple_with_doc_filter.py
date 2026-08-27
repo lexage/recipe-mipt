@@ -1,10 +1,13 @@
 """SimplePipelineWithDocFilter — variant of SimplePipeline with an extra
 document-level filtration step BEFORE chunking.
 
-Order of operations in __init__:
+Order of operations in __init__ (corpus stage shared with SimplePipeline,
+see src/pipelines/corpus.py):
     documents = data_base.get_documents()
-    if document_filter:  documents = document_filter.apply(documents)
+    if document_filter and stage == pre_generation:  documents = filter(documents)
     if generator:        documents += generator.generate(documents)
+    if document_filter and stage == post_generation: documents = filter(documents)
+    if materialize_db_path: the indexed corpus is written to its own .db
     chunks = [c for d in documents for c in chunker.chunk(d)]
     if filter:           chunks = filter.apply(chunks)
     data_base.add_chunks(chunks)
@@ -26,6 +29,7 @@ from src.agent_constructor.filters import Filter, DocumentFilter
 from src.agent_constructor.generator import Generator
 from src.agent_constructor.icl import ICLBlock
 from src.agent_constructor.pipeline import Pipeline
+from src.pipelines.corpus import build_corpus
 from src.utils.retrieval_log import record_chunks, record_context
 
 
@@ -44,23 +48,32 @@ class SimplePipelineWithDocFilter(Pipeline):
         generator: Generator = None,
         context_assembler: ContextAssembler = None,
         enhancer: Agent = None,
+        document_filter_stage: str = "pre_generation",
+        materialize_db_path: str = "",
+        on_exists: str = "rebuild",
+        generation_seed: int = None,
         top_k: int = 1,
     ):
         super().__init__("simple_pipeline_with_doc_filter")
 
-        documents = data_base.get_documents()
-
-        # ----- document-level filter (NEW vs SimplePipeline) ---------------
-        doc_filter_time = 0.0
-        if document_filter:
-            t0 = time.time()
-            documents = document_filter.apply(documents)
-            doc_filter_time = time.time() - t0
-        self._document_filter_apply_time = doc_filter_time
-
-        if generator:
-            synth_docs = generator.generate(documents=documents)
-            documents.extend(synth_docs)
+        # Same corpus stage as SimplePipeline (see src/pipelines/corpus.py); this
+        # template keeps its historical default of always filtering before
+        # generation and of always keeping the source documents.
+        build = build_corpus(
+            data_base=data_base,
+            generator=generator,
+            document_filter=document_filter,
+            document_filter_stage=document_filter_stage,
+            keep_source_docs=True,
+            materialize_db_path=materialize_db_path,
+            on_exists=on_exists,
+            generation_seed=generation_seed,
+        )
+        documents = build.documents
+        self._document_filter_apply_time = build.document_filter_time
+        self._generation_time = build.generation_time
+        self._materialize_time = build.materialize_time
+        self._build_stats = build.stats
 
         chunks = []
         [chunks.extend(chunker.chunk(doc)) for doc in documents]

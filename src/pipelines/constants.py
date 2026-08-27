@@ -161,6 +161,9 @@ class ComponentNames(Enum):
     # ===== Generators: experiment 15 — API-anchored instructions =====
     API_GUIDE_GENERATOR = "src.generation.api_guides.ApiGuideGenerator"
 
+    # ===== Generators: experiment 16 — plan-first, contract-validated =====
+    PLAN_GUIDE_GENERATOR = "src.generation.plan_guides.PlanGuideGenerator"
+
     # ===== Generators: intent-anchored corpus augmentation =====
     INTENT_BASED_GENERATOR = "src.generation.intent_based.IntentBasedGenerator"
 

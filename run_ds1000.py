@@ -348,6 +348,9 @@ def main():
         document_filter_apply_time_s = getattr(
             pipeline, "_document_filter_apply_time", None
         )
+        generation_time_s = getattr(pipeline, "_generation_time", None)
+        materialize_time_s = getattr(pipeline, "_materialize_time", None)
+        corpus_build = getattr(pipeline, "_build_stats", None)
 
         # ---------- run benchmark ----------
         save_dir = os.path.join(args.save_path, config_path.stem)
@@ -402,6 +405,15 @@ def main():
                 round(document_filter_apply_time_s, 2)
                 if document_filter_apply_time_s is not None else None
             ),
+            "generation_time_s": (
+                round(generation_time_s, 2) if generation_time_s else None
+            ),
+            "materialize_time_s": (
+                round(materialize_time_s, 2) if materialize_time_s else None
+            ),
+            # What the corpus stage actually did: filter position, generator,
+            # seed, yields, materialized .db path (see src/pipelines/corpus.py).
+            "corpus_build": corpus_build,
             "total_time_s": round(total_time_s, 2),
             "mean_task_time_s": round(total_time_s / n_tasks, 4),
             "peak_rss_mb": peak_rss_mb,
