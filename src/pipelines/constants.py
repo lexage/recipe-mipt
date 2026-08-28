@@ -62,16 +62,6 @@ class ComponentNames(Enum):
     RAPTOR_QA_AGENT = "src.agents.rag.RaptorQAAgent"
     RAPTOR_SUMM_AGENT = "src.agents.rag.RaptorSummarizationAgent"
 
-    # ===== Agents: Generation =====
-    API_SELECTOR = "src.agents.generation.APISelector"
-    QUERY_GENERATOR = "src.agents.generation.QueryGenerator"
-
-    # ===== Agents: Reasoning =====
-    AUTO_COT_REASONING = "src.agents.reasoning.AutoCoT"
-    CONTRASTIVE_COT_REASONING = "src.agents.reasoning.ContrastiveCoT"
-    COT_REASONING = "src.agents.reasoning.CoT"
-    SELECTION_INFERENCE_REASONING = "src.agents.reasoning.SelectionInference"
-    
     # ===== DBs =====
     LOCAL_DB = "src.db.docs_db.LocalDB"
     LOCAL_RAPTOR_DB = "src.db.raptor_db.LocalRaptorDB"
@@ -128,3 +118,4 @@ class ComponentNames(Enum):
     RUN_COMMAND_TOOL = "src.tools.RunCommandTool"
     GIT_DIFF_TOOL = "src.tools.GitDiffTool"
     CRITIC_TOOL = "src.tools.CriticTool"
+    SWE_REBENCH_CRITIC_TOOL = "src.tools.SWERebenchCriticTool"
