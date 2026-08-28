@@ -15,6 +15,7 @@ from .critic import SWERebenchCritic
 from .decrim import SWERebenchDecrim
 from .reflexion import SWERebenchReflexion
 from .self_refine import SWERebenchSelfRefine
+from .pipeline import SWERebenchPipelineCritic
 
 __all__ = [
     "CritiqueResult",
@@ -24,6 +25,7 @@ __all__ = [
     "SWERebenchCritic",
     "SWERebenchCritiqueContext",
     "SWERebenchDecrim",
+    "SWERebenchPipelineCritic",
     "SWERebenchReflexion",
     "SWERebenchSelfRefine",
 ]
