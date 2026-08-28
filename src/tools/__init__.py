@@ -12,10 +12,6 @@ from .apply_patch import ApplyPatchTool
 from .run_command import RunCommandTool
 from .git_diff import GitDiffTool
 
-from .critic_tool import (
-    CriticTool
-)
-
 __all__ = [
     "BaseTool",
     "ToolResult",
@@ -28,5 +24,22 @@ __all__ = [
     "ApplyPatchTool",
     "RunCommandTool",
     "GitDiffTool",
-    "CriticTool"
+    "CriticTool",
+    "SWERebenchCriticTool",
 ]
+
+
+def __getattr__(name):
+    """Load critic implementations only when their configured component is used."""
+
+    if name == "CriticTool":
+        from .critic_tool import CriticTool
+
+        globals()[name] = CriticTool
+        return CriticTool
+    if name == "SWERebenchCriticTool":
+        from .swe_rebench_critic_tool import SWERebenchCriticTool
+
+        globals()[name] = SWERebenchCriticTool
+        return SWERebenchCriticTool
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
