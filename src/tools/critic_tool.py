@@ -45,11 +45,23 @@ class CriticTool(BaseTool):
                     "properties": {
                         "task": {
                             "type": "string",
-                            "description": "The original task or question that needs to be solved.",
+                            # "description": "The original task or question that needs to be solved.",
+                            "description": (
+                                "The original SWE-rebench issue exactly as provided "
+                                "to the agent."
+                            ),
                         },
                         "answer": {
                             "type": "string",
-                            "description": "The full response from the agent. MUST include the generated code snippet, as the critic needs to analyze the code implementation to provide accurate feedback.",
+                            # "description": "The full response from the agent. MUST include the generated code snippet, as the critic needs to analyze the code implementation to provide accurate feedback.",
+                            "description": (
+                                "The current candidate solution to review. Include: "
+                                "(1) the complete current git diff; "
+                                "(2) relevant test or validation commands and their results; "
+                                "(3) a concise explanation of how the patch addresses the issue; "
+                                "(4) any validation limitations, unresolved errors, or "
+                                "unsupported assumptions."
+                            ),
                         }
                     },
                     "required": ["task", "answer"],
