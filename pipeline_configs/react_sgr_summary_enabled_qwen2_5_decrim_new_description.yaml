@@ -16,6 +16,16 @@ components:
     - type: CRITIC_TOOL
       params:
         name: decrim
+        description: >
+          Review the current candidate repository patch for a SWE-rebench task.
+          You MUST invoke this tool after applying code changes, obtaining the complete
+          current git diff, and running or attempting to run relevant tests, and before
+          finishing the task. Pass the original issue in task. In answer, include the
+          complete current git diff, relevant test commands and results, and a concise
+          explanation of how the patch addresses the issue. Use the feedback to revise
+          and revalidate the patch when unmet requirements or unsupported assumptions
+          are identified. If the patch is materially changed after the review, invoke
+          this tool again before finishing.
         url: http://localhost:11456/v1
         model_name: Qwen/Qwen2.5-32B-Instruct
 

@@ -54,7 +54,7 @@ export DATASET_REVISION="89cdfbab4ab1bd8f5a658bb212d1b63624f4f881"
 export SPLIT="test"
 export EVAL_NAMESPACE="swerebench"
 
-export MODEL_URL="http://127.0.0.1:11457/v1"
+export MODEL_URL="http://127.0.0.1:11456/v1"
 export LLM_MODEL="Qwen/Qwen2.5-32B-Instruct"
 export MODEL_NAME_OR_PATH="react-sgr/${LLM_MODEL}"
 export NO_PROXY="${NO_PROXY:+${NO_PROXY},}localhost,127.0.0.1"

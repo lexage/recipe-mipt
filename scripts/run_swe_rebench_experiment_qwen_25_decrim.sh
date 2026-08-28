@@ -8,7 +8,7 @@ EXPERIMENT_STARTED_EPOCH="$(date +%s)"
 RECIPE_DIR="/workspace/proj/grant_swe_rebench/recipe-mipt"
 SNAPSHOTS_DIR="$RECIPE_DIR/datasets/snapshots"
 FORK="/external/SWE-bench-fork"
-DEFAULT_CONFIG_SOURCE="$RECIPE_DIR/pipeline_configs/react_sgr_summary_enabled_qwen2_5_decrim.yaml"
+DEFAULT_CONFIG_SOURCE="$RECIPE_DIR/pipeline_configs/react_sgr_summary_enabled_qwen2_5_decrim_new_description.yaml"
 CONFIG_SOURCE="${3:-${CONFIG_SOURCE:-$DEFAULT_CONFIG_SOURCE}}"
 
 DATASET_ALIAS="${1:-first10}"
