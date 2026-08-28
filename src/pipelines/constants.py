@@ -9,6 +9,7 @@ class PipelinesNames(Enum):
     REWOO = "REWOOPipeline"
     MAPS = "MAPSPipeline"
     REACT = "REACTPipeline"
+    REACT_ADD_CRITIC_SWE = "REACTPipelineAddCriticSWE"
     PANEL = "PANELPipeline"
     MARS = "MARSPipeline"
     MARS_CRITIC_UPD = "MARSPipelineCriticUpd"
@@ -22,6 +23,9 @@ class ComponentNames(Enum):
     DECRIM_AGENT = "src.agents.critique.Decrim"
     REFLEXION_AGENT = "src.agents.critique.Reflexion"
     SELFREFINE_AGENT = "src.agents.critique.SelfRefine"
+    SWE_REBENCH_PIPELINE_CRITIC = (
+        "src.agents.critique.swe_rebench.SWERebenchPipelineCritic"
+    )
 
     # ===== Agents: General =====
     DS1000_SOLVER_AGENT = "src.agents.general.DS1000Solver"

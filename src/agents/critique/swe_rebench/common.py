@@ -166,13 +166,15 @@ class CritiqueResult:
     next_required_action: str
     completed_stages: Sequence[str] = field(default_factory=tuple)
 
-    def to_json(self) -> str:
+    def to_json(self, *, mode: str = "tool") -> str:
+        if mode not in {"tool", "pipeline"}:
+            raise ValueError("mode must be 'tool' or 'pipeline'")
         contract = METHODOLOGY_CONTRACTS[self.method]
         return json.dumps(
             {
                 "method": self.method,
                 "benchmark": "swe_rebench",
-                "mode": "tool",
+                "mode": mode,
                 "decision": self.decision.value,
                 "completed_stages": list(self.completed_stages),
                 "methodology_contract": {
