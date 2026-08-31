@@ -1,0 +1,84 @@
+type: SIMPLE
+
+# === ЭКСПЕРИМЕНТ 16: E3, guide_* как системный промпт (вербатим) ===
+# Строгая версия E3: все 17 документов склеены дословно, без пересказа —
+#   снимает возражение 'сжатие потеряло содержание'. Стоит ~2.8k токенов
+#   на КАЖДЫЙ вызов солвера (~2.8M токенов на 1000 задач).
+#   Запускать, только если сжатая версия НЕ воспроизвела прирост.
+# ЗАПУСКАТЬ С --log-chunks (нужен для анализа E7).
+# БД: data/exp16/docs_base.db (корпус не менялся -> переиспользуем
+#     индекс e0_baseline, повторная векторизация не нужна)
+
+params:
+  top_k: 5
+
+components:
+
+  embedder:
+    type: EMBEDDING_AGENT
+    params:
+      name: embedder
+      url: "http://0.0.0.0:7216/v1"
+      model_name: "Qwen/Qwen3-Embedding-4B"
+
+  data_base:
+    type: LOCAL_DB
+    params:
+      path_to_db: "data/exp16/docs_base.db"
+      path_to_vector_db: "data/vdb_exp16_base_rc_1000"
+      collection_name: "docs"
+
+      return_examples: True
+      return_full_docs: False
+      merge_examples: True
+
+      hnsw_space: "cosine"
+      hnsw_m: 16
+      hnsw_construction_ef: 400
+      hnsw_search_ef: 200
+      batch_size: 16
+
+      search_filter:
+        source: "documents"
+
+  chunker:
+    type: RECURSIVE_CHUNKER
+    params:
+      name: chunker
+      max_chunk_size: 1000
+
+  context_assembler:
+    type: CORAG_CONTEXT_ASSEMBLER
+    params:
+      name: simple_assembler
+
+  retriever:
+    type: SIMPLE_RETRIEVER
+    params:
+      name: simple_retriever
+
+  enchancer:
+    type: QUERY_GENERATOR
+    params:
+      name: query_gen
+      url: "http://0.0.0.0:7114/v1"
+      model_name: "Qwen/Qwen2.5-32B-Instruct"
+      options: 1
+
+  agent:
+    type: DS1000_SOLVER_AGENT
+    params:
+      name: ds1000_solver
+
+      url: "http://0.0.0.0:7114/v1"
+      model_name: "Qwen/Qwen2.5-32B-Instruct"
+
+      api: chat
+      context_after_task: False
+
+      system_prompt: "Write a short code following the given format and indentation. Place the executable code between <code> and </code> tags, without any other non-executable things.\n\n## guide_completing_partial_code\nHow to correctly complete a partially written Python code snippet.\n\nWhen a problem gives you setup code (imports, data definitions) followed by a\ngap where the solution must go, remember: the setup code has ALREADY been\nexecuted. Your answer is inserted right after it and runs in the same\nnamespace. Therefore:\n1. Do not repeat the imports or the setup lines.\n2. Do not redefine the input variables (a, df, x, y, ...): they already hold\n   the real test data, which may differ from the example shown in the text.\n3. Assign the final answer to exactly the variable name the task asks for\n   (often `result`), do not print it or leave it as a bare expression.\n4. Write only the missing code, nothing else: no explanations, no tags,\n   no markdown fences.\n\n## guide_do_not_repeat_setup\nCommon mistake when filling in missing code: repeating the setup.\n\nIf the problem statement already contains lines like\n\n    import numpy as np\n    a = np.array([3, 1, 4])\n\nthen those lines have already run before your code. Copying them into your\nanswer is harmful: the grader may run the same solution on different hidden\ninputs, and re-creating `a` from the example overwrites the actual input.\nThe correct answer contains ONLY the new logic, e.g.\n\n    result = np.sort(a)\n\nNever re-create the input data, never re-seed or re-draw random values, and\nnever call setup helpers again. Continue the code, do not restart it.\n\n## guide_generalize_dont_hardcode\nWrite completions that work for any input, not only for the example.\n\nThe numbers shown in a problem statement are just an illustration. The same\ncode will be checked on other inputs with different values, lengths and\nshapes. So:\n- derive sizes from the data: use len(a), a.shape, df.columns — never a\n  hard-coded 8 or 3 taken from the example;\n- keep using the variables given in the snippet (a, df, x, List, N, ...);\n- do not paste literal example arrays or example DataFrames into the answer;\n- do not replace a given random or loaded input with your own constants.\nIf your answer contains a copy of the example data, it is almost certainly\nwrong.\n\n## guide_assign_requested_variable\nPut the answer into the exact variable the task names.\n\nTasks usually specify the output variable, e.g. \"store the answer in\n`result`\" or show a stub like `result = ...`. The checker reads that exact\nname from the namespace after running your code. Rules:\n- assign to the requested name: result = <expression>;\n- a bare expression, a print(), or a differently named variable\n  (answer, output, res, my_result) counts as no answer at all;\n- if the task asks to modify `df`, leave the modified object in `df`\n  (or in the exact variable mentioned), not in a new variable;\n- if several variables are requested (low, high = ...), assign all of them.\n\n## guide_function_body_completion\nHow to complete a function stub like `def f(a):` — indentation matters.\n\nSome tasks give an unfinished function definition and expect you to write\nONLY its body, for example the task text ends with:\n\n    def f(a = example_input):\n        # ... your code should go here ...\n\nYour answer will be inserted inside that function. Therefore it must consist\nof indented body lines only, ending with a `return`:\n\n        result = a.mean(axis=0)\n        return result\n\nDo NOT write a new `def f(...)` line, do NOT repeat imports or the example\ninput, do NOT add a call like `f(a)` and do NOT add unindented code — any of\nthese break the function and cause an IndentationError or SyntaxError.\n\n## guide_fewshot_variable_completion\nExample of completing a snippet that asks for a variable assignment.\n\nTask style: setup code is given, then \"put the answer in `result`\".\n\n    import numpy as np\n    arr = np.array([[2, 9], [7, 1], [5, 5]])\n    # goal: index (row, col) of the largest element\n    result = ...\n\nCorrect completion — one new line, reusing `arr`, nothing repeated:\n\n    result = np.unravel_index(arr.argmax(), arr.shape)\n\nWrong completions: re-importing numpy, re-defining arr with the example\nnumbers (the checker uses other hidden arrays!), printing instead of\nassigning, or storing the answer in a variable not named `result`.\n\n## guide_fewshot_function_body\nExample of completing a function body (only indented lines are valid).\n\nTask style: an unfinished function is shown and the answer is its body.\n\n    import pandas as pd\n    example_df = pd.DataFrame({\"v\": [4, 0, 7]})\n    def f(df = example_df):\n        # ... fill in the body ...\n\nCorrect completion (note the indentation, no new def, no calls):\n\n        out = df[df[\"v\"] > 0]\n        return out\n\nWrong completion (breaks the code): repeating `import pandas`, writing a\nfresh `def f(df):` header, appending `result = f(example_df)`, or leaving\nthe lines unindented.\n\n## guide_no_wrappers_in_code_answers\nOutput raw code only — wrappers make the answer unusable.\n\nWhen the expected answer is a piece of Python code, the text you produce is\nexecuted as-is. It must not contain:\n- XML/HTML-style tags (<solution>, <code>, </answer> ...);\n- markdown fences ``` or language labels;\n- natural-language sentences before or after the code;\n- comments in other languages or decorative separators.\nAny such token becomes a SyntaxError. If you want to explain something, use\na short Python comment, nothing else.\n\n## guide_load_data_placeholder\nWhat `load_data()` in a snippet means — and why you must not call it.\n\nSnippets often abbreviate the data-loading part as:\n\n    x, y = load_data()\n\nThis is a placeholder: in the real execution environment those variables are\nalready filled by the grader, and no function named load_data exists. If you\ncopy this line into your answer you get NameError: name 'load_data' is not\ndefined. Treat `x` and `y` as ready-made inputs: start your code from the\nactual logic and just use them. The same applies to any variable shown being\nloaded from files you do not have.\n\n## guide_only_add_what_is_asked\nDo only what the task asks — no extra \"clean-up\" transformations.\n\nUnrequested extras change the checked value and turn a correct idea into a\nwrong answer. Typical harmful extras:\n- reset_index(drop=True) when the task never asked to reset the index;\n- .values / .to_numpy() when the expected object is a DataFrame or Series;\n- astype(...) casts, sorting, rounding or dropping columns \"for neatness\";\n- plt.show(), print(), logging.\nReturn exactly the object described in the task: same type, same column\nnames, same index behaviour, same order, nothing more.\n\n## guide_numpy_snippet_completion\nCompleting a NumPy snippet: use the given array variables as-is.\n\nIn tasks like \"Problem: I have a numpy array a = ... How can I ...?\" the\nanswer code runs right after the shown setup, so `a` (or `A`, `x`, `arr`)\nalready exists and may hold different hidden test values. A good answer is\nusually one short expression assigned to the requested variable:\n\n    result = np.argsort(a)[::-1]\n\nChecklist for numpy completions: no `import numpy as np` again, no\nre-created example array, sizes taken from a.shape / len(a) instead of\nconstants, and the final value stored in the requested variable name\n(`result`, `mask`, `B`, ...).\n\n## guide_pandas_snippet_completion\nCompleting a pandas snippet: operate on the given df, return what is asked.\n\nThe DataFrame `df` shown in the task setup already exists when your code\nruns; the grader may substitute a different hidden DataFrame with the same\ncolumns. Therefore:\n- never re-create df from the example table;\n- put the answer in the requested variable (`result` or the modified `df`);\n- keep the index as it is unless the task explicitly asks to reset it;\n- return the requested object itself (DataFrame/Series), not .values;\n- match requested column names exactly, including plural/singular spelling.\nA typical correct completion is a couple of pandas calls, e.g.\n    result = df.groupby('key')['val'].cumsum()\n\n## guide_matplotlib_snippet_completion\nCompleting a plotting snippet: the figure is already started — only add.\n\nMatplotlib tasks usually show setup code that imports pyplot, creates data\nand often already calls plt.plot/plt.scatter. That code has already run.\nYour answer must only ADD the calls the comment asks for (a title, ticks,\na legend tweak, a span, ...):\n\n    plt.axvspan(2, 4, color=\"red\")\n\nDo not regenerate the random data (it would draw different numbers), do not\nplot the data a second time, do not create a new figure unless asked, and do\nnot call plt.show() — the grader inspects the current figure's properties\ndirectly. Use the exact axis/artist objects the snippet defines (ax, l, f).\n\n## guide_torch_snippet_completion\nCompleting a PyTorch snippet: tensors are already provided.\n\nTask setups like `x, y = load_data()` or `t = torch.rand(4, 4)` mean the\ntensors already exist in the namespace with hidden test values. Rules:\n- do not call load_data() yourself (it does not exist) and do not build\n  replacement tensors from the example numbers or with torch.rand — that\n  destroys the test input;\n- write the transformation using the given tensor names and assign the\n  requested output variable, e.g.\n\n    result = t.gather(1, idx.long().unsqueeze(1)).squeeze(1)\n\n- derive sizes with t.shape / t.size(0) instead of constants from the text.\n\n## guide_sklearn_snippet_completion\nCompleting a scikit-learn snippet: data and models are pre-loaded.\n\nSetups like `X, y = load_data()` or a pre-built `km = KMeans()` mean these\nobjects already exist; load_data is only a placeholder and must not be\ncalled in your answer. A good completion continues directly:\n\n    model = SVR(kernel='rbf')\n    model.fit(X, y)\n    predict = model.predict(X)\n\nKeep the requested output variable name exactly (predict, closest_50_samples,\ncolumn_names, ...). If the task says \"use default arguments\", pass nothing\nbut the explicitly mentioned parameters. Never invent replacement training\ndata (X_train etc.) that the snippet does not define.\n\n## guide_scipy_snippet_completion\nCompleting a SciPy snippet: continue after the given setup.\n\nThe shown imports and arrays are already executed; the checker may swap in\nother hidden inputs. Use the module exactly as it was imported in the\nsnippet: if the setup says `import scipy.integrate`, call\n`scipy.integrate.solve_ivp(...)`; if it says `from scipy import stats`, call\n`stats.zscore(...)`. Calling a bare `solve_ivp(...)` that was never imported\nraises NameError. Assign the final value to the requested variable\n(`result`, `prob`, `sol`, ...) without printing or plotting extras.\n\n## guide_tensorflow_snippet_completion\nCompleting a TensorFlow snippet: TF2 eager style, reuse given tensors.\n\nThe setup tensors (A, B, x, ...) already exist. Write modern TF2 code: no\ntf.Session, no placeholders — operations run eagerly, so\n\n    result = tf.reduce_sum(tf.matmul(A, B))\n\nis a complete answer. Do not re-create the input tensors with tf.random or\nconstants from the example (hidden test values would be lost), do not reset\nseeds again, and store the answer in the requested variable name."
+
+      temperature: 0.2
+      top_p: 0.95
+      max_tokens: 1024
+      stop_tokens: ["</code>", "# SOLUTION END"]

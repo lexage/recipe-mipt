@@ -23,7 +23,7 @@ class QdrantDocsAdapter:
     def __init__(self, embedder: Agent, collection_name: str, path_to_db: str,
                  embed_batch_size: int = 64, num_workers: int = 4,
                  max_embed_chars: int = 8000, embed_max_items: int = 256,
-                 max_text_chars: int = 8000):
+                 max_text_chars: int = 8000, scroll_page_size: int = 1000):
 
         self.client = QdrantClient(path=path_to_db)
         self.embedder = embedder
@@ -40,6 +40,7 @@ class QdrantDocsAdapter:
         self.max_text_chars = int(max_text_chars)
         self.max_embed_chars = int(max_embed_chars)
         self.embed_max_items = int(embed_max_items)
+        self.scroll_page_size = max(1, int(scroll_page_size))
         self.sparse_embedder = SparseTextEmbedding(
             model_name="Qdrant/bm25"
         )
@@ -150,19 +151,35 @@ class QdrantDocsAdapter:
         return chunks
 
     def _filter_existing_chunks(self, chunks: List[Chunk]) -> Tuple[int, List[Chunk]]:
+        """Drop chunks already indexed; return (existing point count, new chunks).
 
+        A fresh collection has no points, and qdrant rejects a zero limit, so the
+        empty case returns early instead of querying. Enumeration uses `scroll`
+        (paginated, no vectors) rather than a single query_points of size `n`:
+        the latter loads every 2560-dim vector into memory just to read ids.
+        """
         n = self.client.count(
             collection_name=self.collection_name
         ).count
 
-        all_points = self.client.query_points(
-            collection_name=self.collection_name,
-            limit=n
-        ).points
+        if n == 0:
+            return 0, chunks
 
-        chunk_ids = [point.payload.get("id") for point in all_points]
+        chunk_ids = set()
+        offset = None
+        while True:
+            points, offset = self.client.scroll(
+                collection_name=self.collection_name,
+                limit=self.scroll_page_size,
+                offset=offset,
+                with_payload=True,
+                with_vectors=False,
+            )
+            chunk_ids.update((point.payload or {}).get("id") for point in points)
+            if offset is None:
+                break
 
-        chunks = [chunk for chunk in chunks if not chunk.id in chunk_ids]
+        chunks = [chunk for chunk in chunks if chunk.id not in chunk_ids]
 
         return n, chunks
 

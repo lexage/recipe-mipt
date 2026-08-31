@@ -52,7 +52,7 @@ components:
     params:
       name: api_guide_generator
       url: "http://0.0.0.0:7114/v1"
-      model_name: "Qwen/Qwen2.5-32B-Instruct-AWQ"
+      model_name: "Qwen/Qwen2.5-32B-Instruct"
       path_to_db: "data/docs_database_examples.db"
       n_api_docs: 150
       min_count: 5
@@ -75,7 +75,7 @@ components:
     params:
       name: query_gen
       url: "http://0.0.0.0:7114/v1"
-      model_name: "Qwen/Qwen2.5-32B-Instruct-AWQ"
+      model_name: "Qwen/Qwen2.5-32B-Instruct"
       options: 1
 
   agent:
@@ -84,7 +84,7 @@ components:
       name: ds1000_solver
 
       url: "http://0.0.0.0:7114/v1"
-      model_name: "Qwen/Qwen2.5-32B-Instruct-AWQ"
+      model_name: "Qwen/Qwen2.5-32B-Instruct"
 
       api: chat
       context_after_task: False

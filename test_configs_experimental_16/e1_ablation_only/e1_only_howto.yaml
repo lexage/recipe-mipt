@@ -1,15 +1,13 @@
 type: SIMPLE
 
-# === ЭКСПЕРИМЕНТ 15: диагностика ретрива (запускать с --log-chunks!) ===
-# Конфиг: simple_example_gen_instruct_v2_chunks — повтор exp14 gen_instruct_v2,
-#   чтобы увидеть, ретривятся ли сгенерированные инструкции вообще.
-#   NB: генерация недетерминирована (temperature) — доки будут новые, их дамп
-#   пишется в results/gen_dumps/gen_instruct_v2_exp15.jsonl.
-# БД: data/docs_database_examples.db (оригинал)
+# === ЭКСПЕРИМЕНТ 16: E1, только howto_* (140 док.) ===
+# База + 140 рецептов How-do-I. Самая большая и самая привязанная к тесту
+#   группа: 140 рецептов ~ 140 наблюдённых провалов один к одному.
+# ЗАПУСКАТЬ С --log-chunks (нужен для анализа E7).
+# БД: data/exp16/docs_only_howto.db
 
 params:
   top_k: 5
-  keep_source_docs: True
 
 components:
 
@@ -23,8 +21,8 @@ components:
   data_base:
     type: LOCAL_DB
     params:
-      path_to_db: "data/docs_database_examples.db"
-      path_to_vector_db: "data/vdb_exp15_gen_v2_rc_1000"
+      path_to_db: "data/exp16/docs_only_howto.db"
+      path_to_vector_db: "data/vdb_exp16_only_howto_rc_1000"
       collection_name: "docs"
 
       return_examples: True
@@ -45,20 +43,6 @@ components:
     params:
       name: chunker
       max_chunk_size: 1000
-
-  generator:
-    type: RAG_GUIDE_GENERATOR
-    params:
-      name: rag_guide_generator
-      url: "http://0.0.0.0:7114/v1"
-      model_name: "Qwen/Qwen2.5-32B-Instruct"
-      policy: "v2"
-      n_format_docs: 90
-      n_tasktype_docs: 120
-      n_migration_docs: 45
-      num_workers: 8
-      temperature: 0.7
-      dump_path: "results/gen_dumps/gen_instruct_v2_exp15.jsonl"
 
   context_assembler:
     type: CORAG_CONTEXT_ASSEMBLER

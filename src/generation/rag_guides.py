@@ -171,7 +171,7 @@ def _code_ok(code: str) -> bool:
     return False
 
 
-class RagGuideGenerator(Generator):
+class RagGuideGenerator(PromptDiscoverable, Generator):
     """Generate instruction documents for RAG from the source corpus + LLM.
 
     Args:

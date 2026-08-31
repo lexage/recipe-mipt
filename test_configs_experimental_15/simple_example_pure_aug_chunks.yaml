@@ -60,7 +60,7 @@ components:
     params:
       name: query_gen
       url: "http://0.0.0.0:7114/v1"
-      model_name: "Qwen/Qwen2.5-32B-Instruct-AWQ"
+      model_name: "Qwen/Qwen2.5-32B-Instruct"
       options: 1
 
   agent:
@@ -69,7 +69,7 @@ components:
       name: ds1000_solver
 
       url: "http://0.0.0.0:7114/v1"
-      model_name: "Qwen/Qwen2.5-32B-Instruct-AWQ"
+      model_name: "Qwen/Qwen2.5-32B-Instruct"
 
       api: chat
       context_after_task: False
