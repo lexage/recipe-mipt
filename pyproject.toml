@@ -21,6 +21,7 @@ dependencies = [
     "matplotlib>=3.8.0",
     "numpy>=1.26.0",
     "openai==1.90.0",
+    "openpyxl>=3.1.0",
     "pandas>=1.5.0",
     "pydantic==2.11.7",
     "pygithub==2.8.1",
