@@ -1,0 +1,39 @@
+type: REACT
+components:
+  tools:
+    - type: LIST_FILES_TOOL
+    - type: READ_FILE_TOOL
+    - type: SEARCH_CODE_TOOL
+    - type: APPLY_PATCH_TOOL
+    - type: RUN_COMMAND_TOOL
+      params:
+        default_timeout: 120
+        max_timeout: 600
+        allow_package_install: false
+    - type: GIT_DIFF_TOOL
+    - type: SWE_REBENCH_CRITIC_TOOL
+      params:
+        name: reflexion
+        url: http://localhost:11458/v1
+        model_name: Qwen/Qwen2.5-32B-Instruct
+        temperature: 0.7
+        max_tokens: 4096
+        max_memory_tasks: 128
+        max_reflections_per_task: 5
+
+  agent:
+    type: REACT_AGENT_SGR
+    params:
+      name: react-sgr-swe-rebench-reflexion-tool
+      url: http://localhost:11458/v1
+      model_name: Qwen/Qwen2.5-32B-Instruct
+      temperature: 0.7
+      max_iterations: 100
+      history_context: 10
+      few_shot_type: zero_shot
+      synthesize_final_answer: false
+      trajectory_summary_enabled: false
+      trajectory_summary_max_tokens: 2048
+      trajectory_summary_temperature: 0.0
+
+logs_path: /workspace/proj/grant_swe_rebench/recipe-mipt/logs
