@@ -54,9 +54,6 @@ export DATASET_REVISION="89cdfbab4ab1bd8f5a658bb212d1b63624f4f881"
 export SPLIT="test"
 export EVAL_NAMESPACE="swerebench"
 
-export MODEL_URL="http://127.0.0.1:11455/v1"
-export LLM_MODEL="Qwen/Qwen3.8-27B-FP8"
-export MODEL_NAME_OR_PATH="react-sgr/${LLM_MODEL}"
 export NO_PROXY="${NO_PROXY:+${NO_PROXY},}localhost,127.0.0.1"
 export no_proxy="$NO_PROXY"
 
@@ -262,6 +259,54 @@ cd "$RECIPE_DIR"
 
 cp "$DATASET_SOURCE" "$TASK_FILE"
 cp "$CONFIG_SOURCE" "$CONFIG"
+
+MODEL_CONFIG_VALUES_RAW="$(python - "$CONFIG" <<'PY'
+import sys
+from pathlib import Path
+
+import yaml
+
+config_path = Path(sys.argv[1])
+config = yaml.safe_load(config_path.read_text(encoding="utf-8"))
+if not isinstance(config, dict):
+    raise ValueError("Конфигурация пайплайна должна быть YAML-объектом")
+
+components = config.get("components")
+if not isinstance(components, dict):
+    raise ValueError("В конфигурации отсутствует объект components")
+
+agent = components.get("agent")
+if not isinstance(agent, dict):
+    raise ValueError("В конфигурации отсутствует объект components.agent")
+
+agent_params = agent.get("params")
+if not isinstance(agent_params, dict):
+    raise ValueError("В конфигурации отсутствует объект components.agent.params")
+
+model_url = agent_params.get("url")
+model_name = agent_params.get("model_name")
+missing = [
+    field
+    for field, value in (("url", model_url), ("model_name", model_name))
+    if not isinstance(value, str) or not value.strip()
+]
+if missing:
+    fields = ", ".join(f"components.agent.params.{field}" for field in missing)
+    raise ValueError(f"В конфигурации отсутствуют обязательные поля: {fields}")
+
+print(model_url.strip())
+print(model_name.strip())
+PY
+)"
+mapfile -t MODEL_CONFIG_VALUES <<<"$MODEL_CONFIG_VALUES_RAW"
+if (( ${#MODEL_CONFIG_VALUES[@]} != 2 )); then
+    echo "Не удалось прочитать URL и имя модели из конфигурации: $CONFIG" >&2
+    exit 1
+fi
+
+export MODEL_URL="${MODEL_CONFIG_VALUES[0]}"
+export LLM_MODEL="${MODEL_CONFIG_VALUES[1]}"
+export MODEL_NAME_OR_PATH="react-sgr/${LLM_MODEL}"
 
 METADATA_SOURCE="${DATASET_SOURCE}.metadata.json"
 if [[ -f "$METADATA_SOURCE" ]]; then
