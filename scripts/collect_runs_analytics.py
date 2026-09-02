@@ -300,6 +300,127 @@ def normalize_ids(value: Any, field_name: str) -> list[str]:
     return sorted(ids) if isinstance(value, set) else ids
 
 
+def unique_instance_ids(values: Iterable[str], source: Path) -> list[str]:
+    result: list[str] = []
+    seen: set[str] = set()
+    duplicate_count = 0
+    for value in values:
+        instance_id = str(value).strip()
+        if not instance_id:
+            continue
+        if instance_id in seen:
+            duplicate_count += 1
+            continue
+        seen.add(instance_id)
+        result.append(instance_id)
+
+    if duplicate_count:
+        warn(
+            f"в {source} пропущено повторяющихся instance_id: "
+            f"{duplicate_count}"
+        )
+    return result
+
+
+def load_instance_ids_file(path: Path) -> list[str]:
+    try:
+        with path.open(encoding="utf-8") as source:
+            ids = unique_instance_ids(source, path)
+    except OSError as error:
+        warn(f"не удалось прочитать список задач {path}: {error}")
+        return []
+
+    if not ids:
+        warn(f"список задач пуст: {path}")
+    return ids
+
+
+def load_task_jsonl_instance_ids(path: Path) -> list[str]:
+    instance_ids: list[str] = []
+    try:
+        source = path.open(encoding="utf-8")
+    except OSError as error:
+        warn(f"не удалось прочитать датасет запуска {path}: {error}")
+        return []
+
+    with source:
+        for line_number, line in enumerate(source, start=1):
+            if not line.strip():
+                continue
+            try:
+                task = json.loads(line)
+            except json.JSONDecodeError as error:
+                warn(f"невалидный JSON в {path}:{line_number}: {error}")
+                continue
+            if not isinstance(task, Mapping):
+                warn(f"ожидался объект в {path}:{line_number}")
+                continue
+            instance_id = task.get("instance_id")
+            if instance_id is None or not str(instance_id).strip():
+                warn(f"в {path}:{line_number} отсутствует instance_id")
+                continue
+            instance_ids.append(str(instance_id))
+
+    ids = unique_instance_ids(instance_ids, path)
+    if not ids:
+        warn(f"в датасете запуска нет задач: {path}")
+    return ids
+
+
+def collect_run_instance_ids(
+    run_dir: Path,
+    report: Mapping[str, Any],
+    task_steps: Mapping[str, int],
+) -> list[str]:
+    candidates: list[tuple[Path, list[str]]] = []
+    instance_ids_path = run_dir / "instance_ids.txt"
+    if instance_ids_path.is_file():
+        ids = load_instance_ids_file(instance_ids_path)
+        if ids:
+            candidates.append((instance_ids_path, ids))
+
+    task_jsonl_path = run_dir / "task.jsonl"
+    if task_jsonl_path.is_file():
+        ids = load_task_jsonl_instance_ids(task_jsonl_path)
+        if ids:
+            candidates.append((task_jsonl_path, ids))
+
+    total_instances = report.get("total_instances")
+    expected_count = (
+        total_instances
+        if isinstance(total_instances, int)
+        and not isinstance(total_instances, bool)
+        and total_instances > 0
+        else None
+    )
+    if candidates:
+        if expected_count is not None:
+            for _, ids in candidates:
+                if len(ids) == expected_count:
+                    return ids
+        selected_path, selected_ids = max(
+            candidates, key=lambda candidate: len(candidate[1])
+        )
+        if expected_count is not None:
+            warn(
+                f"в {selected_path} найдено задач: {len(selected_ids)}, "
+                f"а в отчёте указано total_instances={expected_count}"
+            )
+        return selected_ids
+
+    fallback_ids = set(task_steps)
+    for field in REPORT_TASK_ID_FIELDS:
+        fallback_ids.update(normalize_ids(report.get(field), field))
+    selected_ids = sorted(fallback_ids)
+    if expected_count is not None and len(selected_ids) != expected_count:
+        warn(
+            f"для запуска {run_dir.name} удалось определить "
+            f"{len(selected_ids)} из {expected_count} instance_id; "
+            "файлы instance_ids.txt и task.jsonl отсутствуют или пусты"
+        )
+    return selected_ids
+
+
 def serialize_ids(value: Any) -> str:
     if value is None:
         return ""
@@ -321,18 +442,15 @@ def calculate_resolved_rate(report: Mapping[str, Any]) -> float | None:
 
 
 def serialize_task_step_statistics(
-    report: Mapping[str, Any], task_steps: Mapping[str, int]
+    instance_ids: Iterable[str],
+    report: Mapping[str, Any],
+    task_steps: Mapping[str, int],
 ) -> str:
-    if not report:
-        return ""
-
     ids_by_field = {
         field: set(normalize_ids(report.get(field), field))
         for field in REPORT_TASK_ID_FIELDS
     }
-    all_ids = set(task_steps)
-    for ids in ids_by_field.values():
-        all_ids.update(ids)
+    all_ids = set(instance_ids)
 
     status_by_id = {instance_id: STATUS_UNRESOLVED for instance_id in all_ids}
     for instance_id in ids_by_field["resolved_ids"]:
@@ -386,6 +504,9 @@ def collect_run(run_dir: Path) -> dict[str, Any]:
     log_analytics = collect_log_analytics(
         run_dir / "logs", pipeline.critic_tool_names
     )
+    instance_ids = collect_run_instance_ids(
+        run_dir, report, log_analytics.task_steps
+    )
 
     return {
         "run_name": run_dir.name,
@@ -397,7 +518,7 @@ def collect_run(run_dir: Path) -> dict[str, Any]:
         "resolved_rate": calculate_resolved_rate(report),
         "resolved_ids": serialize_ids(report.get("resolved_ids")),
         "task_step_statistics": serialize_task_step_statistics(
-            report, log_analytics.task_steps
+            instance_ids, report, log_analytics.task_steps
         ),
         "critic_tool_name": ", ".join(pipeline.critic_tool_names),
         "trajectory_summary_enabled": pipeline.trajectory_summary_enabled,
