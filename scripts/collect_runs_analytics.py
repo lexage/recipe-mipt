@@ -61,6 +61,35 @@ REPORT_COUNT_FIELDS = {
 }
 INSTANCE_ID_PATTERN = re.compile(r"\binstance_id=([^\s\t]+)")
 STEP_PATTERN = re.compile(r"\bSTEP\s+(\d+):", flags=re.IGNORECASE)
+STAGE_PATTERN = re.compile(r"\bSTAGE[\t ]+([A-Z][A-Z0-9_]+)\b")
+ERROR_TYPE_PATTERN = re.compile(
+    r"^([A-Za-z_][A-Za-z0-9_.]*(?:Error|Exception)):\s*(.*)$"
+)
+
+IGNORED_LAST_STAGES = {
+    "CONFIG_LOADED",
+    "DATASET_LOADED",
+    "DOCKER_CONTAINER_REMOVED",
+    "PIPELINE_CLOSED",
+    "RUN_FINISHED",
+    "RUN_START",
+    "TASKS_SELECTED",
+    "WORKER_FINISHED",
+}
+FAILURE_STAGES = {"TASK_FAILED", "TASK_TIMEOUT", "WORKER_FAILED"}
+EARLY_STAGES = {
+    "TASK_SUBMITTED",
+    "WORKER_STARTED",
+    "IMAGE_RESOLVED",
+    "WORKER_IMAGE_READY",
+    "DOCKER_IMAGE_READY",
+    "PIPELINE_CREATED",
+    "DOCKER_CONTAINER_CREATED",
+    "DOCKER_CHECKOUT_VALIDATED",
+    "CONTAINER_STARTED",
+    "PROMPT_BUILT",
+    "PIPELINE_STARTED",
+}
 
 STATUS_RESOLVED = "решена"
 STATUS_UNRESOLVED = "нерешена"
@@ -87,6 +116,21 @@ class LogAnalytics:
     critic_call_count: int
     critic_task_ids: tuple[str, ...]
     task_steps: dict[str, int]
+    task_diagnostics: dict[str, "TaskLogDiagnostics"]
+
+
+@dataclass
+class TaskLogDiagnostics:
+    has_log: bool = False
+    last_stage: str | None = None
+    task_timeout: bool = False
+    worker_failed: bool = False
+    worker_error_type: str | None = None
+    worker_error_message: str | None = None
+    llm_request_error: str | None = None
+    llm_response_error: str | None = None
+    agent_termination_reason: str | None = None
+    log_read_error: str | None = None
 
 
 def warn(message: str) -> None:
@@ -223,26 +267,56 @@ def build_action_pattern(critic_tool_names: Iterable[str]) -> re.Pattern[str] | 
     )
 
 
+def extract_log_field(line: str, field_name: str) -> str | None:
+    match = re.search(
+        rf"(?:^|\t){re.escape(field_name)}=([^\t\r\n]*)",
+        line,
+    )
+    if not match:
+        return None
+    value = match.group(1).strip()
+    return value or None
+
+
+def get_task_diagnostics(
+    diagnostics: dict[str, TaskLogDiagnostics], instance_id: str
+) -> TaskLogDiagnostics:
+    task_diagnostics = diagnostics.setdefault(
+        instance_id, TaskLogDiagnostics()
+    )
+    task_diagnostics.has_log = True
+    return task_diagnostics
+
+
 def collect_log_analytics(
     logs_dir: Path, critic_tool_names: Iterable[str]
 ) -> LogAnalytics:
     action_pattern = build_action_pattern(critic_tool_names)
     if not logs_dir.is_dir():
         warn(f"не найдена папка логов {logs_dir}")
-        return LogAnalytics(0, (), {})
+        return LogAnalytics(0, (), {}, {})
 
     call_count = 0
     task_ids: set[str] = set()
     task_steps: dict[str, int] = {}
+    task_diagnostics: dict[str, TaskLogDiagnostics] = {}
     unattributed_calls = 0
     unattributed_steps = 0
 
     for path in sorted(logs_dir.rglob("*.log")):
-        current_instance_id = infer_instance_id_from_filename(path)
+        file_instance_id = infer_instance_id_from_filename(path)
+        current_instance_id = file_instance_id
+        if file_instance_id:
+            get_task_diagnostics(task_diagnostics, file_instance_id)
         try:
             source = path.open(encoding="utf-8", errors="replace")
         except OSError as error:
             warn(f"не удалось прочитать лог {path}: {error}")
+            if file_instance_id:
+                diagnostics = get_task_diagnostics(
+                    task_diagnostics, file_instance_id
+                )
+                diagnostics.log_read_error = f"{type(error).__name__}: {error}"
             continue
 
         with source:
@@ -250,6 +324,53 @@ def collect_log_analytics(
                 instance_match = INSTANCE_ID_PATTERN.search(line)
                 if instance_match:
                     current_instance_id = instance_match.group(1)
+                    get_task_diagnostics(
+                        task_diagnostics, current_instance_id
+                    )
+
+                diagnostics = (
+                    get_task_diagnostics(
+                        task_diagnostics, current_instance_id
+                    )
+                    if current_instance_id
+                    else None
+                )
+
+                stage_match = STAGE_PATTERN.search(line)
+                if diagnostics is not None and stage_match:
+                    stage = stage_match.group(1)
+                    if (
+                        stage not in IGNORED_LAST_STAGES
+                        and (
+                            diagnostics.last_stage not in FAILURE_STAGES
+                            or stage in FAILURE_STAGES
+                        )
+                    ):
+                        diagnostics.last_stage = stage
+                    if stage == "TASK_TIMEOUT":
+                        diagnostics.task_timeout = True
+                    elif stage in {"WORKER_FAILED", "TASK_FAILED"}:
+                        diagnostics.worker_failed = True
+                        error_type = extract_log_field(line, "error_type")
+                        message = extract_log_field(line, "message")
+                        if error_type:
+                            diagnostics.worker_error_type = error_type
+                        if message:
+                            diagnostics.worker_error_message = message
+                    elif stage == "AGENT_TERMINATED":
+                        reason = extract_log_field(line, "reason")
+                        if reason:
+                            diagnostics.agent_termination_reason = reason
+
+                if diagnostics is not None:
+                    if "LLM_REQUEST_FAILED" in line:
+                        error = extract_log_field(line, "error")
+                        if error:
+                            diagnostics.llm_request_error = error
+                    elif "LLM_RESPONSE_INVALID" in line:
+                        error = extract_log_field(line, "error")
+                        if error:
+                            diagnostics.llm_response_error = error
 
                 step_matches = list(STEP_PATTERN.finditer(line))
                 if step_matches:
@@ -279,7 +400,12 @@ def collect_log_analytics(
             f"для {unattributed_steps} упоминаний STEP в {logs_dir} "
             "не удалось определить instance_id"
         )
-    return LogAnalytics(call_count, tuple(sorted(task_ids)), task_steps)
+    return LogAnalytics(
+        call_count,
+        tuple(sorted(task_ids)),
+        task_steps,
+        task_diagnostics,
+    )
 
 
 def normalize_ids(value: Any, field_name: str) -> list[str]:
@@ -371,6 +497,7 @@ def collect_run_instance_ids(
     run_dir: Path,
     report: Mapping[str, Any],
     task_steps: Mapping[str, int],
+    error_instance_ids: Iterable[str],
 ) -> list[str]:
     candidates: list[tuple[Path, list[str]]] = []
     instance_ids_path = run_dir / "instance_ids.txt"
@@ -409,6 +536,7 @@ def collect_run_instance_ids(
         return selected_ids
 
     fallback_ids = set(task_steps)
+    fallback_ids.update(error_instance_ids)
     for field in REPORT_TASK_ID_FIELDS:
         fallback_ids.update(normalize_ids(report.get(field), field))
     selected_ids = sorted(fallback_ids)
@@ -419,6 +547,146 @@ def collect_run_instance_ids(
             "файлы instance_ids.txt и task.jsonl отсутствуют или пусты"
         )
     return selected_ids
+
+
+def load_error_records(path: Path) -> dict[str, dict[str, Any]]:
+    if not path.is_file():
+        return {}
+
+    records: dict[str, dict[str, Any]] = {}
+    try:
+        source = path.open(encoding="utf-8")
+    except OSError as error:
+        warn(f"не удалось прочитать {path}: {error}")
+        return {}
+
+    with source:
+        for line_number, line in enumerate(source, start=1):
+            if not line.strip():
+                continue
+            try:
+                record = json.loads(line)
+            except json.JSONDecodeError as error:
+                warn(f"невалидный JSON в {path}:{line_number}: {error}")
+                continue
+            if not isinstance(record, dict):
+                warn(f"ожидался объект в {path}:{line_number}")
+                continue
+            instance_id_value = record.get("instance_id")
+            instance_id = (
+                str(instance_id_value).strip()
+                if instance_id_value is not None
+                else ""
+            )
+            if not instance_id:
+                warn(f"в {path}:{line_number} отсутствует instance_id")
+                continue
+            records[instance_id] = record
+    return records
+
+
+def compact_text(value: Any, limit: int = 300) -> str | None:
+    if value is None:
+        return None
+    text = " ".join(str(value).split())
+    if not text:
+        return None
+    if len(text) <= limit:
+        return text
+    return text[: limit - 1] + "…"
+
+
+def split_error_text(value: Any) -> tuple[str | None, str | None]:
+    text = compact_text(value)
+    if text is None:
+        return None, None
+    match = ERROR_TYPE_PATTERN.match(text)
+    if not match:
+        return None, text
+    error_type = match.group(1)
+    message = compact_text(match.group(2)) or text
+    return error_type, message
+
+
+def build_steps_null_reason(
+    diagnostics: TaskLogDiagnostics | None,
+    error_record: Mapping[str, Any],
+) -> dict[str, Any]:
+    details = as_mapping(error_record.get("details"))
+    runner_error_type = compact_text(error_record.get("error_type"))
+    runner_message = compact_text(error_record.get("message"))
+    termination_reason = compact_text(details.get("termination_reason"))
+    agent_termination_reason = compact_text(
+        diagnostics.agent_termination_reason if diagnostics else None
+    ) or compact_text(details.get("agent_termination_reason"))
+    last_stage = diagnostics.last_stage if diagnostics else None
+
+    error_type: str | None = None
+    message: str | None = None
+    if (
+        (diagnostics is not None and diagnostics.task_timeout)
+        or termination_reason == "task_timeout"
+    ):
+        code = "task_timeout"
+        error_type = runner_error_type or "TimeoutError"
+        message = runner_message or (
+            "Задача завершилась по таймауту до первого записанного STEP."
+        )
+    elif diagnostics is not None and diagnostics.llm_request_error:
+        code = "llm_request_failed"
+        error_type, message = split_error_text(
+            diagnostics.llm_request_error
+        )
+    elif diagnostics is not None and diagnostics.llm_response_error:
+        code = "llm_response_invalid"
+        error_type, message = split_error_text(
+            diagnostics.llm_response_error
+        )
+    elif runner_error_type == "EmptyModelPatchError":
+        code = "empty_model_patch"
+        error_type = runner_error_type
+        message = runner_message
+    elif diagnostics is not None and diagnostics.worker_failed:
+        code = "worker_failed"
+        error_type = runner_error_type or diagnostics.worker_error_type
+        message = runner_message or diagnostics.worker_error_message
+    elif error_record:
+        code = "inference_error"
+        error_type = runner_error_type
+        message = runner_message
+    elif diagnostics is not None and diagnostics.log_read_error:
+        code = "log_unreadable"
+        error_type, message = split_error_text(diagnostics.log_read_error)
+    elif agent_termination_reason:
+        code = "agent_terminated_before_first_step"
+        message = agent_termination_reason
+    elif diagnostics is not None and last_stage in EARLY_STAGES:
+        code = "stopped_before_first_step"
+        message = (
+            "Выполнение остановилось до первого записанного STEP; "
+            f"последнее событие: {last_stage}."
+        )
+    elif diagnostics is not None and diagnostics.has_log:
+        code = "no_step_marker"
+        message = "В логе задачи нет ни одной строки вида STEP N:."
+    else:
+        code = "no_log"
+        message = "Для задачи не найден лог."
+
+    reason: dict[str, Any] = {"code": code}
+    if last_stage:
+        reason["last_stage"] = last_stage
+    if error_type:
+        reason["error_type"] = error_type
+    if message:
+        reason["message"] = message
+    if runner_error_type and runner_error_type != error_type:
+        reason["runner_error_type"] = runner_error_type
+    if termination_reason:
+        reason["termination_reason"] = termination_reason
+    if agent_termination_reason:
+        reason["agent_termination_reason"] = agent_termination_reason
+    return reason
 
 
 def serialize_ids(value: Any) -> str:
@@ -445,6 +713,8 @@ def serialize_task_step_statistics(
     instance_ids: Iterable[str],
     report: Mapping[str, Any],
     task_steps: Mapping[str, int],
+    task_diagnostics: Mapping[str, TaskLogDiagnostics],
+    error_records: Mapping[str, Mapping[str, Any]],
 ) -> str:
     ids_by_field = {
         field: set(normalize_ids(report.get(field), field))
@@ -462,6 +732,14 @@ def serialize_task_step_statistics(
         instance_id: {
             "status": status_by_id[instance_id],
             "steps": task_steps.get(instance_id),
+            "steps_null_reason": (
+                None
+                if instance_id in task_steps
+                else build_steps_null_reason(
+                    task_diagnostics.get(instance_id),
+                    error_records.get(instance_id, {}),
+                )
+            ),
         }
         for instance_id in sorted(all_ids)
     }
@@ -504,8 +782,12 @@ def collect_run(run_dir: Path) -> dict[str, Any]:
     log_analytics = collect_log_analytics(
         run_dir / "logs", pipeline.critic_tool_names
     )
+    error_records = load_error_records(run_dir / "errors.jsonl")
     instance_ids = collect_run_instance_ids(
-        run_dir, report, log_analytics.task_steps
+        run_dir,
+        report,
+        log_analytics.task_steps,
+        error_records,
     )
 
     return {
@@ -518,7 +800,11 @@ def collect_run(run_dir: Path) -> dict[str, Any]:
         "resolved_rate": calculate_resolved_rate(report),
         "resolved_ids": serialize_ids(report.get("resolved_ids")),
         "task_step_statistics": serialize_task_step_statistics(
-            instance_ids, report, log_analytics.task_steps
+            instance_ids,
+            report,
+            log_analytics.task_steps,
+            log_analytics.task_diagnostics,
+            error_records,
         ),
         "critic_tool_name": ", ".join(pipeline.critic_tool_names),
         "trajectory_summary_enabled": pipeline.trajectory_summary_enabled,
