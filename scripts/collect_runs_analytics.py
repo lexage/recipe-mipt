@@ -23,7 +23,9 @@ COLUMNS = (
     "resolved_instances",
     "unresolved_instances",
     "empty_patch_instances",
+    "resolved_rate",
     "resolved_ids",
+    "task_step_statistics",
     "critic_tool_name",
     "trajectory_summary_enabled",
     "critic_tool_call_count",
@@ -39,7 +41,9 @@ MAX_COLUMN_WIDTHS = {
     "resolved_instances": 21,
     "unresolved_instances": 23,
     "empty_patch_instances": 25,
+    "resolved_rate": 18,
     "resolved_ids": 50,
+    "task_step_statistics": 70,
     "critic_tool_name": 22,
     "trajectory_summary_enabled": 30,
     "critic_tool_call_count": 25,
@@ -56,6 +60,19 @@ REPORT_COUNT_FIELDS = {
     "empty_patch_instances",
 }
 INSTANCE_ID_PATTERN = re.compile(r"\binstance_id=([^\s\t]+)")
+STEP_PATTERN = re.compile(r"\bSTEP\s+(\d+):", flags=re.IGNORECASE)
+
+STATUS_RESOLVED = "решена"
+STATUS_UNRESOLVED = "нерешена"
+STATUS_EMPTY_PATCH = "пустой патч"
+REPORT_TASK_ID_FIELDS = (
+    "completed_ids",
+    "incomplete_ids",
+    "resolved_ids",
+    "unresolved_ids",
+    "empty_patch_ids",
+    "error_ids",
+)
 
 
 @dataclass(frozen=True)
@@ -63,6 +80,13 @@ class PipelineAnalytics:
     model_name: str | None
     critic_tool_names: tuple[str, ...]
     trajectory_summary_enabled: bool
+
+
+@dataclass(frozen=True)
+class LogAnalytics:
+    critic_call_count: int
+    critic_task_ids: tuple[str, ...]
+    task_steps: dict[str, int]
 
 
 def warn(message: str) -> None:
@@ -199,19 +223,19 @@ def build_action_pattern(critic_tool_names: Iterable[str]) -> re.Pattern[str] | 
     )
 
 
-def collect_critic_calls(
+def collect_log_analytics(
     logs_dir: Path, critic_tool_names: Iterable[str]
-) -> tuple[int, list[str]]:
+) -> LogAnalytics:
     action_pattern = build_action_pattern(critic_tool_names)
-    if action_pattern is None:
-        return 0, []
     if not logs_dir.is_dir():
         warn(f"не найдена папка логов {logs_dir}")
-        return 0, []
+        return LogAnalytics(0, (), {})
 
     call_count = 0
     task_ids: set[str] = set()
+    task_steps: dict[str, int] = {}
     unattributed_calls = 0
+    unattributed_steps = 0
 
     for path in sorted(logs_dir.rglob("*.log")):
         current_instance_id = infer_instance_id_from_filename(path)
@@ -227,34 +251,107 @@ def collect_critic_calls(
                 if instance_match:
                     current_instance_id = instance_match.group(1)
 
-                matches = list(action_pattern.finditer(line))
-                if not matches:
-                    continue
-                call_count += len(matches)
-                if current_instance_id:
-                    task_ids.add(current_instance_id)
-                else:
-                    unattributed_calls += len(matches)
+                step_matches = list(STEP_PATTERN.finditer(line))
+                if step_matches:
+                    if current_instance_id:
+                        task_steps[current_instance_id] = int(
+                            step_matches[-1].group(1)
+                        )
+                    else:
+                        unattributed_steps += len(step_matches)
+
+                if action_pattern is not None:
+                    action_matches = list(action_pattern.finditer(line))
+                    call_count += len(action_matches)
+                    if action_matches:
+                        if current_instance_id:
+                            task_ids.add(current_instance_id)
+                        else:
+                            unattributed_calls += len(action_matches)
 
     if unattributed_calls:
         warn(
             f"для {unattributed_calls} вызовов критики в {logs_dir} "
             "не удалось определить instance_id"
         )
-    return call_count, sorted(task_ids)
+    if unattributed_steps:
+        warn(
+            f"для {unattributed_steps} упоминаний STEP в {logs_dir} "
+            "не удалось определить instance_id"
+        )
+    return LogAnalytics(call_count, tuple(sorted(task_ids)), task_steps)
+
+
+def normalize_ids(value: Any, field_name: str) -> list[str]:
+    if value is None:
+        return []
+    if not isinstance(value, (list, tuple, set)):
+        warn(
+            f"в поле {field_name} ожидался список идентификаторов, "
+            f"получено {type(value).__name__}"
+        )
+        value = [value]
+
+    ids: list[str] = []
+    for item in value:
+        instance_id = str(item).strip()
+        if instance_id:
+            ids.append(instance_id)
+    return sorted(ids) if isinstance(value, set) else ids
 
 
 def serialize_ids(value: Any) -> str:
     if value is None:
         return ""
-    if isinstance(value, (list, tuple, set)):
-        ids = sorted(value) if isinstance(value, set) else list(value)
-        return json.dumps(ids, ensure_ascii=False)
-    warn(
-        "ожидался список идентификаторов, "
-        f"получено {type(value).__name__}"
+    return json.dumps(normalize_ids(value, "ids"), ensure_ascii=False)
+
+
+def calculate_resolved_rate(report: Mapping[str, Any]) -> float | None:
+    total_instances = report.get("total_instances")
+    resolved_instances = report.get("resolved_instances")
+    if isinstance(total_instances, bool) or isinstance(resolved_instances, bool):
+        return None
+    if not isinstance(total_instances, (int, float)):
+        return None
+    if not isinstance(resolved_instances, (int, float)):
+        return None
+    if total_instances <= 0:
+        return None
+    return resolved_instances / total_instances
+
+
+def serialize_task_step_statistics(
+    report: Mapping[str, Any], task_steps: Mapping[str, int]
+) -> str:
+    if not report:
+        return ""
+
+    ids_by_field = {
+        field: set(normalize_ids(report.get(field), field))
+        for field in REPORT_TASK_ID_FIELDS
+    }
+    all_ids = set(task_steps)
+    for ids in ids_by_field.values():
+        all_ids.update(ids)
+
+    status_by_id = {instance_id: STATUS_UNRESOLVED for instance_id in all_ids}
+    for instance_id in ids_by_field["resolved_ids"]:
+        status_by_id[instance_id] = STATUS_RESOLVED
+    for instance_id in ids_by_field["empty_patch_ids"]:
+        status_by_id[instance_id] = STATUS_EMPTY_PATCH
+
+    statistics = {
+        instance_id: {
+            "status": status_by_id[instance_id],
+            "steps": task_steps.get(instance_id),
+        }
+        for instance_id in sorted(all_ids)
+    }
+    return json.dumps(
+        statistics,
+        ensure_ascii=False,
+        separators=(",", ":"),
     )
-    return json.dumps([str(value)], ensure_ascii=False)
 
 
 def nested_value(data: Mapping[str, Any], section: str, field: str) -> Any:
@@ -286,7 +383,7 @@ def collect_run(run_dir: Path) -> dict[str, Any]:
         )
         timings = {}
 
-    critic_call_count, critic_task_ids = collect_critic_calls(
+    log_analytics = collect_log_analytics(
         run_dir / "logs", pipeline.critic_tool_names
     )
 
@@ -297,11 +394,15 @@ def collect_run(run_dir: Path) -> dict[str, Any]:
         "resolved_instances": report.get("resolved_instances"),
         "unresolved_instances": report.get("unresolved_instances"),
         "empty_patch_instances": report.get("empty_patch_instances"),
+        "resolved_rate": calculate_resolved_rate(report),
         "resolved_ids": serialize_ids(report.get("resolved_ids")),
+        "task_step_statistics": serialize_task_step_statistics(
+            report, log_analytics.task_steps
+        ),
         "critic_tool_name": ", ".join(pipeline.critic_tool_names),
         "trajectory_summary_enabled": pipeline.trajectory_summary_enabled,
-        "critic_tool_call_count": critic_call_count,
-        "critic_tool_task_ids": serialize_ids(critic_task_ids),
+        "critic_tool_call_count": log_analytics.critic_call_count,
+        "critic_tool_task_ids": serialize_ids(log_analytics.critic_task_ids),
         "inference_duration_seconds": nested_value(
             timings, "inference", "duration_seconds"
         ),
@@ -379,6 +480,7 @@ def write_excel(path: Path, rows: list[dict[str, Any]]) -> None:
         "inference_duration_seconds",
         "evaluation_duration_seconds",
     }
+    percentage_columns = {"resolved_rate"}
     for column_index, column_name in enumerate(COLUMNS, start=1):
         column_letter = get_column_letter(column_index)
         values = [column_name, *(str(row.get(column_name) or "") for row in rows)]
@@ -390,13 +492,23 @@ def write_excel(path: Path, rows: list[dict[str, Any]]) -> None:
         if column_name in numeric_columns:
             for cell in sheet[column_letter][1:]:
                 cell.number_format = "#,##0"
+        elif column_name in percentage_columns:
+            for cell in sheet[column_letter][1:]:
+                cell.number_format = "0.0%"
 
-    wrapped_columns = {1, 2, 7, 9, 11}
+    wrapped_columns = {
+        "run_name",
+        "model_name",
+        "resolved_ids",
+        "task_step_statistics",
+        "trajectory_summary_enabled",
+        "critic_tool_task_ids",
+    }
     for row in sheet.iter_rows(min_row=2):
         for cell in row:
             cell.alignment = Alignment(
                 vertical="top",
-                wrap_text=cell.column in wrapped_columns,
+                wrap_text=COLUMNS[cell.column - 1] in wrapped_columns,
             )
 
     path.parent.mkdir(parents=True, exist_ok=True)
