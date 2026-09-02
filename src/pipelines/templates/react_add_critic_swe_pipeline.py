@@ -1,7 +1,5 @@
 """Mandatory critique pipeline for repository-level SWE-rebench tasks."""
 
-from __future__ import annotations
-
 import json
 import logging
 
