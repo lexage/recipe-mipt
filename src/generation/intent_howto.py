@@ -33,18 +33,21 @@ independently:
 
   stage 2 (embeddings only, no LLM, optional) — when ``clusterize`` is set,
       embed every mined intent and group them so ONE howto is written per
-      cluster instead of per intent. Text embeddings of this size (Qwen3-
-      Embedding-4B) live in a very high-dimensional space where distances
-      concentrate (the curse of dimensionality: in high ambient dimension
-      almost all pairwise distances become similar, so raw k-means/nearest-
-      neighbour on the raw vectors clusters on noise). The mitigation is the
-      same one RAPTOR uses (src/rag/raptor/core/cluster_utils.py): reduce to a
-      low-dimensional manifold with UMAP (cosine metric) before clustering.
-      The representative of each cluster is picked back in the ORIGINAL
-      normalized embedding space (the medoid closest to the cluster centroid)
-      — UMAP's reduced coordinates are a clustering aid, not a similarity
-      measure to trust for picking the one intent that speaks for the group.
-      With ``clusterize: False`` every intent gets its own document.
+      cluster instead of per intent. High-dimensional text embeddings have
+      pairwise distances that concentrate (the curse of dimensionality: in
+      high ambient dimension almost all pairwise distances become similar,
+      so raw k-means/nearest-neighbour on the raw vectors clusters on noise).
+      RAPTOR mitigates this with UMAP (src/rag/raptor/core/cluster_utils.py);
+      this generator uses PCA for the same purpose — project onto the
+      low-dimensional subspace the embeddings actually vary along before
+      clustering — because PCA is pure numpy/scipy with no extra native
+      dependency (umap-learn pulls in numba, which requires numpy<=2.4 and
+      broke on this project's numpy 2.5). The representative of each cluster
+      is picked back in the ORIGINAL normalized embedding space (the medoid
+      closest to the cluster centroid) — the reduced coordinates are a
+      clustering aid, not a similarity measure to trust for picking the one
+      intent that speaks for the group. With ``clusterize: False`` every
+      intent gets its own document.
 
   stage 3 (LLM, one call per intent/representative) — write a howto document
       in the Question -> Answer -> Caveat shape the manual ``howto_*`` corpus
@@ -74,6 +77,7 @@ from typing import Dict, List, Optional, Tuple
 import numpy as np
 from openai import OpenAI
 from sklearn.cluster import KMeans
+from sklearn.decomposition import PCA
 from tqdm import tqdm
 
 from src.agent_constructor.agent import Agent
@@ -131,8 +135,7 @@ class IntentHowtoGenerator(PromptDiscoverable, Generator):
         clusterize: group intents by embedding similarity and write one
             document per cluster representative instead of per intent.
         n_clusters: number of clusters; 0 = auto (``round(sqrt(n))``).
-        umap_n_components: dimensionality UMAP reduces to before clustering.
-        umap_n_neighbors: UMAP's ``n_neighbors``.
+        pca_n_components: dimensionality PCA reduces to before clustering.
         fewshot_db_path / n_fewshot: manual corpus used as FORM exemplars for
             stage 3 (see ``src.generation.doc_contract.exemplars_block``).
         num_workers: parallel LLM calls per stage.
@@ -162,8 +165,7 @@ class IntentHowtoGenerator(PromptDiscoverable, Generator):
         dedup_by_origin: bool = True,
         clusterize: bool = False,
         n_clusters: int = 0,
-        umap_n_components: int = 10,
-        umap_n_neighbors: int = 15,
+        pca_n_components: int = 10,
         fewshot_db_path: str = "data/docs_database_examples_aug.db",
         n_fewshot: int = 3,
         num_workers: int = 8,
@@ -191,8 +193,7 @@ class IntentHowtoGenerator(PromptDiscoverable, Generator):
         self.dedup_by_origin = bool(dedup_by_origin)
         self.clusterize = bool(clusterize)
         self.n_clusters = int(n_clusters)
-        self.umap_n_components = max(2, int(umap_n_components))
-        self.umap_n_neighbors = max(2, int(umap_n_neighbors))
+        self.pca_n_components = max(2, int(pca_n_components))
         self.fewshot_db_path = fewshot_db_path
         self.n_fewshot = int(n_fewshot)
         self.num_workers = max(1, int(num_workers))
@@ -397,19 +398,17 @@ class IntentHowtoGenerator(PromptDiscoverable, Generator):
         k = self.n_clusters if self.n_clusters > 0 else max(2, round(n ** 0.5))
         k = max(1, min(k, n))
 
-        # Curse of dimensionality: Qwen3-Embedding-4B vectors are high-
-        # dimensional, where pairwise distances concentrate and raw k-means
-        # would cluster on noise rather than semantics. UMAP (cosine metric)
-        # first collapses them onto the low-dimensional manifold the text
-        # actually lives on — the same mitigation RAPTOR uses.
-        if n > self.umap_n_neighbors + 1:
-            import umap
-            reduced = umap.UMAP(
-                n_neighbors=min(self.umap_n_neighbors, n - 1),
-                n_components=min(self.umap_n_components, n - 2, vecs.shape[1]),
-                metric="cosine",
-                random_state=self.seed,
-            ).fit_transform(vecs)
+        # Curse of dimensionality: high-dimensional embedding vectors have
+        # pairwise distances that concentrate, so raw k-means would cluster
+        # on noise rather than semantics. PCA projects onto the low-
+        # dimensional subspace the embeddings actually vary along first —
+        # same purpose as RAPTOR's UMAP step, but pure numpy/scipy (umap-learn
+        # pulls in numba, which needs numpy<=2.4 and conflicts with this
+        # project's numpy 2.5).
+        n_components = min(self.pca_n_components, n - 1, vecs.shape[1])
+        if n_components >= 2:
+            reduced = PCA(n_components=n_components,
+                          random_state=self.seed).fit_transform(vecs)
         else:
             reduced = vecs
 
