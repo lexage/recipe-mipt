@@ -35,7 +35,9 @@ class LocalDB(IDB):
 
             index_sources: List[str] = None,
 
-            search_filter: dict = {}):
+            search_filter: dict = {},
+
+            sparse_model_path: str = ""):
 
         self.max_docs = max_docs
         self.max_docs_tail = max_docs_tail
@@ -53,6 +55,7 @@ class LocalDB(IDB):
             embedder=embedder,
             collection_name=collection_name,
             path_to_db=path_to_vector_db,
+            sparse_model_path=sparse_model_path,
         )
 
         self.return_examples = return_examples

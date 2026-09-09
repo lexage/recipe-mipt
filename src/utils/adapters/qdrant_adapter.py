@@ -23,7 +23,7 @@ class QdrantDocsAdapter:
     def __init__(self, embedder: Agent, collection_name: str, path_to_db: str,
                  embed_batch_size: int = 64, num_workers: int = 4,
                  max_embed_chars: int = 8000, embed_max_items: int = 256,
-                 max_text_chars: int = 8000):
+                 max_text_chars: int = 8000, sparse_model_path: str = ""):
 
         self.client = QdrantClient(path=path_to_db)
         self.embedder = embedder
@@ -41,7 +41,11 @@ class QdrantDocsAdapter:
         self.max_embed_chars = int(max_embed_chars)
         self.embed_max_items = int(embed_max_items)
         self.sparse_embedder = SparseTextEmbedding(
-            model_name="Qdrant/bm25"
+            model_name="Qdrant/bm25",
+            # Air-gapped cluster: fastembed cannot download the model, so a
+            # pre-fetched local copy is passed straight through — download_model
+            # returns this path immediately, before touching HF/GCS at all.
+            specific_model_path=sparse_model_path or None,
         )
         
         if not self.client.collection_exists(self.collection_name):
