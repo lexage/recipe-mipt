@@ -170,6 +170,9 @@ class ComponentNames(Enum):
     # ===== Generators: oracle intent table + KNN bake (oracle pair to INTENT_BASED_GENERATOR) =====
     ORACLE_INTENT_GENERATOR = "src.generation.oracle_intent.OracleIntentGenerator"
 
+    # ===== Generators: semi-oracle — DS1000 condition -> intent -> howto doc =====
+    INTENT_HOWTO_GENERATOR = "src.generation.intent_howto.IntentHowtoGenerator"
+
     # ===== TOOLS =====
     DB_SEARCH_TOOL = "src.tools.DBSearchTool"
     LLM_TOOL = "src.tools.LLMTool"
