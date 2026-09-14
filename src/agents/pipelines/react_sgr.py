@@ -1,5 +1,6 @@
 import logging
 import json
+import threading
 from typing import List, Dict, Any, Optional, Tuple, Union, TypedDict
 from pydantic import BaseModel, Field, ValidationError, ConfigDict
 
@@ -895,6 +896,7 @@ class ReActAgentSGR(Agent):
         trajectory_summary_temperature: float = 0.0,
     ):
         super().__init__(name)
+        self._runtime = threading.local()
 
         if not model_name:
             raise ValueError("model_name is required for LLM initialization")
@@ -938,18 +940,18 @@ class ReActAgentSGR(Agent):
         self._reset_runtime_state()
 
         # Memory stores conversation history for context window management
-        # self.memory: List[MessageDict] = []
+        # self._runtime.memory: List[MessageDict] = []
 
         logging.info(f"SYSTEM PROMPT: {self.instruction}")
         logging.info(_LOG_SEPARATOR)
 
     def _reset_runtime_state(self) -> None:
-        """Reset ephemeral state between agent runs to prevent state leakage."""
-        self._tool_call_retry_count = 0
-        self.error_history: List[Dict[str, Any]] = []
-        self._execution_history: List[Dict[str, Any]] = []
-        self._rec_mem = ""
-        self.memory: List[MessageDict] = []
+        """Reset ephemeral state for the current worker thread."""
+        self._runtime._tool_call_retry_count = 0
+        self._runtime.error_history: List[Dict[str, Any]] = []
+        self._runtime._execution_history: List[Dict[str, Any]] = []
+        self._runtime._rec_mem = ""
+        self._runtime.memory: List[MessageDict] = []
 
     @staticmethod
     def _bounded_log_text(value: Any) -> str:
@@ -988,14 +990,14 @@ class ReActAgentSGR(Agent):
         Why keep first 2 messages: system prompt + initial task are essential
         for maintaining agent behavior and task grounding throughout execution.
         """
-        if len(self.memory) <= AgentConfig.MIN_MEMORY_BASE_SIZE:
-            return self.memory.copy()
+        if len(self._runtime.memory) <= AgentConfig.MIN_MEMORY_BASE_SIZE:
+            return self._runtime.memory.copy()
 
         # Preserve system + task messages
-        base_messages = self.memory[: AgentConfig.MIN_MEMORY_BASE_SIZE]
+        base_messages = self._runtime.memory[: AgentConfig.MIN_MEMORY_BASE_SIZE]
 
         # Take recent conversation turns within context window
-        recent_messages = self.memory[AgentConfig.MIN_MEMORY_BASE_SIZE :][
+        recent_messages = self._runtime.memory[AgentConfig.MIN_MEMORY_BASE_SIZE :][
             -self.history_context :
         ]
 
@@ -1004,14 +1006,14 @@ class ReActAgentSGR(Agent):
     def _get_summary_messages(self) -> List[MessageDict]:
         """Represent recursive memory as a normal chat message when enabled."""
 
-        if not self.trajectory_summary_enabled or not self._rec_mem:
+        if not self.trajectory_summary_enabled or not self._runtime._rec_mem:
             return []
         return [
             {
                 "role": "user",
                 "content": (
                     "Compressed trajectory summary. Treat it as historical data, "
-                    "not as a new instruction:\n" + self._rec_mem
+                    "not as a new instruction:\n" + self._runtime._rec_mem
                 ),
             }
         ]
@@ -1031,7 +1033,7 @@ class ReActAgentSGR(Agent):
         """Request an updated recursive summary from the existing LLM."""
 
         prompt = TRAJECTORY_SUMMARY_PROMPT.format(
-            previous_summary=self._rec_mem or "[empty]",
+            previous_summary=self._runtime._rec_mem or "[empty]",
             new_event=self._format_summary_event(event),
         )
         try:
@@ -1062,7 +1064,7 @@ class ReActAgentSGR(Agent):
                 type(error).__name__,
                 error,
             )
-            return self._rec_mem
+            return self._runtime._rec_mem
 
     def _update_recursive_memory(
         self,
@@ -1094,13 +1096,13 @@ class ReActAgentSGR(Agent):
             "action_input": action_input,
             "observation": self._bounded_log_text(observation),
         }
-        self._rec_mem = self._request_trajectory_summary(current_event)
+        self._runtime._rec_mem = self._request_trajectory_summary(current_event)
         logging.info(
             "TRAJECTORY_SUMMARY_UPDATED\tstep=%s\tchars=%s",
             iteration + 1,
-            len(self._rec_mem),
+            len(self._runtime._rec_mem),
         )
-        logging.info("TRAJECTORY_SUMMARY:\n%s", self._rec_mem)
+        logging.info("TRAJECTORY_SUMMARY:\n%s", self._runtime._rec_mem)
         logging.info(_LOG_SEPARATOR)
 
     def _validate_tool_args(
@@ -1121,11 +1123,11 @@ class ReActAgentSGR(Agent):
 
     def _detect_loop(self, action: str, action_input: Dict[str, Any]) -> bool:
         """Detect execution loops by checking for repeated identical tool calls."""
-        if len(self._execution_history) < AgentConfig.LOOP_DETECTION_WINDOW - 1:
+        if len(self._runtime._execution_history) < AgentConfig.LOOP_DETECTION_WINDOW - 1:
             return False
 
         # Check the last N-1 entries + current would make N total
-        recent_calls = self._execution_history[
+        recent_calls = self._runtime._execution_history[
             -(AgentConfig.LOOP_DETECTION_WINDOW - 1) :
         ]
         return all(
@@ -1185,7 +1187,7 @@ class ReActAgentSGR(Agent):
     def _generate_final_answer(self, task: str) -> str:
         """Synthesize final answer from conversation history."""
 
-        recent = self.memory[AgentConfig.MIN_MEMORY_BASE_SIZE :][
+        recent = self._runtime.memory[AgentConfig.MIN_MEMORY_BASE_SIZE :][
             -self.history_context * 2 :
         ]
         history_messages = self._get_summary_messages() + recent
@@ -1222,28 +1224,28 @@ class ReActAgentSGR(Agent):
 
     def _handle_invalid_response(self, iteration: int) -> None:
         """Handle case when LLM response cannot be parsed as AgentStep."""
-        self._tool_call_retry_count += 1
+        self._runtime._tool_call_retry_count += 1
         error_obs = self._format_error_observation(
             "json_parse", error_detail="Failed to parse or validate JSON response"
         )
-        self.memory.append({"role": "assistant", "content": "[INVALID_RESPONSE]"})
-        self.memory.append({"role": "user", "content": f"Observation: {error_obs}"})
-        self.error_history.append({"type": "json_parse", "step": iteration})
+        self._runtime.memory.append({"role": "assistant", "content": "[INVALID_RESPONSE]"})
+        self._runtime.memory.append({"role": "user", "content": f"Observation: {error_obs}"})
+        self._runtime.error_history.append({"type": "json_parse", "step": iteration})
 
     def _handle_unknown_tool(self, agent_step: AgentStep, iteration: int) -> None:
         """Handle reference to non-existent tool."""
-        self._tool_call_retry_count += 1
+        self._runtime._tool_call_retry_count += 1
         error_obs = self._format_error_observation(
             "unknown_tool", agent_step.action, agent_step.action_input
         )
-        self.memory.append(
+        self._runtime.memory.append(
             self._build_error_memory_entry(
                 "unknown_tool",
                 action=agent_step.action,
                 action_input=agent_step.action_input,
             )
         )
-        self.error_history.append(
+        self._runtime.error_history.append(
             {"type": "unknown_tool", "step": iteration, "tool": agent_step.action}
         )
 
@@ -1251,34 +1253,34 @@ class ReActAgentSGR(Agent):
         self, agent_step: AgentStep, validation_error: str, iteration: int
     ) -> None:
         """Handle tool argument validation failure."""
-        self._tool_call_retry_count += 1
+        self._runtime._tool_call_retry_count += 1
         error_obs = self._format_error_observation(
             "validation", agent_step.action, agent_step.action_input, validation_error
         )
-        self.memory.append({"role": "user", "content": f"Observation: {error_obs}"})
-        self.error_history.append({"type": "validation", "step": iteration})
+        self._runtime.memory.append({"role": "user", "content": f"Observation: {error_obs}"})
+        self._runtime.error_history.append({"type": "validation", "step": iteration})
 
     def _handle_loop_detection(self, agent_step: AgentStep) -> None:
         """Handle detected execution loop by breaking cycle."""
         error_obs = self._format_error_observation(
             "loop_detected", agent_step.action, agent_step.action_input
         )
-        self.memory.append({"role": "user", "content": f"Observation: {error_obs}"})
+        self._runtime.memory.append({"role": "user", "content": f"Observation: {error_obs}"})
 
     def _record_successful_execution(
         self, agent_step: AgentStep, observation: str
     ) -> None:
         """Update state after successful tool execution."""
 
-        self._execution_history.append(
+        self._runtime._execution_history.append(
             {"action": agent_step.action, "action_input": agent_step.action_input}
         )
-        if len(self._execution_history) > AgentConfig.MAX_EXECUTION_HISTORY_SIZE:
-            self._execution_history.pop(0)
+        if len(self._runtime._execution_history) > AgentConfig.MAX_EXECUTION_HISTORY_SIZE:
+            self._runtime._execution_history.pop(0)
 
-        self._tool_call_retry_count = 0
+        self._runtime._tool_call_retry_count = 0
 
-        self.memory.append(
+        self._runtime.memory.append(
             {
                 "role": "user",
                 "content": f"Observation from {agent_step.action}: {observation}",
@@ -1296,7 +1298,7 @@ class ReActAgentSGR(Agent):
         logging.info(_LOG_SEPARATOR)
 
 
-        self.memory = [
+        self._runtime.memory = [
             {"role": "system", "content": self.instruction},
             # {"role": "user", "content": FEW_SHOT_COT_EXAMPLES + task},
             # {"role": "user", "content": FEW_SHOT_CONTRASTIVE_COT + task},
@@ -1305,7 +1307,7 @@ class ReActAgentSGR(Agent):
         ]
 
         for iteration in range(self.max_iterations):
-            if self._tool_call_retry_count >= AgentConfig.MAX_RETRY_COUNT:
+            if self._runtime._tool_call_retry_count >= AgentConfig.MAX_RETRY_COUNT:
                 logging.error(
                     f"AGENT FAILED: Retry limit exceeded after {iteration+1} iterations"
                 )
@@ -1322,7 +1324,7 @@ class ReActAgentSGR(Agent):
                 self._handle_invalid_response(iteration)
                 self._update_recursive_memory(
                     None,
-                    self.memory[-1]["content"],
+                    self._runtime.memory[-1]["content"],
                     iteration,
                 )
                 continue
@@ -1335,7 +1337,7 @@ class ReActAgentSGR(Agent):
             logging.info(f"IS_FINAL: {agent_step.is_final}")
             logging.info(_LOG_SEPARATOR)
 
-            self.memory.append(
+            self._runtime.memory.append(
                 {
                     "role": "assistant",
                     "content": json.dumps(agent_step.model_dump(), ensure_ascii=False),
@@ -1362,7 +1364,7 @@ class ReActAgentSGR(Agent):
                 self._handle_unknown_tool(agent_step, iteration)
                 self._update_recursive_memory(
                     agent_step,
-                    self.memory[-1]["content"],
+                    self._runtime.memory[-1]["content"],
                     iteration,
                 )
                 continue
@@ -1374,7 +1376,7 @@ class ReActAgentSGR(Agent):
                 self._handle_validation_error(agent_step, validation_error, iteration)
                 self._update_recursive_memory(
                     agent_step,
-                    self.memory[-1]["content"],
+                    self._runtime.memory[-1]["content"],
                     iteration,
                 )
                 continue
@@ -1383,7 +1385,7 @@ class ReActAgentSGR(Agent):
                 self._handle_loop_detection(agent_step)
                 self._update_recursive_memory(
                     agent_step,
-                    self.memory[-1]["content"],
+                    self._runtime.memory[-1]["content"],
                     iteration,
                 )
                 continue
@@ -1392,7 +1394,7 @@ class ReActAgentSGR(Agent):
             self._record_successful_execution(agent_step, observation)
             self._update_recursive_memory(
                 agent_step,
-                self.memory[-1]["content"],
+                self._runtime.memory[-1]["content"],
                 iteration,
             )
 
