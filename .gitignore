@@ -206,3 +206,10 @@ REPO_OVERVIEW.md
 
 # пушим намеренно (на сервере нужны): test_self_clean.py, compute_R_levels.py,
 # make_noised_db.py, run_ds1000.py, test_configs_experimental_4/, src/
+# ПМИ: отфильтрованные корпуса и SQLite, собранные из JSON-корпусов
+data/filtered/
+**/.sqlite_cache/
+recipe-mipt-eval/.env
+recipe-mipt-eval/config.toml
+recipe-mipt-eval/logs/
+recipe-mipt-eval/dist/

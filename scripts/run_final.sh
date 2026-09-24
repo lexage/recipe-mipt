@@ -42,7 +42,7 @@ mkdir -p "$HOME/.cache/fastembed"
 # узла закрыт (400). Настоящий хаб из контейнера доступен, поэтому указываем его
 # явно. Кеш fastembed уводим в дом: по умолчанию он в /tmp, а /tmp здесь в
 # оперативной памяти и очищается.
-exec podman run --rm --network host --ipc host \
+exec docker run --rm --network host --ipc host \
   -v "$HOME:$HOME" -v "$MODELS:$MODELS:ro" -w "$REPO" \
   -e HF_ENDPOINT="${HF_ENDPOINT:-https://huggingface.co}" \
   -e FASTEMBED_CACHE_PATH="$HOME/.cache/fastembed" \

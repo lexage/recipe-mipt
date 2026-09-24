@@ -26,17 +26,17 @@ IMG="${IMG_ASLLM:-10.0.117.197:5000/asllm:1.10.3-pytorch2.10.0-ubuntu24.04-sail2
 CARDS_LIST="${CUDA_VISIBLE_DEVICES:-0}"
 NCARDS=$(set -- ${CARDS_LIST//,/ }; echo $#)
 
-podman image exists "$IMG" || podman pull "$IMG"
+docker image inspect "$IMG" >/dev/null 2>&1 || docker pull "$IMG"
 
 NAME="svc-embed-${PORT}-${SLURM_JOB_ID:-manual}"
-podman rm -f "$NAME" >/dev/null 2>&1 || true
+docker rm -f "$NAME" >/dev/null 2>&1 || true
 
 DEVS=""
 for d in /dev/alixpu*; do DEVS="$DEVS --device $d"; done
 
 echo "=== $(date '+%F %T') $MODEL_DIR как $API_NAME на $NCARDS карт(ах), порт $PORT ==="
 
-exec podman run --rm --name "$NAME" --network host --ipc host $DEVS \
+exec docker run --rm --name "$NAME" --network host --ipc host $DEVS \
   -v "$MODEL_DIR:/models/Qwen3-Embedding-4B:ro" \
   "$IMG" python3 -m vllm.entrypoints.openai.api_server \
     --model "/models/Qwen3-Embedding-4B" --served-model-name "$API_NAME" \

@@ -35,7 +35,7 @@ RECREATE="${RECREATE:-0}"
 
 mkdir -p "$(dirname "$VENV")"
 
-podman run --rm --network host \
+docker run --rm --network host \
   -v "$HOME:$HOME" -w "$REPO" \
   -e VENV="$VENV" -e PIP_INDEXES="$PIP_INDEXES" -e PACKAGES="$PACKAGES" -e CONSTRAINTS="$CONSTRAINTS" -e RECREATE="$RECREATE" \
   "$IMG" bash -c '

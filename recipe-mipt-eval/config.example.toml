@@ -1,0 +1,46 @@
+# Конфигурация испытаний pk3. Скрипты создают config.toml из этого файла сами;
+# в штатном сценарии испытаний правок не требуется. Пути конфигов — от корня
+# recipe-mipt. Результаты пишутся в recipe-mipt-eval/results/.
+
+# ---------------------------------------------------------------- фильтрация
+# Эксперимент фильтрации самодостаточен: бейзлайн — полный корпус без фильтра,
+# метод — корпус после отдельного запуска фильтрации (filter_corpus.py).
+[experiments.filtration]
+# Откуда берутся метод и его параметры (components.document_filter).
+filter_config = "pmi_configs/filtration/f1_api_genre_inline.yaml"
+# Входной корпус (JSON, вся база документов).
+corpus = "data/docs_database_examples.json.gz"
+baseline = "pmi_configs/filtration/f0_full.yaml"
+method = "pmi_configs/filtration/f1_api_genre.yaml"
+
+# ---------------------------------------------------------------- генерация
+# Эксперимент генерации самодостаточен: бейзлайн — системный промпт без
+# правил, метод — тот же пайплайн с генератором правил (правила пишутся заново
+# при каждом прогоне, rebuild: True).
+[experiments.generation]
+rules_config = "pmi_configs/generation/g1_rules.yaml"
+baseline = "pmi_configs/generation/g0_base.yaml"
+method = "pmi_configs/generation/g1_rules.yaml"
+# Корпус один и тот же — индекс строится один раз и общий для обоих прогонов.
+shared_index = true
+
+# ------------------------------------------------------------------- пороги
+# Предварительные значения; окончательные фиксируются в ПМИ по итогам
+# контрольных прогонов на стенде.
+[thresholds]
+# п. 3.5.4.1 ТЗ: вероятность успешного выполнения функций назначения.
+p_success_min = 0.5
+
+[thresholds.filtration]
+# а) падение PASS@1 с фильтром, п.п. — не больше
+pass_at_1_drop_max_pp = 2.0
+# б) ускорение построения индекса (подготовки базы знаний), % — не меньше
+index_build_speedup_min_pct = 10.0
+# в) ускорение полного прогона пайплайна, % — не меньше
+full_run_speedup_min_pct = 10.0
+# г) сокращение объёма базы знаний (символов текста документов), % — не меньше
+corpus_reduction_min_pct = 10.0
+
+[thresholds.generation]
+# прирост PASS@1 с правилами в системном промпте, п.п. — не меньше
+pass_at_1_gain_min_pp = 0.5

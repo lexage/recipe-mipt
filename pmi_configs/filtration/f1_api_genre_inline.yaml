@@ -1,0 +1,75 @@
+type: SIMPLE_WITH_DOC_FILTER
+
+# === ПМИ, эксперимент фильтрации: МЕТОД — фильтр внутри пайплайна.
+# Копия test_configs_experimental_7/filtration/simple_example_api_genre_full.yaml
+# (exp7). Отличия: корпус JSON, свой каталог индекса, модель на 7217.
+# Отсюда же filter_corpus.py берёт метод и его параметры (document_filter),
+# поэтому отдельная фильтрация и фильтрация в пайплайне — один и тот же вызов.
+# Фильтр по СОДЕРЖИМОМУ документа, без метки секции и имени библиотеки.
+
+params:
+  top_k: 6
+
+components:
+
+  embedder:
+    type: EMBEDDING_AGENT
+    params:
+      name: embedder
+      url: "http://0.0.0.0:7216/v1"
+      model_name: "Qwen/Qwen3-Embedding-4B"
+
+  data_base:
+    type: LOCAL_DB
+    params:
+      path_to_db: "data/docs_database_examples.json.gz"
+      path_to_vector_db: "data/vdb_pmi/f1_api_genre_inline"
+      collection_name: "docs"
+      return_full_docs: False
+      return_examples: False
+      merge_examples: False
+
+  chunker:
+    type: RECURSIVE_CHUNKER
+    params:
+      name: chunker
+      max_chunk_size: 1000
+
+  document_filter:
+    type: API_GENRE_FILTER
+    params:
+      name: api_genre_filter
+      max_sig_len: 3000
+      max_stub_len: 800
+
+  context_assembler:
+    type: CORAG_CONTEXT_ASSEMBLER
+    params:
+      name: corag_assembler
+
+  retriever:
+    type: API_RETRIEVER
+    params:
+      name: api_retriever
+      max_apis: 8
+      api_top_k: 1
+      chunks_per_api: 1
+
+  api_selector:
+    type: API_SELECTOR
+    params:
+      url: "http://0.0.0.0:7217/v1"
+      temperature: 0.1
+      max_tokens: 256
+
+  agent:
+    type: DS1000_SOLVER_AGENT
+    params:
+      name: ds1000_solver
+      url: "http://0.0.0.0:7217/v1"
+      api: completions
+      context_after_task: False
+      temperature: 0.2
+      top_p: 0.95
+      max_tokens: 1024
+      stop_tokens: ["</code>", "# SOLUTION END"]

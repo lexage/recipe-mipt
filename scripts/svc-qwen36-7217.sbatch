@@ -15,7 +15,7 @@ set -eu
 #   sbatch -p "$LAB_LONG" scripts/svc-qwen36-7217.sbatch
 # Эмбеддер здесь не поднимается: берём постоянный сервис лаборатории на 7216.
 
-MODEL_DIR="${MODELS_ROOT:-/bmcp_lvm_fs/cusa/models}/Qwen3.6-35B-A3B"
+MODEL_DIR="${LLM_MODEL_DIR:-${MODELS_ROOT:-/bmcp_lvm_fs/cusa/models}/Qwen3.6-35B-A3B}"
 PORT=7217
 # Доп. флаги движку, без правки файла:
 #   EXTRA_ARGS="--enforce-eager" sbatch -p "$LAB_LONG" ...
@@ -35,10 +35,10 @@ API_NAME="$MODEL_DIR"
 CARDS_LIST="${CUDA_VISIBLE_DEVICES:-0}"
 NCARDS=$(set -- ${CARDS_LIST//,/ }; echo $#)
 
-podman image exists "$IMG" || podman pull "$IMG"
+docker image inspect "$IMG" >/dev/null 2>&1 || docker pull "$IMG"
 
 NAME="svc-qwen36-${PORT}-${SLURM_JOB_ID:-manual}"
-podman rm -f "$NAME" >/dev/null 2>&1 || true
+docker rm -f "$NAME" >/dev/null 2>&1 || true
 
 # Все узлы alixpu*: лишние закрыты правами задания, внутрь попадут только
 # выданные карты. Без управляющих узлов драйвер в контейнере не встанет.
@@ -48,7 +48,7 @@ for d in /dev/alixpu*; do DEVS="$DEVS --device $d"; done
 echo "=== $(date '+%F %T') $MODEL_DIR на $NCARDS карт(ах), порт $PORT ==="
 echo "=== первый запуск может занять до часа из-за JIT-компиляции ==="
 
-exec podman run --rm --name "$NAME" --network host --ipc host $DEVS \
+exec docker run --rm --name "$NAME" --network host --ipc host $DEVS \
   -v "$MODEL_DIR:$MODEL_DIR:ro" \
   "$IMG" python3 -m vllm.entrypoints.openai.api_server \
     --model "$MODEL_DIR" --served-model-name "$API_NAME" \

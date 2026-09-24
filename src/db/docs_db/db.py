@@ -5,6 +5,7 @@ from typing import List
 from src.agent_constructor.agent import Agent
 from src.agent_constructor.db import IDB
 from src.agent_constructor.core import Chunk, Document, Text
+from src.db.json_corpus import resolve_sqlite_path
 from src.utils import DOCUMENT_SRC_DOCUMENTS, DOCUMENT_SRC_EXAMPLES
 from src.utils.adapters import SQLiteDocsDBAdapter, ChromaDocsAdapter, QdrantDocsAdapter
 from src.utils.utils_functions import replace_examples_in_chunks
@@ -44,6 +45,10 @@ class LocalDB(IDB):
         # build time. Default = documents-only (backward compatible with exp<=6).
         # Values: any subset of ['documents', 'examples'].
         self.index_sources = index_sources or [DOCUMENT_SRC_DOCUMENTS]
+
+        # A JSON corpus (.json / .json.gz) is validated and converted to SQLite
+        # once; everything below keeps reading SQLite as before.
+        path_to_db = resolve_sqlite_path(path_to_db)
 
         self.sqlite_adapter = SQLiteDocsDBAdapter(
             path_to_db=path_to_db
