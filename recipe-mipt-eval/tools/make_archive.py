@@ -3,7 +3,9 @@
     python3 tools/make_archive.py <корень recipe-mipt> <путь к pk3.zip>
 
 В архив попадает ровно то, что лежит в HEAD (git archive): незакоммиченные
-правки, результаты прогонов, индексы, .env и каталоги .git не попадают.
+правки, результаты прогонов, индексы и каталоги .git не попадают. Файлы .env
+пропускаются, даже если закоммичены (в корне recipe-mipt лежит .env с
+шаблонными значениями); .env.example остаётся.
 Раскладка — как у поставок соседних компонентов:
 
     pk3.zip
@@ -46,7 +48,7 @@ def main(argv):
     with tarfile.open(fileobj=io.BytesIO(tar_bytes)) as tar, \
             zipfile.ZipFile(tmp, "w", zipfile.ZIP_DEFLATED) as archive:
         for member in tar.getmembers():
-            if not member.isfile():
+            if not member.isfile() or os.path.basename(member.name) == ".env":
                 continue
             if member.name.startswith(EVAL_DIR + "/"):
                 arcname, top = member.name, EVAL_DIR
