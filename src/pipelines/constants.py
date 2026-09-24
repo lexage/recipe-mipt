@@ -163,6 +163,19 @@ class ComponentNames(Enum):
     # ===== Generators: intent-anchored corpus augmentation =====
     INTENT_BASED_GENERATOR = "src.generation.intent_based.IntentBasedGenerator"
 
+    # ===== Generators: experiment 17 — methods derived from the exp16 ablation
+    # Corpus-grounded how-to recipes. context_docs=0 -> method 1 (parametric),
+    # context_docs>0 -> method 2 (grounded in retrieved corpus passages).
+    HOWTO_RECIPE_GENERATOR = "src.generation.howto_recipes.HowtoRecipeGenerator"
+    # Method 4: writes from observed DS-1000 failures. Capability probe only —
+    # its scores are tuned on the tasks it was shown.
+    ORACLE_ERROR_GENERATOR = "src.generation.oracle_errors.OracleErrorGenerator"
+
+    # ===== Writers: text generated INTO the solver's system prompt =====
+    # Not a Generator: returns no documents. The LLM writes the rule text from
+    # the problem descriptions the module carries.
+    PROMPT_RULE_GENERATOR = "src.generation.prompt_rules.PromptRuleGenerator"
+
     # ===== TOOLS =====
     DB_SEARCH_TOOL = "src.tools.DBSearchTool"
     LLM_TOOL = "src.tools.LLMTool"

@@ -1,0 +1,93 @@
+type: SIMPLE
+
+# === ГЕНЕРАЦИЯ В БАЗУ ЗНАНИЙ: рецепты «как сделать X» из памяти модели.
+# Генератор переписывает API по корпусу, отбирает частые с квотами по
+# библиотекам и пишет по короткому рецепту на каждый; документы добавляются к
+# исходному корпусу, в системный промпт ничего не уходит.
+#
+# Отличия от h0_base ровно два: компонент generator и свой каталог индекса.
+# Индекс отдельный обязательно: сгенерированные документы не должны попасть в
+# общий, иначе он перестанет быть корпусом без синтетики.
+#
+# Дефолтный системный промпт — меряем вклад одной только базы знаний.
+
+params:
+  top_k: 5
+  keep_source_docs: True
+
+components:
+
+  embedder:
+    type: EMBEDDING_AGENT
+    params:
+      name: embedder
+      url: "http://0.0.0.0:7216/v1"
+      model_name: "Qwen/Qwen3-Embedding-4B"
+
+  data_base:
+    type: LOCAL_DB
+    params:
+      path_to_db: "data/docs_database_examples.db"
+      path_to_vector_db: "data/vdb_howto_h1_rc_1000"
+      collection_name: "docs"
+
+      return_examples: True
+      return_full_docs: False
+      merge_examples: True
+
+      hnsw_space: "cosine"
+      hnsw_m: 16
+      hnsw_construction_ef: 400
+      hnsw_search_ef: 200
+      batch_size: 16
+
+      search_filter:
+        source: "documents"
+
+  chunker:
+    type: RECURSIVE_CHUNKER
+    params:
+      name: chunker
+      max_chunk_size: 1000
+
+  generator:
+    type: HOWTO_RECIPE_GENERATOR
+    params:
+      name: howto_recipe_generator
+      url: "http://0.0.0.0:7217/v1"
+      model_name: "/bmcp_lvm_fs/cusa/models/Qwen3.6-35B-A3B"
+      path_to_db: "data/docs_database_examples.db"
+
+      n_docs: 200
+      min_count: 5
+      context_docs: 0
+      context_chars: 700
+
+      num_workers: 8
+      temperature: 0.7
+      enable_thinking: False
+
+      dump_path: "results/gen_dumps/howto_h1.jsonl"
+
+  context_assembler:
+    type: CORAG_CONTEXT_ASSEMBLER
+    params:
+      name: simple_assembler
+
+  retriever:
+    type: SIMPLE_RETRIEVER
+    params:
+      name: simple_retriever
+
+  agent:
+    type: DS1000_SOLVER_AGENT
+    params:
+      url: "http://0.0.0.0:7217/v1"
+
+      api: chat
+      enable_thinking: False
+
+      temperature: 0.2
+      top_p: 0.95
+      max_tokens: 1024
+      stop_tokens: ["</code>", "# SOLUTION END"]

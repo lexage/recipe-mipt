@@ -54,6 +54,12 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__,
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--split", default="data/exp16/split.json")
+    parser.add_argument("--all", action="store_true",
+                        help="Ignore the split and keep every task. For the "
+                             "exp17 oracle probe, whose whole point is to give "
+                             "the local model exactly what the manual pass had. "
+                             "Anything built from this dossier is tuned on the "
+                             "full test set and cannot be reported as a result.")
     parser.add_argument("--dataset", default="data/ds1000/ds1000.jsonl.gz")
     parser.add_argument("--answers", required=True,
                         help="answers.jsonl from the baseline run (all 1000; "
@@ -67,9 +73,13 @@ def main():
 
     os.chdir(REPO)
 
-    split = json.load(open(args.split, encoding="utf-8"))
-    train = set(split["train"])
-    print(f"- train ids: {len(train)}  (held out: {len(split['eval'])})")
+    if args.all:
+        train = None
+        print("- ALL 1000 tasks (no split) — diagnostic dossier, leaks by design")
+    else:
+        split = json.load(open(args.split, encoding="utf-8"))
+        train = set(split["train"])
+        print(f"- train ids: {len(train)}  (held out: {len(split['eval'])})")
 
     import pandas as pd
     verdict = pd.read_csv(args.results_csv).set_index("problem_id").score.to_dict()
@@ -87,7 +97,7 @@ def main():
         for line in src:
             item = json.loads(line)
             pid = item["metadata"]["problem_id"]
-            if pid not in train:
+            if train is not None and pid not in train:
                 skipped += 1
                 continue
             passed = bool(verdict.get(pid, 0))
@@ -104,10 +114,11 @@ def main():
             }, ensure_ascii=False) + "\n")
             kept += 1
 
-    failed = sum(1 for pid in train if not verdict.get(pid, 0))
+    scope = set(verdict) if train is None else train
+    failed = sum(1 for pid in scope if not verdict.get(pid, 0))
     print(f"- held-out problems excluded : {skipped}")
     print(f"- records written            : {kept} -> {args.out}")
-    print(f"- of the train tasks, failed : {failed} / {len(train)}")
+    print(f"- of those tasks, failed     : {failed} / {len(scope)}")
     print("\nGive the agent this file and data/docs_database_examples.db, and")
     print("nothing else. In particular do NOT give it the dataset, the results")
     print("folder, or the list of held-out ids.")

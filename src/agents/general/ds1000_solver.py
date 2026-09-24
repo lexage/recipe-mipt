@@ -23,6 +23,7 @@ class DS1000Solver(Agent):
             top_p=0.95, 
             max_tokens=1024,
             max_context_lenght: int = 24000,
+            enable_thinking: bool = None,
             stop_tokens=["</code>", "# SOLUTION END"]):
         
         super().__init__("ds_1000_solver")
@@ -45,6 +46,11 @@ class DS1000Solver(Agent):
         self.max_tokens=max_tokens
         self.stop_tokens=stop_tokens
         self.max_context_lenght = max_context_lenght
+        # Reasoning models answer inside <think>...</think>; this response is
+        # parsed as raw code and cut at the stop tokens, so the reasoning would
+        # end up in the answer. None sends nothing and leaves the server's
+        # default in place.
+        self.enable_thinking = enable_thinking
 
         self.tokenizer: PreTrainedTokenizerFast = AutoTokenizer.from_pretrained(self.model_name)
 
@@ -87,6 +93,10 @@ class DS1000Solver(Agent):
             {"role": "user", "content": user_prompt},
         ]
 
+        extra = {}
+        if self.enable_thinking is not None:
+            extra["chat_template_kwargs"] = {"enable_thinking": self.enable_thinking}
+
         completions = self.client.chat.completions.create(
             seed=42,
             model=self.model_name,
@@ -94,7 +104,8 @@ class DS1000Solver(Agent):
             temperature=self.temperature,
             top_p=self.top_p,
             max_tokens=self.max_tokens,
-            stop=self.stop_tokens
+            stop=self.stop_tokens,
+            **({"extra_body": extra} if extra else {})
         )
 
         return completions.choices[0].message.content

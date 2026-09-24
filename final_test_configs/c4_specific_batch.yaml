@@ -1,0 +1,84 @@
+type: SIMPLE
+
+# === ГЕНЕРАТОР ПРАВИЛ: конкретные формулировки, один вызов на все проблемы.
+
+params:
+  top_k: 5
+
+components:
+
+  embedder:
+    type: EMBEDDING_AGENT
+    params:
+      name: embedder
+      url: "http://0.0.0.0:7216/v1"
+      model_name: "Qwen/Qwen3-Embedding-4B"
+
+  data_base:
+    type: LOCAL_DB
+    params:
+      path_to_db: "data/docs_database_examples.db"
+      path_to_vector_db: "data/vdb_final_rc_1000"
+      collection_name: "docs"
+
+      return_examples: True
+      return_full_docs: False
+      merge_examples: True
+
+      hnsw_space: "cosine"
+      hnsw_m: 16
+      hnsw_construction_ef: 400
+      hnsw_search_ef: 200
+      batch_size: 16
+
+      search_filter:
+        source: "documents"
+
+  chunker:
+    type: RECURSIVE_CHUNKER
+    params:
+      name: chunker
+      max_chunk_size: 1000
+
+  context_assembler:
+    type: CORAG_CONTEXT_ASSEMBLER
+    params:
+      name: simple_assembler
+
+  retriever:
+    type: SIMPLE_RETRIEVER
+    params:
+      name: simple_retriever
+
+  rule_writer:
+    type: PROMPT_RULE_GENERATOR
+    params:
+      name: prompt_rule_generator
+      url: "http://0.0.0.0:7217/v1"
+      model_name: "/bmcp_lvm_fs/cusa/models/Qwen3.6-35B-A3B"
+
+      mode: "batch"
+      problem_set: "specific"
+      n_rules: 12
+      max_prompt_tokens: 600
+
+      temperature: 0.3
+      seed: 7
+      max_tokens: 400
+      enable_thinking: False
+
+      rules_path: "results/gen_dumps/rules_c4_specific_batch.jsonl"
+      rebuild: False
+
+  agent:
+    type: DS1000_SOLVER_AGENT
+    params:
+      url: "http://0.0.0.0:7217/v1"
+
+      api: chat
+      enable_thinking: False
+
+      temperature: 0.2
+      top_p: 0.95
+      max_tokens: 1024
+      stop_tokens: ["</code>", "# SOLUTION END"]

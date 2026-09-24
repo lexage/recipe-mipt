@@ -1,0 +1,105 @@
+type: SIMPLE
+
+# === ЭКСПЕРИМЕНТ 17: метод 4 — оракул на Gemma 3 27B, 1000 задач ===
+# Та же диагностика на слабой модели. Разрыв с m4_oracle_qwen25_all1000
+#   показывает, насколько способность к разбору ошибок зависит от размера.
+#
+# ПОРТЫ НЕ ЗАФИКСИРОВАНЫ. Перед запуском:
+#   python db_scripts/set_exp17_ports.py --gen PORT --solver PORT --embed PORT
+# ЗАПУСКАТЬ С --log-chunks.
+
+params:
+  top_k: 5
+  keep_source_docs: True
+
+components:
+
+  embedder:
+    type: EMBEDDING_AGENT
+    params:
+      name: embedder
+      url: "http://0.0.0.0:7216/v1"
+      model_name: "Qwen/Qwen3-Embedding-4B"
+
+  data_base:
+    type: LOCAL_DB
+    params:
+      path_to_db: "data/docs_database_examples.db"
+      path_to_vector_db: "data/vdb_exp17_m4_gem_all_rc_1000"
+      collection_name: "docs"
+
+      return_examples: True
+      return_full_docs: False
+      merge_examples: True
+
+      hnsw_space: "cosine"
+      hnsw_m: 16
+      hnsw_construction_ef: 400
+      hnsw_search_ef: 200
+      batch_size: 16
+
+      search_filter:
+        source: "documents"
+
+  chunker:
+    type: RECURSIVE_CHUNKER
+    params:
+      name: chunker
+      max_chunk_size: 1000
+
+  generator:
+    type: ORACLE_ERROR_GENERATOR
+    params:
+      name: oracle_error_generator
+      url: "http://0.0.0.0:7113/v1"          # GEN_URL
+      model_name: "google/gemma-3-27b-it"                  # GEN_MODEL
+      dossier_path: "data/exp17/dossier_all1000.jsonl"
+      n_docs: 200
+      batch_size: 6
+      docs_per_batch: 3
+      failures_only: True
+      num_workers: 6
+      temperature: 0.7
+      # Gemma's chat template has no system role: the instruction is
+      # folded into the user turn instead of being rejected.
+      use_system_role: False
+      # Hard ceiling per call, so a runaway generation cannot eat the
+      # context window on every request.
+      max_tokens: 1800
+      dump_path: "results/gen_dumps/m4_oracle_gemma3_27b_all1000.jsonl"
+
+  context_assembler:
+    type: CORAG_CONTEXT_ASSEMBLER
+    params:
+      name: simple_assembler
+
+  retriever:
+    type: SIMPLE_RETRIEVER
+    params:
+      name: simple_retriever
+
+  enchancer:
+    type: QUERY_GENERATOR
+    params:
+      name: query_gen
+      url: "http://0.0.0.0:7114/v1"
+      model_name: "Qwen/Qwen2.5-32B-Instruct"
+      options: 1
+
+  agent:
+    type: DS1000_SOLVER_AGENT
+    params:
+      name: ds1000_solver
+
+      url: "http://0.0.0.0:7114/v1"
+      model_name: "Qwen/Qwen2.5-32B-Instruct"
+
+      api: chat
+      context_after_task: False
+
+      system_prompt: "Write a short code following the given format and indentation. Place the executable code between <code> and </code> tags, without any other non-executable things.\n\nThe snippet's setup code has ALREADY been executed and your answer is inserted\nright after it, in the same namespace. Follow these rules:\n\n1. Continue the code, do not restart it. Never repeat the imports, never\n   re-create the input variables (a, df, x, y, X, t, ...) from the example\n   values, never re-seed or re-draw random data. The checker may run your code\n   on different hidden inputs, and re-creating the input destroys them.\n2. `load_data()` is a placeholder, not a real function. The variables it\n   appears to produce already exist. Calling it raises NameError.\n3. Assign the answer to exactly the variable name the task asks for (usually\n   `result`). A bare expression, a print(), or a different name (answer, out,\n   res) counts as no answer. If several outputs are requested, assign them all.\n   If the task asks to modify `df`, leave the result in `df`.\n4. When the task ends with an unfinished `def f(...):`, write ONLY the indented\n   body plus a `return`. Do not repeat the def line, do not add a call, do not\n   write unindented code.\n5. Generalise: take sizes from len(a), a.shape, df.columns — never from the\n   literal numbers in the example.\n6. Do only what is asked. No reset_index(), no .values / .to_numpy() when a\n   DataFrame or Series is expected, no astype / sorting / rounding \"for\n   neatness\", no print(), no plt.show().\n7. Output raw Python only: no markdown fences, no XML tags, no prose before or\n   after the code.\n\nLibrary notes: matplotlib figures are already started, so only ADD the calls\nasked for and use the axis/artist names the snippet defines. Import scipy\nsubmodules the way the setup did (scipy.integrate.solve_ivp vs a bare\nsolve_ivp). TensorFlow code is TF2 eager — no Session, no placeholders."
+
+      temperature: 0.2
+      top_p: 0.95
+      max_tokens: 1024
+      stop_tokens: ["</code>", "# SOLUTION END"]

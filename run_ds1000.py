@@ -116,6 +116,24 @@ def _snapshot_config(target_dir: str | None, config_path) -> None:
         logging.warning("Could not snapshot config: %s", exc)
 
 
+def _write_system_prompt(target_dir: str | None, pipeline) -> None:
+    """Save the solver's system prompt exactly as it ran.
+
+    With a rule writer attached the text is assembled at build time and exists
+    nowhere else — the config only names the component that wrote it.
+    """
+    if not target_dir:
+        return
+    agent = getattr(pipeline, "agent", None)
+    text = getattr(agent, "system_prompt", None)
+    if not text:
+        return
+    out_path = os.path.join(target_dir, "system_prompt_used.txt")
+    with open(out_path, "w", encoding="utf-8") as f:
+        f.write(text)
+    logging.info("Wrote system prompt (%d chars) -> %s", len(text), out_path)
+
+
 def _write_prompts(target_dir: str | None, pipeline) -> None:
     """Dump the full text of every prompt the pipeline declared.
 
@@ -241,7 +259,15 @@ def main():
     num_workers = int(args.num_workers)
 
     config_dir = Path(args.config)
-    config_files = list(config_dir.glob("*.yaml")) + list(config_dir.glob("*.yml"))
+    if config_dir.is_dir():
+        # sorted() so the run order is reproducible — glob order is arbitrary,
+        # and these configs are meant to run in a specific sequence.
+        config_files = (sorted(config_dir.glob("*.yaml"))
+                        + sorted(config_dir.glob("*.yml")))
+    elif config_dir.is_file():
+        config_files = [config_dir]
+    else:
+        raise SystemExit(f"config path not found: {config_dir}")
 
     bench = DS1000(dataset_path=args.dataset)
 
@@ -407,6 +433,7 @@ def main():
         _write_chunk_log(experiment_dir, chunk_log)
         _snapshot_config(experiment_dir, config_path)
         _write_prompts(experiment_dir, pipeline)
+        _write_system_prompt(experiment_dir, pipeline)
 
         logging.info(
             f"CONFIG\t{config_path.name}\t{config_time:.3f}s\t"

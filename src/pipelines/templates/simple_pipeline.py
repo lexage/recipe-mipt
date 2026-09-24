@@ -10,6 +10,7 @@ from src.agent_constructor.pipeline import Pipeline
 from src.agent_constructor.context_engine import ContextAssembler
 from src.agent_constructor.icl import ICLBlock
 from src.benchmarks.ds1000 import DataItemDS1000
+from src.generation.prompt_rules import PromptRuleGenerator
 from src.utils.retrieval_log import record_chunks, record_context
 
 
@@ -25,6 +26,7 @@ class SimplePipeline(Pipeline):
                  generator: Generator = None,
                  context_assembler: ContextAssembler = None,
                  enhancer: Agent = None,
+                 rule_writer: PromptRuleGenerator = None,
                  keep_source_docs: bool = True,
                  top_k: int = 1):
 
@@ -54,6 +56,14 @@ class SimplePipeline(Pipeline):
         self._filter_apply_time = filter_time
 
         data_base.add_chunks(chunks)
+
+        # Text generated into the solver's system prompt rather than into the
+        # corpus. Appended after the index is built so the writing calls cannot
+        # touch retrieval; the first sentence (the <code> tag contract the
+        # answer parser depends on) is left alone.
+        if rule_writer:
+            agent.system_prompt = (agent.system_prompt.rstrip()
+                                   + "\n\n" + rule_writer.rules())
 
         self.data_base = data_base
         self.retriever = retriever

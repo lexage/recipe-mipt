@@ -1,0 +1,7 @@
+# Ограничения для venv прогона.
+#
+# numpy в образе 1.26.4, и под него собраны sklearn, scipy и tensorflow.
+# Без этой строки pip тянет numpy 2.x как зависимость chromadb/tensorflow,
+# он перекрывает образный, и sklearn с tensorflow перестают импортироваться
+# с ValueError про несовместимость бинарников.
+numpy==1.26.4
