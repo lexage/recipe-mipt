@@ -23,6 +23,12 @@ API_NAME="${EMBED_API_NAME:-Qwen/Qwen3-Embedding-4B}"
 PORT=7216
 IMG="${IMG_ASLLM:-10.0.117.197:5000/asllm:1.10.3-pytorch2.10.0-ubuntu24.04-sail2.1.0-cuda13.0-sglang0.5.12-vllm0.20.1-py312}"
 
+# Доп. флаги движку, без правки файла: EMBED_EXTRA_ARGS="--enforce-eager".
+# На этих картах захват графов ускорителя при старте может падать с
+# "CUDA error: invalid argument" (profile_cudagraph_memory); --enforce-eager
+# его отключает, для эмбеддингов цена этого невелика.
+EXTRA_ARGS="${EMBED_EXTRA_ARGS:-}"
+
 CARDS_LIST="${CUDA_VISIBLE_DEVICES:-0}"
 NCARDS=$(set -- ${CARDS_LIST//,/ }; echo $#)
 
@@ -41,4 +47,5 @@ exec docker run --rm --name "$NAME" --network host --ipc host $DEVS \
   "$IMG" python3 -m vllm.entrypoints.openai.api_server \
     --model "/models/Qwen3-Embedding-4B" --served-model-name "$API_NAME" \
     --host 0.0.0.0 --port "$PORT" --tensor-parallel-size "$NCARDS" \
-    --trust-remote-code --gpu-memory-utilization 0.8
+    --trust-remote-code --gpu-memory-utilization 0.8 \
+    $EXTRA_ARGS
