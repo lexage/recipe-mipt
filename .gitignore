@@ -216,3 +216,6 @@ recipe-mipt-eval/dist/
 
 # коммит, из которого сделана поставка без .git (rsync на узел)
 DEPLOYED_COMMIT
+# ПМИ: собранные docx/pdf и промпт для новой сессии
+docs/pmi/out/
+NEXT_SESSION_PROMPT.md
