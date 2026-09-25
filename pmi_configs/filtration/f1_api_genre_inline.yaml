@@ -2,7 +2,8 @@ type: SIMPLE_WITH_DOC_FILTER
 
 # === ПМИ, эксперимент фильтрации: МЕТОД — фильтр внутри пайплайна.
 # Копия test_configs_experimental_7/filtration/simple_example_api_genre_full.yaml
-# (exp7). Отличия: корпус JSON, свой каталог индекса, модель на 7217.
+# (exp7). Отличия: корпус JSON, свой каталог индекса, модель на 7217,
+# у выбора API выключены рассуждения (enable_thinking: False).
 # Отсюда же filter_corpus.py берёт метод и его параметры (document_filter),
 # поэтому отдельная фильтрация и фильтрация в пайплайне — один и тот же вызов.
 # Фильтр по СОДЕРЖИМОМУ документа, без метки секции и имени библиотеки.
@@ -61,6 +62,7 @@ components:
       url: "http://0.0.0.0:7217/v1"
       temperature: 0.1
       max_tokens: 256
+      enable_thinking: False
 
   agent:
     type: DS1000_SOLVER_AGENT

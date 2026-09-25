@@ -191,6 +191,10 @@ class APISelector(Agent):
         Sampling temperature. Low values give stable, focused output.
     max_tokens : int
         Hard cap on output length.
+    enable_thinking : bool | None
+        Sent as ``chat_template_kwargs``; False switches a reasoning model
+        (Qwen3.x) off, None sends nothing. With reasoning on, Qwen3.6 spends
+        the whole 256-token budget thinking aloud and never lists the APIs.
     """
 
     def __init__(
@@ -198,12 +202,14 @@ class APISelector(Agent):
         url: str,
         temperature: float = 0.1,
         max_tokens: int = 256,
+        enable_thinking: bool = None,
     ):
         super().__init__("api_selector")
         self.client = OpenAI(base_url=url, api_key="vllm")
         self.model_name = self.client.models.list().data[0].id
         self.temperature = temperature
         self.max_tokens = max_tokens
+        self.enable_thinking = enable_thinking
 
     def run(self, task: Text) -> list[Text]:
         """
@@ -219,6 +225,11 @@ class APISelector(Agent):
         """
         user_prompt = _API_SELECTOR_USER_TEMPLATE.format(task=task.strip())
 
+        extra = {}
+        if self.enable_thinking is not None:
+            extra["extra_body"] = {
+                "chat_template_kwargs": {"enable_thinking": self.enable_thinking}}
+
         response = self.client.chat.completions.create(
             model=self.model_name,
             messages=[
@@ -227,6 +238,7 @@ class APISelector(Agent):
             ],
             temperature=self.temperature,
             max_tokens=self.max_tokens,
+            **extra,
         )
 
         raw = response.choices[0].message.content.strip()

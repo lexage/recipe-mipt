@@ -3,7 +3,9 @@ type: SIMPLE
 # === ПМИ, эксперимент фильтрации: БЕЙЗЛАЙН — полный корпус, без фильтра.
 # Копия test_configs_experimental_7/filtration/simple_example_pure_full.yaml
 # (успешный эксперимент фильтрации, exp7). Отличия: корпус подаётся JSON-ом,
-# свой каталог индекса, решатель и выбор API — модель на alibaba (порт 7217).
+# свой каталог индекса, решатель и выбор API — модель на alibaba (порт 7217),
+# у выбора API выключены рассуждения (enable_thinking: False — у Qwen3.6
+# они включены по умолчанию и съедают весь лимит в 256 токенов).
 # Поиск: API selector -> поиск по имени API (API_RETRIEVER).
 
 params:
@@ -53,6 +55,7 @@ components:
       url: "http://0.0.0.0:7217/v1"
       temperature: 0.1
       max_tokens: 256
+      enable_thinking: False
 
   agent:
     type: DS1000_SOLVER_AGENT
