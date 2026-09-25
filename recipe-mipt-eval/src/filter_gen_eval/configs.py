@@ -14,7 +14,8 @@ import yaml
 
 
 def prepare_config(source: str, target: str, *, path_to_db: str = None,
-                   path_to_vector_db: str = None, rules_path: str = None) -> dict:
+                   path_to_vector_db: str = None, rules_path: str = None,
+                   max_docs: int = 0) -> dict:
     """Write ``target`` = ``source`` with the given paths replaced; return changes."""
     with open(source, encoding="utf-8") as handle:
         config = yaml.safe_load(handle)
@@ -29,6 +30,10 @@ def prepare_config(source: str, target: str, *, path_to_db: str = None,
         changes["data_base.path_to_vector_db"] = [db_params.get("path_to_vector_db"),
                                                   path_to_vector_db]
         db_params["path_to_vector_db"] = path_to_vector_db
+    if max_docs:
+        # Проверка стенда: индекс только по первым документам корпуса.
+        changes["data_base.max_docs"] = [db_params.get("max_docs"), max_docs]
+        db_params["max_docs"] = max_docs
     if rules_path:
         writer = components["rule_writer"].setdefault("params", {})
         changes["rule_writer.rules_path"] = [writer.get("rules_path"), rules_path]

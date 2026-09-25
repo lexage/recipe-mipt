@@ -4,7 +4,8 @@ set -Eeuo pipefail
 usage() {
   cat <<'EOF'
 Usage: scripts/run-evaluation.sh --experiment filtration|generation
-                                 [--limit N] [--workers N] [--no-log-chunks] [--skip-preflight]
+                                 [--limit N] [--max-docs N] [--workers N] [--no-log-chunks]
+                                 [--skip-preflight]
 
 Прогон пайплайна (recipe-mipt/run_ds1000.py, как есть) на наборе DS-1000 для
 одного эксперимента — бейзлайн и метод подряд, в одном пайплайне:
@@ -21,6 +22,8 @@ Usage: scripts/run-evaluation.sh --experiment filtration|generation
 
 Options:
   --limit N          только N задач DS-1000, равномерно по набору (проверка стенда)
+  --max-docs N       индекс только по первым N документам корпуса (проверка стенда;
+                     метрики такого прогона не являются результатом испытаний)
   --workers N        параллельные воркеры (по умолчанию WORKERS из .env)
   --no-log-chunks    не писать retrieved_chunks.jsonl
   --skip-preflight   не проверять модели перед стартом
@@ -38,6 +41,7 @@ EOF
 
 EXPERIMENT=""
 LIMIT=0
+MAX_DOCS=0
 WORKERS_ARG=""
 LOG_CHUNKS=1
 PREFLIGHT=1
@@ -45,6 +49,7 @@ while (( $# )); do
   case "$1" in
     --experiment) EXPERIMENT="${2:?не указан эксперимент}"; shift 2 ;;
     --limit) LIMIT="${2:?не указано N}"; shift 2 ;;
+    --max-docs) MAX_DOCS="${2:?не указано N}"; shift 2 ;;
     --workers) WORKERS_ARG="${2:?не указано N}"; shift 2 ;;
     --no-log-chunks) LOG_CHUNKS=0; shift ;;
     --skip-preflight) PREFLIGHT=0; shift ;;
@@ -61,14 +66,14 @@ LOG_TAG="filter-gen-eval:evaluation-$EXPERIMENT"
 # shellcheck source=common.sh
 source "$(dirname -- "${BASH_SOURCE[0]}")/common.sh"
 load_settings
-RUN_COMMAND="$0 --experiment $EXPERIMENT --limit $LIMIT"
+RUN_COMMAND="$0 --experiment $EXPERIMENT --limit $LIMIT --max-docs $MAX_DOCS"
 require_under_home "$RECIPE_ROOT" "$EVAL_ROOT"
 require_venv
 if (( PREFLIGHT )); then
   preflight_models
 fi
 
-EXTRA=(--workers "${WORKERS_ARG:-$WORKERS}" --limit "$LIMIT")
+EXTRA=(--workers "${WORKERS_ARG:-$WORKERS}" --limit "$LIMIT" --max-docs "$MAX_DOCS")
 (( LOG_CHUNKS )) || EXTRA+=(--no-log-chunks)
 
 RUN_DIR="$(new_run_dir "$EXPERIMENT")"

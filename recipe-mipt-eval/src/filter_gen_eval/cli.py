@@ -29,6 +29,8 @@ def main(argv=None) -> int:
     p.add_argument("--workers", type=int, default=4)
     p.add_argument("--limit", type=int, default=0, help="только N задач DS-1000 (0 — все)")
     p.add_argument("--no-log-chunks", action="store_true")
+    p.add_argument("--max-docs", type=int, default=0,
+                   help="проверка стенда: индекс только по первым N документам (0 — все)")
 
     sub.add_parser("contract", help="проверка встроенных средств проверки ввода")
 
@@ -47,7 +49,8 @@ def main(argv=None) -> int:
         return runs.generation(root, config, run_dir, args.rules_config)
     if args.command == "evaluate":
         return runs.evaluate(root, config, run_dir, args.experiment, args.workers,
-                             args.limit, log_chunks=not args.no_log_chunks)
+                             args.limit, log_chunks=not args.no_log_chunks,
+                             max_docs=args.max_docs)
     if args.command == "contract":
         return run_contract(root, config, run_dir)
     if args.command == "summarize":

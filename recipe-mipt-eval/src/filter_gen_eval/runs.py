@@ -81,10 +81,12 @@ def _materialize(path: str) -> None:
 
 
 def evaluate(root: str, config: dict, run_dir: str, experiment: str,
-             workers: int, limit: int = 0, log_chunks: bool = True) -> int:
+             workers: int, limit: int = 0, log_chunks: bool = True,
+             max_docs: int = 0) -> int:
     settings = config["experiments"][experiment]
     manifest = write_manifest(run_dir, f"evaluation-{experiment}", root,
                               experiment=experiment, workers=workers, limit=limit,
+                              max_docs=max_docs,
                               configs={"baseline": settings["baseline"],
                                        "method": settings["method"]})
     configs_dir = os.path.join(run_dir, "configs")
@@ -110,11 +112,13 @@ def evaluate(root: str, config: dict, run_dir: str, experiment: str,
         changes["baseline"] = prepare_config(
             baseline_src, os.path.join(configs_dir, stem(baseline_src) + ".yaml"),
             path_to_db=corpus,
-            path_to_vector_db=os.path.join(run_dir, "vdb", stem(baseline_src)))
+            path_to_vector_db=os.path.join(run_dir, "vdb", stem(baseline_src)),
+            max_docs=max_docs)
         changes["method"] = prepare_config(
             method_src, os.path.join(configs_dir, stem(method_src) + ".yaml"),
             path_to_db=filtered,
-            path_to_vector_db=os.path.join(run_dir, "vdb", stem(method_src)))
+            path_to_vector_db=os.path.join(run_dir, "vdb", stem(method_src)),
+            max_docs=max_docs)
     else:
         shared = settings.get("shared_index", True)
 
@@ -125,11 +129,12 @@ def evaluate(root: str, config: dict, run_dir: str, experiment: str,
         _materialize(_config_db(baseline_src, root))
         changes["baseline"] = prepare_config(
             baseline_src, os.path.join(configs_dir, stem(baseline_src) + ".yaml"),
-            path_to_vector_db=index(stem(baseline_src)))
+            path_to_vector_db=index(stem(baseline_src)), max_docs=max_docs)
         changes["method"] = prepare_config(
             method_src, os.path.join(configs_dir, stem(method_src) + ".yaml"),
             path_to_vector_db=index(stem(method_src)),
-            rules_path=os.path.join(run_dir, "rules", stem(method_src) + ".jsonl"))
+            rules_path=os.path.join(run_dir, "rules", stem(method_src) + ".jsonl"),
+            max_docs=max_docs)
 
     cmd = [sys.executable, os.path.join(root, "run_ds1000.py"),
            "-c", configs_dir, "-s", os.path.join(run_dir, "runs"), "-n", str(workers)]
