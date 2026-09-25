@@ -50,10 +50,10 @@ MODELS_PARTITION="${MODELS_PARTITION:-prims}"
 MODELS_TIME="${MODELS_TIME:-04:00:00}"
 MODELS_READY_TIMEOUT="${MODELS_READY_TIMEOUT:-7200}"
 
-# имя задания | sbatch-файл | порт | ожидаемый идентификатор модели
+# имя задания | sbatch-файл | порт | ожидаемый идентификатор модели | память (пусто — из sbatch-файла)
 SERVICES=(
-  "svc-qwen36-7217|svc-qwen36-7217.sbatch|$LLM_PORT|$LLM_MODEL_DIR"
-  "svc-embed-7216|svc-embed-7216.sbatch|$EMBED_PORT|$EMBED_API_NAME"
+  "svc-qwen36-7217|svc-qwen36-7217.sbatch|$LLM_PORT|$LLM_MODEL_DIR|${LLM_MEM:-}"
+  "svc-embed-7216|svc-embed-7216.sbatch|$EMBED_PORT|$EMBED_API_NAME|${EMBED_MEM:-}"
 )
 
 job_of() {
@@ -76,7 +76,7 @@ endpoint_status() {
 
 if [[ "$MODE" == stop ]]; then
   for svc in "${SERVICES[@]}"; do
-    IFS='|' read -r name _ _ _ <<<"$svc"
+    IFS='|' read -r name _ _ _ _ <<<"$svc"
     ids="$(squeue -h -u "$ME" -n "$name" -o '%i' 2>/dev/null | tr '\n' ' ')"
     if [[ -n "${ids// /}" ]]; then
       # shellcheck disable=SC2086
@@ -91,7 +91,7 @@ fi
 
 if [[ "$MODE" == status ]]; then
   for svc in "${SERVICES[@]}"; do
-    IFS='|' read -r name _ port expected <<<"$svc"
+    IFS='|' read -r name _ port expected _ <<<"$svc"
     job="$(job_of "$name")"
     log "$name: задание ${job:-нет}${job:+ ($(job_state "$job"))}; порт $port: $(endpoint_status "$port" "$expected")"
   done
@@ -101,7 +101,7 @@ fi
 mkdir -p "$LOG_DIR"
 declare -A JOB=() PENDING=()
 for svc in "${SERVICES[@]}"; do
-  IFS='|' read -r name file port expected <<<"$svc"
+  IFS='|' read -r name file port expected mem <<<"$svc"
   code=0
   check_endpoint "$port" "$expected" || code=$?
   if [[ "$code" == 0 ]]; then
@@ -115,10 +115,12 @@ for svc in "${SERVICES[@]}"; do
   if [[ -n "$job" ]]; then
     log "$name: задание $job уже в очереди ($(job_state "$job"))"
   else
-    job="$(sbatch --parsable -p "$MODELS_PARTITION" --time "$MODELS_TIME" \
+    mem_args=()
+    [[ -n "$mem" ]] && mem_args=(--mem "$mem")
+    job="$(sbatch --parsable -p "$MODELS_PARTITION" --time "$MODELS_TIME" "${mem_args[@]}" \
       --output "$LOG_DIR/%x-%j.log" "$RECIPE_ROOT/scripts/$file")"
     job="${job%%;*}"
-    log "$name: поставлено задание $job в очередь $MODELS_PARTITION на $MODELS_TIME (лог: $LOG_DIR/$name-$job.log)"
+    log "$name: поставлено задание $job в очередь $MODELS_PARTITION на $MODELS_TIME${mem:+, память $mem} (лог: $LOG_DIR/$name-$job.log)"
   fi
   JOB[$name]="$job"
   PENDING[$name]="$port|$expected"
