@@ -23,8 +23,9 @@ Options:
   -h, --help  эта справка
 
 Настройки (.env): LLM_MODEL_DIR, EMBED_MODEL_DIR, EMBED_API_NAME,
-MODELS_PARTITION (очередь), MODELS_READY_TIMEOUT (секунд ожидания, первый
-старт модели — до часа из-за JIT-компиляции). Логи заданий — logs/models/.
+MODELS_PARTITION (очередь, по умолчанию prims), MODELS_TIME (лимит задания,
+по умолчанию 04:00:00), MODELS_READY_TIMEOUT (секунд ожидания, первый старт
+модели — до часа из-за JIT-компиляции). Логи заданий — logs/models/.
 EOF
 }
 
@@ -45,7 +46,8 @@ load_settings
 
 ME="$(id -un)"
 LOG_DIR="$EVAL_ROOT/logs/models"
-MODELS_PARTITION="${MODELS_PARTITION:-prims-long}"
+MODELS_PARTITION="${MODELS_PARTITION:-prims}"
+MODELS_TIME="${MODELS_TIME:-04:00:00}"
 MODELS_READY_TIMEOUT="${MODELS_READY_TIMEOUT:-7200}"
 
 # имя задания | sbatch-файл | порт | ожидаемый идентификатор модели
@@ -113,10 +115,10 @@ for svc in "${SERVICES[@]}"; do
   if [[ -n "$job" ]]; then
     log "$name: задание $job уже в очереди ($(job_state "$job"))"
   else
-    job="$(sbatch --parsable -p "$MODELS_PARTITION" --output "$LOG_DIR/%x-%j.log" \
-      "$RECIPE_ROOT/scripts/$file")"
+    job="$(sbatch --parsable -p "$MODELS_PARTITION" --time "$MODELS_TIME" \
+      --output "$LOG_DIR/%x-%j.log" "$RECIPE_ROOT/scripts/$file")"
     job="${job%%;*}"
-    log "$name: поставлено задание $job в очередь $MODELS_PARTITION (лог: $LOG_DIR/$name-$job.log)"
+    log "$name: поставлено задание $job в очередь $MODELS_PARTITION на $MODELS_TIME (лог: $LOG_DIR/$name-$job.log)"
   fi
   JOB[$name]="$job"
   PENDING[$name]="$port|$expected"

@@ -213,3 +213,6 @@ recipe-mipt-eval/.env
 recipe-mipt-eval/config.toml
 recipe-mipt-eval/logs/
 recipe-mipt-eval/dist/
+
+# коммит, из которого сделана поставка без .git (rsync на узел)
+DEPLOYED_COMMIT

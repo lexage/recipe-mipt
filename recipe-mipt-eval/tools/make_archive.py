@@ -61,6 +61,12 @@ def main(argv):
             archive.writestr(info, data)
             files[top] += 1
             size += len(data)
+        # В архиве нет .git: коммит записывается в файл, его читают скрипты испытаний.
+        branch = subprocess.run(["git", "-C", repo, "rev-parse", "--abbrev-ref", "HEAD"],
+                                stdout=subprocess.PIPE, check=True).stdout.decode().strip()
+        info = zipfile.ZipInfo("recipe-mipt/DEPLOYED_COMMIT", date_time=time.localtime()[:6])
+        info.external_attr = 0o644 << 16
+        archive.writestr(info, "{}\n{}\nfalse\n".format(head, branch))
         archive.comment = ("pk3: компонент фильтрации и генерации, commit " + head).encode("utf-8")
     os.replace(tmp, out)
     print("архив: {}".format(out))

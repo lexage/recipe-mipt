@@ -165,8 +165,14 @@ git_state() {
     else
       GIT_DIRTY=false
     fi
+  elif [[ -f "$RECIPE_ROOT/DEPLOYED_COMMIT" ]]; then
+    # Поставка без .git (архив pk3.zip или доставка rsync): коммит записан в файл.
+    GIT_COMMIT="$(sed -n 1p "$RECIPE_ROOT/DEPLOYED_COMMIT")"
+    GIT_BRANCH="$(sed -n 2p "$RECIPE_ROOT/DEPLOYED_COMMIT")"
+    GIT_DIRTY="$(sed -n 3p "$RECIPE_ROOT/DEPLOYED_COMMIT")"
+    [[ "$GIT_DIRTY" == true ]] || GIT_DIRTY=false
   else
-    GIT_COMMIT="нет git (поставка архивом)"
+    GIT_COMMIT="неизвестен (нет .git и DEPLOYED_COMMIT)"
     GIT_BRANCH=""
     GIT_DIRTY=false
   fi
