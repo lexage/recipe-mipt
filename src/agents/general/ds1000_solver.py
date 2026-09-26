@@ -24,6 +24,7 @@ class DS1000Solver(Agent):
             max_tokens=1024,
             max_context_lenght: int = 24000,
             enable_thinking: bool = None,
+            seed: int = None,
             stop_tokens=["</code>", "# SOLUTION END"]):
         
         super().__init__("ds_1000_solver")
@@ -51,6 +52,9 @@ class DS1000Solver(Agent):
         # end up in the answer. None sends nothing and leaves the server's
         # default in place.
         self.enable_thinking = enable_thinking
+        # Request seed for reproducibility. None keeps the values that used to
+        # be hardcoded: 41 for completions, 42 for chat.
+        self.seed = seed
 
         self.tokenizer: PreTrainedTokenizerFast = AutoTokenizer.from_pretrained(self.model_name)
 
@@ -76,7 +80,7 @@ class DS1000Solver(Agent):
     
     def _call_completions(self, prompt) -> Text:
         completions = self.client.completions.create(
-            seed=41,
+            seed=41 if self.seed is None else self.seed,
             model=self.model_name,
             prompt=prompt,
             temperature=self.temperature,
@@ -98,7 +102,7 @@ class DS1000Solver(Agent):
             extra["chat_template_kwargs"] = {"enable_thinking": self.enable_thinking}
 
         completions = self.client.chat.completions.create(
-            seed=42,
+            seed=42 if self.seed is None else self.seed,
             model=self.model_name,
             messages=messages,
             temperature=self.temperature,

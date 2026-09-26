@@ -82,6 +82,7 @@ components:
 
       api: chat
       enable_thinking: False
+      seed: 42
 
       temperature: 0.2
       top_p: 0.95

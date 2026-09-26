@@ -6,7 +6,7 @@ import os
 
 from filter_gen_eval import runs
 from filter_gen_eval.contract import run_contract
-from filter_gen_eval.settings import load_config, recipe_root
+from filter_gen_eval.settings import EXPERIMENTS, load_config, recipe_root
 from filter_gen_eval.summary import summarize
 
 
@@ -24,8 +24,9 @@ def main(argv=None) -> int:
     p = sub.add_parser("generation", help="отдельный запуск генерации правил")
     p.add_argument("--rules-config", help="конфиг с компонентом генератора")
 
-    p = sub.add_parser("evaluate", help="эксперимент: бейзлайн и метод в пайплайне")
-    p.add_argument("--experiment", required=True, choices=("filtration", "generation"))
+    p = sub.add_parser("evaluate", help="эксперимент: бейзлайн и метод в пайплайне; "
+                                        "all — все эксперименты одним запуском")
+    p.add_argument("--experiment", required=True, choices=EXPERIMENTS + ("all",))
     p.add_argument("--workers", type=int, default=4)
     p.add_argument("--limit", type=int, default=0, help="только N задач DS-1000 (0 — все)")
     p.add_argument("--no-log-chunks", action="store_true")
@@ -35,7 +36,7 @@ def main(argv=None) -> int:
     sub.add_parser("contract", help="проверка встроенных средств проверки ввода")
 
     p = sub.add_parser("summarize", help="пересобрать summary.md по готовому прогону")
-    p.add_argument("--experiment", required=True, choices=("filtration", "generation"))
+    p.add_argument("--experiment", required=True, choices=EXPERIMENTS + ("all",))
 
     args = parser.parse_args(argv)
     root = recipe_root()

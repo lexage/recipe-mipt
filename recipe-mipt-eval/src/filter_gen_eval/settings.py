@@ -4,6 +4,9 @@ import os
 import sys
 import tomllib
 
+# Эксперименты испытаний; режим all прогоняет их все одним запуском.
+EXPERIMENTS = ("filtration", "generation")
+
 
 def recipe_root() -> str:
     root = os.path.abspath(os.environ.get("RECIPE_ROOT") or os.getcwd())

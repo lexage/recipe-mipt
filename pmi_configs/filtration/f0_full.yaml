@@ -6,6 +6,9 @@ type: SIMPLE
 # свой каталог индекса, решатель и выбор API — модель на alibaba (порт 7217),
 # у выбора API выключены рассуждения (enable_thinking: False — у Qwen3.6
 # они включены по умолчанию и съедают весь лимит в 256 токенов).
+# Решатель — как в конфигах генерации: api: chat, enable_thinking: False
+# (в exp7 был api: completions; на Qwen3.6 с ним PASS@1 0.28, 25.09).
+# seed задан у решателя и у выбора API — для воспроизводимости.
 # Поиск: API selector -> поиск по имени API (API_RETRIEVER).
 
 params:
@@ -56,13 +59,16 @@ components:
       temperature: 0.1
       max_tokens: 256
       enable_thinking: False
+      seed: 42
 
   agent:
     type: DS1000_SOLVER_AGENT
     params:
       name: ds1000_solver
       url: "http://0.0.0.0:7217/v1"
-      api: completions
+      api: chat
+      enable_thinking: False
+      seed: 42
       context_after_task: False
       temperature: 0.2
       top_p: 0.95

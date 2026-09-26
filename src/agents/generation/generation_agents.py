@@ -195,6 +195,8 @@ class APISelector(Agent):
         Sent as ``chat_template_kwargs``; False switches a reasoning model
         (Qwen3.x) off, None sends nothing. With reasoning on, Qwen3.6 spends
         the whole 256-token budget thinking aloud and never lists the APIs.
+    seed : int | None
+        Request seed for reproducibility; None sends no seed.
     """
 
     def __init__(
@@ -203,6 +205,7 @@ class APISelector(Agent):
         temperature: float = 0.1,
         max_tokens: int = 256,
         enable_thinking: bool = None,
+        seed: int = None,
     ):
         super().__init__("api_selector")
         self.client = OpenAI(base_url=url, api_key="vllm")
@@ -210,6 +213,7 @@ class APISelector(Agent):
         self.temperature = temperature
         self.max_tokens = max_tokens
         self.enable_thinking = enable_thinking
+        self.seed = seed
 
     def run(self, task: Text) -> list[Text]:
         """
@@ -229,6 +233,8 @@ class APISelector(Agent):
         if self.enable_thinking is not None:
             extra["extra_body"] = {
                 "chat_template_kwargs": {"enable_thinking": self.enable_thinking}}
+        if self.seed is not None:
+            extra["seed"] = self.seed
 
         response = self.client.chat.completions.create(
             model=self.model_name,

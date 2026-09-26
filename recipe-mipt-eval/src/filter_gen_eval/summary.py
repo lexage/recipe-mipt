@@ -12,7 +12,7 @@ import re
 
 from collections import Counter
 
-from filter_gen_eval.settings import stem
+from filter_gen_eval.settings import EXPERIMENTS, stem
 
 OUTCOMES = ("passed", "failed", "timed out")
 MET, NOT_MET, NO_DATA = "выполнено", "не выполнено", "нет данных"
@@ -215,11 +215,14 @@ def _fmt(value, unit=""):
     return f"{text} {unit}".strip()
 
 
+TITLES = {"filtration": "фильтрация", "generation": "генерация",
+          "all": "фильтрация и генерация"}
+
+
 def render_markdown(summary: dict, manifest: dict) -> str:
-    title = {"filtration": "фильтрация", "generation": "генерация"}[summary["experiment"]]
     git = manifest.get("git", {})
     lines = [
-        f"# Сводка испытаний компонента pk3: {title}",
+        f"# Сводка испытаний компонента pk3: {TITLES[summary['experiment']]}",
         "",
         f"- Каталог прогона: {summary['run_dir']}",
         f"- Начало (UTC): {manifest.get('started_utc', '—')}",
@@ -228,17 +231,25 @@ def render_markdown(summary: dict, manifest: dict) -> str:
         f"- Модели: {manifest.get('models', {}).get('llm', '—')}; "
         f"эмбеддер {manifest.get('models', {}).get('embedder', '—')}",
         f"- Итог: {summary['verdict']}",
-        "",
-        "## Вероятность успешного выполнения функции назначения (п. 3.5.4.1 ТЗ)",
-        "",
     ]
+    if summary["experiment"] != "all":
+        return "\n".join(lines + _render_experiment(summary, "##")) + "\n"
+    for name in EXPERIMENTS:
+        part = summary["parts"][name]
+        lines += ["", f"## Эксперимент: {TITLES[name]}", "", f"- Итог: {part['verdict']}"]
+        lines += _render_experiment(part, "###")
+    return "\n".join(lines) + "\n"
+
+
+def _render_experiment(summary: dict, h: str) -> list:
+    lines = ["", f"{h} Вероятность успешного выполнения функции назначения (п. 3.5.4.1 ТЗ)", ""]
     p = summary["p_success"]
     lines += [
         f"- {p['name']}",
         f"- Nобщ = {_fmt(p['baseline'])}, Nусп = {_fmt(p['method'])}, "
         f"Pусп = {_fmt(p['value'])} (порог: {p['threshold_kind']} {p['threshold']}) — {p['verdict']}",
         "",
-        "## Метрики качества",
+        f"{h} Метрики качества",
         "",
         "| Метрика | Бейзлайн | Метод | Значение | Порог | Итог |",
         "|---|---|---|---|---|---|",
@@ -248,7 +259,7 @@ def render_markdown(summary: dict, manifest: dict) -> str:
                      f"{_fmt(m['value'], m['unit'])} | {m['threshold_kind']} "
                      f"{m['threshold']} {m['unit']} | {m['verdict']} |")
 
-    lines += ["", "## Прогоны пайплайна", "",
+    lines += ["", f"{h} Прогоны пайплайна", "",
               "| Роль | Конфиг | Задач | Решено | PASS@1 | Индекс, с | Решение, с | Всего, с | "
               "Токенов на задачу | Исходы |",
               "|---|---|---|---|---|---|---|---|---|---|"]
@@ -264,7 +275,7 @@ def render_markdown(summary: dict, manifest: dict) -> str:
         f = summary["filtration"]
         inp, out = f.get("input") or {}, f.get("output") or {}
         dec, checks = f.get("decisions") or {}, f.get("checks") or {}
-        lines += ["", "## Отдельный запуск фильтрации", "",
+        lines += ["", f"{h} Отдельный запуск фильтрации", "",
                   f"- Вход: {inp.get('path', '—')} — документов {_fmt(inp.get('documents'))}, "
                   f"примеров {_fmt(inp.get('examples'))}, символов {_fmt(inp.get('document_chars'))}",
                   f"- Выход: {out.get('path', '—')} — документов {_fmt(out.get('documents'))}, "
@@ -279,7 +290,7 @@ def render_markdown(summary: dict, manifest: dict) -> str:
     else:
         g = summary["generation"]
         calls = g.get("calls") or {}
-        lines += ["", "## Генерация правил в прогоне с методом", "",
+        lines += ["", f"{h} Генерация правил в прогоне с методом", "",
                   f"- Режим: {g.get('mode')}, набор проблем: {g.get('problem_set')}, "
                   f"модель: {g.get('model')}, seed: {g.get('seed')}",
                   f"- Вызовов: {_fmt(calls.get('total'))}; новых правил: {_fmt(calls.get('accepted_rules'))}; "
@@ -289,25 +300,46 @@ def render_markdown(summary: dict, manifest: dict) -> str:
                   f"- Правил в блоке: {_fmt(g.get('n_rules'))}, оценка длины ≈ {_fmt(g.get('est_tokens'))} токенов",
                   "", "Блок правил, дописанный к системному промпту решателя:", "", "```text",
                   g.get("text") or "(нет)", "```"]
-    return "\n".join(lines) + "\n"
+    return lines
 
 
-def summarize(run_dir: str, experiment: str, config: dict, manifest: dict) -> dict:
+NOT_COMPLETE = "прогон не завершён: нет результатов одного из конфигов"
+ALL_MET, NOT_ALL_MET = "все пороги достигнуты", "не все пороги достигнуты"
+
+
+def _summarize_experiment(run_dir: str, experiment: str, config: dict) -> dict:
     if experiment == "filtration":
         summary = summarize_filtration(run_dir, config)
     else:
         summary = summarize_generation(run_dir, config)
-    summary["run_dir"] = run_dir
     runs = summary["runs"]
     complete = all(runs[role].get("complete") for role in ("baseline", "method"))
     verdicts = [summary["p_success"]["verdict"]] + [m["verdict"] for m in summary["metrics"]]
     if not complete:
-        summary["verdict"] = "прогон не завершён: нет результатов одного из конфигов"
+        summary["verdict"] = NOT_COMPLETE
     elif all(v == MET for v in verdicts):
-        summary["verdict"] = "все пороги достигнуты"
+        summary["verdict"] = ALL_MET
     else:
-        summary["verdict"] = "не все пороги достигнуты"
+        summary["verdict"] = NOT_ALL_MET
     summary["complete"] = complete
+    return summary
+
+
+def summarize(run_dir: str, experiment: str, config: dict, manifest: dict) -> dict:
+    if experiment == "all":
+        parts = {name: _summarize_experiment(run_dir, name, config) for name in EXPERIMENTS}
+        complete = all(part["complete"] for part in parts.values())
+        if not complete:
+            verdict = NOT_COMPLETE
+        elif all(part["verdict"] == ALL_MET for part in parts.values()):
+            verdict = ALL_MET
+        else:
+            verdict = NOT_ALL_MET
+        summary = {"experiment": "all", "verdict": verdict, "complete": complete,
+                   "parts": parts}
+    else:
+        summary = _summarize_experiment(run_dir, experiment, config)
+    summary["run_dir"] = run_dir
 
     with open(os.path.join(run_dir, "summary.json"), "w", encoding="utf-8") as handle:
         json.dump(summary, handle, ensure_ascii=False, indent=2)
