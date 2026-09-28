@@ -6,7 +6,7 @@
 **Хронология и статус — в `Progress.md`**, он обновляется всегда, без спроса.
 История до этапа ПМИ — `Progress_archive.md`.
 
-Последнее обновление файла: 25.09.2026.
+Последнее обновление файла: 28.09.2026.
 
 ---
 
@@ -74,6 +74,18 @@ DS-1000, весь корпус. Проверки без прогона пайп�
   (`./scripts/launch-test-models.sh --status`).
 - **Не всё сразу**: сейчас ПМИ; НТО — после ПМИ.
 - Коммиты — локально; пушит Konstantin.
+- **Одноразовые инструменты** (генераторы docx/pdf, рендер Word, скрипты
+  правок) создавать вне репозитория и удалять сразу после использования —
+  всегда. В `docs/` не должно быть `.py`; в `docs/pmi/out`, `docs/nto/out` —
+  только готовые docx/pdf.
+- **Архив pk3.zip — только то, что нужно для испытаний по ПМИ** (белый список
+  в `Progress.md`): никаких заметок, `docs/`, экспериментальных конфигов,
+  инструментов сборки.
+- **Ни одного слова `recipe`** в ПМИ, архиве и на стенде (каталоги, скрипты,
+  контейнеры, venv, формат корпуса) — тотальное переименование, план в
+  `Progress.md` («ПМИ v3»). Никаких «оставляю как есть».
+- **Не спорить с решениями Konstantin по содержанию** (например, «пересказ —
+  не эталон»); сомнение высказать один раз, коротко.
 
 ---
 
@@ -109,11 +121,15 @@ rsync и ssh живут в WSL: `wsl.exe -d ubuntu -- bash -s <<'EOF' … EOF`.
 
 **Кластер `alibaba`**: узел `ali117197` (Alibaba Cloud Linux 3, 192 ядра,
 ~2 ТБ ОЗУ, 16 карт PPU-ZW810E по 96 ГБ; лаборатории `prims` — 4 карты).
-Репозиторий на узле — `~/work/recipe-mipt` (без `.git`). Питон на узле 3.6,
+Репозиторий на узле — `~/work/recipe-mipt` (без `.git`; по плану v3 —
+`~/work/filtration_generation`). Каталог испытаний Konstantin —
+`~/filtration_generation` (по плану v3 — `~/self-service-filtration_generation`,
+до распаковки там только `pk3.zip`). Питон на узле 3.6,
 поэтому всё исполняется в контейнерах образа `asllm` (реестр
 `10.0.117.197:5000`); команда `docker` на узле — обёртка podman
 (`podman-docker`), `docker compose` → `podman-compose` 1.0.6. venv поверх
-образа — `~/work/venv-recipe`.
+образа — `~/work/venv-recipe` (по плану v3 — новый, без слова recipe; старый
+не удалять без команды).
 
 Модели (поднимаем сами, `recipe-mipt-eval/scripts/launch-test-models.sh`):
 
@@ -151,11 +167,16 @@ rsync и ssh живут в WSL: `wsl.exe -d ubuntu -- bash -s <<'EOF' … EOF`.
 
 ---
 
-## Где мы сейчас (25.09.2026)
+## Где мы сейчас (28.09.2026)
 
-Ветка — **`exp/pmi_filtration_generation`**. Этап — **ПМИ**; скрипты и
-документ готовы, идут полные прогоны экспериментов. Подробности и следующие
-шаги — `Progress.md`.
+Ветка — **`exp/pmi_filtration_generation`**. Этап — **ПМИ v3**: ПМИ v2
+Konstantin прогнал целиком 26.09 (всё ok); теперь — тотальное переименование
+(`self-service-filtration_generation`, компонент в
+`services/components/filtration_generation`, обвязка
+`self-service-filtration_generation-eval`), новый состав архива, А2.Pro «как
+запуск», БД в архиве (открытые вопросы — в начале сессии). Параллельно —
+**НТО v2** (`docs/nto/out/…_v2.docx`), ждём замечаний Konstantin, до них НТО
+не трогать. План и статус — `Progress.md`.
 
 ### Методы (наш результат)
 
@@ -183,10 +204,14 @@ rsync и ssh живут в WSL: `wsl.exe -d ubuntu -- bash -s <<'EOF' … EOF`.
   init → launch-test-models → run-filtration / run-rules-generation →
   run-input-contract-test → run-recovery-test → run-evaluation (filtration,
   generation) → summary.md с Pусп и метриками таблицы 2.
-- Документ: `docs/pmi/build_pmi_v2.py` → `docs/pmi/out/…v2.docx`;
-  `docs/pmi/render.ps1` обновляет оглавление, считает листы, делает PDF (Word).
-  Шаблон оформления — ПМИ v1 (Telegram Desktop). Пороги таблицы 2 —
-  предварительные до полных прогонов.
+- Документ: `docs/pmi/out/ПМИ_фильтрация_и_генерация_v2.docx/pdf` (31 лист).
+  Генератор и рендер удалены 28.09 как одноразовые инструменты; для v3 —
+  восстановить из git (`git show c0b08a0:docs/pmi/build_pmi_v2.py`,
+  `c0b08a0:docs/pmi/render.ps1`) во временный файл вне репозитория, собрать,
+  удалить. Шаблон оформления — ПМИ v1 (Telegram Desktop); образец для v3 —
+  ПМИ коллег `…/Telegram Desktop/ПМИ_PRC_kor_20260914.docx`,
+  `ПМИ_RAG_с_iCL_kor_20260914.docx`. Пороги таблицы 2 — предварительные.
+- Протокол испытаний (Приложение Б) заполняет проверяющий — не трогать.
 
 ---
 
@@ -199,8 +224,9 @@ recipe-mipt/
 ├── filter_corpus.py           отдельная фильтрация: JSON-корпус -> JSON-корпус + отчёт
 ├── generate_rules.py          отдельная генерация правил -> rules.json + журнал
 ├── pmi_configs/               конфиги ПМИ: filtration/ (f0, f1, f1_inline), generation/ (g0, g1)
-├── recipe-mipt-eval/          обвязка испытаний pk3 (scripts/, src/filter_gen_eval/, tools/)
-├── docs/pmi/                  генератор документа ПМИ v2 и рендер
+├── recipe-mipt-eval/          обвязка испытаний pk3 (scripts/, src/filter_gen_eval/, tools/);
+│                              переименовать в self-service-filtration_generation-eval (ПМИ v3)
+├── docs/pmi/out, docs/nto/out готовые docx/pdf ПМИ и НТО (не в git); инструментов тут нет
 ├── Progress.md, Progress_archive.md
 ├── final_test_configs/        исходный эксперимент генерации правил (c0–c4)
 ├── howto_test_configs/        повтор бейзлайна + генерация в базу знаний
