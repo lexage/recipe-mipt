@@ -31,6 +31,27 @@
   `~/work/filtration_generation` нет ни одного имени с recipe. Запись-«зомби»
   podman `svc-qwen36-7217-3055` (задание 3055 снято 24.09, процесса нет, порт
   не занят) — **не снимать** (Konstantin).
+- **Общая копия (28.09 ~17:41 МСК, по указанию Konstantin — копия, не перенос):**
+  `/bmcp_lvm_fs/data/shared/self-service-filtration_generation/pk3.zip`
+  (каталог `2775 vizilter:cluster`, файл `644 vizilter:cluster`, sha256 тот
+  же `48a66b9d…`). `/bmcp_lvm_fs/data/shared` — общий каталог группы
+  `cluster` (`root:cluster drwxrwsr-t`, раздел 14 ТБ); читать могут все
+  пользователи узла. Оригинал — `~/self-service-filtration_generation/pk3.zip`.
+- **Запуск от имени других пользователей — проверено 28.09 (только чтение):**
+  веса Qwen3.6 (`/bmcp_lvm_fs/cusa/models/…`, root 755) и эмбеддера
+  (`/home/trofimov/models/…`, 775, дом trofimov `--x` для всех) читаются всеми;
+  реестр `10.0.117.197:5000` помечен insecure в `/etc/containers/registries.conf`
+  (общесистемно); `/dev/alixpu*` — `rw` для всех; `/etc/subuid` — 46 записей
+  (rootless podman настроен у большинства). **Мешает:** (1) очередь `prims`
+  (и `prims-long`) — `AllowAccounts=prims`, в учётной записи slurm `prims`
+  только `vizilter`; у других очередей свои учётные записи (`lo`/`hi` — `lab`,
+  `brain` — `brainlab`, `lnsigo`, `ckm`, `litr`); чужие ассоциации slurm
+  vizilter не видит; `MODELS_PARTITION=prims` в `.env.example` у другого
+  пользователя не сработает; (2) порты моделей фиксированы (7216/7217, узел
+  один): `launch-test-models.sh` при отвечающем порте с нужной моделью задание
+  не ставит и использует чужой сервис (например, vizilter); (3) образ 36.5 ГБ
+  каждый пользователь при init скачивает в своё хранилище podman (в свой дом).
+  Решение — за Konstantin (спросил 28.09).
 - **Доставлено 28.09 ~17:17 МСК:** `~/self-service-filtration_generation/pk3.zip`
   — архив из `9c45ed4`, sha256 `48a66b9de59a6a2434266edd0b94bc55ad2ac806ab983d710be30601002f749a`
   (совпало на узле; заменил архив v2 `fbb5d98c…`, его копия —
