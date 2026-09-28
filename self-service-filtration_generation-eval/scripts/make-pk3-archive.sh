@@ -6,8 +6,10 @@ usage() {
 Usage: scripts/make-pk3-archive.sh [путь к pk3.zip]
 
 Сборка архива поставки pk3.zip (по умолчанию dist/pk3.zip) из закоммиченного
-состояния репозитория recipe-mipt: recipe-mipt/ и recipe-mipt-eval/ рядом.
-Инструмент разработчика, в испытаниях не используется. Нужны git и python3.
+состояния репозитория: services/components/filtration_generation/ (компонент)
+и self-service-filtration_generation-eval/ (испытания), только файлы из
+белого списка tools/make_archive.py.
+Инструмент разработчика, в архив не входит. Нужны git и python3.
 EOF
 }
 

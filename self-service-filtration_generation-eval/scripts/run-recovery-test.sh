@@ -35,7 +35,7 @@ LOG_TAG=filter-gen-eval:recovery
 source "$(dirname -- "${BASH_SOURCE[0]}")/common.sh"
 load_settings
 RUN_COMMAND="$0"
-require_under_home "$RECIPE_ROOT" "$EVAL_ROOT"
+require_in_workdir "$COMPONENT_ROOT" "$EVAL_ROOT" "$VENV"
 require_venv
 
 KILL_AFTER="${KILL_AFTER:-5}"

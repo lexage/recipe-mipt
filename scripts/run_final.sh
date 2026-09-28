@@ -14,7 +14,7 @@
 set -eu
 
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-VENV="${VENV:-$HOME/work/venv-recipe}"
+VENV="${VENV:-$REPO/venv}"
 IMG="${IMG_ASLLM:-10.0.117.197:5000/asllm:1.10.3-pytorch2.10.0-ubuntu24.04-sail2.1.0-cuda13.0-sglang0.5.12-vllm0.20.1-py312}"
 MODELS="${MODELS_ROOT:-/bmcp_lvm_fs/cusa/models}"
 CONFIGS="${CONFIGS:-final_test_configs}"

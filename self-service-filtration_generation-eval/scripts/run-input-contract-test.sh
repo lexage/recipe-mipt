@@ -35,7 +35,7 @@ LOG_TAG=filter-gen-eval:input-contract
 source "$(dirname -- "${BASH_SOURCE[0]}")/common.sh"
 load_settings
 RUN_COMMAND="$0"
-require_under_home "$RECIPE_ROOT" "$EVAL_ROOT"
+require_in_workdir "$COMPONENT_ROOT" "$EVAL_ROOT" "$VENV"
 require_venv
 
 RUN_DIR="$(new_run_dir input-contract)"

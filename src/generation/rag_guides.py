@@ -1,7 +1,7 @@
 """RagGuideGenerator — deployable corpus-augmentation method (ТЗ 2.1, generation).
 
 Instruction-first redesign after exp13. The exp13 variant spent 88% of its
-budget rewriting random corpus fragments into Q&A recipes; those covered
+budget rewriting random corpus fragments into Q&A documents; those covered
 topics unrelated to what users actually ask, gave no lift and mildly displaced
 real documentation. What DID move metrics (both manually in exp12 and in the
 generated runs) were behavioural INSTRUCTIONS. So the method now generates

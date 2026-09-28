@@ -13,7 +13,7 @@ def _now() -> str:
     return datetime.now(timezone.utc).isoformat(timespec="seconds")
 
 
-def write_manifest(run_dir: str, kind: str, recipe_root: str, **extra) -> dict:
+def write_manifest(run_dir: str, kind: str, component_root: str, **extra) -> dict:
     """Start the manifest; the shell script passes stand details through env."""
     manifest = {
         "kind": kind,
@@ -22,7 +22,7 @@ def write_manifest(run_dir: str, kind: str, recipe_root: str, **extra) -> dict:
         "status": "running",
         "host": os.environ.get("RUN_HOST", ""),
         "command": os.environ.get("RUN_COMMAND", ""),
-        "recipe_root": recipe_root,
+        "component_root": component_root,
         "eval_root": os.environ.get("EVAL_ROOT", ""),
         "git": {
             "commit": os.environ.get("GIT_COMMIT", ""),

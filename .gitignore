@@ -209,10 +209,10 @@ REPO_OVERVIEW.md
 # ПМИ: отфильтрованные корпуса и SQLite, собранные из JSON-корпусов
 data/filtered/
 **/.sqlite_cache/
-recipe-mipt-eval/.env
-recipe-mipt-eval/config.toml
-recipe-mipt-eval/logs/
-recipe-mipt-eval/dist/
+self-service-filtration_generation-eval/.env
+self-service-filtration_generation-eval/config.toml
+self-service-filtration_generation-eval/logs/
+self-service-filtration_generation-eval/dist/
 
 # коммит, из которого сделана поставка без .git (rsync на узел)
 DEPLOYED_COMMIT

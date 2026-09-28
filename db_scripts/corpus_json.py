@@ -6,9 +6,9 @@
 потерь.
 
     python db_scripts/corpus_json.py to-json data/docs_database_examples.db data/docs_database_examples.json.gz
-    python db_scripts/corpus_json.py to-db data/docs_database_examples.json.gz /tmp/corpus.db
+    python db_scripts/corpus_json.py to-db data/docs_database_examples.json.gz data/corpus_roundtrip.db
     python db_scripts/corpus_json.py validate data/docs_database_examples.json.gz
-    python db_scripts/corpus_json.py compare data/docs_database_examples.db /tmp/corpus.db
+    python db_scripts/corpus_json.py compare data/docs_database_examples.db data/corpus_roundtrip.db
 
 compare сверяет две базы построчно по хешу содержимого каждой таблицы,
 включая sqlite_sequence; код возврата 0 — базы совпадают.

@@ -1,4 +1,4 @@
-"""Where things are: recipe-mipt, config.toml, paths inside a run directory."""
+"""Where things are: the component, config.toml, paths inside a run directory."""
 
 import os
 import sys
@@ -8,10 +8,10 @@ import tomllib
 EXPERIMENTS = ("filtration", "generation")
 
 
-def recipe_root() -> str:
-    root = os.path.abspath(os.environ.get("RECIPE_ROOT") or os.getcwd())
+def component_root() -> str:
+    root = os.path.abspath(os.environ.get("COMPONENT_ROOT") or os.getcwd())
     if not os.path.isfile(os.path.join(root, "run_ds1000.py")):
-        raise SystemExit(f"не найден recipe-mipt: {root} (задайте RECIPE_ROOT)")
+        raise SystemExit(f"не найден компонент: {root} (задайте COMPONENT_ROOT)")
     if root not in sys.path:
         sys.path.insert(0, root)
     return root
@@ -23,7 +23,7 @@ def load_config(path: str) -> dict:
 
 
 def repo_path(root: str, path: str) -> str:
-    """Absolute path; relative paths are taken from the recipe-mipt root."""
+    """Absolute path; relative paths are taken from the component root."""
     return path if os.path.isabs(path) else os.path.join(root, path)
 
 

@@ -8,10 +8,11 @@ Usage: scripts/init-filter-gen.sh
 Подготовка окружения испытаний компонента фильтрации и генерации (pk3):
   1) образ asllm на узле (если его нет — docker pull);
   2) venv поверх образа с недостающими пакетами и проверка импорта всей
-     цепочки пайплайна (recipe-mipt/scripts/setup_runner_env.sh, check_env.py);
+     цепочки пайплайна (scripts/setup_runner_env.sh и scripts/check_env.py
+     компонента); venv — в рабочем каталоге (VENV в .env);
   3) модули испытаний: filter_corpus.py, generate_rules.py, filter_gen_eval;
-  4) модель BM25 для разреженных векторов qdrant — в кеш fastembed
-     (загружается один раз из хаба HF_ENDPOINT);
+  4) модель BM25 для разреженных векторов qdrant — в кеш fastembed в рабочем
+     каталоге (загружается один раз из хаба HF_ENDPOINT);
   5) проверка JSON-корпуса data/docs_database_examples.json.gz.
 
 Модели для этого шага не нужны. Повторный запуск безопасен.
@@ -30,10 +31,11 @@ source "$(dirname -- "${BASH_SOURCE[0]}")/common.sh"
 load_settings
 RUN_COMMAND="$0 $*"
 
+require_in_workdir "$COMPONENT_ROOT" "$EVAL_ROOT" "$(dirname -- "$VENV")" "$FASTEMBED_CACHE_PATH"
 mkdir -p "$(dirname -- "$VENV")" "$FASTEMBED_CACHE_PATH"
-require_under_home "$RECIPE_ROOT" "$EVAL_ROOT" "$(dirname -- "$VENV")" "$FASTEMBED_CACHE_PATH"
 
-log "recipe-mipt: $RECIPE_ROOT"
+log "рабочий каталог: $WORK_ROOT"
+log "компонент: $COMPONENT_ROOT"
 log "образ: $IMG_ASLLM"
 if ! docker image inspect "$IMG_ASLLM" >/dev/null 2>&1; then
   log "образа нет на узле — загружаю"
@@ -41,7 +43,7 @@ if ! docker image inspect "$IMG_ASLLM" >/dev/null 2>&1; then
 fi
 
 log "venv: $VENV"
-VENV="$VENV" IMG_ASLLM="$IMG_ASLLM" bash "$RECIPE_ROOT/scripts/setup_runner_env.sh"
+VENV="$VENV" IMG_ASLLM="$IMG_ASLLM" MOUNT_ROOT="$WORK_ROOT" bash "$COMPONENT_ROOT/scripts/setup_runner_env.sh"
 
 log "модули испытаний"
 container_python init-modules -c \

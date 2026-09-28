@@ -1,11 +1,11 @@
 # Испытания компонента фильтрации и генерации (pk3)
 
-Набор скриптов и программных модулей для проверки компонента из соседнего
-каталога `recipe-mipt`: метода фильтрации текстовых данных (`ApiReferenceGenreFilter`)
-и метода генерации правил для системного промпта решателя (`PromptRuleGenerator`).
-Стенд — кластер alibaba, узел `ali117197`: весь питон исполняется в контейнере с
-образом `asllm` (команды `docker` на узле обслуживает podman), модели поднимаются
-заданиями slurm.
+Набор скриптов и программных модулей для проверки компонента
+`services/components/filtration_generation`: метода фильтрации текстовых данных
+(`ApiReferenceGenreFilter`) и метода генерации правил для системного промпта
+решателя (`PromptRuleGenerator`). Стенд — кластер alibaba, узел `ali117197`:
+весь питон исполняется в контейнере с образом `asllm` (команды `docker` на узле
+обслуживает podman), модели поднимаются заданиями slurm.
 
 ## Что проверяется и чем
 
@@ -15,44 +15,51 @@
 | `scripts/launch-test-models.sh` | поднимает Qwen3.6-35B-A3B (7217) и Qwen3-Embedding-4B (7216), ждёт готовности | — |
 | `scripts/run-filtration.sh` | **отдельный запуск фильтрации**: JSON-корпус → отфильтрованный JSON-корпус | не нужны |
 | `scripts/run-rules-generation.sh` | **отдельный запуск генерации** правил для системного промпта | 7217 |
+| `scripts/run-filtration-generation.sh` | запуск компонента в составе А2.Pro: отдельная фильтрация, затем отдельная генерация | 7217 |
 | `scripts/run-evaluation.sh --experiment …` | **прогон пайплайна** на DS-1000: бейзлайн и метод, сводка с метриками | 7216, 7217 |
 | `scripts/run-input-contract-test.sh` | встроенные средства проверки вводимой информации (п. 3.5.5.1 ТЗ) | не нужны |
 | `scripts/run-recovery-test.sh` | восстановление после отказа (пп. 3.5.4.2–3.5.4.3 ТЗ) | не нужны |
 | `scripts/cleanup-filter-gen.sh` | остановка контейнеров испытаний и (по флагу) моделей | — |
+| `scripts/clean-workdir.sh` | возврат рабочего каталога к состоянию «только pk3.zip» | — |
 
 Каждый скрипт печатает справку по `--help`.
 
 ## Раскладка
 
 ```text
-pk3.zip
-├── recipe-mipt/                       компонент
-│   ├── src/filtering/api_genre/       метод фильтрации
-│   ├── src/generation/prompt_rules.py метод генерации правил
-│   ├── src/db/json_corpus.py          формат JSON-корпуса и его проверка; JSON -> SQLite
-│   ├── filter_corpus.py               отдельный запуск фильтрации
-│   ├── generate_rules.py              отдельный запуск генерации
-│   ├── run_ds1000.py                  запуск пайплайна на DS-1000
-│   ├── pmi_configs/                   конфиги испытаний (filtration/, generation/)
-│   ├── scripts/                       сервисы моделей (svc-*.sbatch), venv (setup_runner_env.sh)
+self-service-filtration_generation/              рабочий каталог
+├── pk3.zip
+├── services/components/filtration_generation/   компонент
+│   ├── src/filtering/api_genre/                 метод фильтрации
+│   ├── src/generation/prompt_rules.py           метод генерации правил
+│   ├── src/db/json_corpus.py                    формат JSON-корпуса и его проверка; JSON -> SQLite
+│   ├── filter_corpus.py                         отдельный запуск фильтрации
+│   ├── generate_rules.py                        отдельный запуск генерации
+│   ├── run_ds1000.py                            запуск пайплайна на DS-1000
+│   ├── pmi_configs/                             конфиги испытаний (filtration/, generation/)
+│   ├── scripts/                                 сервисы моделей (svc-*.sbatch), venv (setup_runner_env.sh)
+│   ├── db_scripts/corpus_json.py                преобразование и проверка JSON-корпуса
 │   └── data/
-│       ├── docs_database_examples.json.gz   исходный корпус (вся база документов, JSON)
-│       └── ds1000/ds1000.jsonl.gz           тестовый набор DS-1000
-└── recipe-mipt-eval/                  этот каталог
+│       ├── docs_database_examples.json.gz       исходный корпус (вся база документов, JSON)
+│       └── ds1000/ds1000.jsonl.gz               тестовый набор DS-1000
+└── self-service-filtration_generation-eval/     этот каталог
     ├── .env.example, config.example.toml
-    ├── scripts/                       скрипты испытаний
-    ├── src/filter_gen_eval/           модули испытаний (запуски, сводка, проверка ввода)
-    └── tools/make_archive.py          сборка pk3.zip (инструмент разработчика)
+    ├── scripts/                                 скрипты испытаний
+    └── src/filter_gen_eval/                     модули испытаний (запуски, сводка, проверка ввода)
 ```
 
-`recipe-mipt-eval` может лежать и внутри `recipe-mipt` (как в репозитории):
-скрипты находят компонент сами, путь можно задать переменной `RECIPE_ROOT`.
-Оба каталога и venv должны находиться в домашнем каталоге — в контейнер
-монтируется только `$HOME`.
+Всё, что создают скрипты, лежит внутри рабочего каталога: venv (`venv/`), кеш
+модели BM25 (`.cache/fastembed/`), SQLite, собранная из JSON-корпуса
+(`data/.sqlite_cache/` компонента), результаты и векторные индексы
+(`self-service-filtration_generation-eval/results/`), логи заданий моделей
+(`self-service-filtration_generation-eval/logs/`). В контейнер монтируется
+только рабочий каталог. Вне его — только то, что предварительно загружено на
+узел: веса моделей (монтируются только для чтения), образ контейнера в
+реестре узла и slurm.
 
 ## Порядок работы
 
-Все команды — из каталога `recipe-mipt-eval`.
+Все команды — из каталога `self-service-filtration_generation-eval`.
 
 ```bash
 cp config.example.toml config.toml
@@ -65,16 +72,19 @@ cp .env.example .env
 ./scripts/run-recovery-test.sh
 ./scripts/run-evaluation.sh --experiment filtration
 ./scripts/run-evaluation.sh --experiment generation
+./scripts/cleanup-filter-gen.sh --yes
+./scripts/run-filtration-generation.sh
 ./scripts/launch-test-models.sh --stop
 ```
 
 ## Результаты
 
 Каждый запуск создаёт `results/<время UTC>-<вид>/` с `run_manifest.json`
-(команда, коммит recipe-mipt, образ, модели, время).
+(команда, коммит компонента, образ, модели, время).
 
 - `run-filtration.sh` → `filtered.json.gz`, `filtration_report.json`;
 - `run-rules-generation.sh` → `rules.json` (текст блока правил, исходы вызовов, Pусп), `rules_dump.jsonl`;
+- `run-filtration-generation.sh` → оба каталога выше, по очереди;
 - `run-evaluation.sh` → `summary.md` и `summary.json`, `runs/<конфиг>/<время>/`
   (`results.csv`, `runtime_stats.json`, `summary.txt`, `system_prompt_used.txt`,
   `retrieved_chunks.jsonl`), `configs/` — конфиги именно этого прогона;
@@ -117,7 +127,8 @@ RAG, PASS@1 на DS-1000. Каждый эксперимент самодоста
 
 1. Образ перезаписывает переменные окружения своим профилем, поэтому питон в
    контейнере запускается напрямую (`docker run … python`), без логин-шелла;
-   индекс pip задаётся флагом командной строки (см. `recipe-mipt/scripts/setup_runner_env.sh`).
+   индекс pip задаётся флагом командной строки (см. `scripts/setup_runner_env.sh`
+   компонента).
 2. Квота 120 ГБ оперативной памяти на все задания пользователя: сервисы моделей
    просят 88 + 24 ГБ; другие задания пользователя задерживают их в очереди
    (`AssocGrpMemLimit` в `--status`). Решатель фактически занимает около 11 ГБ,
@@ -132,8 +143,8 @@ RAG, PASS@1 на DS-1000. Каждый эксперимент самодоста
    Длинная очередь вытесняема короткой — вытесненное задание стартует заново.
 5. Физическую карту выбрать нельзя — её выдаёт планировщик.
 6. Имя модели в API равно пути к весам: решатель грузит токенайзер по этому имени.
-7. У Qwen3.x рассуждения включены по умолчанию; решатель и генератор правил в
-   конфигах генерации выключают их (`enable_thinking: False`).
+7. У Qwen3.x рассуждения включены по умолчанию; решатель, выбор API и
+   генератор правил в конфигах испытаний выключают их (`enable_thinking: False`).
 8. Каждый прогон пайплайна строит индекс с нуля в своём каталоге: уже
    построенный индекс переиспользуется без пересчёта, и время подготовки базы
    знаний (метрика б) было бы бессмысленным.

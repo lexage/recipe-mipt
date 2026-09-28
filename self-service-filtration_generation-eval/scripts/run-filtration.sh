@@ -11,7 +11,7 @@ JSON-корпус -> отфильтрованный JSON-корпус того �
 По умолчанию (config.toml, [experiments.filtration]):
   метод и параметры — pmi_configs/filtration/f1_api_genre_inline.yaml (document_filter);
   вход              — data/docs_database_examples.json.gz.
-Пути — от корня recipe-mipt.
+Пути — от корня компонента (services/components/filtration_generation).
 
 Результат — каталог results/<время UTC>-filtration/:
   filtered.json.gz         отфильтрованный корпус (подаётся в пайплайн как path_to_db);
@@ -36,7 +36,7 @@ LOG_TAG=filter-gen-eval:filtration
 source "$(dirname -- "${BASH_SOURCE[0]}")/common.sh"
 load_settings
 RUN_COMMAND="$0 ${ARGS[*]:-}"
-require_under_home "$RECIPE_ROOT" "$EVAL_ROOT"
+require_in_workdir "$COMPONENT_ROOT" "$EVAL_ROOT" "$VENV"
 require_venv
 
 RUN_DIR="$(new_run_dir filtration)"

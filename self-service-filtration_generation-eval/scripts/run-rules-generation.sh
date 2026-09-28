@@ -34,7 +34,7 @@ LOG_TAG=filter-gen-eval:generation
 source "$(dirname -- "${BASH_SOURCE[0]}")/common.sh"
 load_settings
 RUN_COMMAND="$0 ${ARGS[*]:-}"
-require_under_home "$RECIPE_ROOT" "$EVAL_ROOT"
+require_in_workdir "$COMPONENT_ROOT" "$EVAL_ROOT" "$VENV"
 require_venv
 require_endpoint "$LLM_PORT" "$LLM_MODEL_DIR"
 

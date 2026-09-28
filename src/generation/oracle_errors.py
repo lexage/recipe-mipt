@@ -1,4 +1,4 @@
-"""Oracle generator (exp17, method 4): write recipes from observed failures.
+"""Oracle generator (exp17, method 4): write documents from observed failures.
 
 This reproduces, inside the pipeline, what the external agent did by hand: read
 the solver's answers next to the reference solutions and write documents that
@@ -14,7 +14,7 @@ publish. Two dossiers make the distinction explicit:
   train-300  evaluated with ``--exclude-split``, so the number means something
 
 Failures are batched by library rather than sent one at a time. Exp16 showed the
-manual pass produced roughly one recipe per observed failure — 140 recipes for
+manual pass produced roughly one document per observed failure — 140 documents for
 140 distinct errors — which is exactly the shape that does not generalise.
 Batching forces the model to look across several failures and name the pattern
 they share, and it is also what keeps the document count near the 200 budget

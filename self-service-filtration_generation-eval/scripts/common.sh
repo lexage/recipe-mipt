@@ -2,15 +2,24 @@
 # Общие функции скриптов испытаний pk3. Подключается через source, сам не
 # запускается.
 #
-# Раскладка каталогов: recipe-mipt-eval лежит либо рядом с recipe-mipt (как в
-# архиве pk3.zip), либо внутри него (как в репозитории). Путь к recipe-mipt
-# можно задать явно переменной RECIPE_ROOT.
+# Рабочий каталог (WORK_ROOT) — каталог, в котором лежит этот каталог
+# испытаний. Раскладка после распаковки pk3.zip:
+#
+#   self-service-filtration_generation/            рабочий каталог
+#   ├── pk3.zip
+#   ├── services/components/filtration_generation/  компонент
+#   └── self-service-filtration_generation-eval/    испытания (этот каталог)
+#
+# В репозитории каталог испытаний лежит в корне компонента; тогда рабочий
+# каталог — корень репозитория. Путь к компоненту можно задать явно
+# переменной COMPONENT_ROOT (внутри рабочего каталога).
 #
 # Весь питон исполняется в контейнере с образом asllm: на узле питон 3.6.
-# В контейнер монтируется домашний каталог, поэтому recipe-mipt,
-# recipe-mipt-eval и venv должны лежать в $HOME.
+# В контейнер монтируется только рабочий каталог (и, только для чтения, веса
+# моделей), поэтому компонент, испытания, venv и кеш должны лежать в нём.
 
 EVAL_ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
+WORK_ROOT="$(cd -- "$EVAL_ROOT/.." && pwd)"
 LOG_TAG="${LOG_TAG:-filter-gen-eval}"
 
 LLM_PORT=7217
@@ -25,18 +34,18 @@ die() {
   exit 1
 }
 
-resolve_recipe_root() {
-  if [[ -n "${RECIPE_ROOT:-}" ]]; then
-    [[ -f "$RECIPE_ROOT/run_ds1000.py" ]] || die "RECIPE_ROOT=$RECIPE_ROOT: нет run_ds1000.py"
-  elif [[ -f "$EVAL_ROOT/../recipe-mipt/run_ds1000.py" ]]; then
-    RECIPE_ROOT="$EVAL_ROOT/../recipe-mipt"
-  elif [[ -f "$EVAL_ROOT/../run_ds1000.py" ]]; then
-    RECIPE_ROOT="$EVAL_ROOT/.."
+resolve_component_root() {
+  if [[ -n "${COMPONENT_ROOT:-}" ]]; then
+    [[ -f "$COMPONENT_ROOT/run_ds1000.py" ]] || die "COMPONENT_ROOT=$COMPONENT_ROOT: нет run_ds1000.py"
+  elif [[ -f "$WORK_ROOT/services/components/filtration_generation/run_ds1000.py" ]]; then
+    COMPONENT_ROOT="$WORK_ROOT/services/components/filtration_generation"
+  elif [[ -f "$WORK_ROOT/run_ds1000.py" ]]; then
+    COMPONENT_ROOT="$WORK_ROOT"
   else
-    die "не найден каталог recipe-mipt (рядом с recipe-mipt-eval или над ним); задайте RECIPE_ROOT"
+    die "не найден компонент: ни $WORK_ROOT/services/components/filtration_generation, ни $WORK_ROOT; задайте COMPONENT_ROOT"
   fi
-  RECIPE_ROOT="$(cd -- "$RECIPE_ROOT" && pwd)"
-  export RECIPE_ROOT
+  COMPONENT_ROOT="$(cd -- "$COMPONENT_ROOT" && pwd)"
+  export COMPONENT_ROOT
 }
 
 # Читает .env и config.toml (создаёт их из примеров, если их нет).
@@ -59,21 +68,24 @@ load_settings() {
   : "${EMBED_API_NAME:?не задан EMBED_API_NAME в .env}"
   : "${VENV:?не задан VENV в .env}"
   HF_ENDPOINT="${HF_ENDPOINT:-https://huggingface.co}"
-  FASTEMBED_CACHE_PATH="${FASTEMBED_CACHE_PATH:-$HOME/.cache/fastembed}"
+  FASTEMBED_CACHE_PATH="${FASTEMBED_CACHE_PATH:-$WORK_ROOT/.cache/fastembed}"
   WORKERS="${WORKERS:-4}"
-  resolve_recipe_root
+  resolve_component_root
   EVAL_CONFIG="$EVAL_ROOT/config.toml"
   git_state
 }
 
-# Все пути, которые монтируются в контейнер, должны быть внутри $HOME.
-require_under_home() {
-  local path real
+# Все пути, с которыми работают скрипты, должны быть внутри рабочего каталога:
+# в контейнер монтируется только он.
+require_in_workdir() {
+  local path real root
+  root="$(readlink -f -- "$WORK_ROOT")"
   for path in "$@"; do
-    real="$(readlink -f -- "$path")"
+    # -m: путь может ещё не существовать (venv и кеш создаются после проверки).
+    real="$(readlink -m -- "$path")"
     case "$real/" in
-      "$HOME"/*) ;;
-      *) die "путь $path вне домашнего каталога: в контейнер монтируется только $HOME" ;;
+      "$root"/*) ;;
+      *) die "путь $path вне рабочего каталога $WORK_ROOT: в контейнер монтируется только он" ;;
     esac
   done
 }
@@ -90,8 +102,7 @@ utc_stamp() {
 
 # Создаёт каталог прогона results/<время UTC>-<вид> и печатает его путь.
 new_run_dir() {
-  local results="${RESULTS_DIR:-$EVAL_ROOT/results}"
-  local dir="$results/$(utc_stamp)-$1"
+  local dir="$EVAL_ROOT/results/$(utc_stamp)-$1"
   mkdir -p "$dir"
   printf '%s\n' "$dir"
 }
@@ -103,11 +114,11 @@ container_python() {
   shift
   local name="${CONTAINER_NAME:-filter-gen-${tag}-$$}"
   docker run --rm --name "$name" --network host --ipc host \
-    -v "$HOME:$HOME" -v "$MODELS_ROOT:$MODELS_ROOT:ro" \
-    -w "$RECIPE_ROOT" \
+    -v "$WORK_ROOT:$WORK_ROOT" -v "$MODELS_ROOT:$MODELS_ROOT:ro" \
+    -w "$COMPONENT_ROOT" \
     -e PYTHONUNBUFFERED=1 \
-    -e PYTHONPATH="$RECIPE_ROOT:$EVAL_ROOT/src" \
-    -e RECIPE_ROOT="$RECIPE_ROOT" -e EVAL_ROOT="$EVAL_ROOT" \
+    -e PYTHONPATH="$COMPONENT_ROOT:$EVAL_ROOT/src" \
+    -e COMPONENT_ROOT="$COMPONENT_ROOT" -e EVAL_ROOT="$EVAL_ROOT" \
     -e HF_ENDPOINT="$HF_ENDPOINT" \
     -e FASTEMBED_CACHE_PATH="$FASTEMBED_CACHE_PATH" \
     -e IMG_ASLLM="$IMG_ASLLM" -e LLM_MODEL_DIR="$LLM_MODEL_DIR" -e EMBED_API_NAME="$EMBED_API_NAME" \
@@ -155,21 +166,21 @@ preflight_models() {
   require_endpoint "$EMBED_PORT" "$EMBED_API_NAME"
 }
 
-# Состояние git каталога recipe-mipt для run_manifest.json.
+# Состояние git компонента для run_manifest.json.
 git_state() {
-  if git -C "$RECIPE_ROOT" rev-parse --git-dir >/dev/null 2>&1; then
-    GIT_COMMIT="$(git -C "$RECIPE_ROOT" rev-parse HEAD)"
-    GIT_BRANCH="$(git -C "$RECIPE_ROOT" rev-parse --abbrev-ref HEAD)"
-    if [[ -n "$(git -C "$RECIPE_ROOT" status --porcelain --untracked-files=no)" ]]; then
+  if git -C "$COMPONENT_ROOT" rev-parse --git-dir >/dev/null 2>&1; then
+    GIT_COMMIT="$(git -C "$COMPONENT_ROOT" rev-parse HEAD)"
+    GIT_BRANCH="$(git -C "$COMPONENT_ROOT" rev-parse --abbrev-ref HEAD)"
+    if [[ -n "$(git -C "$COMPONENT_ROOT" status --porcelain --untracked-files=no)" ]]; then
       GIT_DIRTY=true
     else
       GIT_DIRTY=false
     fi
-  elif [[ -f "$RECIPE_ROOT/DEPLOYED_COMMIT" ]]; then
+  elif [[ -f "$COMPONENT_ROOT/DEPLOYED_COMMIT" ]]; then
     # Поставка без .git (архив pk3.zip или доставка rsync): коммит записан в файл.
-    GIT_COMMIT="$(sed -n 1p "$RECIPE_ROOT/DEPLOYED_COMMIT")"
-    GIT_BRANCH="$(sed -n 2p "$RECIPE_ROOT/DEPLOYED_COMMIT")"
-    GIT_DIRTY="$(sed -n 3p "$RECIPE_ROOT/DEPLOYED_COMMIT")"
+    GIT_COMMIT="$(sed -n 1p "$COMPONENT_ROOT/DEPLOYED_COMMIT")"
+    GIT_BRANCH="$(sed -n 2p "$COMPONENT_ROOT/DEPLOYED_COMMIT")"
+    GIT_DIRTY="$(sed -n 3p "$COMPONENT_ROOT/DEPLOYED_COMMIT")"
     [[ "$GIT_DIRTY" == true ]] || GIT_DIRTY=false
   else
     GIT_COMMIT="неизвестен (нет .git и DEPLOYED_COMMIT)"

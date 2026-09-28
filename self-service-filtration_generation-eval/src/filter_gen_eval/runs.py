@@ -1,9 +1,9 @@
 """The three runs of pk3: standalone filtration, standalone rule generation and
 the pipeline itself (an experiment: baseline + method, or all experiments).
 
-Each run calls the component's own entry point from recipe-mipt as a
-subprocess — ``filter_corpus.py``, ``generate_rules.py``, ``run_ds1000.py`` —
-so what is tested is exactly what the component ships.
+Each run calls the component's own entry point as a subprocess —
+``filter_corpus.py``, ``generate_rules.py``, ``run_ds1000.py`` — so what is
+tested is exactly what the component ships.
 """
 
 import json

@@ -8,7 +8,7 @@ Used by ``run_ds1000.py`` to record what actually ran, and by any external promp
 optimizer:
 
     genome = snapshot_prompts(pipeline)      # {key: text}
-    apply_candidate(pipeline, {"generator.recipe_main": new_text})
+    apply_candidate(pipeline, {"generator.chat_system": new_text})
     ...evaluate...
     apply_candidate(pipeline, genome)        # restore
 

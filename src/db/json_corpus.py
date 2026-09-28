@@ -11,7 +11,7 @@ lossless in both directions — every row of ``libraries``, ``sections``,
 ids and timestamps included::
 
     {
-      "format": "recipe-mipt/docs-db",
+      "format": "filtration_generation/docs-db",
       "version": 1,
       "schema": ["CREATE TABLE libraries (...)", ..., "CREATE INDEX ..."],
       "tables": {
@@ -41,7 +41,7 @@ import tempfile
 from typing import Dict, Iterable, List, Optional
 
 
-FORMAT_NAME = "recipe-mipt/docs-db"
+FORMAT_NAME = "filtration_generation/docs-db"
 FORMAT_VERSION = 1
 
 TABLES = ("libraries", "sections", "documents", "examples")

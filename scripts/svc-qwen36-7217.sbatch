@@ -7,7 +7,8 @@
 #SBATCH --time=2-00:00:00
 #SBATCH --requeue
 #SBATCH --open-mode=append
-#SBATCH --output=/home/vizilter/logs/%x-%j.log
+# Лог задания задаёт launch-test-models.sh (--output в logs/models/ каталога
+# испытаний); без него slurm пишет slurm-<id>.out в текущий каталог.
 set -eu
 
 # Солвер и генератор правил финального эксперимента: одна модель, один порт.

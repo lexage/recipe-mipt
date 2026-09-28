@@ -1,19 +1,19 @@
-"""Corpus-grounded how-to recipe generator (exp17, methods 1 and 2).
+"""Corpus-grounded how-to guide generator (exp17, methods 1 and 2).
 
 Rationale, from the exp16 ablation:
 
-  * ``howto_*`` recipes carried +9.10 of the +10.15 total. ``migr_*`` carried
+  * ``howto_*`` guides carried +9.10 of the +10.15 total. ``migr_*`` carried
     -0.20 and ``guide_*`` +2.00 through retrieval — so this generator writes
-    recipes only. Format rules belong in the SOLVER's system prompt, where the
-    same text was worth +5.90 instead of +2.00.
+    how-to guides only. Format rules belong in the SOLVER's system prompt,
+    where the same text was worth +5.90 instead of +2.00.
   * The manual augmentation drew its topics from observed DS-1000 failures,
     which is the leak this generator is built to avoid. Topics come from an API
     census over the corpus instead: whatever the documentation actually talks
     about, weighted by how often it appears.
-  * Retrieval coverage decided everything in exp16 (46.8% of tasks for recipes
-    vs 7.2% for migration notes). Recipes are therefore phrased as questions,
-    matching the shape of an incoming query rather than the shape of reference
-    documentation.
+  * Retrieval coverage decided everything in exp16 (46.8% of tasks for how-to
+    guides vs 7.2% for migration notes). Guides are therefore phrased as
+    questions, matching the shape of an incoming query rather than the shape of
+    reference documentation.
 
 Two methods share this class:
 
@@ -99,15 +99,15 @@ def _code_ok(code: str) -> bool:
     return False
 
 
-class HowtoRecipeGenerator(PromptDiscoverable, Generator):
-    """Write short how-to recipes for the APIs the corpus actually uses.
+class HowtoGuideGenerator(PromptDiscoverable, Generator):
+    """Write short how-to guides for the APIs the corpus actually uses.
 
     Args:
         url: base URL of the OpenAI-compatible endpoint for the GENERATOR model.
         model_name: generator model id (independent of the solver's model).
         path_to_db: corpus sqlite path; the ``examples`` table holds most of the
             code, so the census and the grounding snippets both need it.
-        n_docs: target number of recipes. Keep this equal across methods —
+        n_docs: target number of guides. Keep this equal across methods —
             otherwise a comparison measures corpus size, not method quality.
         min_count: ignore APIs seen fewer than this many times in the census.
         context_docs: 0 selects METHOD 1; a positive value selects METHOD 2 and
@@ -116,8 +116,8 @@ class HowtoRecipeGenerator(PromptDiscoverable, Generator):
         num_workers: parallel generation calls.
         temperature: sampling temperature for the generator.
         limit: cap the number of calls (smoke runs). 0 = no cap.
-        max_doc_chars: drop recipes longer than this (chunker budget).
-        dump_path: append surviving recipes to this jsonl for audit.
+        max_doc_chars: drop guides longer than this (chunker budget).
+        dump_path: append surviving guides to this jsonl for audit.
     """
 
     def __init__(
@@ -137,7 +137,7 @@ class HowtoRecipeGenerator(PromptDiscoverable, Generator):
         enable_thinking: Optional[bool] = None,
         use_system_role: bool = True,
         max_tokens: int = 700,
-        name: str = "howto_recipe_generator",
+        name: str = "howto_guide_generator",
     ):
         super().__init__(name)
         self.client = OpenAI(base_url=url, api_key="vllm")
@@ -290,7 +290,7 @@ class HowtoRecipeGenerator(PromptDiscoverable, Generator):
             )
             snippets = self._snippets.get(token) or []
             if snippets:
-                # METHOD 2: ground the recipe in what the corpus says. The model
+                # METHOD 2: ground the guide in what the corpus says. The model
                 # is told to paraphrase, not to lift — copied prose would just
                 # duplicate documents the index already contains.
                 reference = "\n\n".join(
@@ -348,7 +348,7 @@ class HowtoRecipeGenerator(PromptDiscoverable, Generator):
         self.stats["census_apis"] = len(counts)
         apis = self._select(counts)
         if not apis:
-            logger.warning("HowtoRecipeGenerator: empty API census")
+            logger.warning("HowtoGuideGenerator: empty API census")
             return []
         if self.limit:
             apis = apis[:self.limit]
@@ -359,7 +359,7 @@ class HowtoRecipeGenerator(PromptDiscoverable, Generator):
                         self.name, len(apis))
             self._collect_snippets(corpus, apis)
 
-        logger.info("%s (%s): %d recipe jobs over %d distinct APIs",
+        logger.info("%s (%s): %d guide jobs over %d distinct APIs",
                     self.name, self.method, len(apis), len(counts))
         parsed = self._run_jobs(self._jobs(apis))
         return self._package(parsed, documents)
@@ -383,7 +383,7 @@ class HowtoRecipeGenerator(PromptDiscoverable, Generator):
                         parsed.append(doc)
                 except Exception as exc:  # one bad call must not kill the run
                     self.stats["drop_call_error"] += 1
-                    logger.warning("recipe generation call failed: %s", exc)
+                    logger.warning("guide generation call failed: %s", exc)
         return parsed
 
     def _package(self, parsed, documents: List[Document]) -> List[Document]:

@@ -164,9 +164,9 @@ class ComponentNames(Enum):
     INTENT_BASED_GENERATOR = "src.generation.intent_based.IntentBasedGenerator"
 
     # ===== Generators: experiment 17 — methods derived from the exp16 ablation
-    # Corpus-grounded how-to recipes. context_docs=0 -> method 1 (parametric),
+    # Corpus-grounded how-to guides. context_docs=0 -> method 1 (parametric),
     # context_docs>0 -> method 2 (grounded in retrieved corpus passages).
-    HOWTO_RECIPE_GENERATOR = "src.generation.howto_recipes.HowtoRecipeGenerator"
+    HOWTO_GUIDE_GENERATOR = "src.generation.howto_guides.HowtoGuideGenerator"
     # Method 4: writes from observed DS-1000 failures. Capability probe only —
     # its scores are tuned on the tasks it was shown.
     ORACLE_ERROR_GENERATOR = "src.generation.oracle_errors.OracleErrorGenerator"

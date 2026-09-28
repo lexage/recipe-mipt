@@ -6,7 +6,7 @@ import os
 
 from filter_gen_eval import runs
 from filter_gen_eval.contract import run_contract
-from filter_gen_eval.settings import EXPERIMENTS, load_config, recipe_root
+from filter_gen_eval.settings import EXPERIMENTS, component_root, load_config
 from filter_gen_eval.summary import summarize
 
 
@@ -39,7 +39,7 @@ def main(argv=None) -> int:
     p.add_argument("--experiment", required=True, choices=EXPERIMENTS + ("all",))
 
     args = parser.parse_args(argv)
-    root = recipe_root()
+    root = component_root()
     config = load_config(args.config_toml)
     run_dir = os.path.abspath(args.run_dir)
     os.makedirs(run_dir, exist_ok=True)

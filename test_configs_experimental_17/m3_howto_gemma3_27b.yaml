@@ -48,9 +48,9 @@ components:
       max_chunk_size: 1000
 
   generator:
-    type: HOWTO_RECIPE_GENERATOR
+    type: HOWTO_GUIDE_GENERATOR
     params:
-      name: howto_recipe_generator
+      name: howto_guide_generator
       url: "http://0.0.0.0:7113/v1"          # GEN_URL
       model_name: "google/gemma-3-27b-it"                  # GEN_MODEL
       path_to_db: "data/docs_database_examples.db"

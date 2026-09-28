@@ -24,7 +24,7 @@ DS-1000.
 Три файла кладутся в репозиторий, один патч применяется:
 
 ```
-src/generation/howto_recipes.py     методы 1 и 2
+src/generation/howto_guides.py      методы 1 и 2
 src/generation/oracle_errors.py     метод 4
 db_scripts/set_exp17_ports.py       установка портов
 db_scripts/make_e4_agent_dossier.py обновлён: появился --all

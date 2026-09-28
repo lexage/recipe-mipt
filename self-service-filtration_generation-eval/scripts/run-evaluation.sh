@@ -7,7 +7,7 @@ Usage: scripts/run-evaluation.sh --experiment filtration|generation|all
                                  [--limit N] [--max-docs N] [--workers N] [--no-log-chunks]
                                  [--skip-preflight]
 
-Прогон пайплайна (recipe-mipt/run_ds1000.py, как есть) на наборе DS-1000:
+Прогон пайплайна (run_ds1000.py компонента, как есть) на наборе DS-1000:
 бейзлайн и метод эксперимента подряд, в одном пайплайне. У каждого
 эксперимента свой бейзлайн:
 
@@ -72,7 +72,7 @@ LOG_TAG="filter-gen-eval:evaluation-$EXPERIMENT"
 source "$(dirname -- "${BASH_SOURCE[0]}")/common.sh"
 load_settings
 RUN_COMMAND="$0 --experiment $EXPERIMENT --limit $LIMIT --max-docs $MAX_DOCS"
-require_under_home "$RECIPE_ROOT" "$EVAL_ROOT"
+require_in_workdir "$COMPONENT_ROOT" "$EVAL_ROOT" "$VENV" "$FASTEMBED_CACHE_PATH"
 require_venv
 if (( PREFLIGHT )); then
   preflight_models

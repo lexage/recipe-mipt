@@ -7,9 +7,10 @@ Usage: scripts/launch-test-models.sh [--no-wait | --status | --stop]
 
 Подъём моделей для испытаний pk3 заданиями slurm на узле alibaba:
   Qwen3.6-35B-A3B     порт 7217 — решатель DS-1000, выбор API и генератор правил
-                      (recipe-mipt/scripts/svc-qwen36-7217.sbatch, 1 карта, 88 ГБ ОЗУ);
+                      (scripts/svc-qwen36-7217.sbatch компонента, 1 карта, 88 ГБ ОЗУ);
   Qwen3-Embedding-4B  порт 7216 — эмбеддер
-                      (recipe-mipt/scripts/svc-embed-7216.sbatch, 1 карта, 24 ГБ ОЗУ).
+                      (scripts/svc-embed-7216.sbatch компонента, 1 карта, 24 ГБ ОЗУ).
+Веса моделей загружены на узел заранее (LLM_MODEL_DIR, EMBED_MODEL_DIR в .env).
 
 Если модель уже отвечает на своём порту, она не перезапускается; если задание
 с тем же именем уже стоит в очереди, новое не ставится. Скрипт ждёт, пока оба
@@ -118,7 +119,7 @@ for svc in "${SERVICES[@]}"; do
     mem_args=()
     [[ -n "$mem" ]] && mem_args=(--mem "$mem")
     job="$(sbatch --parsable -p "$MODELS_PARTITION" --time "$MODELS_TIME" "${mem_args[@]}" \
-      --output "$LOG_DIR/%x-%j.log" "$RECIPE_ROOT/scripts/$file")"
+      --output "$LOG_DIR/%x-%j.log" "$COMPONENT_ROOT/scripts/$file")"
     job="${job%%;*}"
     log "$name: поставлено задание $job в очередь $MODELS_PARTITION на $MODELS_TIME${mem:+, память $mem} (лог: $LOG_DIR/$name-$job.log)"
   fi

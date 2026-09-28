@@ -9,10 +9,15 @@
 #   matplotlib, tensorflow-cpu — без них падают задачи этих семейств DS-1000.
 #
 # venv создаётся с --system-site-packages поверх образа: тяжёлое (torch и
-# прочее) берётся из образа, доставленное лежит в доме и переживает перезапуск
-# контейнера.
+# прочее) берётся из образа, доставленное лежит в каталоге на узле и
+# переживает перезапуск контейнера.
 #
 #   bash scripts/setup_runner_env.sh
+#
+# venv по умолчанию — venv/ в корне компонента. В контейнер монтируется только
+# MOUNT_ROOT (по умолчанию корень компонента): и компонент, и venv должны лежать
+# внутри него. Скрипты испытаний передают venv и рабочий каталог испытаний:
+#   VENV=<рабочий каталог>/venv MOUNT_ROOT=<рабочий каталог> bash scripts/setup_runner_env.sh
 #
 # Индекс pip. В образе зашит внутренний индекс, требующий пароля, и задан он в
 # профиле, поэтому переменной окружения его не перебить: логин-шелл
@@ -23,7 +28,8 @@
 set -eu
 
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-VENV="${VENV:-$HOME/work/venv-recipe}"
+VENV="${VENV:-$REPO/venv}"
+MOUNT_ROOT="${MOUNT_ROOT:-$REPO}"
 IMG="${IMG_ASLLM:-10.0.117.197:5000/asllm:1.10.3-pytorch2.10.0-ubuntu24.04-sail2.1.0-cuda13.0-sglang0.5.12-vllm0.20.1-py312}"
 PIP_INDEXES="${PIP_INDEXES:-https://mirrors.aliyun.com/pypi/simple/ https://pypi.org/simple https://pypi.tuna.tsinghua.edu.cn/simple}"
 PACKAGES="${PACKAGES:-qdrant-client chromadb fastembed matplotlib tensorflow-cpu}"
@@ -33,10 +39,18 @@ CONSTRAINTS="${CONSTRAINTS:-scripts/constraints.txt}"
 # Пересобрать venv с нуля: RECREATE=1 bash scripts/setup_runner_env.sh
 RECREATE="${RECREATE:-0}"
 
+MOUNT_ROOT="$(cd "$MOUNT_ROOT" && pwd)"
+for path in "$REPO" "$VENV"; do
+    case "$(readlink -m "$path")/" in
+        "$(readlink -f "$MOUNT_ROOT")"/*) ;;
+        *) echo "путь $path вне $MOUNT_ROOT: в контейнер монтируется только MOUNT_ROOT" >&2; exit 1 ;;
+    esac
+done
+
 mkdir -p "$(dirname "$VENV")"
 
 docker run --rm --network host \
-  -v "$HOME:$HOME" -w "$REPO" \
+  -v "$MOUNT_ROOT:$MOUNT_ROOT" -w "$REPO" \
   -e VENV="$VENV" -e PIP_INDEXES="$PIP_INDEXES" -e PACKAGES="$PACKAGES" -e CONSTRAINTS="$CONSTRAINTS" -e RECREATE="$RECREATE" \
   "$IMG" bash -c '
 set -eu
