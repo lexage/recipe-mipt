@@ -24,7 +24,7 @@ WSL). Доступ только через корпоративный VPN.
 - доставка файлов репозитория rsync-ом из WSL — только отслеживаемые git
   файлы плюс `DEPLOYED_COMMIT` (команда — в `Progress.md`, «Реализация»);
 - долгие прогоны на узле запускать через `setsid nohup … &` с логом в
-  `recipe-mipt-eval/logs/`, чтобы обрыв ssh их не убивал.
+  `self-service-filtration_generation-eval/logs/`, чтобы обрыв ssh их не убивал.
 
 Запрещено:
 
@@ -121,17 +121,18 @@ rsync и ssh живут в WSL: `wsl.exe -d ubuntu -- bash -s <<'EOF' … EOF`.
 
 **Кластер `alibaba`**: узел `ali117197` (Alibaba Cloud Linux 3, 192 ядра,
 ~2 ТБ ОЗУ, 16 карт PPU-ZW810E по 96 ГБ; лаборатории `prims` — 4 карты).
-Репозиторий на узле — `~/work/recipe-mipt` (без `.git`; по плану v3 —
-`~/work/filtration_generation`). Каталог испытаний Konstantin —
-`~/filtration_generation` (по плану v3 — `~/self-service-filtration_generation`,
-до распаковки там только `pk3.zip`). Питон на узле 3.6,
+Репозиторий на узле — `~/work/filtration_generation` (без `.git`; до 28.09 —
+`~/work/recipe-mipt`). Рабочий каталог испытаний —
+`~/self-service-filtration_generation` (до 28.09 — `~/filtration_generation`;
+по ПМИ v3 до распаковки там только `pk3.zip`). Питон на узле 3.6,
 поэтому всё исполняется в контейнерах образа `asllm` (реестр
 `10.0.117.197:5000`); команда `docker` на узле — обёртка podman
 (`podman-docker`), `docker compose` → `podman-compose` 1.0.6. venv поверх
-образа — `~/work/venv-recipe` (по плану v3 — новый, без слова recipe; старый
-не удалять без команды).
+образа — внутри рабочего каталога (`venv/`, создаёт init); старый
+`~/work/venv-recipe` не удалять без команды. В контейнеры монтируется только
+рабочий каталог (и веса моделей только для чтения).
 
-Модели (поднимаем сами, `recipe-mipt-eval/scripts/launch-test-models.sh`):
+Модели (поднимаем сами, `self-service-filtration_generation-eval/scripts/launch-test-models.sh`):
 
 | Роль | Модель | Порт | Задание slurm |
 |---|---|---|---|
@@ -198,11 +199,11 @@ Konstantin прогнал целиком 26.09 (всё ok); теперь — т�
 −26 %.
 
 **Не сработало** (для НТО): генерация документов в базу знаний (exp13–18,
-`howto_recipes` 0.487 против 0.493).
+`howto_guides`, до 28.09 `howto_recipes`, 0.487 против 0.493).
 
 ### ПМИ
 
-- Испытания — через `recipe-mipt-eval` (по образцу ПМИ коллеги по RAG, pk2):
+- Испытания — через `self-service-filtration_generation-eval` (по образцу ПМИ коллеги по RAG, pk2):
   init → launch-test-models → run-filtration / run-rules-generation →
   run-input-contract-test → run-recovery-test → run-evaluation (filtration,
   generation) → summary.md с Pусп и метриками таблицы 2.
@@ -226,8 +227,8 @@ recipe-mipt/
 ├── filter_corpus.py           отдельная фильтрация: JSON-корпус -> JSON-корпус + отчёт
 ├── generate_rules.py          отдельная генерация правил -> rules.json + журнал
 ├── pmi_configs/               конфиги ПМИ: filtration/ (f0, f1, f1_inline), generation/ (g0, g1)
-├── recipe-mipt-eval/          обвязка испытаний pk3 (scripts/, src/filter_gen_eval/, tools/);
-│                              переименовать в self-service-filtration_generation-eval (ПМИ v3)
+├── self-service-filtration_generation-eval/   обвязка испытаний pk3 (scripts/,
+│                              src/filter_gen_eval/, tools/make_archive.py — белый список архива)
 ├── docs/pmi/out, docs/nto/out готовые docx/pdf ПМИ и НТО (не в git); инструментов тут нет
 ├── Progress.md, Progress_archive.md
 ├── final_test_configs/        исходный эксперимент генерации правил (c0–c4)
@@ -274,7 +275,8 @@ recipe-mipt/
 8. `src/db/docs_db/__init__.py` импортирует `LocalDB` (qdrant) — лёгкие модули
    класть вне этого пакета (как `src/db/json_corpus.py`).
 9. Правка файлов WSL через `\\wsl.localhost\…` сбрасывает бит исполнения у
-   скриптов — перед коммитом `chmod +x recipe-mipt-eval/scripts/*.sh`.
+   скриптов — перед коммитом `chmod +x self-service-filtration_generation-eval/scripts/*.sh`
+   (и вернуть +x файлам, у которых он есть в индексе git).
 
 ---
 

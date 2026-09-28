@@ -10,16 +10,23 @@
 
 ## ТЕКУЩИЙ СТАТУС (28.09)
 
-**Этап — ПМИ v3; параллельно НТО (ждём замечаний Konstantin).**
+**Этап — ПМИ v3 (сделано 28.09, ждёт вычитки и прогона Konstantin);
+параллельно НТО (ждём замечаний Konstantin).**
 
 - ПМИ v2 (`docs/pmi/out/ПМИ_фильтрация_и_генерация_v2.docx/pdf`, 31 лист)
   Konstantin прогнал целиком 26.09 (`--experiment all`, ok, «все пороги
   достигнуты») — числа в разделе «Прогон ПМИ Konstantin».
-- **Следующее — ПМИ v3** по плану ниже: тотальное переименование (ни одного
-  `recipe` в ПМИ, архиве и на стенде), новый состав архива (только исходные
-  данные и код; то, что строят скрипты, не кладётся), пути только внутрь
-  рабочего каталога, А2.Pro «как запуск». В начале сессии подтвердить с
-  Konstantin, что веса моделей и образ остаются внешними (п. 3).
+- **ПМИ v3 сделан 28.09** (итоги — раздел «ПМИ v3 — сделано 28.09» ниже):
+  переименование, архив по белому списку, пути только внутрь рабочего
+  каталога, два новых скрипта, документ
+  `docs/pmi/out/ПМИ_фильтрация_и_генерация_v3.docx/pdf` (32 листа).
+  Веса моделей, образ и Slurm — внешние (подтверждено 28.09).
+- **Ждут команды Konstantin (на узле ничего не удалено):** старая раскладка
+  внутри `~/self-service-filtration_generation` (`recipe-mipt/`,
+  `recipe-mipt-eval/` с результатами прогона 26.09, 3.2 ГБ), старый
+  `~/work/filtration_generation/recipe-mipt-eval/` (мои результаты 25.09,
+  2.5 ГБ), `~/work/venv-recipe`, запись-«зомби» podman `svc-qwen36-7217-3055`
+  (задание 3055 снято 24.09, процесса нет, порт не занят).
 - **НТО v2** — `docs/nto/out/НТО_фильтрация_и_генерация_v2.docx/pdf` (30 листов).
   Konstantin собирает замечания — ничего в НТО не править до их получения.
   Генераторы НТО удалены — правки вносить в сам docx (одноразовым скриптом
@@ -29,7 +36,82 @@
   Konstantin: одноразовые инструменты создавать вне репозитория и удалять
   сразу после использования, всегда; в `docs/` не должно быть `.py`.
 
-## ПМИ v3 — план (28.09; согласован, в п. 3 подтвердить внешние веса моделей и образ)
+## ПМИ v3 — сделано 28.09 (МСК ~16:40–19:30)
+
+- Внешние веса моделей, образ и Slurm подтверждены (Konstantin: «оговорено и
+  очевидно»; загрузка pip-пакетов и BM25 из сети при init — как было).
+- Коммит `52f9d78` (код): `git mv recipe-mipt-eval
+  self-service-filtration_generation-eval`; `RECIPE_ROOT` → `COMPONENT_ROOT`
+  (по умолчанию `<рабочий каталог>/services/components/filtration_generation`,
+  запасной — раскладка репозитория), `run_manifest.json`: `component_root`.
+  Рабочий каталог `WORK_ROOT` = каталог над каталогом испытаний; в контейнеры
+  монтируется только он (раньше — весь `$HOME`) и веса моделей `:ro`;
+  `require_in_workdir` вместо `require_under_home`; venv —
+  `$WORK_ROOT/venv`, кеш BM25 — `$WORK_ROOT/.cache/fastembed` (в
+  `.env.example`); `RESULTS_DIR` убран. `setup_runner_env.sh`: venv по
+  умолчанию `$REPO/venv`, монтируется `MOUNT_ROOT` (init передаёт рабочий
+  каталог). sbatch: убран `--output=/home/vizilter/logs/…`.
+- Формат корпуса `filtration_generation/docs-db`; JSON пересобран из
+  `data/docs_database_examples.db` (`to-json`, `validate`, `to-db` +
+  `compare` — identical; от прежнего JSON отличается только полем format),
+  **SHA-256 `fcd3a7bdce0f4e891c6eedca13c9d76223d2b6d2a6b5bfa76c3460835f4d59c8`**
+  (было `990027913dd4…8ddd42`). `tests/test_json_corpus.py` — 6 passed.
+- `howto_recipes.py` → `howto_guides.py` (`HowtoGuideGenerator`,
+  `HOWTO_GUIDE_GENERATOR`, имя `howto_guide_generator`; промпты модели не
+  менялись — слова recipe в них не было); конфиги h1 и exp17 поправлены.
+  План ошибался: в `rag_guides.py` нет `n_recipe_docs`/`_recipe_jobs`/
+  `recipe_*` — они только в устаревшем `test_rag_guide_prompts.py` и
+  конфигах exp13 (параметр молча игнорируется); оба вне архива, не трогал.
+  Докстринги `oracle_errors.py`, `rag_guides.py`, `prompt_registry.py`.
+- `tools/make_archive.py` — белый список (как в плане п. 2) + исключён
+  `src/benchmarks/SWE-bench/` (661 из 919 файлов `src/`, чужой бенчмарк, в
+  пайплайне не используется, импортировать нельзя — дефис в имени). Сборка
+  падает, если пункт списка не найден в HEAD или `recipe` есть в имени файла
+  либо в тексте (кроме двух файлов данных). Архив: 277 файлов компонента + 23
+  испытаний, 13.6 МБ. В тексте корпуса 55 вхождений recipe (документация:
+  «Numerical Recipes», «recipes to common tasks» и т. п.), в DS-1000 — 1: это
+  исходные данные, не менялись.
+- Новые скрипты: `run-filtration-generation.sh` (экспортирует
+  `COMPONENT_ROOT=<рабочий каталог>/services/components/filtration_generation`,
+  затем `run-filtration.sh`, затем `run-rules-generation.sh`; при сбое
+  фильтрации генерация не запускается, код ошибки пробрасывается) и
+  `clean-workdir.sh` (в ПМИ не упоминается; README обвязки — упоминает).
+- Старый архив v2 (`c0b08a0`) сохранён локально как
+  `self-service-filtration_generation-eval/dist/pk3_v2_c0b08a0.zip`.
+- ПМИ v3: разделы 3 (новые пути, «каталог компонента», абзац «архив содержит
+  только исходные данные и код»), 5.1.2 (доступ к сети при init: PyPI-зеркало
+  и Hugging Face Hub; загруженное — в рабочем каталоге), 5.2 (рабочий каталог,
+  монтируется только он), 6 (вступление), 6.2 (cd/unzip/cd, точки запуска
+  каталога компонента, таблица 4), 6.8 по образцу коллег (путь компонента,
+  `./scripts/cleanup-filter-gen.sh --yes`, `./scripts/run-filtration-generation.sh`,
+  `docker ps` — контейнеры моделей Up, отчёты ok; таблица 10 — 5 строк).
+  Перечень сокращений не менял: «A2.Pro» уже есть (латиница — как в
+  приложении В шаблона и у коллег). Приложение Б не трогал. 32 листа.
+  Генератор и рендер восстановлены из `c0b08a0` во временный каталог,
+  удалены после сборки.
+- Узел: `mv ~/filtration_generation ~/self-service-filtration_generation`,
+  `mv ~/work/recipe-mipt ~/work/filtration_generation` (процессов в них не
+  было). Удаление старого содержимого — только по команде Konstantin.
+- **Проверка архива на узле без пайплайна** (28.09, 16:57–17:14 МСК, архив из
+  `52f9d78`, временный `~/tmp-pmi-v3-check/self-service-filtration_generation`,
+  после проверки удалён): init — ok (новый venv 1.6 ГБ и кеш BM25 в рабочем
+  каталоге, check_env без MISSING, «Окружение готово.»); импорт классов всех
+  компонентов 5 конфигов ПМИ и `HOWTO_GUIDE_GENERATOR` — ok;
+  run-input-contract-test — 24/24 passed; run-filtration — ok, 16097 из 18063,
+  −26.65 % символов, Pусп 1.0, обе проверки true, фильтр 1.1 с;
+  run-rules-generation (модель 7217 поднята своим заданием 3850 в prims,
+  только решатель, за ~7 мин; снято после проверки) — ok, 17 правил, Pусп 1.0;
+  run-filtration-generation — код 0, «Фильтрация и генерация правил
+  завершились штатно (код 0).»; clean-workdir без `--yes` — список и
+  предупреждение про 5 каталогов results, с `--yes` — остался только pk3.zip.
+  Вне рабочего каталога не осталось ничего. Замечено: `TMPDIR=~/tmp` в
+  профиле узла, bash 4.4 кладёт туда на миллисекунды временные файлы
+  here-string (`<<<` в common.sh) — после работы `~/tmp` пуст.
+- Замечено при импорте (не менял, было и в v2): в конфигах ПМИ есть ключи,
+  которых нет в классах, — `name` у embedder и chunker, `name` и
+  `context_after_task` у решателя в f0/f1; фабрика их молча игнорирует.
+
+## ПМИ v3 — план (28.09; согласован)
 
 Раскладка на узле:
 
@@ -146,7 +228,8 @@
 
 ## Прогон ПМИ Konstantin (26.09, `--experiment all`)
 
-`~/filtration_generation/recipe-mipt-eval/results/20260926T125644Z-all`,
+`~/filtration_generation/recipe-mipt-eval/results/20260926T125644Z-all`
+(с 28.09 — `~/self-service-filtration_generation/recipe-mipt-eval/results/…`),
 15:56–18:22 МСК, код 0, «все пороги достигнуты», модели Qwen3.6-35B-A3B +
 Qwen3-Embedding-4B, код `c0b08a0`.
 - Фильтрация: PASS@1 0.496 → 0.499 (падение −0.3 п.п.), индекс 681 → 483 с
@@ -348,13 +431,14 @@ c3/c4, новизну, недействительные числа. Новых �
 
 ## Реализация (где что)
 
-Компонент (`recipe-mipt`):
+Компонент (корень репозитория; в архиве — `services/components/filtration_generation`):
 - `src/db/json_corpus.py` — вся БД документов как JSON и обратно без потерь;
   проверка ввода (формат, типы, диапазоны, допустимые символы, ссылки);
   `resolve_sqlite_path`: `LocalDB` принимает `.json`/`.json.gz` как
   `path_to_db` и собирает SQLite в `.sqlite_cache/` рядом (по хешу).
+  Формат — `filtration_generation/docs-db` (до 28.09 — `recipe-mipt/docs-db`).
 - `data/docs_database_examples.json.gz` — корпус (18063 документа, 45867
-  примеров, 12.8 МБ, sha256 `990027913dd4…8ddd42`).
+  примеров, 12.8 МБ, sha256 `fcd3a7bdce0f…35f4d59c8` с 28.09).
 - `db_scripts/corpus_json.py` — to-json / to-db / validate / compare.
 - `filter_corpus.py` — отдельная фильтрация (метод и параметры из
   `components.document_filter` конфига), отчёт с Pусп и проверками.
@@ -372,37 +456,38 @@ c3/c4, новизну, недействительные числа. Новых �
   `EMBED_EXTRA_ARGS` (необязательные).
 - `tests/test_json_corpus.py`.
 
-Обвязка испытаний (`recipe-mipt/recipe-mipt-eval`, в архиве — рядом с
-recipe-mipt): `.env.example`, `config.example.toml` (эксперименты, пороги),
-`scripts/`: `init-filter-gen.sh`, `launch-test-models.sh` (`--status`,
-`--stop`, `LLM_MEM`/`EMBED_MEM`), `run-filtration.sh`,
-`run-rules-generation.sh`, `run-evaluation.sh --experiment
-filtration|generation`, `run-input-contract-test.sh`, `run-recovery-test.sh`,
-`cleanup-filter-gen.sh`, `make-pk3-archive.sh` (`run-evaluation.sh
---experiment all` — оба эксперимента одним запуском, с 26.09); пакет `src/filter_gen_eval`
-(запуски, `summary.md/json`, случаи проверки ввода), `tools/make_archive.py`.
-Каждый запуск — `results/<UTC>-<вид>/` с `run_manifest.json`.
+Обвязка испытаний (`self-service-filtration_generation-eval` в корне
+репозитория; в архиве — рядом с `services/`): `.env.example`,
+`config.example.toml` (эксперименты, пороги), `scripts/`: `common.sh`
+(`WORK_ROOT`, `COMPONENT_ROOT`, `require_in_workdir`), `init-filter-gen.sh`,
+`launch-test-models.sh` (`--status`, `--stop`, `LLM_MEM`/`EMBED_MEM`),
+`run-filtration.sh`, `run-rules-generation.sh`,
+`run-filtration-generation.sh` (А2.Pro), `run-evaluation.sh --experiment
+filtration|generation|all`, `run-input-contract-test.sh`,
+`run-recovery-test.sh`, `cleanup-filter-gen.sh`, `clean-workdir.sh`,
+`make-pk3-archive.sh` (не в архиве); пакет `src/filter_gen_eval` (запуски,
+`summary.md/json`, случаи проверки ввода), `tools/make_archive.py` (белый
+список архива, не в архиве). Каждый запуск — `results/<UTC>-<вид>/` с
+`run_manifest.json`.
 
-ПМИ: `docs/pmi/build_pmi_v2.py` (содержание ПМИ v2 — в этом скрипте; шаблон
-оформления — v1 docx), `docs/pmi/render.ps1` (Word: оглавление, число
-листов, PDF), результат — `docs/pmi/out/` (в git не входит).
+ПМИ: генератора и рендера в репозитории нет (одноразовые инструменты);
+последняя версия генератора — ПМИ v3 (восстанавливался из
+`c0b08a0:docs/pmi/build_pmi_v2.py` и дорабатывался во временном каталоге,
+удалён). Результат — `docs/pmi/out/` (в git не входит).
 
-Доставка на узел (из WSL, в корне репозитория):
+Доставка на узел (из WSL, в корне репозитория; у ssh в heredoc — `-n`):
 
     git rev-parse HEAD > DEPLOYED_COMMIT; git rev-parse --abbrev-ref HEAD >> DEPLOYED_COMMIT; echo false >> DEPLOYED_COMMIT
     { git ls-files | grep -vxF '.env'; echo DEPLOYED_COMMIT; } > /tmp/deploy_files.txt
-    rsync -az --files-from=/tmp/deploy_files.txt ./ alibaba:work/recipe-mipt/
+    rsync -az --files-from=/tmp/deploy_files.txt ./ alibaba:work/filtration_generation/
 
-Последний доставленный rsync-ом коммит (в `~/work/recipe-mipt`) — `aa30ac3`.
+Последний доставленный rsync-ом коммит (в `~/work/filtration_generation`,
+до 28.09 — `~/work/recipe-mipt`) — `aa30ac3`.
 
-**Архив для испытаний:** `~/filtration_generation/pk3.zip` на alibaba (вне
-репозитория `~/work/recipe-mipt`). Каталог сначала назывался `~/pk3`;
-26.09 переименован по указанию Konstantin (pk3 — имя архива, каталог так
-называть нельзя). Текущий архив — из коммита `c0b08a0` (26.09 ~14:44 МСК),
-sha256 `fbb5d98c7ab0…3988a2ee931d` (совпало на узле). Не распакован — ПМИ
-по нему прогоняет Konstantin сам. Раскладка «recipe-mipt-eval рядом с
-recipe-mipt» (как в архиве) на узле ещё не запускалась; venv общий,
-`~/work/venv-recipe` (из `.env.example`).
+**Архив для испытаний:** `~/self-service-filtration_generation/pk3.zip` на
+alibaba (до 28.09 — `~/filtration_generation`, ещё раньше `~/pk3`).
+Архив v2 — из коммита `c0b08a0`, sha256 `fbb5d98c7ab0…3988a2ee931d`
+(локальная копия — `dist/pk3_v2_c0b08a0.zip`).
 
 ---
 
@@ -499,6 +584,11 @@ R 0.941, F1 0.968 (в ПМИ не упоминать).
 - Журнал `--log-chunks` не пишет имя запрошенного API.
 - В git давно лежит `.env` в корне с шаблонными значениями; в pk3.zip не идёт.
 - Правка файлов WSL через путь `\\wsl.localhost\…` сбрасывает бит исполнения
-  у скриптов — перед коммитом `chmod +x recipe-mipt-eval/scripts/*.sh`.
+  у скриптов — перед коммитом `chmod +x self-service-filtration_generation-eval/scripts/*.sh`
+  и вернуть +x файлам, у которых он есть в индексе git (`scripts/setup_runner_env.sh` и др.).
+- Команды в WSL подавать через heredoc (`wsl.exe -d ubuntu -- bash -s <<'EOF'`),
+  не через `bash -c "…"`: обратные кавычки там срабатывают как подстановка
+  команды (28.09 так случайно запустился `scripts/setup_runner_env.sh` —
+  упал на `docker run`, ничего не создал). У `ssh` в heredoc — `-n`.
 - Решатель exp7 работает через `api: completions` — на Qwen3.6 отвечает
   (стенд прошёл), качество покажет полный прогон.
