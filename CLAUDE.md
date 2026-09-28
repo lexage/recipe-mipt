@@ -173,8 +173,10 @@ rsync и ssh живут в WSL: `wsl.exe -d ubuntu -- bash -s <<'EOF' … EOF`.
 Konstantin прогнал целиком 26.09 (всё ok); теперь — тотальное переименование
 (`self-service-filtration_generation`, компонент в
 `services/components/filtration_generation`, обвязка
-`self-service-filtration_generation-eval`), новый состав архива, А2.Pro «как
-запуск», БД в архиве (открытые вопросы — в начале сессии). Параллельно —
+`self-service-filtration_generation-eval`), новый состав архива (только
+исходные данные и код; то, что строят скрипты — SQLite, индексы, venv, кеш, —
+не кладётся), пути только внутрь рабочего каталога, А2.Pro «как запуск».
+Параллельно —
 **НТО v2** (`docs/nto/out/…_v2.docx`), ждём замечаний Konstantin, до них НТО
 не трогать. План и статус — `Progress.md`.
 
