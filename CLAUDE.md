@@ -129,7 +129,7 @@ rsync и ssh живут в WSL: `wsl.exe -d ubuntu -- bash -s <<'EOF' … EOF`.
 `10.0.117.197:5000`); команда `docker` на узле — обёртка podman
 (`podman-docker`), `docker compose` → `podman-compose` 1.0.6. venv поверх
 образа — внутри рабочего каталога (`venv/`, создаёт init); старый
-`~/work/venv-recipe` не удалять без команды. В контейнеры монтируется только
+`~/work/venv-recipe` удалён 28.09. В контейнеры монтируется только
 рабочий каталог (и веса моделей только для чтения).
 
 Модели (поднимаем сами, `self-service-filtration_generation-eval/scripts/launch-test-models.sh`):

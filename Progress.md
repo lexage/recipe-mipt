@@ -21,13 +21,16 @@
   каталога, два новых скрипта, документ
   `docs/pmi/out/ПМИ_фильтрация_и_генерация_v3.docx/pdf` (32 листа).
   Веса моделей, образ и Slurm — внешние (подтверждено 28.09).
-- **Ждут команды Konstantin (на узле ничего не удалено):** старая раскладка
-  внутри `~/self-service-filtration_generation` (`recipe-mipt/`,
-  `recipe-mipt-eval/` с результатами прогона 26.09, 3.2 ГБ), старый
-  `~/work/filtration_generation/recipe-mipt-eval/` (мои результаты 25.09,
-  2.5 ГБ) и устаревший `~/work/filtration_generation/src/generation/howto_recipes.py`
-  (rsync без `--delete`), `~/work/venv-recipe`, запись-«зомби» podman
-  `svc-qwen36-7217-3055` (задание 3055 снято 24.09, процесса нет, порт не занят).
+- **Удалено 28.09 ~17:20 МСК по команде Konstantin** («те результаты давно не
+  нужны, никуда не переносить»): старая раскладка v2 в
+  `~/self-service-filtration_generation` (`recipe-mipt/`, `recipe-mipt-eval/`
+  с результатами прогона 26.09), `~/work/filtration_generation/recipe-mipt-eval/`
+  (мои результаты 25.09), устаревший `src/generation/howto_recipes.py` в
+  `~/work/filtration_generation`, `~/work/venv-recipe`. Теперь в
+  `~/self-service-filtration_generation` только `pk3.zip`; в этом каталоге и в
+  `~/work/filtration_generation` нет ни одного имени с recipe. Запись-«зомби»
+  podman `svc-qwen36-7217-3055` (задание 3055 снято 24.09, процесса нет, порт
+  не занят) — **не снимать** (Konstantin).
 - **Доставлено 28.09 ~17:17 МСК:** `~/self-service-filtration_generation/pk3.zip`
   — архив из `9c45ed4`, sha256 `48a66b9de59a6a2434266edd0b94bc55ad2ac806ab983d710be30601002f749a`
   (совпало на узле; заменил архив v2 `fbb5d98c…`, его копия —
