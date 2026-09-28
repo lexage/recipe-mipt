@@ -25,8 +25,15 @@
   внутри `~/self-service-filtration_generation` (`recipe-mipt/`,
   `recipe-mipt-eval/` с результатами прогона 26.09, 3.2 ГБ), старый
   `~/work/filtration_generation/recipe-mipt-eval/` (мои результаты 25.09,
-  2.5 ГБ), `~/work/venv-recipe`, запись-«зомби» podman `svc-qwen36-7217-3055`
-  (задание 3055 снято 24.09, процесса нет, порт не занят).
+  2.5 ГБ) и устаревший `~/work/filtration_generation/src/generation/howto_recipes.py`
+  (rsync без `--delete`), `~/work/venv-recipe`, запись-«зомби» podman
+  `svc-qwen36-7217-3055` (задание 3055 снято 24.09, процесса нет, порт не занят).
+- **Доставлено 28.09 ~17:17 МСК:** `~/self-service-filtration_generation/pk3.zip`
+  — архив из `9c45ed4`, sha256 `48a66b9de59a6a2434266edd0b94bc55ad2ac806ab983d710be30601002f749a`
+  (совпало на узле; заменил архив v2 `fbb5d98c…`, его копия —
+  `dist/pk3_v2_c0b08a0.zip`); от проверенного на узле архива (`52f9d78`)
+  отличается только `DEPLOYED_COMMIT` (между коммитами — только заметки).
+  Репозиторий — rsync в `~/work/filtration_generation`, `DEPLOYED_COMMIT` `9c45ed4`.
 - **НТО v2** — `docs/nto/out/НТО_фильтрация_и_генерация_v2.docx/pdf` (30 листов).
   Konstantin собирает замечания — ничего в НТО не править до их получения.
   Генераторы НТО удалены — правки вносить в сам docx (одноразовым скриптом
@@ -67,8 +74,8 @@
   `src/benchmarks/SWE-bench/` (661 из 919 файлов `src/`, чужой бенчмарк, в
   пайплайне не используется, импортировать нельзя — дефис в имени). Сборка
   падает, если пункт списка не найден в HEAD или `recipe` есть в имени файла
-  либо в тексте (кроме двух файлов данных). Архив: 277 файлов компонента + 23
-  испытаний, 13.6 МБ. В тексте корпуса 55 вхождений recipe (документация:
+  либо в тексте (кроме двух файлов данных). Архив: 276 файлов компонента
+  (с `DEPLOYED_COMMIT`) + 23 испытаний, 13.6 МБ. В тексте корпуса 55 вхождений recipe (документация:
   «Numerical Recipes», «recipes to common tasks» и т. п.), в DS-1000 — 1: это
   исходные данные, не менялись.
 - Новые скрипты: `run-filtration-generation.sh` (экспортирует
@@ -482,7 +489,7 @@ filtration|generation|all`, `run-input-contract-test.sh`,
     rsync -az --files-from=/tmp/deploy_files.txt ./ alibaba:work/filtration_generation/
 
 Последний доставленный rsync-ом коммит (в `~/work/filtration_generation`,
-до 28.09 — `~/work/recipe-mipt`) — `aa30ac3`.
+до 28.09 — `~/work/recipe-mipt`) — `9c45ed4` (28.09).
 
 **Архив для испытаний:** `~/self-service-filtration_generation/pk3.zip` на
 alibaba (до 28.09 — `~/filtration_generation`, ещё раньше `~/pk3`).
