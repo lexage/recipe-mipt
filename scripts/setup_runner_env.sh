@@ -25,13 +25,18 @@
 # флагом командной строки — этот приоритет выше, — а логин-шелл в контейнере не
 # используется. Зеркала перебираются по порядку, берётся первое живое.
 # Свой список: PIP_INDEXES="https://.../simple" bash scripts/setup_runner_env.sh
+#
+# Порядок — по скорости для pip с узла alibaba (замер 29.09): pypi.org и
+# tsinghua отдают питоновскому клиенту ~3 МБ/с, CDN зеркала aliyun — 30–40 КБ/с
+# (curl с того же зеркала — 6 МБ/с), на tensorflow-cpu ушло бы больше двух часов.
+# Медленное зеркало не считается «не живым», поэтому aliyun — последним.
 set -eu
 
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 VENV="${VENV:-$REPO/venv}"
 MOUNT_ROOT="${MOUNT_ROOT:-$REPO}"
 IMG="${IMG_ASLLM:-10.0.117.197:5000/asllm:1.10.3-pytorch2.10.0-ubuntu24.04-sail2.1.0-cuda13.0-sglang0.5.12-vllm0.20.1-py312}"
-PIP_INDEXES="${PIP_INDEXES:-https://mirrors.aliyun.com/pypi/simple/ https://pypi.org/simple https://pypi.tuna.tsinghua.edu.cn/simple}"
+PIP_INDEXES="${PIP_INDEXES:-https://pypi.org/simple/ https://pypi.tuna.tsinghua.edu.cn/simple/ https://mirrors.aliyun.com/pypi/simple/}"
 PACKAGES="${PACKAGES:-qdrant-client chromadb fastembed matplotlib tensorflow-cpu}"
 # numpy закреплён на образной версии: под неё собраны sklearn, scipy и
 # tensorflow, а pip иначе тянет numpy 2.x как зависимость и ломает их импорт.
