@@ -34,7 +34,8 @@ class CoRAGRetriever(Retriever):
         super().__init__(name)
 
         vllm_client = VllmClient(
-            model = get_vllm_model_id(url=url),
+            # model = get_vllm_model_id(url=url),
+            model = "Qwen/Qwen2.5-32B-Instruct",
             url = url
         )
 

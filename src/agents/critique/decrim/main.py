@@ -52,12 +52,28 @@ class Decrim(Agent):
     def _create_decompose_prompt(self, question: str) -> str:
         """Build prompt for decomposition step."""
         # TODO: add few-shot examples
+        # decompose_prompt = f"""
+        # You are an assistant whose job is to help me perform tasks.
+        # I will give you a coding instruction that implicitly contains constraints to be followed.
+        # Your task is to list the constraints provided by the user in an enumerated list format.
+        # The constraints should help validate that the instruction will be carried out correctly,
+        # and the resulting code will be correct and follow the syntax of the specified programming language.
+
+        # Original Instruction: {question}
+
+        # Provided Constraints:
+        # """
+
         decompose_prompt = f"""
         You are an assistant whose job is to help me perform tasks.
         I will give you a coding instruction that implicitly contains constraints to be followed.
-        Your task is to list the constraints provided by the user in an enumerated list format.
-        The constraints should help validate that the instruction will be carried out correctly,
-        and the resulting code will be correct and follow the syntax of the specified programming language.
+        Your task is to extract and list the constraints in a STRICT enumerated format.
+
+        FORMAT REQUIREMENTS:
+        - Use ONLY a numbered list where each line starts with a digit followed immediately by a dot and a space (e.g., "1. ", "2. ", "3. ").
+        - Each constraint must be on a separate line.
+        - Do NOT use markdown formatting, parentheses, dashes, Roman numerals, or any other numbering styles.
+        - Output ONLY the list itself, without introductory text, explanations, or concluding remarks.
 
         Original Instruction: {question}
 

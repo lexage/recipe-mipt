@@ -5,13 +5,18 @@ PIPELINES_IMPORT_PATH = "src.pipelines.templates"
 
 
 class PipelinesNames(Enum):
+    BASE = "BasePipeline"
     SIMPLE = "SimplePipeline"
     REWOO = "REWOOPipeline"
     MAPS = "MAPSPipeline"
     REACT = "REACTPipeline"
+    REACT_ADD_CRITIC = "REACTPipelineAddCritic"
     PANEL = "PANELPipeline"
     MARS = "MARSPipeline"
     MARS_CRITIC_UPD = "MARSPipelineCriticUpd"
+    MARS_CRITIC_VERIFIER_UPD = "MARSPipelineCriticVerifierUpd"
+    REWOO_CRITIC_BEFORE_SOLVER = "REWOOPipelineAddCriticBeforeSolver"
+    REWOO_CRITIC_AFTER_SOLVER = "REWOOPipelineAddCriticAfterSolver"
 
 
 class ComponentNames(Enum):
@@ -35,18 +40,24 @@ class ComponentNames(Enum):
     REWOO_SOLVER = "src.agents.pipelines.SolverREWOO"
     REWOO_WORKER = "src.agents.pipelines.WorkerREWOO"
     REWOO_PLANNER = "src.agents.pipelines.PlannerREWOO"
+    REWOO_SOLVER_SGR = "src.agents.pipelines.SolverREWOOSGR"
+    REWOO_WORKER_SGR = "src.agents.pipelines.WorkerREWOOSGR"
+    REWOO_PLANNER_SGR = "src.agents.pipelines.PlannerREWOOSGR"
     MAPS_SOLVER = "src.agents.pipelines.SolverMAPS"
     MAPS_SCHOLAR = "src.agents.pipelines.ScholarMAPS"
     MAPS_ALIGNER = "src.agents.pipelines.AlignerMAPS"
     MAPS_CRITIC = "src.agents.pipelines.CriticMAPS"
     REACT_AGENT = "src.agents.pipelines.ReActAgent"
     REACT_AGENT_SGR = "src.agents.pipelines.ReActAgentSGR"
+    REACT_AGENT_MODIFY = "src.agents.pipelines.ReActAgentModify"
+    REACT_SOLVER = "src.agents.pipelines.SolverReAct"
     PANEL_AGENT = "src.agents.pipelines.PanelAgent"
     MARS_PLANNER = "src.agents.pipelines.PlannerMARS"
     MARS_TEACHER = "src.agents.pipelines.TeacherMARS"
     MARS_CRITIC = "src.agents.pipelines.CriticMARS"
     MARS_STUDENT = "src.agents.pipelines.StudentMARS"
     MARS_CRITIC_UPD = "src.agents.pipelines.CriticMARSUpd"
+    MARS_STUDENT_UPD = "src.agents.pipelines.StudentMARSUpd"
 
 
     # ===== Agents: Planning =====
@@ -119,4 +130,7 @@ class ComponentNames(Enum):
 
     # ===== TOOLS =====
     DB_SEARCH_TOOL = "src.tools.DBSearchTool"
+    DB_SEARCH_TOOL_OLD = "src.tools.DBSearchToolOld"
     LLM_TOOL = "src.tools.LLMTool"
+    CODE_TOOL = "src.tools.PythonReplTool"
+    CRITIC_TOOL = "src.tools.CriticTool"

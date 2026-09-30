@@ -7,20 +7,22 @@ from src.agent_constructor.pipeline import Pipeline
 _LOG_SEPARATOR = f"\n{'_' * 20}\n"
 
 
-class MARSPipeline(Pipeline):
+class MARSPipelineCriticVerifierUpd(Pipeline):
 
     def __init__(
         self,
         planner: Agent,
         teacher: Agent,
         critic: Agent,
+        verifier: Agent,
         student: Agent,
         max_critic_attempts: int = 3,
     ):
-        super().__init__("mars_pipeline")
+        super().__init__("mars_pipeline_critic")
         self.planner = planner
         self.teacher = teacher
         self.critic = critic
+        self.verifier = verifier
         self.student = student
         self.max_critic_attempts = max_critic_attempts
 
@@ -48,7 +50,7 @@ class MARSPipeline(Pipeline):
 
             while not score and attempt < max_attempts:
 
-                if critic_feedback:
+                if attempt > 0 and critic_feedback:
                     questions = self.teacher.run(
                         task, step, final_answer, critic_feedback, mode="regenerate"
                     )
@@ -59,7 +61,7 @@ class MARSPipeline(Pipeline):
                     logging.info(f"QUESTIONS: {questions}")
                     logging.info(_LOG_SEPARATOR)
 
-                critic_response = self.critic.run(questions)
+                critic_response = self.critic.run(task, final_answer, questions)
 
                 logging.info(f"CRITIC: {critic_response}")
                 logging.info(_LOG_SEPARATOR)
@@ -73,8 +75,10 @@ class MARSPipeline(Pipeline):
                 attempt += 1
 
             if questions:
-                final_answer = self.student.run(task, final_answer, questions)
-
+                verifier_feedback = self.verifier.run(task, final_answer)
+                logging.info(f"VERIFIER: {verifier_feedback}")
+                logging.info(_LOG_SEPARATOR)
+                final_answer = self.student.run(task, final_answer, questions, verifier_feedback)
 
                 logging.info(f"FINAL ANSWER ON STEP {idx}: {final_answer}")
                 logging.info(_LOG_SEPARATOR)

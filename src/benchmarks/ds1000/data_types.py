@@ -129,7 +129,7 @@ class ResultsDS1000:
             self.df.to_csv(os.path.join(path, 'results.csv'), index=False)
             
             return path
-            
+        
         except Exception as e:
             print(f"Ошибка при сохранении результатов: {e}")
             return None

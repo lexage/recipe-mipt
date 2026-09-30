@@ -17,13 +17,24 @@ from .react import (
 
 from .react_sgr import (
     ReActAgentSGR,
+    SolverReAct
+)
+
+from .react_modify import (
+    ReActAgentModify
+)
+
+from .rewoo_sgr import (
+    PlannerREWOOSGR,
+    WorkerREWOOSGR,
+    SolverREWOOSGR,
 )
 
 from .panel import (
     PanelAgent,
 )
 
-from .mars import PlannerMARS, TeacherMARS, CriticMARS, CriticMARSUpd, StudentMARS
+from .mars import PlannerMARS, TeacherMARS, CriticMARS, CriticMARSUpd, StudentMARS, StudentMARSUpd
 
 __all__ = [
     "ScholarMAPS",
@@ -33,12 +44,18 @@ __all__ = [
     "PlannerREWOO",
     "WorkerREWOO",
     "SolverREWOO",
+    "PlannerREWOOSGR",
+    "WorkerREWOOSGR",
+    "SolverREWOOSGR",
     "ReActAgent",
     "ReActAgentSGR",
+    "ReActAgentModify",
+    "SolverReAct",
     "PanelAgent",
     "PlannerMARS",
     "TeacherMARS",
     "CriticMARS",
     "CriticMARSUpd",
     "StudentMARS",
+    "StudentMARSUpd"
 ]
