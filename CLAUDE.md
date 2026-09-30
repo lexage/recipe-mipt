@@ -135,7 +135,7 @@ rsync и ssh живут в WSL: `wsl.exe -d ubuntu -- bash -s <<'EOF' … EOF`.
 ~2 ТБ ОЗУ, 16 карт PPU-ZW810E по 96 ГБ; лаборатории `prims` — 4 карты).
 Репозиторий на узле — `~/work/filtration_generation` (без `.git`; до 28.09 —
 `~/work/recipe-mipt`). **Рабочий каталог испытаний по ПМИ v3 (с 30.09) — общий:
-`/bmcp_lvm_fs/data/shared/self-service-filtration_generation`** (до распаковки
+`/bmcp_lvm_fs/scratch/repos/self-service-filtration_generation`** (до распаковки
 там только `pk3.zip`; личного каталога в ПМИ нет). Копия архива лежит и в
 `~/self-service-filtration_generation` (там я гонял ПМИ 29–30.09). Питон на узле 3.6,
 поэтому всё исполняется в контейнерах образа `asllm` (реестр

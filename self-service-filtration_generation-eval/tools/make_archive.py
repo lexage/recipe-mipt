@@ -13,7 +13,7 @@
     └── self-service-filtration_generation-eval/     скрипты и модули испытаний
 
 Архив распаковывается в рабочий каталог испытаний — по ПМИ это общий каталог
-/bmcp_lvm_fs/data/shared/self-service-filtration_generation (до распаковки в
+/bmcp_lvm_fs/scratch/repos/self-service-filtration_generation (до распаковки в
 нём только pk3.zip).
 Сборка прерывается, если какой-то пункт белого списка не нашёлся в HEAD или
 слово recipe встретилось в имени файла либо в тексте кода и документации.

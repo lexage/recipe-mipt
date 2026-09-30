@@ -67,7 +67,30 @@
   Konstantin: одноразовые инструменты создавать вне репозитория и удалять
   сразу после использования, всегда; в `docs/` не должно быть `.py`.
 
-## ПМИ v3: рабочий каталог — общая папка (30.09, решение Konstantin)
+## ПМИ v3: общая папка — `/bmcp_lvm_fs/scratch/repos/…` (30.09, решение Konstantin)
+
+Выбор места. 28.09 я взял `/bmcp_lvm_fs/data/shared` по имени и правам, не
+читая памятку. Памятка пользователя — `~/README.txt`, раскладка —
+`/opt/china-cluster-toolkit/docs/04-storage.md` (`$TOOLKIT/docs`): общие —
+`/bmcp_lvm_fs/cusa/models` (чтение), `/bmcp_lvm_fs/data/{datasets,hf}`
+(датасеты, кеш HF), `/bmcp_lvm_fs/scratch` (`$SCRATCH_ROOT`: `repos` —
+склонированные репозитории, `exps`, `bench`, `venvs`, `hf`; плюс личные
+`scratch/trofimov` 69 ГБ и `scratch/vizilter/oracle_activation` 170 ГБ — чужая
+работа, не трогать). `data/shared` создаётся скриптом администратора, но в
+памятке не описан. Konstantin: «положим в repos».
+
+Сделано 30.09 ~13:40 МСК: архив перенесён (`mv`) в
+`/bmcp_lvm_fs/scratch/repos/self-service-filtration_generation/pk3.zip`
+(каталог `2775 vizilter:cluster`, файл `644`, sha256 `9e43105d…`), пустой
+`data/shared/self-service-filtration_generation` убран (`rmdir`). В ПМИ v3
+(правка docx на месте, 32 листа, инструменты удалены) шесть мест заменены на
+новый путь; первая команда —
+`cd /bmcp_lvm_fs/scratch/repos/self-service-filtration_generation`. Проверено:
+`cd` — код 0, `ls` — только `pk3.zip`, хеш = локальному `dist/pk3.zip`.
+Очистка после прогона (в ПМИ нет):
+`/bmcp_lvm_fs/scratch/repos/self-service-filtration_generation/self-service-filtration_generation-eval/scripts/clean-workdir.sh --yes`.
+
+## ПМИ v3: сначала общая папка была `/bmcp_lvm_fs/data/shared/…` (30.09, заменено — см. выше)
 
 Konstantin 30.09: «в ПМИ только общая папка, личной там не должно быть».
 В `docs/pmi/out/ПМИ_фильтрация_и_генерация_v3.docx/pdf` (правка на месте,
