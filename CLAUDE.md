@@ -134,9 +134,10 @@ rsync и ssh живут в WSL: `wsl.exe -d ubuntu -- bash -s <<'EOF' … EOF`.
 **Кластер `alibaba`**: узел `ali117197` (Alibaba Cloud Linux 3, 192 ядра,
 ~2 ТБ ОЗУ, 16 карт PPU-ZW810E по 96 ГБ; лаборатории `prims` — 4 карты).
 Репозиторий на узле — `~/work/filtration_generation` (без `.git`; до 28.09 —
-`~/work/recipe-mipt`). Рабочий каталог испытаний —
-`~/self-service-filtration_generation` (до 28.09 — `~/filtration_generation`;
-по ПМИ v3 до распаковки там только `pk3.zip`). Питон на узле 3.6,
+`~/work/recipe-mipt`). **Рабочий каталог испытаний по ПМИ v3 (с 30.09) — общий:
+`/bmcp_lvm_fs/data/shared/self-service-filtration_generation`** (до распаковки
+там только `pk3.zip`; личного каталога в ПМИ нет). Копия архива лежит и в
+`~/self-service-filtration_generation` (там я гонял ПМИ 29–30.09). Питон на узле 3.6,
 поэтому всё исполняется в контейнерах образа `asllm` (реестр
 `10.0.117.197:5000`); команда `docker` на узле — обёртка podman
 (`podman-docker`), `docker compose` → `podman-compose` 1.0.6. venv поверх
