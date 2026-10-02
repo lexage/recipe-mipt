@@ -1,0 +1,19 @@
+# Source: exps_react_baseline_24_09/react_baseline.yaml
+type: REACT
+components:
+  tools: []
+  agent:
+    type: REACT_AGENT_NO_SGR
+    params:
+      name: ReActAgentNoSGR
+      url: http://127.0.0.1:11456/v1
+      model_name: Qwen/Qwen2.5-32B-Instruct
+      temperature: 0.7
+      instruction: |
+        Solve the task without tools or retrieval.
+        Return one plain-text step with the labels Thought, Action, and Action Input.
+        Use Thought for your reasoning, set Action to finish, and Action Input to {}.
+      max_iterations: 10
+      history_context: 5
+      few_shot_type: zero_shot
+logs_path: logs/react_no_sgr/baseline

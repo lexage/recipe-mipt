@@ -20,6 +20,8 @@ from .react_sgr import (
     SolverReAct
 )
 
+from .react_no_sgr import ReActAgentNoSGR
+
 from .react_modify import (
     ReActAgentModify
 )
@@ -49,6 +51,7 @@ __all__ = [
     "SolverREWOOSGR",
     "ReActAgent",
     "ReActAgentSGR",
+    "ReActAgentNoSGR",
     "ReActAgentModify",
     "SolverReAct",
     "PanelAgent",

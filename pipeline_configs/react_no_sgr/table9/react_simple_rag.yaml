@@ -1,0 +1,38 @@
+# Source: таблица 9/react_exp_temp_0.7_19_fix_db_search_qwen2_5_simple_semantic_rag/react_exp_temp_0.7_19_fix_db_search_qwen2_5_simple_rag.yaml
+type: REACT
+components:
+  embedder:
+    type: EMBEDDING_AGENT
+    params:
+      name: embedder
+      url: http://172.18.0.1:7216/v1
+      model_name: Qwen/Qwen3-Embedding-4B
+  data_base:
+    type: LOCAL_DB
+    params:
+      path_to_db: /workspace/data/docs_database_examples.db
+      path_to_vector_db: /workspace/data/docs_vector_database_qwen_4b
+      collection_name: docs
+  context_assembler:
+    type: CORAG_CONTEXT_ASSEMBLER
+    params:
+      name: simple_assembler
+  retriever:
+    type: SIMPLE_RETRIEVER
+    params:
+      name: simple_retriever
+  tools:
+  - type: DB_SEARCH_TOOL
+    params:
+      top_k: 5
+  agent:
+    type: REACT_AGENT_NO_SGR
+    params:
+      name: ReActAgentNoSGR
+      url: http://172.18.0.1:7215/v1
+      model_name: Qwen/Qwen2.5-32B-Instruct
+      temperature: 0.7
+      max_iterations: 10
+      history_context: 5
+      few_shot_type: zero_shot
+logs_path: logs/react_no_sgr/table9

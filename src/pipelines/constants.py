@@ -49,6 +49,7 @@ class ComponentNames(Enum):
     MAPS_CRITIC = "src.agents.pipelines.CriticMAPS"
     REACT_AGENT = "src.agents.pipelines.ReActAgent"
     REACT_AGENT_SGR = "src.agents.pipelines.ReActAgentSGR"
+    REACT_AGENT_NO_SGR = "src.agents.pipelines.ReActAgentNoSGR"
     REACT_AGENT_MODIFY = "src.agents.pipelines.ReActAgentModify"
     REACT_SOLVER = "src.agents.pipelines.SolverReAct"
     PANEL_AGENT = "src.agents.pipelines.PanelAgent"
