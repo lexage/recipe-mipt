@@ -130,7 +130,6 @@ venv/
 ENV/
 env.bak/
 venv.bak/
-
 # Spyder project settings
 .spyderproject
 .spyproject
@@ -178,3 +177,4 @@ notebooks/
 venv
 venv/
 data/docs_database.db
+data/docs_database_examples.db
