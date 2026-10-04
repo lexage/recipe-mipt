@@ -10,7 +10,7 @@ components:
   data_base:
     type: LOCAL_DB
     params:
-      path_to_db: /workspace/data/docs_database_examples.db
+      path_to_db: /home/shtraukh/work/recipe-mipt/data/docs_database_examples.db
       path_to_vector_db: /workspace/data/docs_vector_database_qwen_4b
       collection_name: docs
   context_assembler:
