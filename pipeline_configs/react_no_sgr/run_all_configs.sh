@@ -9,15 +9,17 @@ DATASET="${DATASET:-data/ds1000/ds1000.jsonl.gz}"
 SAVE_ROOT="${SAVE_ROOT:-results/react_no_sgr}"
 NUM_WORKERS="${NUM_WORKERS:-1}"
 
+# RAG configs that require the local documentation/Qdrant database are
+# intentionally excluded for now:
+#   react_simple_rag
+#   react_instruct_rag
+#   react_corag
 CONFIG_DIRS=(
   "pipeline_configs/react_no_sgr/baseline"
   "pipeline_configs/react_no_sgr/table9/baseline_llm"
   "pipeline_configs/react_no_sgr/table9/react_code_tool"
   "pipeline_configs/react_no_sgr/table9/react_llm_tool"
   "pipeline_configs/react_no_sgr/table9/react_critic_tool"
-  "pipeline_configs/react_no_sgr/table9/react_simple_rag"
-  "pipeline_configs/react_no_sgr/table9/react_instruct_rag"
-  "pipeline_configs/react_no_sgr/table9/react_corag"
 )
 
 mkdir -p "$SAVE_ROOT"
@@ -40,10 +42,14 @@ for config_dir in "${CONFIG_DIRS[@]}"; do
   echo "Logs: $config_dir/logs"
   echo "================================================================"
 
-  python run_ds1000.py     -c "$config_dir"     -d "$DATASET"     -s "$SAVE_ROOT"     -n "$NUM_WORKERS"
+  python run_ds1000.py \
+    -c "$config_dir" \
+    -d "$DATASET" \
+    -s "$SAVE_ROOT" \
+    -n "$NUM_WORKERS"
 
   echo "Finished: $config_name"
 done
 
 echo
-echo "All ReAct no-SGR configs finished successfully."
+echo "All ReAct no-SGR configs that do not require the local DB finished successfully."
