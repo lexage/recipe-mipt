@@ -5,7 +5,7 @@ components:
     type: DS1000_SOLVER_AGENT
     params:
       name: ds1000_solver
-      url: http://172.18.0.1:7215/v1
+      url: http://127.0.0.1:11458/v1
       model_name: Qwen/Qwen2.5-32B-Instruct
       api: chat
       temperature: 0.7
@@ -14,4 +14,4 @@ components:
       stop_tokens:
       - </code>
       - '# SOLUTION END'
-logs_path: logs/react_no_sgr/table9
+logs_path: pipeline_configs/react_no_sgr/table9/baseline_llm/logs
