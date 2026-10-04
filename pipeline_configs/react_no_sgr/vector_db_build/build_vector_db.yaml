@@ -1,0 +1,43 @@
+# Build the shared Qdrant index used by the ReAct no-SGR RAG configs.
+# This follows the repository's simple_example.yaml construction pattern:
+# RecursiveChunker(max_chunk_size=1000) + LengthFilter(min_len=20).
+type: SIMPLE
+
+params:
+  top_k: 5
+
+components:
+  embedder:
+    type: EMBEDDING_AGENT
+    params:
+      name: embedder
+      url: http://127.0.0.1:11459/v1
+      model_name: Qwen/Qwen3-Embedding-4B
+
+  data_base:
+    type: LOCAL_DB
+    params:
+      path_to_db: /home/shtraukh/work/recipe-mipt/data/docs_database_examples.db
+      path_to_vector_db: /home/shtraukh/work/recipe-mipt/data/docs_vector_database_qwen_4b
+      collection_name: docs
+
+  chunker:
+    type: RECURSIVE_CHUNKER
+    params:
+      name: chunker
+      max_chunk_size: 1000
+
+  filter:
+    type: LENGTH_FILTER
+    params:
+      name: filter
+      min_len: 20
+
+  # SimplePipeline requires an agent, but it is never invoked by the
+  # dedicated build script; database construction happens in __init__.
+  agent:
+    type: DUMMY_AGENT
+    params:
+      name: vector_db_builder
+
+logs_path: pipeline_configs/react_no_sgr/vector_db_build/logs
